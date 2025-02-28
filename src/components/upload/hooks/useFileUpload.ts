@@ -28,15 +28,17 @@ export function useFileUpload() {
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      validateAndSetFile(files[0]);
+      return validateAndSetFile(files[0]);
     }
+    return null;
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      validateAndSetFile(files[0]);
+      return validateAndSetFile(files[0]);
     }
+    return null;
   };
 
   const validateAndSetFile = (selectedFile: File) => {
@@ -70,6 +72,7 @@ export function useFileUpload() {
     handleDrag,
     handleDrop,
     handleFileInput,
-    resetUpload
+    resetUpload,
+    validateAndSetFile
   };
 }

@@ -1,5 +1,5 @@
 
-import React, { useCallback } from "react";
+import React from "react";
 import { useFileUpload } from "./hooks/useFileUpload";
 import { usePdfParser } from "./hooks/usePdfParser";
 import { useMeasurementStorage } from "./hooks/useMeasurementStorage";
@@ -52,7 +52,12 @@ export function PdfUploader() {
           dragActive={dragActive}
           handleDrag={handleDrag}
           handleDrop={handleDrop}
-          handleFileInput={handleFileInput}
+          handleFileInput={(e) => {
+            handleFileInput(e);
+            if (e.target.files && e.target.files.length > 0) {
+              uploadAndProcess(e.target.files[0]);
+            }
+          }}
         />
       ) : (
         <div className="p-8 flex flex-col items-center justify-center">
