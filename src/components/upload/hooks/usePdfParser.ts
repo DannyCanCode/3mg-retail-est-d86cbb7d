@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ParsedMeasurements } from "@/api/measurements";
 import { readFileAsBase64 } from "../pdf-utils";
@@ -26,10 +25,14 @@ export function usePdfParser() {
       
       // Call the edge function to parse the PDF
       try {
+        // Add a timestamp to prevent caching on the Supabase side
+        const timestamp = new Date().getTime();
+        
         const { data, error } = await supabase.functions.invoke('parse-eagleview-pdf', {
           body: { 
             fileName: file.name,
-            pdfBase64: base64File 
+            pdfBase64: base64File,
+            timestamp: timestamp // Add timestamp to prevent caching
           }
         });
         
@@ -50,6 +53,9 @@ export function usePdfParser() {
           setErrorDetails("The parsing service returned invalid data");
           throw new Error("Invalid response data");
         }
+        
+        // Reset parsedData before setting the new data to ensure we don't keep old state
+        setParsedData(null);
         
         // Store the parsed measurements
         setParsedData(data.measurements);

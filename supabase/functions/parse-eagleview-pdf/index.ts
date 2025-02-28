@@ -17,7 +17,9 @@ serve(async (req) => {
   }
 
   try {
-    const { pdfBase64, fileName } = await req.json();
+    const { pdfBase64, fileName, timestamp } = await req.json();
+    
+    console.log(`Processing file: ${fileName} at timestamp ${timestamp}`);
     
     if (!pdfBase64) {
       return new Response(
@@ -30,13 +32,16 @@ serve(async (req) => {
       // We'll process just the text without attempting to send the PDF itself
       const extractedMeasurements = await extractMeasurementsWithOpenAI(fileName, pdfBase64);
       
+      console.log(`Successfully extracted measurements for ${fileName}`);
+      
       // Return the parsed data
       return new Response(
         JSON.stringify({ 
           message: 'PDF parsed successfully',
-          measurements: extractedMeasurements
+          measurements: extractedMeasurements,
+          timestamp: timestamp // Return timestamp to confirm no caching
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store, no-cache' } }
       );
     } catch (openAIError) {
       console.error('Error with OpenAI processing:', openAIError);
@@ -49,7 +54,7 @@ serve(async (req) => {
         }),
         { 
           status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store, no-cache' } 
         }
       );
     }
@@ -57,7 +62,7 @@ serve(async (req) => {
     console.error('Error processing PDF:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store, no-cache' } }
     );
   }
 });
