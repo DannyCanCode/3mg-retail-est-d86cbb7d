@@ -10,6 +10,9 @@ const corsHeaders = {
 // Get OpenAI API key from environment variable
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
+// Maximum size for PDFs in characters (bytes) - we'll set this to be safely under OpenAI's limit
+const MAX_PDF_SIZE = 700000; // Set to around 700KB which should be under OpenAI's limit
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -28,13 +31,25 @@ serve(async (req) => {
       );
     }
 
+    // Check file size before proceeding
+    const fileSize = pdfBase64.length;
+    console.log(`File size (base64 length): ${fileSize} characters`);
+    
+    if (fileSize > MAX_PDF_SIZE) {
+      console.warn(`Warning: PDF is very large (${fileSize} chars). Truncating to ${MAX_PDF_SIZE} chars.`);
+    }
+
     try {
       // Create a unique identifier for this request to help with debugging
       const requestId = crypto.randomUUID();
       console.log(`Starting PDF processing (request ID: ${requestId})`);
       
-      // Process the PDF
-      const extractedMeasurements = await extractMeasurementsWithOpenAI(pdfBase64, fileName, requestId);
+      // Process the PDF - if it's too large, we'll truncate it
+      const truncatedPdfBase64 = fileSize > MAX_PDF_SIZE 
+        ? pdfBase64.substring(0, MAX_PDF_SIZE) 
+        : pdfBase64;
+      
+      const extractedMeasurements = await extractMeasurementsWithOpenAI(truncatedPdfBase64, fileName, requestId, fileSize > MAX_PDF_SIZE);
       
       // Check if the response matches the example values from our prompt
       const isExampleData = 
@@ -67,7 +82,8 @@ serve(async (req) => {
           message: 'PDF parsed successfully',
           measurements: extractedMeasurements,
           timestamp: timestamp,
-          requestId: requestId
+          requestId: requestId,
+          truncated: fileSize > MAX_PDF_SIZE
         }),
         { 
           headers: { 
@@ -86,8 +102,9 @@ serve(async (req) => {
       // Return an error response
       return new Response(
         JSON.stringify({ 
-          error: 'Failed to process PDF with OpenAI. Please try again or contact support.',
-          details: openAIError.message
+          error: 'Failed to process PDF with OpenAI. The file may be too large or in an unsupported format.',
+          details: openAIError.message,
+          fileSize: fileSize
         }),
         { 
           status: 500, 
@@ -108,7 +125,7 @@ serve(async (req) => {
   }
 });
 
-async function extractMeasurementsWithOpenAI(pdfBase64: string, fileName: string, requestId: string) {
+async function extractMeasurementsWithOpenAI(pdfBase64: string, fileName: string, requestId: string, wasTruncated: boolean = false) {
   if (!openAIApiKey) {
     throw new Error('OpenAI API key not configured');
   }
@@ -118,6 +135,11 @@ async function extractMeasurementsWithOpenAI(pdfBase64: string, fileName: string
   // For debugging - check the first few characters of the base64 data
   const base64Preview = pdfBase64.substring(0, 50) + "...";
   console.log(`PDF base64 preview: ${base64Preview}`);
+
+  // Prepare the user message based on whether the PDF was truncated
+  const userMessage = wasTruncated 
+    ? `I'm uploading part of an EagleView PDF named "${fileName}" because it's too large to process in one go. Please try to extract whatever measurements you can find in this portion.` 
+    : `I'm uploading an EagleView PDF named "${fileName}".`;
 
   // Send the request to OpenAI
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -152,7 +174,7 @@ DO NOT return example values! Use only the values found in the PDF data.`
         },
         {
           role: 'user',
-          content: `I'm uploading an EagleView PDF named "${fileName}". 
+          content: `${userMessage} 
           
 Here is the base64 encoded PDF data:
 ${pdfBase64}
