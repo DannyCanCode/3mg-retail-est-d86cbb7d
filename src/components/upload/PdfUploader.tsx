@@ -5,24 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import { saveMeasurement, ParsedMeasurements } from "@/api/measurements";
+import { useNavigate } from "react-router-dom";
 
 type UploadStatus = "idle" | "uploading" | "parsing" | "success" | "error";
 
-interface ParsedMeasurements {
-  totalArea?: number;
-  roofPitch?: string;
-  ridgeLength?: number;
-  valleyLength?: number;
-  hipLength?: number;
-  eaveLength?: number;
-  rakeLength?: number;
-  stepFlashingLength?: number;
-  chimneyCount?: number;
-  skylightCount?: number;
-  ventCount?: number;
-}
-
 export function PdfUploader() {
+  const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [dragActive, setDragActive] = useState<boolean>(false);
@@ -145,29 +134,28 @@ export function PdfUploader() {
     if (!parsedData || !file) return;
 
     try {
-      // Create a new measurement record in the database
-      const response = await fetch('/api/save-measurement', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileName: file.name,
-          uploadDate: new Date().toISOString(),
-          measurements: parsedData
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save measurements');
+      const { data, error } = await saveMeasurement(file.name, parsedData);
+      
+      if (error) {
+        throw error;
       }
 
       toast({
         title: "Measurements saved",
-        description: "Measurements have been saved to your database.",
+        description: "Measurements have been saved to the database.",
       });
-
+      
       // Optionally, redirect to create a new estimate with these measurements
+      if (data) {
+        // Navigate to create estimate page with measurement ID
+        // navigate(`/estimates/new?measurementId=${data.id}`);
+        
+        // For now, just show a success message
+        toast({
+          title: "Success",
+          description: "Your measurements are ready to use in an estimate.",
+        });
+      }
     } catch (error) {
       console.error("Error saving measurements:", error);
       toast({

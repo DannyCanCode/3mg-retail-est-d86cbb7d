@@ -27,27 +27,7 @@ serve(async (req) => {
       );
     }
 
-    // Create a Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Store the PDF file in Supabase Storage (optional)
-    /*
-    const { data: storageData, error: storageError } = await supabase
-      .storage
-      .from('eagleview-pdfs')
-      .upload(`${Date.now()}-${fileName}`, decode(pdfBase64), {
-        contentType: 'application/pdf',
-      });
-
-    if (storageError) {
-      console.error('Error storing PDF:', storageError);
-      // Continue anyway, as we can still try to parse without storing
-    }
-    */
-
-    // Process the PDF with OpenAI
+    // Process the PDF with OpenAI to extract measurements
     const extractedMeasurements = await extractMeasurementsWithOpenAI(pdfBase64);
 
     // Return the parsed data
@@ -95,7 +75,7 @@ async function extractMeasurementsWithOpenAI(pdfBase64: string) {
             content: [
               {
                 type: 'text',
-                text: 'Extract all the measurements from this EagleView roofing report PDF. Return ONLY a JSON object with the measurements.'
+                text: 'Extract all the measurements from this EagleView roofing report PDF. Return ONLY a JSON object with the measurements. The format must be camelCase with keys like totalArea, roofPitch, ridgeLength, etc.'
               },
               {
                 type: 'image_url',
@@ -118,7 +98,19 @@ async function extractMeasurementsWithOpenAI(pdfBase64: string) {
     }
 
     const result = await response.json();
-    const measurementData = JSON.parse(result.choices[0].message.content);
+    const measurementContent = result.choices[0].message.content;
+    
+    // Log the raw response for debugging
+    console.log("OpenAI Response:", measurementContent);
+    
+    // Parse the JSON response
+    let measurementData;
+    try {
+      measurementData = JSON.parse(measurementContent);
+    } catch (parseError) {
+      console.error("Error parsing OpenAI response JSON:", parseError);
+      throw new Error(`Failed to parse OpenAI response: ${parseError.message}`);
+    }
 
     return measurementData;
   } catch (error) {

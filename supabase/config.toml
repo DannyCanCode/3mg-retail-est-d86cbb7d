@@ -1,1 +1,5 @@
+
 project_id = "zdgicsuqfohnufowksgq"
+
+[functions.parse-eagleview-pdf]
+verify_jwt = false
