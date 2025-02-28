@@ -1,0 +1,191 @@
+
+import React, { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Upload, FileText, CheckCircle, AlertCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+
+type UploadStatus = "idle" | "uploading" | "success" | "error";
+
+export function PdfUploader() {
+  const [file, setFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<UploadStatus>("idle");
+  const [dragActive, setDragActive] = useState<boolean>(false);
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+    handleFiles(files);
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      handleFiles(files);
+    }
+  };
+
+  const handleFiles = (files: FileList) => {
+    if (files.length > 0) {
+      const selectedFile = files[0];
+      
+      // Check if it's a PDF
+      if (!selectedFile.type.includes("pdf")) {
+        toast({
+          title: "Invalid file format",
+          description: "Please upload a PDF file.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setFile(selectedFile);
+      simulateUpload(selectedFile);
+    }
+  };
+
+  const simulateUpload = (file: File) => {
+    setStatus("uploading");
+    
+    // Simulate API call with timeout
+    setTimeout(() => {
+      // Random success/failure for demo
+      const success = Math.random() > 0.2; // 80% success rate
+      
+      if (success) {
+        setStatus("success");
+        toast({
+          title: "Upload successful",
+          description: `${file.name} has been processed.`,
+        });
+      } else {
+        setStatus("error");
+        toast({
+          title: "Upload failed",
+          description: "Please try again or contact support.",
+          variant: "destructive",
+        });
+      }
+    }, 2000);
+  };
+
+  const resetUpload = () => {
+    setFile(null);
+    setStatus("idle");
+  };
+
+  return (
+    <Card className="animate-slide-in-up" style={{ animationDelay: "0.3s" }}>
+      <CardHeader>
+        <CardTitle>Upload EagleView PDF</CardTitle>
+        <CardDescription>
+          Drag and drop your EagleView report to generate an estimate
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {status === "idle" ? (
+          <div
+            className={cn(
+              "border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center transition-all",
+              dragActive ? "border-accent bg-accent/5" : "border-border"
+            )}
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <input
+              id="pdf-upload"
+              type="file"
+              accept=".pdf"
+              className="hidden"
+              onChange={handleFileInput}
+            />
+            
+            <div className="p-4 rounded-full bg-secondary mb-4">
+              <Upload className="h-8 w-8 text-accent" />
+            </div>
+            
+            <h3 className="text-lg font-medium mb-1">Upload EagleView PDF</h3>
+            <p className="text-muted-foreground text-sm mb-6 text-center max-w-md">
+              Drag and drop your file here, or click to browse your files
+            </p>
+            
+            <Button 
+              onClick={() => document.getElementById("pdf-upload")?.click()}
+              className="flex items-center"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Browse Files
+            </Button>
+          </div>
+        ) : (
+          <div className="p-8 flex flex-col items-center justify-center">
+            {status === "uploading" && (
+              <>
+                <div className="p-4 rounded-full bg-secondary mb-4 animate-pulse">
+                  <FileText className="h-8 w-8 text-accent" />
+                </div>
+                <h3 className="text-lg font-medium mb-1">Processing {file?.name}</h3>
+                <p className="text-muted-foreground text-sm mb-6 text-center">
+                  Extracting measurements and calculating materials...
+                </p>
+                <div className="w-full max-w-xs bg-secondary rounded-full h-2.5 mb-4">
+                  <div className="bg-accent h-2.5 rounded-full w-2/3 animate-pulse-soft"></div>
+                </div>
+              </>
+            )}
+            
+            {status === "success" && (
+              <>
+                <div className="p-4 rounded-full bg-[#10b981]/10 mb-4">
+                  <CheckCircle className="h-8 w-8 text-[#10b981]" />
+                </div>
+                <h3 className="text-lg font-medium mb-1">Upload Complete</h3>
+                <p className="text-muted-foreground text-sm mb-6 text-center">
+                  {file?.name} has been processed successfully
+                </p>
+                <div className="flex gap-4">
+                  <Button>Create Estimate</Button>
+                  <Button variant="outline" onClick={resetUpload}>
+                    Upload Another
+                  </Button>
+                </div>
+              </>
+            )}
+            
+            {status === "error" && (
+              <>
+                <div className="p-4 rounded-full bg-[#ef4444]/10 mb-4">
+                  <AlertCircle className="h-8 w-8 text-[#ef4444]" />
+                </div>
+                <h3 className="text-lg font-medium mb-1">Upload Failed</h3>
+                <p className="text-muted-foreground text-sm mb-6 text-center">
+                  There was an error processing your file. Please try again.
+                </p>
+                <Button variant="outline" onClick={resetUpload}>
+                  Try Again
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
