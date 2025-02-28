@@ -1,12 +1,15 @@
 
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { saveMeasurement, ParsedMeasurements } from "@/api/measurements";
 import { useNavigate } from "react-router-dom";
+import { readFileAsBase64 } from "./pdf-utils";
+import { DropZone } from "./DropZone";
+import { ProcessingStatus } from "./ProcessingStatus";
+import { SuccessStatus } from "./SuccessStatus";
+import { ErrorStatus } from "./ErrorStatus";
 
 type UploadStatus = "idle" | "uploading" | "parsing" | "success" | "error";
 
@@ -108,22 +111,6 @@ export function PdfUploader() {
     }
   };
 
-  const readFileAsBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64String = reader.result as string;
-        // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
-        const base64Content = base64String.split(',')[1];
-        resolve(base64Content);
-      };
-      reader.onerror = () => {
-        reject(new Error('Failed to read file'));
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
   const resetUpload = () => {
     setFile(null);
     setStatus("idle");
@@ -166,23 +153,6 @@ export function PdfUploader() {
     }
   };
 
-  // Display measurement values in a readable format
-  const renderMeasurementValue = (key: string, value: any) => {
-    if (typeof value === 'undefined' || value === null) return 'N/A';
-    
-    if (key.toLowerCase().includes('length')) {
-      return `${value} ft`;
-    } else if (key === 'totalArea') {
-      return `${value} sq ft`;
-    } else if (key.toLowerCase().includes('count')) {
-      return value;
-    } else if (key === 'roofPitch') {
-      return value;
-    }
-    
-    return value;
-  };
-
   return (
     <Card className="animate-slide-in-up" style={{ animationDelay: "0.3s" }}>
       <CardHeader>
@@ -193,116 +163,32 @@ export function PdfUploader() {
       </CardHeader>
       <CardContent>
         {status === "idle" ? (
-          <div
-            className={cn(
-              "border-2 border-dashed rounded-lg p-12 flex flex-col items-center justify-center transition-all",
-              dragActive ? "border-accent bg-accent/5" : "border-border"
-            )}
-            onDragEnter={handleDrag}
-            onDragLeave={handleDrag}
-            onDragOver={handleDrag}
-            onDrop={handleDrop}
-          >
-            <input
-              id="pdf-upload"
-              type="file"
-              accept=".pdf"
-              className="hidden"
-              onChange={handleFileInput}
-            />
-            
-            <div className="p-4 rounded-full bg-secondary mb-4">
-              <Upload className="h-8 w-8 text-accent" />
-            </div>
-            
-            <h3 className="text-lg font-medium mb-1">Upload EagleView PDF</h3>
-            <p className="text-muted-foreground text-sm mb-6 text-center max-w-md">
-              Drag and drop your file here, or click to browse your files
-            </p>
-            
-            <Button 
-              onClick={() => document.getElementById("pdf-upload")?.click()}
-              className="flex items-center"
-            >
-              <FileText className="mr-2 h-4 w-4" />
-              Browse Files
-            </Button>
-          </div>
+          <DropZone 
+            dragActive={dragActive}
+            handleDrag={handleDrag}
+            handleDrop={handleDrop}
+            handleFileInput={handleFileInput}
+          />
         ) : (
           <div className="p-8 flex flex-col items-center justify-center">
             {(status === "uploading" || status === "parsing") && (
-              <>
-                <div className="p-4 rounded-full bg-secondary mb-4">
-                  {status === "uploading" ? (
-                    <FileText className="h-8 w-8 text-accent animate-pulse" />
-                  ) : (
-                    <Loader2 className="h-8 w-8 text-accent animate-spin" />
-                  )}
-                </div>
-                <h3 className="text-lg font-medium mb-1">
-                  {status === "uploading" ? "Uploading" : "Parsing"} {file?.name}
-                </h3>
-                <p className="text-muted-foreground text-sm mb-6 text-center">
-                  {status === "uploading" 
-                    ? "Uploading your file..." 
-                    : "Extracting measurements with AI..."}
-                </p>
-                <div className="w-full max-w-xs bg-secondary rounded-full h-2.5 mb-4">
-                  <div className="bg-accent h-2.5 rounded-full w-2/3 animate-pulse-soft"></div>
-                </div>
-              </>
+              <ProcessingStatus 
+                status={status} 
+                fileName={file?.name || ""} 
+              />
             )}
             
-            {status === "success" && (
-              <>
-                <div className="p-4 rounded-full bg-[#10b981]/10 mb-4">
-                  <CheckCircle className="h-8 w-8 text-[#10b981]" />
-                </div>
-                <h3 className="text-lg font-medium mb-1">Parsing Complete</h3>
-                <p className="text-muted-foreground text-sm mb-4 text-center">
-                  {file?.name} has been processed successfully
-                </p>
-                
-                {parsedData && (
-                  <div className="w-full max-w-md bg-secondary/50 rounded-lg p-4 mb-6">
-                    <h4 className="font-medium text-sm mb-2">Extracted Measurements:</h4>
-                    <div className="grid grid-cols-2 gap-2">
-                      {Object.entries(parsedData).map(([key, value]) => (
-                        <div key={key} className="text-xs">
-                          <span className="text-muted-foreground capitalize">
-                            {key.replace(/([A-Z])/g, ' $1').trim()}:
-                          </span>{' '}
-                          <span className="font-medium">{renderMeasurementValue(key, value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                <div className="flex gap-4">
-                  <Button onClick={saveToDatabase}>
-                    Save Measurements
-                  </Button>
-                  <Button variant="outline" onClick={resetUpload}>
-                    Upload Another
-                  </Button>
-                </div>
-              </>
+            {status === "success" && parsedData && (
+              <SuccessStatus 
+                fileName={file?.name || ""} 
+                parsedData={parsedData}
+                saveToDatabase={saveToDatabase}
+                resetUpload={resetUpload}
+              />
             )}
             
             {status === "error" && (
-              <>
-                <div className="p-4 rounded-full bg-[#ef4444]/10 mb-4">
-                  <AlertCircle className="h-8 w-8 text-[#ef4444]" />
-                </div>
-                <h3 className="text-lg font-medium mb-1">Processing Failed</h3>
-                <p className="text-muted-foreground text-sm mb-6 text-center">
-                  There was an error processing your file. Please try again.
-                </p>
-                <Button variant="outline" onClick={resetUpload}>
-                  Try Again
-                </Button>
-              </>
+              <ErrorStatus resetUpload={resetUpload} />
             )}
           </div>
         )}
