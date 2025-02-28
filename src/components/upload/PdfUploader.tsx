@@ -22,16 +22,21 @@ export function PdfUploader() {
     resetUpload 
   } = useFileUpload();
 
-  const { parsedData, setParsedData, parsePdf } = usePdfParser();
+  const { parsedData, setParsedData, parsePdf, processingMode } = usePdfParser();
   const { saveToDatabase } = useMeasurementStorage();
 
   const uploadAndProcess = async (selectedFile: File) => {
     if (!selectedFile) return;
     
     try {
+      // Display the processing mode that will be used
+      console.log(`Processing file using ${processingMode} mode`);
+      
       await parsePdf(selectedFile, setStatus, setErrorDetails);
     } catch (error) {
       console.error("Error in upload and process flow:", error);
+      setStatus("error");
+      setErrorDetails(error instanceof Error ? error.message : "Unknown error occurred");
     }
   };
 
@@ -45,19 +50,28 @@ export function PdfUploader() {
     setParsedData(null);
   };
 
+  const handleFileInputWrapper = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFileInput(e);
+    if (e.target.files && e.target.files.length > 0) {
+      uploadAndProcess(e.target.files[0]);
+    }
+  };
+
+  const handleDropWrapper = (e: React.DragEvent) => {
+    const file = handleDrop(e);
+    if (file) {
+      uploadAndProcess(file);
+    }
+  };
+
   return (
     <div className="w-full">
       {status === "idle" ? (
         <DropZone 
           dragActive={dragActive}
           handleDrag={handleDrag}
-          handleDrop={handleDrop}
-          handleFileInput={(e) => {
-            handleFileInput(e);
-            if (e.target.files && e.target.files.length > 0) {
-              uploadAndProcess(e.target.files[0]);
-            }
-          }}
+          handleDrop={handleDropWrapper}
+          handleFileInput={handleFileInputWrapper}
         />
       ) : (
         <div className="p-8 flex flex-col items-center justify-center">
@@ -65,6 +79,7 @@ export function PdfUploader() {
             <ProcessingStatus 
               status={status} 
               fileName={file?.name || ""} 
+              processingMode={processingMode}
             />
           )}
           
