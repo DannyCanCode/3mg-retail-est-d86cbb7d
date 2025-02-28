@@ -4,8 +4,3 @@ project_id = "zdgicsuqfohnufowksgq"
 [functions.parse-eagleview-pdf]
 verify_jwt = false
 import_map = "import_map.json"
-# Set longer timeout for processing large PDFs
-timeout_seconds = 90
-# Allocate more memory for processing
-memory_size = 1536
-
