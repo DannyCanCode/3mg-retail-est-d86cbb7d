@@ -6,6 +6,7 @@ import { RecentEstimates } from "@/components/dashboard/RecentEstimates";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   return (
@@ -18,9 +19,11 @@ const Index = () => {
               Welcome back to 3MG Retail Roofing Estimator
             </p>
           </div>
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            <span>New Estimate</span>
+          <Button asChild>
+            <Link to="/estimates" className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              <span>New Estimate</span>
+            </Link>
           </Button>
         </div>
 

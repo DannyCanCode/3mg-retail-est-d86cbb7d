@@ -1,7 +1,6 @@
 
 import React, { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { saveMeasurement, ParsedMeasurements } from "@/api/measurements";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +19,7 @@ export function PdfUploader() {
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string>("");
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -69,6 +69,7 @@ export function PdfUploader() {
 
   const uploadAndParse = async (file: File) => {
     setStatus("uploading");
+    setErrorDetails("");
     
     try {
       // First, read the file as base64
@@ -84,7 +85,14 @@ export function PdfUploader() {
       });
       
       if (error) {
+        console.error("Supabase function error:", error);
+        setErrorDetails(`Error: ${error.message}`);
         throw error;
+      }
+      
+      if (!data || !data.measurements) {
+        setErrorDetails("The parsing service returned invalid data");
+        throw new Error("Invalid response data");
       }
       
       // Store the parsed measurements
@@ -95,9 +103,12 @@ export function PdfUploader() {
         title: "Parsing successful",
         description: `${file.name} has been processed.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error parsing PDF:", error);
       setStatus("error");
+      if (!errorDetails) {
+        setErrorDetails(error.message || "Unknown error occurred");
+      }
       toast({
         title: "Parsing failed",
         description: "There was an error processing your file. Please try again.",
@@ -110,6 +121,7 @@ export function PdfUploader() {
     setFile(null);
     setStatus("idle");
     setParsedData(null);
+    setErrorDetails("");
   };
 
   const saveToDatabase = async () => {
@@ -127,16 +139,10 @@ export function PdfUploader() {
         description: "Measurements have been saved to the database.",
       });
       
-      // Optionally, redirect to create a new estimate with these measurements
+      // Navigate to create estimate page with measurement ID
       if (data) {
         // Navigate to create estimate page with measurement ID
-        // navigate(`/estimates/new?measurementId=${data.id}`);
-        
-        // For now, just show a success message
-        toast({
-          title: "Success",
-          description: "Your measurements are ready to use in an estimate.",
-        });
+        navigate(`/estimates?measurementId=${data.id}`);
       }
     } catch (error) {
       console.error("Error saving measurements:", error);
@@ -149,45 +155,40 @@ export function PdfUploader() {
   };
 
   return (
-    <Card className="animate-slide-in-up" style={{ animationDelay: "0.3s" }}>
-      <CardHeader>
-        <CardTitle>Upload EagleView PDF</CardTitle>
-        <CardDescription>
-          Drag and drop your EagleView report to generate an estimate
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {status === "idle" ? (
-          <DropZone 
-            dragActive={dragActive}
-            handleDrag={handleDrag}
-            handleDrop={handleDrop}
-            handleFileInput={handleFileInput}
-          />
-        ) : (
-          <div className="p-8 flex flex-col items-center justify-center">
-            {(status === "uploading" || status === "parsing") && (
-              <ProcessingStatus 
-                status={status} 
-                fileName={file?.name || ""} 
-              />
-            )}
-            
-            {status === "success" && parsedData && (
-              <SuccessStatus 
-                fileName={file?.name || ""} 
-                parsedData={parsedData}
-                saveToDatabase={saveToDatabase}
-                resetUpload={resetUpload}
-              />
-            )}
-            
-            {status === "error" && (
-              <ErrorStatus resetUpload={resetUpload} />
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <div className="w-full">
+      {status === "idle" ? (
+        <DropZone 
+          dragActive={dragActive}
+          handleDrag={handleDrag}
+          handleDrop={handleDrop}
+          handleFileInput={handleFileInput}
+        />
+      ) : (
+        <div className="p-8 flex flex-col items-center justify-center">
+          {(status === "uploading" || status === "parsing") && (
+            <ProcessingStatus 
+              status={status} 
+              fileName={file?.name || ""} 
+            />
+          )}
+          
+          {status === "success" && parsedData && (
+            <SuccessStatus 
+              fileName={file?.name || ""} 
+              parsedData={parsedData}
+              saveToDatabase={saveToDatabase}
+              resetUpload={resetUpload}
+            />
+          )}
+          
+          {status === "error" && (
+            <ErrorStatus 
+              resetUpload={resetUpload} 
+              errorDetails={errorDetails}
+            />
+          )}
+        </div>
+      )}
+    </div>
   );
 }
