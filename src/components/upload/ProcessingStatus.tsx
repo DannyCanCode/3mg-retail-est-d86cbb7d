@@ -1,9 +1,10 @@
 
 import React from "react";
 import { FileText, Loader2 } from "lucide-react";
+import { FileUploadStatus } from "./hooks/useFileUpload";
 
 interface ProcessingStatusProps {
-  status: "uploading" | "parsing";
+  status: Extract<FileUploadStatus, "uploading" | "parsing">;
   fileName: string;
 }
 

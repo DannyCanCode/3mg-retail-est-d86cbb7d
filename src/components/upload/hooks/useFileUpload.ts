@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 
-type FileUploadStatus = "idle" | "uploading" | "parsing" | "success" | "error";
+export type FileUploadStatus = "idle" | "uploading" | "parsing" | "success" | "error";
 
 export function useFileUpload() {
   const [file, setFile] = useState<File | null>(null);

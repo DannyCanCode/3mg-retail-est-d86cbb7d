@@ -5,13 +5,16 @@ import { readFileAsBase64 } from "../pdf-utils";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+// Define the FileUploadStatus type to match with useFileUpload
+export type FileUploadStatus = "idle" | "uploading" | "parsing" | "success" | "error";
+
 export function usePdfParser() {
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
 
   const parsePdf = async (
     file: File, 
-    setStatus: (status: string) => void,
-    setErrorDetails: (details: string) => void
+    setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
+    setErrorDetails: React.Dispatch<React.SetStateAction<string>>
   ) => {
     setStatus("uploading");
     setErrorDetails("");

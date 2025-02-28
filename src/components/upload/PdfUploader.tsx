@@ -25,15 +25,6 @@ export function PdfUploader() {
   const { parsedData, setParsedData, parsePdf } = usePdfParser();
   const { saveToDatabase } = useMeasurementStorage();
 
-  const handleFiles = useCallback((files: FileList) => {
-    if (files.length > 0) {
-      const selectedFile = files[0];
-      if (selectedFile.type.includes("pdf")) {
-        uploadAndProcess(selectedFile);
-      }
-    }
-  }, []);
-
   const uploadAndProcess = async (selectedFile: File) => {
     if (!selectedFile) return;
     
