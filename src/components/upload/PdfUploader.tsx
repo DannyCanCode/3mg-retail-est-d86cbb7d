@@ -77,32 +77,46 @@ export function PdfUploader() {
       setStatus("parsing");
       
       // Call the edge function to parse the PDF
-      const { data, error } = await supabase.functions.invoke('parse-eagleview-pdf', {
-        body: { 
-          fileName: file.name,
-          pdfBase64: base64File 
+      try {
+        const { data, error } = await supabase.functions.invoke('parse-eagleview-pdf', {
+          body: { 
+            fileName: file.name,
+            pdfBase64: base64File 
+          }
+        });
+        
+        if (error) {
+          console.error("Supabase function error:", error);
+          setErrorDetails(`Error: ${error.message}`);
+          throw error;
         }
-      });
-      
-      if (error) {
-        console.error("Supabase function error:", error);
-        setErrorDetails(`Error: ${error.message}`);
-        throw error;
+        
+        if (!data || !data.measurements) {
+          setErrorDetails("The parsing service returned invalid data");
+          throw new Error("Invalid response data");
+        }
+        
+        // Store the parsed measurements
+        setParsedData(data.measurements);
+        
+        setStatus("success");
+        toast({
+          title: "Parsing successful",
+          description: `${file.name} has been processed.`,
+        });
+      } catch (functionError: any) {
+        console.error("Edge function error:", functionError);
+        
+        // Check if it's a connection error
+        if (functionError.message && functionError.message.includes("Failed to send a request")) {
+          setErrorDetails("Connection to Edge Function failed. This might be due to a temporary network issue or the function is still being deployed. Please try again in a moment.");
+        } else {
+          setErrorDetails(functionError.message || "Unknown edge function error");
+        }
+        
+        setStatus("error");
+        throw functionError;
       }
-      
-      if (!data || !data.measurements) {
-        setErrorDetails("The parsing service returned invalid data");
-        throw new Error("Invalid response data");
-      }
-      
-      // Store the parsed measurements
-      setParsedData(data.measurements);
-      
-      setStatus("success");
-      toast({
-        title: "Parsing successful",
-        description: `${file.name} has been processed.`,
-      });
     } catch (error: any) {
       console.error("Error parsing PDF:", error);
       setStatus("error");
