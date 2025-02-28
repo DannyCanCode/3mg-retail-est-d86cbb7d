@@ -53,7 +53,7 @@ async function extractMeasurementsWithOpenAI(pdfBase64: string) {
   }
 
   try {
-    // For PDF parsing, we'll use GPT-4 Vision capabilities
+    // For PDF parsing, we'll use GPT-4o capabilities
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {

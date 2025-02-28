@@ -10,6 +10,7 @@ import { DropZone } from "./DropZone";
 import { ProcessingStatus } from "./ProcessingStatus";
 import { SuccessStatus } from "./SuccessStatus";
 import { ErrorStatus } from "./ErrorStatus";
+import { supabase } from "@/integrations/supabase/client";
 
 type UploadStatus = "idle" | "uploading" | "parsing" | "success" | "error";
 
@@ -74,26 +75,20 @@ export function PdfUploader() {
       const base64File = await readFileAsBase64(file);
       setStatus("parsing");
       
-      // Call the parsing function (which will be implemented in an edge function)
-      const response = await fetch('/api/parse-eagleview-pdf', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
+      // Call the edge function to parse the PDF
+      const { data, error } = await supabase.functions.invoke('parse-eagleview-pdf', {
+        body: { 
           fileName: file.name,
           pdfBase64: base64File 
-        }),
+        }
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to parse PDF');
+      if (error) {
+        throw error;
       }
       
-      const result = await response.json();
-      
       // Store the parsed measurements
-      setParsedData(result.measurements);
+      setParsedData(data.measurements);
       
       setStatus("success");
       toast({
