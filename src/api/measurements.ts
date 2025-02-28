@@ -27,6 +27,7 @@ export interface ParsedMeasurements {
   chimneyCount?: number;
   skylightCount?: number;
   ventCount?: number;
+  areasPerPitch?: Record<string, { area: number; percentage: number }>;
 }
 
 export const saveMeasurement = async (
@@ -46,12 +47,13 @@ export const saveMeasurement = async (
         eaves: measurements.eaveLength || 0,
         rakes: measurements.rakeLength || 0,
         step_flashing: measurements.stepFlashingLength || 0,
+        flashing: measurements.flashingLength || 0,
         penetrations: measurements.penetrationsArea || 0,
         penetrations_perimeter: measurements.penetrationsPerimeter || 0,
         // Calculate squares from total area (1 square = 100 sq ft)
         total_squares: measurements.totalArea ? Math.ceil(measurements.totalArea / 100) : 0,
         // Store detailed information as JSON
-        areas_per_pitch: JSON.stringify({ mainPitch: measurements.predominantPitch || measurements.roofPitch }),
+        areas_per_pitch: measurements.areasPerPitch || { mainPitch: measurements.predominantPitch || measurements.roofPitch },
         length_measurements: JSON.stringify({
           ridge: { length: measurements.ridgeLength, count: measurements.ridgeCount },
           valley: { length: measurements.valleyLength, count: measurements.valleyCount },

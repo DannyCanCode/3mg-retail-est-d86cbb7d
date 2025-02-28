@@ -5,9 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronRight, ChevronLeft, Save } from "lucide-react";
+import { ChevronRight, ChevronLeft, Save, Plus, Trash } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { saveMeasurement } from "@/api/measurements";
+
+interface AreaByPitch {
+  pitch: string;
+  area: number;
+  percentage: number;
+}
 
 interface MeasurementValues {
   totalArea: number;
@@ -17,8 +23,10 @@ interface MeasurementValues {
   eaveLength: number;
   rakeLength: number;
   stepFlashingLength: number;
+  flashingLength: number;
   penetrationsArea: number;
   roofPitch: string;
+  areasByPitch: AreaByPitch[];
 }
 
 export function MeasurementForm() {
@@ -34,8 +42,10 @@ export function MeasurementForm() {
     eaveLength: 0,
     rakeLength: 0,
     stepFlashingLength: 0,
+    flashingLength: 0,
     penetrationsArea: 0,
     roofPitch: "6:12",
+    areasByPitch: [{ pitch: "6:12", area: 0, percentage: 100 }]
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,6 +58,65 @@ export function MeasurementForm() {
     }));
   };
 
+  const handleAreaByPitchChange = (index: number, field: keyof AreaByPitch, value: string) => {
+    const newAreas = [...measurements.areasByPitch];
+    
+    if (field === 'pitch') {
+      newAreas[index].pitch = value;
+    } else {
+      // Convert to number for area and percentage
+      const numValue = parseFloat(value) || 0;
+      newAreas[index][field] = numValue;
+      
+      // If updating area, recalculate percentage based on total area
+      if (field === 'area' && measurements.totalArea > 0) {
+        newAreas[index].percentage = Math.round((numValue / measurements.totalArea) * 100);
+      }
+      
+      // If updating percentage, recalculate area based on total area
+      if (field === 'percentage' && measurements.totalArea > 0) {
+        newAreas[index].area = Math.round((numValue / 100) * measurements.totalArea);
+      }
+    }
+    
+    setMeasurements(prev => ({
+      ...prev,
+      areasByPitch: newAreas
+    }));
+  };
+
+  const addPitchArea = () => {
+    if (measurements.areasByPitch.length < 4) {
+      setMeasurements(prev => ({
+        ...prev,
+        areasByPitch: [
+          ...prev.areasByPitch,
+          { pitch: "4:12", area: 0, percentage: 0 }
+        ]
+      }));
+    }
+  };
+
+  const removePitchArea = (index: number) => {
+    if (measurements.areasByPitch.length > 1) {
+      const newAreas = [...measurements.areasByPitch];
+      newAreas.splice(index, 1);
+      
+      // Recalculate percentages
+      const totalAreaSum = newAreas.reduce((sum, area) => sum + area.area, 0);
+      if (totalAreaSum > 0) {
+        newAreas.forEach(area => {
+          area.percentage = Math.round((area.area / totalAreaSum) * 100);
+        });
+      }
+      
+      setMeasurements(prev => ({
+        ...prev,
+        areasByPitch: newAreas
+      }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -56,13 +125,27 @@ export function MeasurementForm() {
       // Calculate the total squares based on the total area
       const totalSquares = Math.ceil(measurements.totalArea / 100);
       
+      // Prepare the areas per pitch data
+      const areasPerPitch: Record<string, { area: number; percentage: number }> = {};
+      measurements.areasByPitch.forEach(({ pitch, area, percentage }) => {
+        areasPerPitch[pitch] = { area, percentage };
+      });
+      
       // Save measurements to the database
       const result = await saveMeasurement(
         `manual-entry-${new Date().toISOString()}`,
         {
-          ...measurements,
-          totalSquares,
+          totalArea: measurements.totalArea,
+          ridgeLength: measurements.ridgeLength,
+          hipLength: measurements.hipLength,
+          valleyLength: measurements.valleyLength,
+          eaveLength: measurements.eaveLength,
+          rakeLength: measurements.rakeLength,
+          stepFlashingLength: measurements.stepFlashingLength,
+          flashingLength: measurements.flashingLength,
+          penetrationsArea: measurements.penetrationsArea,
           predominantPitch: measurements.roofPitch,
+          areasPerPitch: areasPerPitch
         }
       );
       
@@ -103,6 +186,11 @@ export function MeasurementForm() {
       setActiveTab("length-measurements");
     }
   };
+
+  // Calculate if any of the pitches are flat (requires special materials)
+  const hasFlatRoofAreas = measurements.areasByPitch.some(
+    area => ["0:12", "1:12", "2:12"].includes(area.pitch)
+  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -163,6 +251,82 @@ export function MeasurementForm() {
                     Total area of penetrations (vents, skylights, etc.)
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-8 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Areas by Pitch</h3>
+                  {measurements.areasByPitch.length < 4 && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      size="sm"
+                      onClick={addPitchArea}
+                      className="flex items-center gap-1"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Pitch
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-12 gap-2 font-medium text-sm">
+                  <div className="col-span-3">Roof Pitch</div>
+                  <div className="col-span-4">Area (sq ft)</div>
+                  <div className="col-span-4">% of Roof</div>
+                  <div className="col-span-1"></div>
+                </div>
+                
+                {measurements.areasByPitch.map((area, index) => (
+                  <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-3">
+                      <Input
+                        value={area.pitch}
+                        onChange={(e) => handleAreaByPitchChange(index, 'pitch', e.target.value)}
+                        placeholder="e.g., 6:12"
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <Input
+                        type="number"
+                        value={area.area || ""}
+                        onChange={(e) => handleAreaByPitchChange(index, 'area', e.target.value)}
+                        placeholder="Area"
+                      />
+                    </div>
+                    <div className="col-span-4">
+                      <Input
+                        type="number"
+                        value={area.percentage || ""}
+                        onChange={(e) => handleAreaByPitchChange(index, 'percentage', e.target.value)}
+                        placeholder="Percentage"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      {measurements.areasByPitch.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removePitchArea(index)}
+                          className="h-8 w-8"
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {hasFlatRoofAreas && (
+                  <div className="px-4 py-3 bg-yellow-50 border border-yellow-200 rounded-md mt-4">
+                    <p className="text-sm text-amber-700">
+                      <strong>Note:</strong> Flat or low-slope areas (0:12, 1:12, 2:12) will require special base and cap materials instead of shingles.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="px-4 py-3 bg-secondary/30 rounded-md">
@@ -262,6 +426,18 @@ export function MeasurementForm() {
                     placeholder="Enter step flashing length"
                   />
                 </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="flashingLength">Flashing Length (ft)</Label>
+                  <Input
+                    id="flashingLength"
+                    name="flashingLength"
+                    type="number"
+                    value={measurements.flashingLength || ""}
+                    onChange={handleInputChange}
+                    placeholder="Enter flashing length"
+                  />
+                </div>
               </div>
             </CardContent>
             <CardFooter className="flex justify-between">
@@ -308,6 +484,21 @@ export function MeasurementForm() {
                     <div className="text-sm text-muted-foreground">Penetrations Area:</div>
                     <div className="text-sm font-medium">{measurements.penetrationsArea} sq ft</div>
                   </div>
+                  
+                  {measurements.areasByPitch.length > 0 && (
+                    <div className="mt-4">
+                      <h4 className="font-medium text-base mb-2">Areas by Pitch</h4>
+                      <div className="space-y-2">
+                        {measurements.areasByPitch.map((area, index) => (
+                          <div key={index} className="grid grid-cols-3 gap-2">
+                            <div className="text-sm font-medium">{area.pitch}</div>
+                            <div className="text-sm">{area.area} sq ft</div>
+                            <div className="text-sm">{area.percentage}%</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-4">
@@ -330,6 +521,9 @@ export function MeasurementForm() {
                     
                     <div className="text-sm text-muted-foreground">Step Flashing:</div>
                     <div className="text-sm font-medium">{measurements.stepFlashingLength} ft</div>
+                    
+                    <div className="text-sm text-muted-foreground">Flashing:</div>
+                    <div className="text-sm font-medium">{measurements.flashingLength} ft</div>
                   </div>
                 </div>
               </div>
