@@ -1,6 +1,7 @@
 
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { validatePdfFile } from "../pdf-utils";
 
 export type FileUploadStatus = "idle" | "uploading" | "parsing" | "success" | "error";
 
@@ -45,11 +46,11 @@ export function useFileUpload() {
   };
 
   const validateAndSetFile = (selectedFile: File) => {
-    // Check if it's a PDF
-    if (!selectedFile.type.includes("pdf")) {
+    // Check if it's a valid PDF
+    if (!validatePdfFile(selectedFile)) {
       toast({
         title: "Invalid file format",
-        description: "Please upload a PDF file.",
+        description: "Please upload a valid PDF file.",
         variant: "destructive",
       });
       return null;

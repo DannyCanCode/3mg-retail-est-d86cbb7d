@@ -7,8 +7,22 @@ export const readFileAsBase64 = (file: File): Promise<string> => {
     reader.onload = () => {
       if (typeof reader.result === 'string') {
         // Remove the data URL prefix (e.g., "data:application/pdf;base64,")
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
+        const base64String = reader.result.split(',')[1];
+        
+        // Validate that we have a proper base64 string
+        if (!base64String || base64String.trim().length === 0) {
+          reject(new Error('Failed to convert file to valid base64'));
+          return;
+        }
+        
+        // Additional validation that it's a PDF - check for PDF header in base64
+        // PDF signature %PDF- in base64 usually starts with "JVBERi0"
+        if (!base64String.startsWith('JVBERi0')) {
+          console.warn('Warning: Base64 string doesn\'t start with PDF signature');
+          // Continue anyway as some PDFs might be valid but have different headers
+        }
+        
+        resolve(base64String);
       } else {
         reject(new Error('Failed to convert file to base64'));
       }
@@ -58,4 +72,22 @@ export const renderMeasurementValue = (key: string, value: any): string => {
   } else {
     return value.toString();
   }
+};
+
+// Function to validate if a file is a PDF and has the correct format
+export const validatePdfFile = (file: File): boolean => {
+  // Check MIME type
+  if (!file.type.includes('pdf')) {
+    console.error('Invalid file type:', file.type);
+    return false;
+  }
+  
+  // Check file extension
+  const fileExtension = file.name.split('.').pop()?.toLowerCase();
+  if (fileExtension !== 'pdf') {
+    console.error('Invalid file extension:', fileExtension);
+    return false;
+  }
+  
+  return true;
 };

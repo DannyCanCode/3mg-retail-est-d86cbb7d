@@ -7,6 +7,7 @@ import { DropZone } from "./DropZone";
 import { ProcessingStatus } from "./ProcessingStatus";
 import { SuccessStatus } from "./SuccessStatus";
 import { ErrorStatus } from "./ErrorStatus";
+import { toast } from "@/hooks/use-toast";
 
 export function PdfUploader() {
   const { 
@@ -32,11 +33,30 @@ export function PdfUploader() {
       // Display the processing mode that will be used
       console.log(`Processing file using ${processingMode} mode`);
       
-      await parsePdf(selectedFile, setStatus, setErrorDetails);
+      // Clear previous error
+      setErrorDetails("");
+      
+      const result = await parsePdf(selectedFile, setStatus, setErrorDetails);
+      
+      if (!result && status !== "error") {
+        // If no result but no error was set, set a generic error
+        setStatus("error");
+        setErrorDetails("Failed to process the PDF. Please try a different file.");
+        toast({
+          title: "Processing failed",
+          description: "There was an unexpected error processing your file.",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Error in upload and process flow:", error);
       setStatus("error");
       setErrorDetails(error instanceof Error ? error.message : "Unknown error occurred");
+      toast({
+        title: "Processing failed",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
+        variant: "destructive",
+      });
     }
   };
 

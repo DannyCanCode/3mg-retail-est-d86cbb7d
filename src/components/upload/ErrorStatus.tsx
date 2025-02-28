@@ -1,6 +1,6 @@
 
 import React from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ErrorStatusProps {
@@ -10,16 +10,20 @@ interface ErrorStatusProps {
 
 export function ErrorStatus({ resetUpload, errorDetails }: ErrorStatusProps) {
   // Determine if it's a specific known error type
-  const isPdfFormatError = errorDetails?.includes("Invalid PDF format");
+  const isPdfFormatError = errorDetails?.includes("Invalid PDF format") || errorDetails?.includes("Expected base64");
   const isFileTooLargeError = errorDetails?.includes("too large") || errorDetails?.includes("maximum context length");
+  const isEdgeFunctionError = errorDetails?.includes("Edge Function returned a non-2xx status code");
   
   // Generate a troubleshooting tip based on the error
   const getTroubleshootingTip = () => {
     if (isPdfFormatError) {
-      return "Make sure your file is a valid PDF and not corrupted. Try downloading it again from the source.";
+      return "The file might be corrupted or is not in a standard PDF format. Try downloading it again from the source or try a different PDF file.";
     }
     if (isFileTooLargeError) {
-      return "The PDF is too large for processing. Try a smaller file or one with fewer pages.";
+      return "The PDF is too large or complex for processing. Try a smaller file or one with fewer pages. Files under 2MB work best.";
+    }
+    if (isEdgeFunctionError) {
+      return "There was an issue with the server-side processing. This could be temporary - please try again in a few moments.";
     }
     return "Try again with a different PDF file, or try at a later time if the issue persists.";
   };
@@ -51,6 +55,16 @@ export function ErrorStatus({ resetUpload, errorDetails }: ErrorStatusProps) {
           <RefreshCw className="mr-2 h-4 w-4" />
           Try Again
         </Button>
+        <a 
+          href="https://help.eagleview.com/hc/en-us/articles/360035938051-Sample-Roof-Report" 
+          target="_blank" 
+          rel="noopener noreferrer"
+        >
+          <Button variant="ghost" className="flex items-center text-xs">
+            <FileText className="mr-2 h-4 w-4" />
+            Get Sample Report
+          </Button>
+        </a>
       </div>
     </>
   );

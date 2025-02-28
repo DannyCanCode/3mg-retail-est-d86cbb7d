@@ -56,6 +56,7 @@ export function DropZone({ dragActive, handleDrag, handleDrop, handleFileInput }
             <li>File format: PDF</li>
             <li>Size: Less than 2MB for best results</li>
             <li>Standard EagleView report format</li>
+            <li>Complete, properly formatted PDF (not encrypted or damaged)</li>
           </ul>
         </div>
       </div>
