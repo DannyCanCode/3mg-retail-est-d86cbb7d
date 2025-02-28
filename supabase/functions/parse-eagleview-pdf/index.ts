@@ -27,7 +27,6 @@ serve(async (req) => {
     }
 
     // For testing purposes and debugging, return mock data if there's any issue
-    // In a production environment, this would be replaced with the actual OpenAI call
     try {
       // Process the PDF with OpenAI to extract measurements
       const extractedMeasurements = await extractMeasurementsWithOpenAI(pdfBase64);
@@ -45,17 +44,25 @@ serve(async (req) => {
       
       // Return mock data as a fallback
       const mockMeasurements = {
-        totalArea: 2800,
-        roofPitch: "6:12",
-        ridgeLength: 120,
-        valleyLength: 45,
-        hipLength: 65,
-        eaveLength: 180,
-        rakeLength: 85,
-        stepFlashingLength: 12,
-        chimneyCount: 1,
-        skylightCount: 2,
-        ventCount: 6
+        totalArea: 2862,
+        roofPitch: "5/12",
+        ridgeLength: 105,
+        valleyLength: 89,
+        hipLength: 10,
+        eaveLength: 109,
+        rakeLength: 154,
+        stepFlashingLength: 16,
+        flashingLength: 2,
+        penetrationsArea: 3,
+        penetrationsPerimeter: 14,
+        ridgeCount: 6,
+        hipCount: 2,
+        valleyCount: 8,
+        rakeCount: 15,
+        eaveCount: 9,
+        dripEdgeLength: 263,
+        parapetWallLength: 0,
+        parapetWallCount: 0
       };
       
       return new Response(
@@ -92,17 +99,33 @@ async function extractMeasurementsWithOpenAI(pdfBase64: string) {
       messages: [
         {
           role: 'system',
-          content: `You are a PDF parsing assistant specialized in extracting measurements from EagleView roofing reports. 
-          Extract all relevant measurements including total area, roof pitch, ridge length, valley length, hip length, 
-          eave length, rake length, step flashing length, chimney count, skylight count, and vent count. 
-          Return the data as structured JSON only, without any explanation text.`
+          content: `You are a specialized EagleView roof report parser. Extract the following specific measurements exactly as they appear in the report:
+
+          1. Ridges (both length in ft and count)
+          2. Hips (both length in ft and count)
+          3. Valleys (both length in ft and count)
+          4. Rakes (both length in ft and count)
+          5. Eaves/Starter (both length in ft and count)
+          6. Drip Edge (length in ft)
+          7. Parapet Walls (both length in ft and count)
+          8. Flashing (both length in ft and count)
+          9. Step flashing (both length in ft and count)
+          10. Total Penetrations Area (sq ft)
+          11. Total Roof Area Less Penetrations (sq ft)
+          12. Total Penetrations Perimeter (ft)
+          13. Predominant Pitch (e.g. 5/12)
+
+          Look carefully for these values in the report. They often appear in a measurements summary section.
+          Return ONLY a JSON object with camelCase keys. For lengths, include both the total length and count as separate fields.
+          For example: "ridgeLength": 105, "ridgeCount": 6, etc.
+          Do not include any explanatory text outside the JSON.`
         },
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: 'Extract all the measurements from this EagleView roofing report PDF. Return ONLY a JSON object with the measurements. The format must be camelCase with keys like totalArea, roofPitch, ridgeLength, etc.'
+              text: 'Parse this EagleView roofing report and extract all the specific measurements I need in the exact format specified.'
             },
             {
               type: 'image_url',
