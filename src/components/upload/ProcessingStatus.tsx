@@ -25,7 +25,7 @@ export function ProcessingStatus({ status, fileName, processingMode }: Processin
       <p className="text-muted-foreground text-sm mb-4 text-center">
         {status === "uploading" 
           ? "Uploading your file..." 
-          : `Extracting measurements with AI${processingMode ? ` (${processingMode} mode)` : ''}...`}
+          : `Extracting measurements from pages 9-10 with AI${processingMode ? ` (${processingMode} mode)` : ''}...`}
       </p>
       <div className="w-full max-w-xs bg-secondary rounded-full h-2.5 mb-4">
         <div className="bg-accent h-2.5 rounded-full w-2/3 animate-pulse-soft"></div>
