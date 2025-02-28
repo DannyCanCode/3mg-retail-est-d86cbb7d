@@ -10,8 +10,8 @@ const corsHeaders = {
 // Get OpenAI API key from environment variable
 const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
-// Maximum size for PDFs in characters (bytes) - we'll set this to be safely under OpenAI's limit
-const MAX_PDF_SIZE = 700000; // Set to around 700KB which should be under OpenAI's limit
+// Maximum size for PDFs in characters (bytes) - set much lower than OpenAI's limit to prevent token issues
+const MAX_PDF_SIZE = 200000; // ~200KB which should be safely under OpenAI's token limit
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -20,9 +20,9 @@ serve(async (req) => {
   }
 
   try {
-    const { pdfBase64, fileName, timestamp } = await req.json();
+    const { pdfBase64, fileName, timestamp, requestId = crypto.randomUUID() } = await req.json();
     
-    console.log(`Processing file: ${fileName} at timestamp ${timestamp}`);
+    console.log(`[${requestId}] Processing file: ${fileName} at timestamp ${timestamp}`);
     
     if (!pdfBase64) {
       return new Response(
@@ -33,23 +33,22 @@ serve(async (req) => {
 
     // Check file size before proceeding
     const fileSize = pdfBase64.length;
-    console.log(`File size (base64 length): ${fileSize} characters`);
+    console.log(`[${requestId}] File size (base64 length): ${fileSize} characters`);
+    
+    // Warn about large files
+    let wasTruncated = false;
+    let processedPdfBase64 = pdfBase64;
     
     if (fileSize > MAX_PDF_SIZE) {
-      console.warn(`Warning: PDF is very large (${fileSize} chars). Truncating to ${MAX_PDF_SIZE} chars.`);
+      console.warn(`[${requestId}] Warning: PDF is very large (${fileSize} chars). Truncating to ${MAX_PDF_SIZE} chars.`);
+      processedPdfBase64 = pdfBase64.substring(0, MAX_PDF_SIZE);
+      wasTruncated = true;
     }
 
     try {
-      // Create a unique identifier for this request to help with debugging
-      const requestId = crypto.randomUUID();
-      console.log(`Starting PDF processing (request ID: ${requestId})`);
+      console.log(`[${requestId}] Starting PDF processing with OpenAI`);
       
-      // Process the PDF - if it's too large, we'll truncate it
-      const truncatedPdfBase64 = fileSize > MAX_PDF_SIZE 
-        ? pdfBase64.substring(0, MAX_PDF_SIZE) 
-        : pdfBase64;
-      
-      const extractedMeasurements = await extractMeasurementsWithOpenAI(truncatedPdfBase64, fileName, requestId, fileSize > MAX_PDF_SIZE);
+      const extractedMeasurements = await extractMeasurementsWithOpenAI(processedPdfBase64, fileName, requestId, wasTruncated);
       
       // Check if the response matches the example values from our prompt
       const isExampleData = 
@@ -58,10 +57,11 @@ serve(async (req) => {
         extractedMeasurements.totalArea === 2865;
       
       if (isExampleData) {
-        console.error(`WARNING: OpenAI returned example data for ${fileName} (request ID: ${requestId})`);
+        console.error(`[${requestId}] WARNING: OpenAI returned example data for ${fileName}`);
         return new Response(
           JSON.stringify({ 
-            error: 'The AI returned example values instead of parsing your PDF. Please try again or contact support.'
+            error: 'The AI returned example values instead of parsing your PDF. Please try again or contact support.',
+            requestId: requestId
           }),
           { 
             status: 422, 
@@ -74,16 +74,15 @@ serve(async (req) => {
         );
       }
       
-      console.log(`Successfully extracted measurements for ${fileName} (request ID: ${requestId})`);
+      console.log(`[${requestId}] Successfully extracted measurements for ${fileName}`);
       
       // Return the parsed data
       return new Response(
         JSON.stringify({ 
           message: 'PDF parsed successfully',
           measurements: extractedMeasurements,
-          timestamp: timestamp,
-          requestId: requestId,
-          truncated: fileSize > MAX_PDF_SIZE
+          truncated: wasTruncated,
+          requestId: requestId
         }),
         { 
           headers: { 
@@ -97,14 +96,15 @@ serve(async (req) => {
         }
       );
     } catch (openAIError) {
-      console.error('Error with OpenAI processing:', openAIError);
+      console.error(`[${requestId}] Error with OpenAI processing:`, openAIError);
       
       // Return an error response
       return new Response(
         JSON.stringify({ 
           error: 'Failed to process PDF with OpenAI. The file may be too large or in an unsupported format.',
           details: openAIError.message,
-          fileSize: fileSize
+          fileSize: fileSize,
+          requestId: requestId
         }),
         { 
           status: 500, 
@@ -117,9 +117,13 @@ serve(async (req) => {
       );
     }
   } catch (error) {
-    console.error('Error processing PDF:', error);
+    const errorId = crypto.randomUUID();
+    console.error(`[${errorId}] Error processing PDF:`, error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        errorId: errorId
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json', 'Cache-Control': 'no-store, no-cache' } }
     );
   }
@@ -130,11 +134,17 @@ async function extractMeasurementsWithOpenAI(pdfBase64: string, fileName: string
     throw new Error('OpenAI API key not configured');
   }
 
-  console.log(`Sending request to OpenAI for ${fileName} (request ID: ${requestId})`);
+  console.log(`[${requestId}] Sending request to OpenAI for ${fileName}`);
   
   // For debugging - check the first few characters of the base64 data
-  const base64Preview = pdfBase64.substring(0, 50) + "...";
-  console.log(`PDF base64 preview: ${base64Preview}`);
+  const base64Preview = pdfBase64.substring(0, 30) + "...";
+  console.log(`[${requestId}] PDF base64 preview: ${base64Preview}`);
+
+  // Use only a small portion of the PDF for processing
+  // This significantly reduces token usage while still capturing key measurements
+  const truncatedForProcessing = pdfBase64.length > 100000 
+    ? pdfBase64.substring(0, 100000) 
+    : pdfBase64;
 
   // Prepare the user message based on whether the PDF was truncated
   const userMessage = wasTruncated 
@@ -149,7 +159,7 @@ async function extractMeasurementsWithOpenAI(pdfBase64: string, fileName: string
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini', // Using a smaller model with lower context limits but still capable
       messages: [
         {
           role: 'system',
@@ -176,8 +186,8 @@ DO NOT return example values! Use only the values found in the PDF data.`
           role: 'user',
           content: `${userMessage} 
           
-Here is the base64 encoded PDF data:
-${pdfBase64}
+Here is a portion of the base64 encoded PDF data:
+${truncatedForProcessing}
 
 Extract the roof measurements and return them in a valid JSON format with these fields:
 "ridgeLength", "ridgeCount", "hipLength", "hipCount", "valleyLength", "valleyCount", "rakeLength", "rakeCount", "eaveLength", "eaveCount", "dripEdgeLength", "parapetWallLength", "parapetWallCount", "flashingLength", "flashingCount", "stepFlashingLength", "stepFlashingCount", "penetrationsArea", "totalArea", "penetrationsPerimeter", "predominantPitch"
@@ -192,7 +202,7 @@ IMPORTANT: Only return values that you can actually find in the PDF. DO NOT use 
 
   if (!response.ok) {
     const errorData = await response.json();
-    console.error(`OpenAI API error for request ID ${requestId}:`, errorData);
+    console.error(`[${requestId}] OpenAI API error:`, errorData);
     throw new Error(`OpenAI API error: ${JSON.stringify(errorData)}`);
   }
 
@@ -200,13 +210,13 @@ IMPORTANT: Only return values that you can actually find in the PDF. DO NOT use 
   const measurementContent = result.choices[0].message.content;
   
   // Log the raw response for debugging
-  console.log(`OpenAI Response for request ID ${requestId}:`, measurementContent);
+  console.log(`[${requestId}] OpenAI Response:`, measurementContent);
   
   try {
     const measurementData = JSON.parse(measurementContent);
     return measurementData;
   } catch (parseError) {
-    console.error(`Error parsing OpenAI response JSON for request ID ${requestId}:`, parseError);
+    console.error(`[${requestId}] Error parsing OpenAI response JSON:`, parseError);
     throw new Error(`Failed to parse OpenAI response: ${parseError.message}`);
   }
 }

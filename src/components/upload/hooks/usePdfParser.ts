@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ParsedMeasurements } from "@/api/measurements";
 import { readFileAsBase64 } from "../pdf-utils";
@@ -6,6 +7,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Define the FileUploadStatus type to match with useFileUpload
 export type FileUploadStatus = "idle" | "uploading" | "parsing" | "success" | "error";
+
+// Maximum recommended file size in MB before warning users
+const MAX_RECOMMENDED_SIZE_MB = 2;
+// Absolute maximum file size in MB that we'll attempt to process
+const MAX_ALLOWED_SIZE_MB = 6;
 
 export function usePdfParser() {
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
@@ -22,11 +28,24 @@ export function usePdfParser() {
       // First, check file size - warn if it's large
       const fileSizeMB = file.size / (1024 * 1024);
       
-      if (fileSizeMB > 3) {
+      // If file is too large, reject immediately
+      if (fileSizeMB > MAX_ALLOWED_SIZE_MB) {
+        setErrorDetails(`Error: The PDF file is too large (${fileSizeMB.toFixed(2)} MB). Maximum allowed size is ${MAX_ALLOWED_SIZE_MB} MB.`);
+        setStatus("error");
+        toast({
+          title: "File too large",
+          description: `This file exceeds our ${MAX_ALLOWED_SIZE_MB} MB limit. Please use a smaller file.`,
+          variant: "destructive",
+        });
+        return null;
+      }
+      
+      // Warn if file is large but still under max allowed
+      if (fileSizeMB > MAX_RECOMMENDED_SIZE_MB) {
         console.warn(`Large file detected: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
         toast({
           title: "Large file detected",
-          description: `This file is ${fileSizeMB.toFixed(2)} MB which might be too large to process. We'll try anyway.`,
+          description: `This file is ${fileSizeMB.toFixed(2)} MB which might be difficult to process. We'll try anyway, but it may fail.`,
           variant: "default",
         });
       }
@@ -40,14 +59,16 @@ export function usePdfParser() {
       try {
         // Add a timestamp to prevent caching on the Supabase side
         const timestamp = new Date().getTime();
+        const requestId = crypto.randomUUID(); // Generate unique request ID
         
-        console.log(`Sending file ${file.name} (${fileSizeMB.toFixed(2)} MB) to parse-eagleview-pdf at ${timestamp}`);
+        console.log(`Sending file ${file.name} (${fileSizeMB.toFixed(2)} MB) to parse-eagleview-pdf. Request ID: ${requestId}`);
         
         const { data, error } = await supabase.functions.invoke('parse-eagleview-pdf', {
           body: { 
             fileName: file.name,
             pdfBase64: base64File,
-            timestamp: timestamp // Add timestamp to prevent caching
+            timestamp: timestamp,
+            requestId: requestId
           }
         });
         
@@ -55,8 +76,13 @@ export function usePdfParser() {
           console.error("Supabase function error:", error);
           
           // Check if it's a size-related error
-          if (error.message && error.message.includes("too long") || error.message.includes("too large")) {
-            setErrorDetails(`Error: The PDF file is too large to process (${fileSizeMB.toFixed(2)} MB). Please try a smaller file or a file with fewer pages.`);
+          if (error.message && (
+              error.message.includes("too long") || 
+              error.message.includes("too large") || 
+              error.message.includes("context length") ||
+              error.message.includes("maximum context length")
+          )) {
+            setErrorDetails(`Error: The PDF file is too complex to process (${fileSizeMB.toFixed(2)} MB). Please try a smaller file or one with fewer pages.`);
           } else {
             setErrorDetails(`Error: ${error.message}`);
           }
@@ -82,7 +108,7 @@ export function usePdfParser() {
           toast({
             title: "File was truncated",
             description: "The file was too large and was truncated before processing. Some measurements might be incomplete.",
-            variant: "warning",
+            variant: "default",
           });
         }
         
@@ -106,9 +132,14 @@ export function usePdfParser() {
         if (functionError.message && functionError.message.includes("Failed to send a request")) {
           setErrorDetails("Connection to Edge Function failed. This might be due to a temporary network issue or the function is still being deployed. Please try again in a moment.");
         } 
-        // Check if it's a size-related error
-        else if (functionError.message && (functionError.message.includes("too long") || functionError.message.includes("too large"))) {
-          setErrorDetails(`The PDF file is too large to process (${fileSizeMB.toFixed(2)} MB). Please try a smaller file or a file with fewer pages.`);
+        // Check if it's a size-related or token limit error
+        else if (functionError.message && (
+            functionError.message.includes("too long") || 
+            functionError.message.includes("too large") ||
+            functionError.message.includes("context length") ||
+            functionError.message.includes("maximum context length")
+        )) {
+          setErrorDetails(`The PDF file is too complex to process (${fileSizeMB.toFixed(2)} MB). Please try a smaller file or one with fewer pages.`);
         } 
         else {
           setErrorDetails(functionError.message || "Unknown edge function error");
