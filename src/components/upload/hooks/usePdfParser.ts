@@ -11,10 +11,11 @@ export type FileUploadStatus = "idle" | "uploading" | "parsing" | "success" | "e
 // Maximum recommended file size in MB before warning users
 const MAX_RECOMMENDED_SIZE_MB = 2;
 // Absolute maximum file size in MB that we'll attempt to process
-const MAX_ALLOWED_SIZE_MB = 6;
+const MAX_ALLOWED_SIZE_MB = 4;
 
 export function usePdfParser() {
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
+  const [processingMode, setProcessingMode] = useState<"regular" | "fallback">("regular");
 
   const parsePdf = async (
     file: File, 
@@ -42,12 +43,16 @@ export function usePdfParser() {
       
       // Warn if file is large but still under max allowed
       if (fileSizeMB > MAX_RECOMMENDED_SIZE_MB) {
-        console.warn(`Large file detected: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
+        console.log(`Large file detected: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
         toast({
           title: "Large file detected",
-          description: `This file is ${fileSizeMB.toFixed(2)} MB which might be difficult to process. We'll try anyway, but it may fail.`,
+          description: `This file is ${fileSizeMB.toFixed(2)} MB which might take longer to process.`,
           variant: "default",
         });
+        // Automatically set to fallback mode for large files
+        setProcessingMode("fallback");
+      } else {
+        setProcessingMode("regular");
       }
       
       // Read the file as base64
@@ -63,12 +68,14 @@ export function usePdfParser() {
         
         console.log(`Sending file ${file.name} (${fileSizeMB.toFixed(2)} MB) to parse-eagleview-pdf. Request ID: ${requestId}`);
         
+        // Include processing mode in request
         const { data, error } = await supabase.functions.invoke('parse-eagleview-pdf', {
           body: { 
             fileName: file.name,
             pdfBase64: base64File,
-            timestamp: timestamp,
-            requestId: requestId
+            timestamp,
+            requestId,
+            processingMode: processingMode // Include the processing mode
           }
         });
         
@@ -82,7 +89,50 @@ export function usePdfParser() {
               error.message.includes("context length") ||
               error.message.includes("maximum context length")
           )) {
-            setErrorDetails(`Error: The PDF file is too complex to process (${fileSizeMB.toFixed(2)} MB). Please try a smaller file or one with fewer pages.`);
+            // If in regular mode, try fallback mode
+            if (processingMode === "regular") {
+              console.log("Switching to fallback processing mode due to size issues");
+              setProcessingMode("fallback");
+              toast({
+                title: "Using optimized processing",
+                description: "The file is large, switching to optimized processing mode.",
+                variant: "default",
+              });
+              
+              // Retry with fallback mode
+              const { data: fallbackData, error: fallbackError } = await supabase.functions.invoke('parse-eagleview-pdf', {
+                body: { 
+                  fileName: file.name,
+                  pdfBase64: base64File,
+                  timestamp: new Date().getTime(),
+                  requestId: crypto.randomUUID(),
+                  processingMode: "fallback"
+                }
+              });
+              
+              if (fallbackError) {
+                console.error("Fallback processing error:", fallbackError);
+                setErrorDetails(`Error: ${fallbackError.message}`);
+                throw fallbackError;
+              }
+              
+              if (!fallbackData || !fallbackData.measurements) {
+                setErrorDetails("The parsing service returned invalid data in fallback mode");
+                throw new Error("Invalid response data");
+              }
+              
+              console.log("Parsed measurements (fallback mode):", fallbackData.measurements);
+              setParsedData(fallbackData.measurements);
+              setStatus("success");
+              toast({
+                title: "Parsing successful",
+                description: `${file.name} has been processed with optimized mode.`,
+              });
+              return fallbackData.measurements;
+            } else {
+              // Already in fallback mode, can't process
+              setErrorDetails(`Error: The PDF file is too complex to process. Please try a smaller file with fewer pages.`);
+            }
           } else {
             setErrorDetails(`Error: ${error.message}`);
           }
@@ -107,7 +157,7 @@ export function usePdfParser() {
         if (data.truncated) {
           toast({
             title: "File was truncated",
-            description: "The file was too large and was truncated before processing. Some measurements might be incomplete.",
+            description: "The file was too large and was processed with reduced detail. Some measurements might be approximate.",
             variant: "default",
           });
         }
@@ -169,6 +219,7 @@ export function usePdfParser() {
   return {
     parsedData,
     setParsedData,
-    parsePdf
+    parsePdf,
+    processingMode
   };
 }
