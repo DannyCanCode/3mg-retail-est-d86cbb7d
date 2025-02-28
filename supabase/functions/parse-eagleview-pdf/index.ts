@@ -33,12 +33,31 @@ serve(async (req) => {
       const requestId = crypto.randomUUID();
       console.log(`Starting PDF processing (request ID: ${requestId})`);
       
-      // Take a portion of the base64 to aid with debugging, but don't log the whole thing
-      const pdfPreview = pdfBase64.substring(0, 100) + "...";
-      console.log(`PDF preview: ${pdfPreview}`);
-      
       // Process the PDF
-      const extractedMeasurements = await extractMeasurementsWithOpenAI(fileName, pdfBase64, requestId);
+      const extractedMeasurements = await extractMeasurementsWithOpenAI(pdfBase64, fileName, requestId);
+      
+      // Check if the response matches the example values from our prompt
+      const isExampleData = 
+        extractedMeasurements.ridgeLength === 105 &&
+        extractedMeasurements.ridgeCount === 6 &&
+        extractedMeasurements.totalArea === 2865;
+      
+      if (isExampleData) {
+        console.error(`WARNING: OpenAI returned example data for ${fileName} (request ID: ${requestId})`);
+        return new Response(
+          JSON.stringify({ 
+            error: 'The AI returned example values instead of parsing your PDF. Please try again or contact support.'
+          }),
+          { 
+            status: 422, 
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate' 
+            } 
+          }
+        );
+      }
       
       console.log(`Successfully extracted measurements for ${fileName} (request ID: ${requestId})`);
       
@@ -89,14 +108,18 @@ serve(async (req) => {
   }
 });
 
-async function extractMeasurementsWithOpenAI(fileName: string, pdfBase64: string, requestId: string) {
+async function extractMeasurementsWithOpenAI(pdfBase64: string, fileName: string, requestId: string) {
   if (!openAIApiKey) {
     throw new Error('OpenAI API key not configured');
   }
 
   console.log(`Sending request to OpenAI for ${fileName} (request ID: ${requestId})`);
+  
+  // For debugging - check the first few characters of the base64 data
+  const base64Preview = pdfBase64.substring(0, 50) + "...";
+  console.log(`PDF base64 preview: ${base64Preview}`);
 
-  // For text processing without PDF, we'll use GPT-4o
+  // Send the request to OpenAI
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -108,68 +131,38 @@ async function extractMeasurementsWithOpenAI(fileName: string, pdfBase64: string
       messages: [
         {
           role: 'system',
-          content: `You are a specialized parser for EagleView roof measurements. I'm going to give you base64 encoded PDF data. 
-          
-          Your task is to extract the roof measurements from this PDF data and return them in a specific JSON format.
-          
-          Pay special attention to numbers in the PDF - sometimes there are OCR issues. Be particularly careful with measurements, and if you're unsure, indicate in your response that you're uncertain.
-          
-          The measurements I need extracted are:
-          - Ridge measurements (length and count)
-          - Hip measurements (length and count)
-          - Valley measurements (length and count)
-          - Rake measurements (length and count)
-          - Eave/Starter measurements (length and count)
-          - Drip Edge measurements (total length)
-          - Parapet Wall measurements (length and count)
-          - Flashing measurements (length and count)
-          - Step flashing measurements (length and count)
-          - Total Penetrations Area (in sq ft)
-          - Total Roof Area Less Penetrations (in sq ft)
-          - Total Penetrations Perimeter (in ft)
-          - Predominant Pitch (like 5/12)
-          
-          Your job is to output ONLY a valid JSON object with these measurements, formatted exactly as requested.`
+          content: `You are a specialized parser for EagleView roof measurements PDFs. Extract the roof measurements from the provided PDF data.
+
+The measurements to extract are:
+- Ridge measurements (length and count)
+- Hip measurements (length and count)
+- Valley measurements (length and count)
+- Rake measurements (length and count)
+- Eave/Starter measurements (length and count)
+- Drip Edge measurements (total length)
+- Parapet Wall measurements (length and count)
+- Flashing measurements (length and count)
+- Step flashing measurements (length and count)
+- Total Penetrations Area (in sq ft)
+- Total Roof Area (in sq ft)
+- Total Penetrations Perimeter (in ft)
+- Predominant Pitch
+
+DO NOT return example values! Use only the values found in the PDF data.`
         },
         {
           role: 'user',
-          content: `I'm sending you the base64 encoded content of an EagleView PDF named "${fileName}". The beginning of the base64 string is: ${pdfBase64.substring(0, 100)}...
+          content: `I'm uploading an EagleView PDF named "${fileName}". 
+          
+Here is the base64 encoded PDF data:
+${pdfBase64}
 
-          Please extract the measurements from this PDF and return them in the following JSON format:
-          
-          {
-            "ridgeLength": 105,    // Example value, replace with actual
-            "ridgeCount": 6,       // Example value, replace with actual
-            "hipLength": 10,       // Example value, replace with actual
-            "hipCount": 2,         // Example value, replace with actual
-            "valleyLength": 89,    // Example value, replace with actual
-            "valleyCount": 8,      // Example value, replace with actual
-            "rakeLength": 154,     // Example value, replace with actual
-            "rakeCount": 15,       // Example value, replace with actual
-            "eaveLength": 109,     // Example value, replace with actual
-            "eaveCount": 9,        // Example value, replace with actual
-            "dripEdgeLength": 263, // Example value, replace with actual
-            "parapetWallLength": 0,  // Example value, replace with actual
-            "parapetWallCount": 0,   // Example value, replace with actual
-            "flashingLength": 2,     // Example value, replace with actual
-            "flashingCount": 1,      // Example value, replace with actual
-            "stepFlashingLength": 16, // Example value, replace with actual
-            "stepFlashingCount": 3,   // Example value, replace with actual
-            "penetrationsArea": 3,    // Example value, replace with actual
-            "totalArea": 2865,        // Example value, replace with actual
-            "penetrationsPerimeter": 14, // Example value, replace with actual
-            "predominantPitch": "5/12"  // Example value, replace with actual
-          }
-          
-          Notes:
-          1. Use the actual measurements from the PDF, not these example values.
-          2. If you cannot find a specific measurement, use 0 for numbers and "N/A" for strings.
-          3. The base64 content begins with: ${pdfBase64.substring(0, 100)}...
-          
-          This is for request ID: ${requestId}`
+Extract the roof measurements and return them in a valid JSON format with these fields:
+"ridgeLength", "ridgeCount", "hipLength", "hipCount", "valleyLength", "valleyCount", "rakeLength", "rakeCount", "eaveLength", "eaveCount", "dripEdgeLength", "parapetWallLength", "parapetWallCount", "flashingLength", "flashingCount", "stepFlashingLength", "stepFlashingCount", "penetrationsArea", "totalArea", "penetrationsPerimeter", "predominantPitch"
+
+IMPORTANT: Only return values that you can actually find in the PDF. DO NOT use the example values (105, 6, etc.) shown in previous messages. If you cannot find a value, use 0 for numbers or "N/A" for text.`
         }
       ],
-      max_tokens: 1500,
       temperature: 0.1,
       response_format: { type: "json_object" }
     }),
@@ -187,27 +180,11 @@ async function extractMeasurementsWithOpenAI(fileName: string, pdfBase64: string
   // Log the raw response for debugging
   console.log(`OpenAI Response for request ID ${requestId}:`, measurementContent);
   
-  // Parse the JSON response
-  let measurementData;
   try {
-    measurementData = JSON.parse(measurementContent);
-    
-    // Add additional validation here to check if the response is genuine
-    // For example, check if the measurements are different from our example values
-    const isExampleData = 
-      measurementData.ridgeLength === 105 &&
-      measurementData.ridgeCount === 6 &&
-      measurementData.totalArea === 2865 &&
-      measurementData.predominantPitch === "5/12";
-    
-    if (isExampleData) {
-      console.warn(`Warning: OpenAI may have returned example data for request ID ${requestId}`);
-    }
-    
+    const measurementData = JSON.parse(measurementContent);
+    return measurementData;
   } catch (parseError) {
     console.error(`Error parsing OpenAI response JSON for request ID ${requestId}:`, parseError);
     throw new Error(`Failed to parse OpenAI response: ${parseError.message}`);
   }
-
-  return measurementData;
 }

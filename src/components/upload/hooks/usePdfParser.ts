@@ -28,6 +28,8 @@ export function usePdfParser() {
         // Add a timestamp to prevent caching on the Supabase side
         const timestamp = new Date().getTime();
         
+        console.log(`Sending file ${file.name} to parse-eagleview-pdf at ${timestamp}`);
+        
         const { data, error } = await supabase.functions.invoke('parse-eagleview-pdf', {
           body: { 
             fileName: file.name,
@@ -53,6 +55,8 @@ export function usePdfParser() {
           setErrorDetails("The parsing service returned invalid data");
           throw new Error("Invalid response data");
         }
+        
+        console.log("Parsed measurements:", data.measurements);
         
         // Reset parsedData before setting the new data to ensure we don't keep old state
         setParsedData(null);
@@ -83,9 +87,7 @@ export function usePdfParser() {
     } catch (error: any) {
       console.error("Error parsing PDF:", error);
       setStatus("error");
-      if (!setErrorDetails) {
-        setErrorDetails(error.message || "Unknown error occurred");
-      }
+      setErrorDetails(error.message || "Unknown error occurred");
       toast({
         title: "Parsing failed",
         description: "There was an error processing your file. Please try again.",
