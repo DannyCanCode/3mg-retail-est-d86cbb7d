@@ -9,7 +9,215 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      estimate_items: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          estimate_id: string | null
+          id: string
+          pricing_id: string | null
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          estimate_id?: string | null
+          id?: string
+          pricing_id?: string | null
+          quantity: number
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          estimate_id?: string | null
+          id?: string
+          pricing_id?: string | null
+          quantity?: number
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_items_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimate_items_pricing_id_fkey"
+            columns: ["pricing_id"]
+            isOneToOne: false
+            referencedRelation: "pricing"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimates: {
+        Row: {
+          created_at: string | null
+          customer_address: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          measurement_id: string | null
+          notes: string | null
+          status: string | null
+          total_price: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          measurement_id?: string | null
+          notes?: string | null
+          status?: string | null
+          total_price?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_address?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          measurement_id?: string | null
+          notes?: string | null
+          status?: string | null
+          total_price?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimates_measurement_id_fkey"
+            columns: ["measurement_id"]
+            isOneToOne: false
+            referencedRelation: "measurements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      measurements: {
+        Row: {
+          areas_per_pitch: Json | null
+          created_at: string | null
+          debug_info: Json | null
+          eaves: number | null
+          filename: string
+          flashing: number | null
+          hips: number | null
+          id: string
+          length_measurements: Json | null
+          penetrations: number | null
+          penetrations_perimeter: number | null
+          predominant_pitch: string
+          rakes: number | null
+          raw_text: string | null
+          ridges: number | null
+          step_flashing: number | null
+          suggested_waste_percentage: number | null
+          total_area: number
+          total_squares: number | null
+          updated_at: string | null
+          valleys: number | null
+          waste_percentage: number | null
+        }
+        Insert: {
+          areas_per_pitch?: Json | null
+          created_at?: string | null
+          debug_info?: Json | null
+          eaves?: number | null
+          filename: string
+          flashing?: number | null
+          hips?: number | null
+          id?: string
+          length_measurements?: Json | null
+          penetrations?: number | null
+          penetrations_perimeter?: number | null
+          predominant_pitch: string
+          rakes?: number | null
+          raw_text?: string | null
+          ridges?: number | null
+          step_flashing?: number | null
+          suggested_waste_percentage?: number | null
+          total_area: number
+          total_squares?: number | null
+          updated_at?: string | null
+          valleys?: number | null
+          waste_percentage?: number | null
+        }
+        Update: {
+          areas_per_pitch?: Json | null
+          created_at?: string | null
+          debug_info?: Json | null
+          eaves?: number | null
+          filename?: string
+          flashing?: number | null
+          hips?: number | null
+          id?: string
+          length_measurements?: Json | null
+          penetrations?: number | null
+          penetrations_perimeter?: number | null
+          predominant_pitch?: string
+          rakes?: number | null
+          raw_text?: string | null
+          ridges?: number | null
+          step_flashing?: number | null
+          suggested_waste_percentage?: number | null
+          total_area?: number
+          total_squares?: number | null
+          updated_at?: string | null
+          valleys?: number | null
+          waste_percentage?: number | null
+        }
+        Relationships: []
+      }
+      pricing: {
+        Row: {
+          base_price: number
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          item_name: string
+          markup_percentage: number | null
+          unit: string
+          updated_at: string | null
+        }
+        Insert: {
+          base_price: number
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          item_name: string
+          markup_percentage?: number | null
+          unit: string
+          updated_at?: string | null
+        }
+        Update: {
+          base_price?: number
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          item_name?: string
+          markup_percentage?: number | null
+          unit?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
