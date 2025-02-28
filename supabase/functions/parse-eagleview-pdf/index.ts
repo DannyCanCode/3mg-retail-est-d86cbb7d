@@ -1,22 +1,42 @@
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import OpenAI from "https://esm.sh/openai@4.12.4";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-
-// Target specific pages rather than the entire PDF
-const TARGET_PAGES = [9, 10]; // Only extract pages 9 and 10
-// Max characters to include from PDF (100KB is much safer)
-const MAX_PDF_CHARS = 50000; // Reduced to ensure we stay under token limits
-// Model to use
-const AI_MODEL = "gpt-4o-mini";  // Using the faster and more efficient mini model
-
-// CORS headers for cross-origin requests
+// CORS headers for browser requests
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Models and processing modes
+type ModelType = "gpt-4o" | "gpt-4o-mini";
+type ProcessingMode = "regular" | "fallback";
+
+// OpenAI API key
+const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
+
+// Helper function to check if base64 string is valid PDF
+function isValidPdfBase64(base64String: string): boolean {
+  // Basic validation to check if it starts with PDF header in base64
+  // %PDF- in base64 usually begins with "JVBERi0"
+  return base64String && base64String.startsWith('JVBERi0');
+}
+
+// Helper to create a system prompt based on the processing mode
+function createSystemPrompt(processingMode: ProcessingMode): string {
+  const basePrompt = `You are an expert in analyzing EagleView PDF roof measurement reports. 
+  Extract all measurements including total area, pitch, length measurements for ridge, hip, valley, rake, eave, 
+  step flashing, wall flashing, and counts for penetrations.`;
+  
+  if (processingMode === "fallback") {
+    return `${basePrompt} 
+    The PDF file is large, so focus ONLY on pages 9-10 where the key measurements are typically located. 
+    Extract ONLY measurement data - do not analyze any other content.`;
+  }
+  
+  return basePrompt;
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -24,322 +44,186 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("Request received for PDF parsing");
-  
   try {
-    const { fileName, pdfBase64, requestId, processingMode = "regular" } = await req.json();
-    console.log(`Processing ${fileName} (Request ID: ${requestId}), mode: ${processingMode}`);
+    const { fileName, pdfBase64, timestamp, requestId, processingMode = "regular", modelType = "gpt-4o-mini" } = await req.json();
+    
+    // Validate inputs
+    if (!fileName) {
+      console.error("Missing fileName parameter");
+      return new Response(
+        JSON.stringify({ error: "Missing fileName parameter" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     if (!pdfBase64) {
-      throw new Error("No PDF data provided");
+      console.error("Missing pdfBase64 parameter");
+      return new Response(
+        JSON.stringify({ error: "Missing PDF content" }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    // Validate base64 PDF content
-    if (!isPdfBase64Valid(pdfBase64)) {
-      throw new Error("Invalid PDF format. Expected base64 encoded PDF.");
+    // Basic PDF validation
+    if (!isValidPdfBase64(pdfBase64)) {
+      console.error("Invalid PDF format: Not a valid base64-encoded PDF");
+      return new Response(
+        JSON.stringify({ error: "Invalid PDF format. Expected base64 encoded PDF." }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    // Log original file size for debugging
-    const originalLength = pdfBase64.length;
-    console.log(`File size (base64 length): ${originalLength} chars`);
+    console.log(`Processing file ${fileName} (RequestID: ${requestId || 'none'}, Mode: ${processingMode}, Model: ${modelType})`);
     
-    // Start PDF processing
-    console.log(`Starting PDF processing (request ID: ${requestId})`);
+    // Create a data URI for the PDF
+    const dataUri = `data:application/pdf;base64,${pdfBase64}`;
     
-    // Handle very large files - truncate if needed
-    let truncated = false;
-    let pdfContent = pdfBase64;
+    // Create system prompt based on processing mode
+    const systemPrompt = createSystemPrompt(processingMode);
     
-    if (pdfBase64.length > MAX_PDF_CHARS * 2) { // *2 because base64 is ~33% larger than raw binary
-      console.warn(`PDF is very large (${pdfBase64.length} chars). Truncating to ${MAX_PDF_CHARS * 2} chars.`);
-      pdfContent = pdfBase64.substring(0, MAX_PDF_CHARS * 2);
-      truncated = true;
-    }
+    // Create messages for the OpenAI API
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { 
+        role: "user", 
+        content: [
+          { 
+            type: "text", 
+            text: "Please extract the measurement data from this EagleView PDF roof report. Return the data in valid JSON format with the following structure: { \"totalArea\": number, \"predominantPitch\": string, \"ridgeLength\": number, \"hipLength\": number, \"valleyLength\": number, \"rakeLength\": number, \"eaveLength\": number, \"ridgeCount\": number, \"hipCount\": number, \"valleyCount\": number, \"rakeCount\": number, \"eaveCount\": number, \"stepFlashingLength\": number, \"stepFlashingCount\": number, \"chimneyCount\": number, \"skylightCount\": number, \"turbineVentCount\": number, \"pipeVentCount\": number, \"penetrationsArea\": number, \"penetrationsPerimeter\": number }. All length measurements should be in feet, areas in square feet."
+          },
+          {
+            type: "file_url",
+            file_url: {
+              url: dataUri
+            }
+          }
+        ]
+      }
+    ];
     
-    try {
-      console.log(`Processing file: ${fileName} at timestamp ${Date.now()}`);
+    console.log(`Sending request to OpenAI API using model: ${modelType}`);
+    
+    // Make API call to OpenAI
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openAiApiKey}`
+      },
+      body: JSON.stringify({
+        model: modelType,
+        messages: messages,
+        temperature: 0.1, // Lower temperature for more deterministic output
+        max_tokens: 1500  // Limit to ensure we get a reasonable response size
+      })
+    });
+    
+    if (!response.ok) {
+      const errorResponse = await response.json();
+      console.error("OpenAI API error:", JSON.stringify(errorResponse));
       
-      // Extract measurements from PDF with OpenAI
-      let measurements;
-      if (processingMode === "fallback") {
-        console.log("Using fallback processing mode (optimized for large files)");
-        measurements = await extractMeasurementsWithStructuredPrompt(pdfContent);
-      } else {
-        console.log("Using regular processing mode");
-        measurements = await extractMeasurementsWithOpenAI(pdfContent);
+      // Check for token/context length errors
+      if (errorResponse.error && (
+        errorResponse.error.message.includes("maximum context length") ||
+        errorResponse.error.message.includes("token limit")
+      )) {
+        return new Response(
+          JSON.stringify({ 
+            error: "The PDF file is too large or complex for processing. Please try a smaller file or one with fewer pages." 
+          }),
+          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
       
-      console.log(`Successfully extracted measurements for ${fileName}`);
+      return new Response(
+        JSON.stringify({ error: `OpenAI API error: ${errorResponse.error?.message || "Unknown error"}` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const data = await response.json();
+    console.log("OpenAI response received successfully");
+    
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("Invalid response format from OpenAI");
+      return new Response(
+        JSON.stringify({ error: "Invalid response from AI service" }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Extract the content from the response
+    const content = data.choices[0].message.content;
+    console.log("AI response content:", content);
+    
+    // Extract just the JSON part
+    let jsonMatch;
+    try {
+      // Try to find JSON content - either full content is JSON or extract JSON between backticks or curly braces
+      if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
+        jsonMatch = content.trim();
+      } else {
+        // Look for JSON between ```json and ``` markers (common in markdown responses)
+        const jsonBlockRegex = /```(?:json)?\s*({[\s\S]*?})\s*```/;
+        const jsonBlockMatch = content.match(jsonBlockRegex);
+        
+        if (jsonBlockMatch && jsonBlockMatch[1]) {
+          jsonMatch = jsonBlockMatch[1];
+        } else {
+          // Try to extract anything between curly braces as a last resort
+          const curlyBraceRegex = /{[\s\S]*?}/;
+          const curlyBraceMatch = content.match(curlyBraceRegex);
+          
+          if (curlyBraceMatch) {
+            jsonMatch = curlyBraceMatch[0];
+          }
+        }
+      }
       
+      if (!jsonMatch) {
+        throw new Error("Could not extract JSON data from the AI response");
+      }
+      
+      // Parse the JSON to ensure it's valid
+      const measurements = JSON.parse(jsonMatch);
+      
+      // Basic validation of the measurements object
+      if (typeof measurements !== 'object' || measurements === null) {
+        throw new Error("Parsed JSON is not a valid object");
+      }
+      
+      // Check if truncation happened (often indicated in OpenAI responses)
+      const wasTruncated = content.includes("truncated") || 
+                            data.choices[0].finish_reason === "length" ||
+                            Object.keys(measurements).length < 5; // Heuristic: too few properties = likely truncated
+      
+      // Return the measurements
       return new Response(
         JSON.stringify({
           measurements,
-          truncated,
-          fileName
+          truncated: wasTruncated
         }),
-        {
-          headers: {
-            ...corsHeaders,
-            'Content-Type': 'application/json',
-          },
-        }
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
-    } catch (error) {
-      console.error(`Error with OpenAI processing: ${error}`);
-      throw error;
+      
+    } catch (jsonError) {
+      console.error("Error parsing JSON from AI response:", jsonError);
+      console.error("Original content:", content);
+      
+      return new Response(
+        JSON.stringify({ 
+          error: "Failed to parse measurement data from the PDF. The AI could not extract valid data." 
+        }),
+        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
+    
   } catch (error) {
-    console.error(`Error processing request: ${error}`);
+    console.error("Error processing request:", error);
     
     return new Response(
-      JSON.stringify({
-        error: error.message || "Unknown error occurred",
-      }),
-      {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
-      }
+      JSON.stringify({ error: `Error processing request: ${error.message}` }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
-
-// Helper function to validate if the string is a valid base64-encoded PDF
-function isPdfBase64Valid(base64String: string): boolean {
-  // Check if it's a non-empty string
-  if (!base64String || typeof base64String !== 'string') {
-    return false;
-  }
-  
-  // Check if it has valid base64 characters (simple validation)
-  // This regex matches valid base64 characters
-  const base64Regex = /^[A-Za-z0-9+/=]+$/;
-  return base64Regex.test(base64String);
-}
-
-async function extractMeasurementsWithOpenAI(pdfBase64: string) {
-  if (!OPENAI_API_KEY) {
-    throw new Error("OpenAI API key is not configured");
-  }
-
-  try {
-    // Create a stripped version of the PDF content to reduce tokens
-    const contentForProcessing = stripPdfContent(pdfBase64);
-    
-    const openai = new OpenAI({
-      apiKey: OPENAI_API_KEY,
-    });
-    
-    console.log("PDF base64 preview:", contentForProcessing.substring(0, 100) + "...");
-    console.log("Sending request to OpenAI with content length:", contentForProcessing.length);
-    
-    const response = await openai.chat.completions.create({
-      model: AI_MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a specialized AI for extracting roofing measurements from EagleView PDF reports.
-                   Focus ONLY on pages 9 and 10 of the report which contain the key measurements.
-                   Extract all measurements into a valid JSON object with the following fields:
-                   - ridgeLength (number, in feet)
-                   - ridgeCount (number)
-                   - hipLength (number, in feet)
-                   - hipCount (number)
-                   - valleyLength (number, in feet)
-                   - valleyCount (number)
-                   - rakeLength (number, in feet)
-                   - rakeCount (number)
-                   - eaveLength (number, in feet)
-                   - eaveCount (number)
-                   - dripEdgeLength (number, in feet)
-                   - parapetWallLength (number, in feet)
-                   - parapetWallCount (number)
-                   - flashingLength (number, in feet)
-                   - flashingCount (number)
-                   - stepFlashingLength (number, in feet)
-                   - stepFlashingCount (number)
-                   - penetrationsArea (number, in sq ft)
-                   - totalArea (number, in sq ft)
-                   - penetrationsPerimeter (number, in feet)
-                   - predominantPitch (string, e.g. "5/12")
-                   
-                   Return ONLY the JSON object, no explanations, comments or any other text. 
-                   If you cannot extract a value, set it to 0 for numbers or "N/A" for strings.
-                   DO NOT generate example data or placeholder values.`
-        },
-        {
-          role: 'user',
-          content: `Extract key roofing measurements from this EagleView PDF (focus on pages 9-10 where the measurements table is located).
-                   IMPORTANT: Return ONLY the JSON object with the exact structure described.
-                   Base64 PDF content: ${contentForProcessing}`
-        }
-      ],
-      temperature: 0.1, // Low temperature for more consistent results
-    });
-
-    const responseContent = response.choices[0].message.content?.trim() || "";
-    
-    // Log a preview of the response
-    console.log("OpenAI Response preview:", responseContent.substring(0, 100) + "...");
-    
-    try {
-      // Try to extract JSON from the response
-      // First, find JSON-like content by looking for opening and closing braces
-      let jsonMatch = responseContent.match(/\{[\s\S]*\}/);
-      
-      if (!jsonMatch) {
-        throw new Error("No JSON object found in the response");
-      }
-      
-      const jsonString = jsonMatch[0];
-      const parsedMeasurements = JSON.parse(jsonString);
-      
-      // Validate the structure to ensure we have the expected fields
-      validateMeasurements(parsedMeasurements);
-      
-      return parsedMeasurements;
-    } catch (parseError) {
-      console.error("Error parsing OpenAI response as JSON:", parseError);
-      console.log("Full response:", responseContent);
-      throw new Error("Could not parse AI response as valid JSON");
-    }
-  } catch (error) {
-    console.error("Error calling OpenAI API:", error);
-    throw error;
-  }
-}
-
-async function extractMeasurementsWithStructuredPrompt(pdfBase64: string) {
-  if (!OPENAI_API_KEY) {
-    throw new Error("OpenAI API key is not configured");
-  }
-
-  try {
-    // For structured prompt, we create a highly truncated version
-    // Take just enough content to hopefully include pages 9-10
-    const truncatedContent = pdfBase64.substring(0, MAX_PDF_CHARS);
-    
-    const openai = new OpenAI({
-      apiKey: OPENAI_API_KEY,
-    });
-    
-    console.log("Sending fallback request to OpenAI with truncated content length:", truncatedContent.length);
-    
-    const response = await openai.chat.completions.create({
-      model: AI_MODEL,
-      messages: [
-        {
-          role: 'system',
-          content: `You are a specialized AI for extracting roofing measurements from PDF files that are too large to process directly.
-                   Focus ONLY on finding measurement data typical for pages 9-10 of EagleView reports.
-                   Look for tables with measurements like ridge length, hip length, valley length, etc.`
-        },
-        {
-          role: 'user',
-          content: `I have an EagleView PDF report that's too large to send in full. I need you to extract common measurement patterns.
-                   Here's a highly truncated sample of the PDF as base64:
-                   ${truncatedContent}
-                   
-                   Focus on finding these measurements that would be on pages 9-10:
-                   1. Find the "Total Roof Area" (often followed by "sq ft")
-                   2. Look for roof pitch information (like "4/12", "5/12", etc.)
-                   3. Look for lengths of ridges, hips, valleys, rakes, eaves, etc.
-                   4. Count instances of these features when possible
-                   
-                   Return ONLY a JSON object with these fields (use 0 for numbers or "N/A" for strings if not found):
-                   {
-                     "ridgeLength": 0,
-                     "ridgeCount": 0,
-                     "hipLength": 0,
-                     "hipCount": 0,
-                     "valleyLength": 0,
-                     "valleyCount": 0,
-                     "rakeLength": 0,
-                     "rakeCount": 0,
-                     "eaveLength": 0,
-                     "eaveCount": 0,
-                     "dripEdgeLength": 0,
-                     "parapetWallLength": 0,
-                     "parapetWallCount": 0,
-                     "flashingLength": 0,
-                     "flashingCount": 0,
-                     "stepFlashingLength": 0,
-                     "stepFlashingCount": 0,
-                     "penetrationsArea": 0,
-                     "totalArea": 0,
-                     "penetrationsPerimeter": 0,
-                     "predominantPitch": "N/A"
-                   }`
-        }
-      ],
-      temperature: 0.2,
-    });
-
-    const responseContent = response.choices[0].message.content?.trim() || "";
-    
-    try {
-      // Extract JSON from the response
-      let jsonMatch = responseContent.match(/\{[\s\S]*\}/);
-      
-      if (!jsonMatch) {
-        throw new Error("No JSON object found in the fallback response");
-      }
-      
-      const jsonString = jsonMatch[0];
-      const parsedMeasurements = JSON.parse(jsonString);
-      
-      // Validate the structure
-      validateMeasurements(parsedMeasurements);
-      
-      return parsedMeasurements;
-    } catch (parseError) {
-      console.error("Error parsing fallback OpenAI response as JSON:", parseError);
-      console.log("Full fallback response:", responseContent);
-      throw new Error("Could not parse AI fallback response as valid JSON");
-    }
-  } catch (error) {
-    console.error("Error in fallback processing mode:", error);
-    throw error;
-  }
-}
-
-// Helper function to strip PDF content to essential parts to reduce token usage
-function stripPdfContent(pdfBase64: string): string {
-  // Take a limited portion of the PDF
-  const contentToProcess = pdfBase64.length > MAX_PDF_CHARS 
-    ? pdfBase64.substring(0, MAX_PDF_CHARS) 
-    : pdfBase64;
-  
-  console.log(`PDF content truncated from ${pdfBase64.length} to ${contentToProcess.length} chars`);
-  
-  return contentToProcess;
-}
-
-// Helper function to validate the measurements object
-function validateMeasurements(measurements: any): void {
-  const requiredFields = [
-    'ridgeLength', 'ridgeCount', 'hipLength', 'hipCount',
-    'valleyLength', 'valleyCount', 'rakeLength', 'rakeCount',
-    'eaveLength', 'eaveCount', 'dripEdgeLength',
-    'parapetWallLength', 'parapetWallCount',
-    'flashingLength', 'flashingCount',
-    'stepFlashingLength', 'stepFlashingCount',
-    'penetrationsArea', 'totalArea', 'penetrationsPerimeter',
-    'predominantPitch'
-  ];
-  
-  for (const field of requiredFields) {
-    if (measurements[field] === undefined) {
-      console.warn(`Missing field in measurements: ${field}`);
-      
-      // Add the missing field with a default value
-      if (field === 'predominantPitch') {
-        measurements[field] = 'N/A';
-      } else {
-        measurements[field] = 0;
-      }
-    }
-  }
-}
