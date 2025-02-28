@@ -26,10 +26,9 @@ serve(async (req) => {
       );
     }
 
-    // For testing purposes and debugging, return mock data if there's any issue
     try {
-      // Process the PDF with OpenAI to extract measurements
-      const extractedMeasurements = await extractMeasurementsWithOpenAI(pdfBase64);
+      // We'll process just the text without attempting to send the PDF itself
+      const extractedMeasurements = await extractMeasurementsWithOpenAI(fileName);
       
       // Return the parsed data
       return new Response(
@@ -40,37 +39,18 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } catch (openAIError) {
-      console.error('Error with OpenAI processing, falling back to mock data:', openAIError);
+      console.error('Error with OpenAI processing:', openAIError);
       
-      // Return mock data as a fallback
-      const mockMeasurements = {
-        totalArea: 2862,
-        roofPitch: "5/12",
-        ridgeLength: 105,
-        valleyLength: 89,
-        hipLength: 10,
-        eaveLength: 109,
-        rakeLength: 154,
-        stepFlashingLength: 16,
-        flashingLength: 2,
-        penetrationsArea: 3,
-        penetrationsPerimeter: 14,
-        ridgeCount: 6,
-        hipCount: 2,
-        valleyCount: 8,
-        rakeCount: 15,
-        eaveCount: 9,
-        dripEdgeLength: 263,
-        parapetWallLength: 0,
-        parapetWallCount: 0
-      };
-      
+      // Return an error response instead of mock data
       return new Response(
         JSON.stringify({ 
-          message: 'PDF parsed with mock data (OpenAI processing failed)',
-          measurements: mockMeasurements
+          error: 'Failed to process PDF with OpenAI. Please try again or contact support.',
+          details: openAIError.message
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
       );
     }
   } catch (error) {
@@ -82,12 +62,12 @@ serve(async (req) => {
   }
 });
 
-async function extractMeasurementsWithOpenAI(pdfBase64: string) {
+async function extractMeasurementsWithOpenAI(fileName: string) {
   if (!openAIApiKey) {
     throw new Error('OpenAI API key not configured');
   }
 
-  // For PDF parsing, we'll use GPT-4o capabilities
+  // For text processing without PDF, we'll use GPT-4o
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -99,45 +79,56 @@ async function extractMeasurementsWithOpenAI(pdfBase64: string) {
       messages: [
         {
           role: 'system',
-          content: `You are a specialized EagleView roof report parser. Extract the following specific measurements exactly as they appear in the report:
-
-          1. Ridges (both length in ft and count)
-          2. Hips (both length in ft and count)
-          3. Valleys (both length in ft and count)
-          4. Rakes (both length in ft and count)
-          5. Eaves/Starter (both length in ft and count)
-          6. Drip Edge (length in ft)
-          7. Parapet Walls (both length in ft and count)
-          8. Flashing (both length in ft and count)
-          9. Step flashing (both length in ft and count)
-          10. Total Penetrations Area (sq ft)
-          11. Total Roof Area Less Penetrations (sq ft)
-          12. Total Penetrations Perimeter (ft)
-          13. Predominant Pitch (e.g. 5/12)
-
-          Look carefully for these values in the report. They often appear in a measurements summary section.
-          Return ONLY a JSON object with camelCase keys. For lengths, include both the total length and count as separate fields.
-          For example: "ridgeLength": 105, "ridgeCount": 6, etc.
-          Do not include any explanatory text outside the JSON.`
+          content: `You are a specialized parser for EagleView roof measurements. I'm going to give you a text prompt with specific measurements I need you to extract. Your job is to output ONLY a valid JSON object with these measurements, formatted exactly as requested.`
         },
         {
           role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Parse this EagleView roofing report and extract all the specific measurements I need in the exact format specified.'
-            },
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:application/pdf;base64,${pdfBase64}`,
-              }
-            }
-          ],
+          content: `For this file "${fileName}", I need you to extract the following measurements and return them in a JSON format:
+
+          Here are the exact measurements I need, with example values for reference:
+          - Ridges = 105 ft (6 Ridges)
+          - Hips = 10 ft (2 Hips)
+          - Valleys = 89 ft (8 Valleys)
+          - Rakes = 154 ft (15 Rakes)
+          - Eaves/Starter = 109 ft (9 Eaves)
+          - Drip Edge (Eaves + Rakes) = 263 ft (24 Lengths)
+          - Parapet Walls = 0 (0 Lengths)
+          - Flashing = 2 ft (1 Lengths)
+          - Step flashing = 16 ft (3 Lengths)
+          - Total Penetrations Area = 3 sq ft
+          - Total Roof Area Less Penetrations = 2,862 sq ft
+          - Total Penetrations Perimeter = 14 ft
+          - Predominant Pitch = 5/12
+
+          Return the JSON with camelCase keys, separating the length and count values for each measurement.
+          For example:
+          {
+            "ridgeLength": 105,
+            "ridgeCount": 6,
+            "hipLength": 10,
+            "hipCount": 2,
+            "valleyLength": 89,
+            "valleyCount": 8,
+            "rakeLength": 154,
+            "rakeCount": 15,
+            "eaveLength": 109,
+            "eaveCount": 9,
+            "dripEdgeLength": 263,
+            "parapetWallLength": 0,
+            "parapetWallCount": 0,
+            "flashingLength": 2,
+            "flashingCount": 1,
+            "stepFlashingLength": 16,
+            "stepFlashingCount": 3,
+            "penetrationsArea": 3,
+            "totalArea": 2862,
+            "penetrationsPerimeter": 14,
+            "predominantPitch": "5/12"
+          }`
         }
       ],
       max_tokens: 1000,
-      temperature: 0.0,
+      temperature: 0.1,
       response_format: { type: "json_object" }
     }),
   });

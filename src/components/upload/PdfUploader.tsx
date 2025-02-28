@@ -91,6 +91,13 @@ export function PdfUploader() {
           throw error;
         }
         
+        // Check if there's an error message in the response
+        if (data.error) {
+          console.error("PDF parsing error:", data.error);
+          setErrorDetails(data.error);
+          throw new Error(data.error);
+        }
+        
         if (!data || !data.measurements) {
           setErrorDetails("The parsing service returned invalid data");
           throw new Error("Invalid response data");
