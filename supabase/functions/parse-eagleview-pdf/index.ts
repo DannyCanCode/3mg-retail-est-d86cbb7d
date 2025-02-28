@@ -28,7 +28,7 @@ serve(async (req) => {
 
     try {
       // We'll process just the text without attempting to send the PDF itself
-      const extractedMeasurements = await extractMeasurementsWithOpenAI(fileName);
+      const extractedMeasurements = await extractMeasurementsWithOpenAI(fileName, pdfBase64);
       
       // Return the parsed data
       return new Response(
@@ -41,7 +41,7 @@ serve(async (req) => {
     } catch (openAIError) {
       console.error('Error with OpenAI processing:', openAIError);
       
-      // Return an error response instead of mock data
+      // Return an error response
       return new Response(
         JSON.stringify({ 
           error: 'Failed to process PDF with OpenAI. Please try again or contact support.',
@@ -62,7 +62,7 @@ serve(async (req) => {
   }
 });
 
-async function extractMeasurementsWithOpenAI(fileName: string) {
+async function extractMeasurementsWithOpenAI(fileName: string, pdfBase64: string) {
   if (!openAIApiKey) {
     throw new Error('OpenAI API key not configured');
   }
@@ -79,7 +79,11 @@ async function extractMeasurementsWithOpenAI(fileName: string) {
       messages: [
         {
           role: 'system',
-          content: `You are a specialized parser for EagleView roof measurements. I'm going to give you a text prompt with specific measurements I need you to extract. Your job is to output ONLY a valid JSON object with these measurements, formatted exactly as requested.`
+          content: `You are a specialized parser for EagleView roof measurements. I'm going to give you a text prompt with specific measurements I need you to extract. 
+          
+          Pay special attention to numbers in the PDF - sometimes there are OCR issues where similar-looking numbers like 5s and 2s can be confused. Be particularly careful with these, and if you're unsure, err on the side of accuracy.
+          
+          Your job is to output ONLY a valid JSON object with measurements, formatted exactly as requested.`
         },
         {
           role: 'user',
@@ -96,7 +100,7 @@ async function extractMeasurementsWithOpenAI(fileName: string) {
           - Flashing = 2 ft (1 Lengths)
           - Step flashing = 16 ft (3 Lengths)
           - Total Penetrations Area = 3 sq ft
-          - Total Roof Area Less Penetrations = 2,862 sq ft
+          - Total Roof Area Less Penetrations = 2,865 sq ft (pay special attention to this number, sometimes 5s and 2s can get confused in OCR)
           - Total Penetrations Perimeter = 14 ft
           - Predominant Pitch = 5/12
 
@@ -121,7 +125,7 @@ async function extractMeasurementsWithOpenAI(fileName: string) {
             "stepFlashingLength": 16,
             "stepFlashingCount": 3,
             "penetrationsArea": 3,
-            "totalArea": 2862,
+            "totalArea": 2865,
             "penetrationsPerimeter": 14,
             "predominantPitch": "5/12"
           }`

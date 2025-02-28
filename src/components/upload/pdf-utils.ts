@@ -28,10 +28,19 @@ export const renderMeasurementValue = (key: string, value: any): string => {
     return 'N/A';
   }
   
-  // For length measurements, show both length and count if available
-  if (key.endsWith('Length') && key.replace('Length', 'Count') in value) {
-    const count = value[key.replace('Length', 'Count')];
-    return `${value} ft (${count} ${key.replace('Length', '')}s)`;
+  // Check if value is an object (for the ParsedMeasurements case)
+  if (typeof value === 'object' && key.endsWith('Length')) {
+    // For length measurements, show both length and count if available
+    const lengthValue = value[key];
+    const countKey = key.replace('Length', 'Count');
+    const countValue = value[countKey];
+    
+    if (lengthValue !== undefined && countValue !== undefined) {
+      const itemName = key.replace('Length', '').replace(/([A-Z])/g, ' $1').trim();
+      return `${lengthValue} ft (${countValue} ${itemName}s)`;
+    }
+    
+    return lengthValue ? `${lengthValue} ft` : 'N/A';
   }
   
   // Skip count properties as they're handled with their length counterparts
@@ -45,7 +54,7 @@ export const renderMeasurementValue = (key: string, value: any): string => {
   } else if (key.includes('Length') || key === 'penetrationsPerimeter' || key === 'dripEdgeLength' || key === 'parapetWallLength') {
     return `${value} ft`;
   } else if (key === 'roofPitch' || key === 'predominantPitch') {
-    return value;
+    return value.toString();
   } else {
     return value.toString();
   }

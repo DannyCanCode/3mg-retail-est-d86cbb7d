@@ -3,7 +3,6 @@ import React from "react";
 import { CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ParsedMeasurements } from "@/api/measurements";
-import { renderMeasurementValue } from "./pdf-utils";
 import { Separator } from "@/components/ui/separator";
 
 interface SuccessStatusProps {
@@ -14,6 +13,27 @@ interface SuccessStatusProps {
 }
 
 export function SuccessStatus({ fileName, parsedData, saveToDatabase, resetUpload }: SuccessStatusProps) {
+  // Helper function to render measurement value with proper units
+  const renderValue = (key: string, value: number | string | undefined): string => {
+    if (value === undefined || value === null) {
+      return 'N/A';
+    }
+    
+    if (key.includes('Pitch')) {
+      return value.toString();
+    }
+    
+    if (key.includes('Area')) {
+      return `${value} sq ft`;
+    }
+    
+    if (key.includes('Length') || key.includes('Perimeter')) {
+      return `${value} ft`;
+    }
+    
+    return value.toString();
+  };
+  
   // Filter and group fields for better display
   const getTotalFields = () => {
     return Object.entries(parsedData).filter(([key]) => 
@@ -31,6 +51,14 @@ export function SuccessStatus({ fileName, parsedData, saveToDatabase, resetUploa
     return Object.entries(parsedData).filter(([key]) => 
       key.includes('Count')
     );
+  };
+  
+  // Helper to format display names
+  const formatDisplayName = (key: string): string => {
+    return key
+      .replace(/([A-Z])/g, ' $1') // Insert space before capital letters
+      .replace(/^./, (str) => str.toUpperCase()) // Capitalize first character
+      .trim();
   };
   
   return (
@@ -52,9 +80,9 @@ export function SuccessStatus({ fileName, parsedData, saveToDatabase, resetUploa
             {getTotalFields().map(([key, value]) => (
               <div key={key} className="text-xs">
                 <span className="text-muted-foreground capitalize">
-                  {key.replace(/([A-Z])/g, ' $1').trim()}:
+                  {formatDisplayName(key)}:
                 </span>{' '}
-                <span className="font-medium">{renderMeasurementValue(key, value)}</span>
+                <span className="font-medium">{renderValue(key, value)}</span>
               </div>
             ))}
           </div>
@@ -65,14 +93,22 @@ export function SuccessStatus({ fileName, parsedData, saveToDatabase, resetUploa
         <div className="mb-3">
           <h5 className="text-xs text-muted-foreground mb-1">Length Measurements</h5>
           <div className="grid grid-cols-2 gap-2">
-            {getLengthFields().map(([key, value]) => (
-              <div key={key} className="text-xs">
-                <span className="text-muted-foreground capitalize">
-                  {key.replace(/Length|([A-Z])/g, (match, p1) => p1 ? ' ' + p1 : '').trim()}:
-                </span>{' '}
-                <span className="font-medium">{renderMeasurementValue(key, parsedData)}</span>
-              </div>
-            ))}
+            {getLengthFields().map(([key, value]) => {
+              const countKey = key.replace('Length', 'Count');
+              const count = parsedData[countKey as keyof ParsedMeasurements];
+              
+              return (
+                <div key={key} className="text-xs">
+                  <span className="text-muted-foreground capitalize">
+                    {formatDisplayName(key.replace('Length', ''))}:
+                  </span>{' '}
+                  <span className="font-medium">
+                    {renderValue(key, value)}
+                    {count ? ` (${count} ${formatDisplayName(key.replace('Length', ''))}s)` : ''}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
         
@@ -84,7 +120,7 @@ export function SuccessStatus({ fileName, parsedData, saveToDatabase, resetUploa
             {getCountFields().map(([key, value]) => (
               <div key={key} className="text-xs">
                 <span className="text-muted-foreground capitalize">
-                  {key.replace(/Count|([A-Z])/g, (match, p1) => p1 ? ' ' + p1 : '').trim() + ' Count'}:
+                  {formatDisplayName(key)}:
                 </span>{' '}
                 <span className="font-medium">{value}</span>
               </div>
