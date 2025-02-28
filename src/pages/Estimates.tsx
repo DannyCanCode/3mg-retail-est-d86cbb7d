@@ -7,12 +7,65 @@ import { Button } from "@/components/ui/button";
 import { Plus, ChevronRight } from "lucide-react";
 import { MeasurementForm } from "@/components/estimates/MeasurementForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MaterialsSelectionTab } from "@/components/estimates/materials/MaterialsSelectionTab";
+import { MeasurementValues } from "@/components/estimates/measurement/types";
+import { Material } from "@/components/estimates/materials/types";
+import { useToast } from "@/hooks/use-toast";
 
 const Estimates = () => {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("upload");
+  const [measurements, setMeasurements] = useState<MeasurementValues | null>(null);
+  const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
+  const [quantities, setQuantities] = useState<{[key: string]: number}>({});
 
   const handleGoToMeasurements = () => {
     setActiveTab("measurements");
+  };
+
+  const handleGoToMaterials = () => {
+    setActiveTab("materials");
+  };
+
+  const handleMeasurementsSaved = (savedMeasurements: MeasurementValues) => {
+    setMeasurements(savedMeasurements);
+    handleGoToMaterials();
+    
+    toast({
+      title: "Measurements saved",
+      description: "Now you can select materials for your estimate.",
+    });
+  };
+
+  const handleMaterialsSelected = (materials: {[key: string]: Material}, quantities: {[key: string]: number}) => {
+    setSelectedMaterials(materials);
+    setQuantities(quantities);
+    
+    toast({
+      title: "Materials selected",
+      description: "Your material selections have been saved.",
+    });
+    
+    // In a real implementation, we would proceed to the next step or save the estimate
+    // For now, we'll just show a success message
+  };
+
+  // Default measurements for the materials tab if no measurements exist yet
+  const defaultMeasurements: MeasurementValues = {
+    totalArea: 3000,
+    ridgeLength: 80,
+    hipLength: 40,
+    valleyLength: 30,
+    eaveLength: 120,
+    rakeLength: 60,
+    stepFlashingLength: 20,
+    flashingLength: 30,
+    penetrationsArea: 20,
+    roofPitch: "6:12",
+    areasByPitch: [
+      { pitch: "6:12", area: 2400, percentage: 80 },
+      { pitch: "4:12", area: 600, percentage: 20 }
+    ]
   };
 
   return (
@@ -94,16 +147,15 @@ const Estimates = () => {
               </TabsContent>
               
               <TabsContent value="measurements">
-                <MeasurementForm />
+                <MeasurementForm onMeasurementsSaved={handleMeasurementsSaved} />
               </TabsContent>
               
               <TabsContent value="materials">
-                <div className="p-6 text-center">
-                  <h3 className="text-lg font-medium mb-2">Material Selection Coming Soon</h3>
-                  <p className="text-muted-foreground">
-                    This section will allow you to select roofing materials based on measurements
-                  </p>
-                </div>
+                <MaterialsSelectionTab 
+                  measurements={measurements || defaultMeasurements}
+                  goToPreviousTab={() => setActiveTab("measurements")}
+                  onContinue={handleMaterialsSelected}
+                />
               </TabsContent>
             </Tabs>
           </CardContent>

@@ -8,7 +8,11 @@ import { LengthMeasurementsTab } from "./measurement/LengthMeasurementsTab";
 import { ReviewTab } from "./measurement/ReviewTab";
 import { MeasurementValues, AreaByPitch } from "./measurement/types";
 
-export function MeasurementForm() {
+interface MeasurementFormProps {
+  onMeasurementsSaved?: (measurements: MeasurementValues) => void;
+}
+
+export function MeasurementForm({ onMeasurementsSaved }: MeasurementFormProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("roof-area");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -134,7 +138,10 @@ export function MeasurementForm() {
         description: "Your roof measurements have been saved successfully.",
       });
       
-      // TODO: Move to the next step (materials selection)
+      // Call the callback if provided
+      if (onMeasurementsSaved) {
+        onMeasurementsSaved(measurements);
+      }
     } catch (error) {
       console.error("Error saving measurements:", error);
       toast({
