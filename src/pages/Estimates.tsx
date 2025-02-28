@@ -11,6 +11,8 @@ import { MaterialsSelectionTab } from "@/components/estimates/materials/Material
 import { MeasurementValues } from "@/components/estimates/measurement/types";
 import { Material } from "@/components/estimates/materials/types";
 import { useToast } from "@/hooks/use-toast";
+import { LaborProfitTab, LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
+import { EstimateSummaryTab } from "@/components/estimates/pricing/EstimateSummaryTab";
 
 const Estimates = () => {
   const { toast } = useToast();
@@ -18,6 +20,14 @@ const Estimates = () => {
   const [measurements, setMeasurements] = useState<MeasurementValues | null>(null);
   const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
   const [quantities, setQuantities] = useState<{[key: string]: number}>({});
+  const [laborRates, setLaborRates] = useState<LaborRates>({
+    tearOff: 55,
+    installation: 125,
+    cleanup: 35,
+    supervision: 45
+  });
+  const [profitMargin, setProfitMargin] = useState(25);
+  const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
 
   const handleGoToMeasurements = () => {
     setActiveTab("measurements");
@@ -40,14 +50,40 @@ const Estimates = () => {
   const handleMaterialsSelected = (materials: {[key: string]: Material}, quantities: {[key: string]: number}) => {
     setSelectedMaterials(materials);
     setQuantities(quantities);
+    setActiveTab("labor-profit");
     
     toast({
       title: "Materials selected",
-      description: "Your material selections have been saved.",
+      description: "Now you can set labor rates and profit margin.",
     });
+  };
+
+  const handleLaborProfitContinue = (laborRates: LaborRates, profitMargin: number) => {
+    setLaborRates(laborRates);
+    setProfitMargin(profitMargin);
+    setActiveTab("summary");
     
-    // In a real implementation, we would proceed to the next step or save the estimate
-    // For now, we'll just show a success message
+    toast({
+      title: "Labor rates & profit margin saved",
+      description: "Review your estimate summary.",
+    });
+  };
+
+  const handleFinalizeEstimate = () => {
+    setIsSubmittingFinal(true);
+    
+    // In a real implementation, we would save the complete estimate to the database
+    setTimeout(() => {
+      setIsSubmittingFinal(false);
+      
+      toast({
+        title: "Estimate finalized",
+        description: "Your estimate has been saved successfully.",
+      });
+      
+      // Reset and go back to the beginning
+      setActiveTab("upload");
+    }, 1500);
   };
 
   // Default measurements for the materials tab if no measurements exist yet
@@ -93,10 +129,12 @@ const Estimates = () => {
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-3 mb-8">
+              <TabsList className="w-full grid grid-cols-5 mb-8">
                 <TabsTrigger value="upload">1. Upload EagleView</TabsTrigger>
                 <TabsTrigger value="measurements">2. Enter Measurements</TabsTrigger>
                 <TabsTrigger value="materials">3. Select Materials</TabsTrigger>
+                <TabsTrigger value="labor-profit">4. Labor & Profit</TabsTrigger>
+                <TabsTrigger value="summary">5. Summary</TabsTrigger>
               </TabsList>
               
               <TabsContent value="upload" className="space-y-4">
@@ -133,12 +171,12 @@ const Estimates = () => {
                           Choose roofing materials and options
                         </li>
                         <li className="text-muted-foreground">
-                          <span className="font-medium text-muted-foreground">Calculate Pricing</span> - 
-                          Generate accurate cost estimates
+                          <span className="font-medium text-muted-foreground">Set Labor & Profit</span> - 
+                          Define labor rates and profit margin
                         </li>
                         <li className="text-muted-foreground">
-                          <span className="font-medium text-muted-foreground">Create Proposal</span> - 
-                          Finalize and send to customer for approval
+                          <span className="font-medium text-muted-foreground">Review Summary</span> - 
+                          Finalize and prepare for customer approval
                         </li>
                       </ol>
                     </CardContent>
@@ -155,6 +193,28 @@ const Estimates = () => {
                   measurements={measurements || defaultMeasurements}
                   goToPreviousTab={() => setActiveTab("measurements")}
                   onContinue={handleMaterialsSelected}
+                />
+              </TabsContent>
+              
+              <TabsContent value="labor-profit">
+                <LaborProfitTab 
+                  initialLaborRates={laborRates}
+                  initialProfitMargin={profitMargin}
+                  goToPreviousTab={() => setActiveTab("materials")}
+                  onContinue={handleLaborProfitContinue}
+                />
+              </TabsContent>
+              
+              <TabsContent value="summary">
+                <EstimateSummaryTab 
+                  measurements={measurements || defaultMeasurements}
+                  selectedMaterials={selectedMaterials}
+                  quantities={quantities}
+                  laborRates={laborRates}
+                  profitMargin={profitMargin}
+                  goToPreviousTab={() => setActiveTab("labor-profit")}
+                  onFinalize={handleFinalizeEstimate}
+                  isSubmitting={isSubmittingFinal}
                 />
               </TabsContent>
             </Tabs>
