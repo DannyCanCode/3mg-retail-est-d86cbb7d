@@ -16,6 +16,7 @@ const MAX_ALLOWED_SIZE_MB = 4;
 export function usePdfParser() {
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
   const [processingMode, setProcessingMode] = useState<"regular" | "fallback">("regular");
+  const [modelType, setModelType] = useState<"gpt-4o" | "gpt-4o-mini">("gpt-4o-mini"); // Default to mini for faster processing
 
   const parsePdf = async (
     file: File, 
@@ -66,16 +67,17 @@ export function usePdfParser() {
         const timestamp = new Date().getTime();
         const requestId = crypto.randomUUID(); // Generate unique request ID
         
-        console.log(`Sending file ${file.name} (${fileSizeMB.toFixed(2)} MB) to parse-eagleview-pdf. Request ID: ${requestId}`);
+        console.log(`Sending file ${file.name} (${fileSizeMB.toFixed(2)} MB) to parse-eagleview-pdf. Request ID: ${requestId}, Model: ${modelType}`);
         
-        // Include processing mode in request
+        // Include processing mode and model type in request
         const { data, error } = await supabase.functions.invoke('parse-eagleview-pdf', {
           body: { 
             fileName: file.name,
             pdfBase64: base64File,
             timestamp,
             requestId,
-            processingMode: processingMode // Include the processing mode
+            processingMode: processingMode,
+            modelType: modelType // Send the selected model type to the API
           }
         });
         
@@ -106,7 +108,8 @@ export function usePdfParser() {
                   pdfBase64: base64File,
                   timestamp: new Date().getTime(),
                   requestId: crypto.randomUUID(),
-                  processingMode: "fallback"
+                  processingMode: "fallback",
+                  modelType: "gpt-4o-mini" // Always use mini model for fallback
                 }
               });
               
@@ -220,6 +223,8 @@ export function usePdfParser() {
     parsedData,
     setParsedData,
     parsePdf,
-    processingMode
+    processingMode,
+    modelType,
+    setModelType
   };
 }
