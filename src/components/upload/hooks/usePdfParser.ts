@@ -16,7 +16,7 @@ export function usePdfParser() {
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
   const [processingMode, setProcessingMode] = useState<ProcessingMode>("regular");
   const [modelType, setModelType] = useState<ModelType>("gpt-4o-mini"); // Default to mini for faster processing
-  const [useImageConversion, setUseImageConversion] = useState<boolean>(true); // New state for image conversion toggle
+  const [useImageConversion, setUseImageConversion] = useState<boolean>(false); // Set to false by default to use pdfjs-serverless
 
   const parsePdf = async (
     file: File, 
@@ -48,13 +48,13 @@ export function usePdfParser() {
         setProcessingMode("regular");
       }
       
-      // If this is an EagleView PDF and image conversion is enabled, use the new approach
+      // If this is an EagleView PDF and image conversion is enabled, use the legacy approach
       if (useImageConversion && file.name.toLowerCase().includes("eagleview")) {
+        console.log("Using legacy image conversion approach for EagleView PDF");
         return await parseEagleViewPdfWithImages(file, setStatus, setErrorDetails);
       }
       
-      // Otherwise, use the original approach
-      // Read the file as base64
+      // Default: use the pdfjs-serverless approach through Supabase Edge Function
       try {
         const base64File = await readFileAsBase64(file);
         console.log(`Base64 length: ${base64File.length} chars`);
@@ -92,7 +92,7 @@ export function usePdfParser() {
     }
   };
 
-  // New method for parsing EagleView PDFs using image conversion
+  // Method for parsing EagleView PDFs using image conversion (legacy approach)
   const parseEagleViewPdfWithImages = async (
     file: File,
     setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
@@ -100,9 +100,9 @@ export function usePdfParser() {
   ) => {
     try {
       setStatus("parsing");
-      console.log("Using image conversion approach for EagleView PDF");
+      console.log("Using legacy image conversion approach for EagleView PDF");
       
-      // Process the PDF using our new method
+      // Process the PDF using the legacy method
       const result = await processEagleViewPdf(file, modelType);
       
       if (!result.success) {

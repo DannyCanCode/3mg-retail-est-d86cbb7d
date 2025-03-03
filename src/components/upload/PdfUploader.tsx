@@ -105,11 +105,11 @@ export function PdfUploader() {
               onCheckedChange={setUseImageConversion}
             />
             <Label htmlFor="use-image-conversion">
-              Use PDF-to-Images for EagleView PDFs
+              Use legacy PDF-to-Images approach (not recommended)
             </Label>
             {useImageConversion && (
-              <span className="text-xs text-green-600 ml-2">
-                (Recommended for better accuracy)
+              <span className="text-xs text-yellow-600 ml-2">
+                (Legacy approach, may cause errors)
               </span>
             )}
           </div>
