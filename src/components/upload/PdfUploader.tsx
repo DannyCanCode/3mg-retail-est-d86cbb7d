@@ -7,8 +7,6 @@ import { ProcessingStatus } from "./ProcessingStatus";
 import { SuccessStatus } from "./SuccessStatus";
 import { ErrorStatus } from "./ErrorStatus";
 import { toast } from "@/hooks/use-toast";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 
 export function PdfUploader() {
   const { 
@@ -28,9 +26,7 @@ export function PdfUploader() {
     parsedData, 
     setParsedData, 
     parsePdf, 
-    processingMode, 
-    useImageConversion, 
-    setUseImageConversion 
+    processingMode
   } = usePdfParser();
   
   const { saveToDatabase } = useMeasurementStorage();
@@ -41,7 +37,6 @@ export function PdfUploader() {
     try {
       // Display the processing mode that will be used
       console.log(`Processing file using ${processingMode} mode`);
-      console.log(`Image conversion ${useImageConversion ? 'enabled' : 'disabled'}`);
       
       // Clear previous error
       setErrorDetails("");
@@ -98,22 +93,6 @@ export function PdfUploader() {
     <div className="w-full">
       {status === "idle" ? (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center space-x-2 mb-4">
-            <Switch
-              id="use-image-conversion"
-              checked={useImageConversion}
-              onCheckedChange={setUseImageConversion}
-            />
-            <Label htmlFor="use-image-conversion">
-              Use legacy PDF-to-Images approach (not recommended)
-            </Label>
-            {useImageConversion && (
-              <span className="text-xs text-yellow-600 ml-2">
-                (Legacy approach, may cause errors)
-              </span>
-            )}
-          </div>
-          
           <DropZone 
             dragActive={dragActive}
             handleDrag={handleDrag}

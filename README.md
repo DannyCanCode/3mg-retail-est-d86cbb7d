@@ -14,9 +14,7 @@ A web application for parsing and analyzing roof measurement PDFs to generate ac
 
 - **Frontend**: React with TypeScript, Vite, and Shadcn UI components
 - **Backend**: Supabase for authentication, database, storage, and serverless functions
-- **PDF Processing**: 
-  - Primary method: pdfjs-serverless for direct text extraction
-  - Legacy method: PDF-to-images conversion (not recommended for general use)
+- **PDF Processing**: Uses pdfjs-serverless for direct text extraction from PDF files
 
 ## Supabase Components
 
