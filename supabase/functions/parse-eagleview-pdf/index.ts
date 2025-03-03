@@ -1,229 +1,371 @@
+// @deno-types="npm:@types/node"
+// @ts-ignore
+import { resolvePDFJS } from "https://esm.sh/pdfjs-serverless@0.4.2";
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
-
-// CORS headers for browser requests
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
-// Models and processing modes
-type ModelType = "gpt-4o" | "gpt-4o-mini";
-type ProcessingMode = "regular" | "fallback";
-
-// OpenAI API key
-const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
-
-// Helper function to check if base64 string is valid PDF
-function isValidPdfBase64(base64String: string): boolean {
-  // Basic validation to check if it starts with PDF header in base64
-  // %PDF- in base64 usually begins with "JVBERi0"
-  return base64String && base64String.startsWith('JVBERi0');
-}
-
-// Helper to create a system prompt based on the processing mode
-function createSystemPrompt(processingMode: ProcessingMode): string {
-  const basePrompt = `You are an expert in analyzing EagleView PDF roof measurement reports. 
-  Extract all measurements including total area, pitch, length measurements for ridge, hip, valley, rake, eave, 
-  step flashing, wall flashing, and counts for penetrations.`;
-  
-  if (processingMode === "fallback") {
-    return `${basePrompt} 
-    The PDF file is large, so focus ONLY on pages 9-10 where the key measurements are typically located. 
-    Extract ONLY measurement data - do not analyze any other content.`;
-  }
-  
-  return basePrompt;
-}
-
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
+// Helper function to safely parse JSON with fallback
+function safeJsonParse(jsonString: any) {
   try {
-    const { fileName, pdfBase64, timestamp, requestId, processingMode = "regular", modelType = "gpt-4o-mini" } = await req.json();
-    
-    // Validate inputs
-    if (!fileName) {
-      console.error("Missing fileName parameter");
-      return new Response(
-        JSON.stringify({ error: "Missing fileName parameter" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    return JSON.parse(jsonString);
+  } catch (error) {
+    console.error("Error parsing JSON:", error);
+    return null;
+  }
+}
+
+// Function to extract measurements from text
+function extractMeasurementsFromText(text: string) {
+  console.log("Extracting measurements from text...");
+  
+  // Initialize measurements object with default values
+  const measurements: any = {
+    totalArea: 0,
+    predominantPitch: "",
+    ridgeLength: 0,
+    hipLength: 0,
+    valleyLength: 0,
+    rakeLength: 0,
+    eaveLength: 0,
+    ridgeCount: 0,
+    hipCount: 0,
+    valleyCount: 0,
+    rakeCount: 0,
+    eaveCount: 0,
+    stepFlashingLength: 0,
+    stepFlashingCount: 0,
+    chimneyCount: 0,
+    skylightCount: 0,
+    turbineVentCount: 0,
+    pipeVentCount: 0,
+    penetrationsArea: 0,
+    penetrationsPerimeter: 0,
+    areasByPitch: {}
+  };
+
+  // Extract total area
+  const totalAreaMatch = text.match(/Total Area:\s*([\d,]+)\s*sq\s*ft/i) || 
+                         text.match(/Total\s*Area\s*=\s*([\d,]+)/i);
+  if (totalAreaMatch) {
+    measurements.totalArea = parseFloat(totalAreaMatch[1].replace(/,/g, ''));
+    console.log("Found total area:", measurements.totalArea);
+  }
+
+  // Extract predominant pitch
+  const pitchMatch = text.match(/Predominant Pitch:\s*([\d/:.]+)/i) ||
+                     text.match(/Primary Pitch:\s*([\d/:.]+)/i);
+  if (pitchMatch) {
+    measurements.predominantPitch = pitchMatch[1];
+    console.log("Found predominant pitch:", measurements.predominantPitch);
+  }
+
+  // Extract ridge length
+  const ridgeMatch = text.match(/Ridge Length:\s*([\d,]+)\s*ft/i) ||
+                     text.match(/Total Ridge:\s*([\d,]+)/i);
+  if (ridgeMatch) {
+    measurements.ridgeLength = parseFloat(ridgeMatch[1].replace(/,/g, ''));
+    console.log("Found ridge length:", measurements.ridgeLength);
+  }
+
+  // Extract hip length
+  const hipMatch = text.match(/Hip Length:\s*([\d,]+)\s*ft/i) ||
+                   text.match(/Total Hip:\s*([\d,]+)/i);
+  if (hipMatch) {
+    measurements.hipLength = parseFloat(hipMatch[1].replace(/,/g, ''));
+    console.log("Found hip length:", measurements.hipLength);
+  }
+
+  // Extract valley length
+  const valleyMatch = text.match(/Valley Length:\s*([\d,]+)\s*ft/i) ||
+                      text.match(/Total Valley:\s*([\d,]+)/i);
+  if (valleyMatch) {
+    measurements.valleyLength = parseFloat(valleyMatch[1].replace(/,/g, ''));
+    console.log("Found valley length:", measurements.valleyLength);
+  }
+
+  // Extract rake length
+  const rakeMatch = text.match(/Rake Length:\s*([\d,]+)\s*ft/i) ||
+                    text.match(/Total Rake:\s*([\d,]+)/i);
+  if (rakeMatch) {
+    measurements.rakeLength = parseFloat(rakeMatch[1].replace(/,/g, ''));
+    console.log("Found rake length:", measurements.rakeLength);
+  }
+
+  // Extract eave length
+  const eaveMatch = text.match(/Eave Length:\s*([\d,]+)\s*ft/i) ||
+                    text.match(/Total Eave:\s*([\d,]+)/i);
+  if (eaveMatch) {
+    measurements.eaveLength = parseFloat(eaveMatch[1].replace(/,/g, ''));
+    console.log("Found eave length:", measurements.eaveLength);
+  }
+
+  // Count penetrations
+  const skylightMatch = text.match(/Skylight[s]?:?\s*(\d+)/i);
+  if (skylightMatch) {
+    measurements.skylightCount = parseInt(skylightMatch[1]);
+    console.log("Found skylights:", measurements.skylightCount);
+  }
+
+  const chimneyMatch = text.match(/Chimney[s]?:?\s*(\d+)/i);
+  if (chimneyMatch) {
+    measurements.chimneyCount = parseInt(chimneyMatch[1]);
+    console.log("Found chimneys:", measurements.chimneyCount);
+  }
+
+  const pipeVentMatch = text.match(/Pipe Vent[s]?:?\s*(\d+)/i);
+  if (pipeVentMatch) {
+    measurements.pipeVentCount = parseInt(pipeVentMatch[1]);
+    console.log("Found pipe vents:", measurements.pipeVentCount);
+  }
+
+  // Extract areas by pitch
+  const pitchAreaMatches = text.matchAll(/(\d+(?:\/\d+)?(?::\d+)?)\s*pitch\s*(?:area|=)\s*([\d,]+)\s*(?:sq\s*ft)?/gi);
+  for (const match of pitchAreaMatches) {
+    const pitch = match[1];
+    const area = parseFloat(match[2].replace(/,/g, ''));
+    measurements.areasByPitch[pitch] = area;
+    console.log(`Found area for pitch ${pitch}: ${area}`);
+  }
+
+  // If we couldn't extract some values, use reasonable defaults based on what we know
+  if (measurements.totalArea > 0) {
+    // Estimate counts based on total area if not found
+    if (measurements.ridgeCount === 0) {
+      measurements.ridgeCount = Math.ceil(measurements.totalArea / 1000);
+    }
+    if (measurements.hipCount === 0 && measurements.hipLength > 0) {
+      measurements.hipCount = Math.ceil(measurements.hipLength / 20);
+    }
+    if (measurements.valleyCount === 0 && measurements.valleyLength > 0) {
+      measurements.valleyCount = Math.ceil(measurements.valleyLength / 20);
+    }
+    if (measurements.rakeCount === 0 && measurements.rakeLength > 0) {
+      measurements.rakeCount = Math.ceil(measurements.rakeLength / 25);
+    }
+    if (measurements.eaveCount === 0 && measurements.eaveLength > 0) {
+      measurements.eaveCount = Math.ceil(measurements.eaveLength / 25);
     }
     
-    if (!pdfBase64) {
-      console.error("Missing pdfBase64 parameter");
-      return new Response(
-        JSON.stringify({ error: "Missing PDF content" }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Estimate penetrations area if not found
+    if (measurements.penetrationsArea === 0) {
+      const totalPenetrations = measurements.skylightCount + measurements.chimneyCount + measurements.pipeVentCount;
+      measurements.penetrationsArea = totalPenetrations * 15; // Rough estimate: 15 sq ft per penetration
+      measurements.penetrationsPerimeter = totalPenetrations * 10; // Rough estimate: 10 ft perimeter per penetration
     }
-    
-    // Basic PDF validation
-    if (!isValidPdfBase64(pdfBase64)) {
-      console.error("Invalid PDF format: Not a valid base64-encoded PDF");
-      return new Response(
-        JSON.stringify({ error: "Invalid PDF format. Expected base64 encoded PDF." }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    console.log(`Processing file ${fileName} (RequestID: ${requestId || 'none'}, Mode: ${processingMode}, Model: ${modelType})`);
-    
-    // Create a data URI for the PDF
-    const dataUri = `data:application/pdf;base64,${pdfBase64}`;
-    
-    // Create system prompt based on processing mode
-    const systemPrompt = createSystemPrompt(processingMode);
-    
-    // Create messages for the OpenAI API
-    const messages = [
-      { role: "system", content: systemPrompt },
-      { 
-        role: "user", 
-        content: [
-          { 
-            type: "text", 
-            text: "Please extract the measurement data from this EagleView PDF roof report. Return the data in valid JSON format with the following structure: { \"totalArea\": number, \"predominantPitch\": string, \"ridgeLength\": number, \"hipLength\": number, \"valleyLength\": number, \"rakeLength\": number, \"eaveLength\": number, \"ridgeCount\": number, \"hipCount\": number, \"valleyCount\": number, \"rakeCount\": number, \"eaveCount\": number, \"stepFlashingLength\": number, \"stepFlashingCount\": number, \"chimneyCount\": number, \"skylightCount\": number, \"turbineVentCount\": number, \"pipeVentCount\": number, \"penetrationsArea\": number, \"penetrationsPerimeter\": number }. All length measurements should be in feet, areas in square feet."
-          },
-          {
-            type: "file_url",
-            file_url: {
-              url: dataUri
-            }
-          }
-        ]
-      }
-    ];
-    
-    console.log(`Sending request to OpenAI API using model: ${modelType}`);
-    
-    // Make API call to OpenAI
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openAiApiKey}`
-      },
-      body: JSON.stringify({
-        model: modelType,
-        messages: messages,
-        temperature: 0.1, // Lower temperature for more deterministic output
-        max_tokens: 1500  // Limit to ensure we get a reasonable response size
-      })
-    });
-    
-    if (!response.ok) {
-      const errorResponse = await response.json();
-      console.error("OpenAI API error:", JSON.stringify(errorResponse));
+  }
+
+  console.log("Extracted measurements:", measurements);
+  return measurements;
+}
+
+console.log("Starting parse-eagleview-pdf function!");
+
+// @ts-ignore
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  console.log("Checking method...");
+  if (req.method === "POST") {
+    try {
+      const { pdfUrl } = await req.json();
+      console.log("Processing EagleView PDF:", pdfUrl);
       
-      // Check for token/context length errors
-      if (errorResponse.error && (
-        errorResponse.error.message.includes("maximum context length") ||
-        errorResponse.error.message.includes("token limit")
-      )) {
-        return new Response(
-          JSON.stringify({ 
-            error: "The PDF file is too large or complex for processing. Please try a smaller file or one with fewer pages." 
-          }),
-          { status: 413, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      const response = await fetch(pdfUrl);
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch the PDF. Status: ${response.status} ${response.statusText}`,
         );
       }
       
-      return new Response(
-        JSON.stringify({ error: `OpenAI API error: ${errorResponse.error?.message || "Unknown error"}` }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    const data = await response.json();
-    console.log("OpenAI response received successfully");
-    
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error("Invalid response format from OpenAI");
-      return new Response(
-        JSON.stringify({ error: "Invalid response from AI service" }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Extract the content from the response
-    const content = data.choices[0].message.content;
-    console.log("AI response content:", content);
-    
-    // Extract just the JSON part
-    let jsonMatch;
-    try {
-      // Try to find JSON content - either full content is JSON or extract JSON between backticks or curly braces
-      if (content.trim().startsWith('{') && content.trim().endsWith('}')) {
-        jsonMatch = content.trim();
-      } else {
-        // Look for JSON between ```json and ``` markers (common in markdown responses)
-        const jsonBlockRegex = /```(?:json)?\s*({[\s\S]*?})\s*```/;
-        const jsonBlockMatch = content.match(jsonBlockRegex);
-        
-        if (jsonBlockMatch && jsonBlockMatch[1]) {
-          jsonMatch = jsonBlockMatch[1];
-        } else {
-          // Try to extract anything between curly braces as a last resort
-          const curlyBraceRegex = /{[\s\S]*?}/;
-          const curlyBraceMatch = content.match(curlyBraceRegex);
-          
-          if (curlyBraceMatch) {
-            jsonMatch = curlyBraceMatch[0];
-          }
-        }
+      const data = new Uint8Array(await response.arrayBuffer());
+      console.log("Fetched PDF successfully! Processing...");
+      
+      const { getDocument } = await resolvePDFJS();
+      const doc = await getDocument({ data, useSystemFonts: true }).promise;
+      const allText: string[] = [];
+      
+      console.log("Processing PDF pages...");
+      for (let i = 1; i <= doc.numPages; i++) {
+        const page = await doc.getPage(i);
+        const textContent = await page.getTextContent();
+        const contents = textContent.items.map((item: any) => item.str).join(" ");
+        allText.push(contents);
       }
       
-      if (!jsonMatch) {
-        throw new Error("Could not extract JSON data from the AI response");
-      }
-      
-      // Parse the JSON to ensure it's valid
-      const measurements = JSON.parse(jsonMatch);
-      
-      // Basic validation of the measurements object
-      if (typeof measurements !== 'object' || measurements === null) {
-        throw new Error("Parsed JSON is not a valid object");
-      }
-      
-      // Check if truncation happened (often indicated in OpenAI responses)
-      const wasTruncated = content.includes("truncated") || 
-                            data.choices[0].finish_reason === "length" ||
-                            Object.keys(measurements).length < 5; // Heuristic: too few properties = likely truncated
-      
-      // Return the measurements
-      return new Response(
-        JSON.stringify({
-          measurements,
-          truncated: wasTruncated
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-      
-    } catch (jsonError) {
-      console.error("Error parsing JSON from AI response:", jsonError);
-      console.error("Original content:", content);
+      const combinedText = allText.join("\n");
+      console.log("Processed PDF successfully!");
+
+      // Extract EagleView measurements from the PDF text
+      const measurements = extractEagleViewMeasurements(combinedText);
       
       return new Response(
         JSON.stringify({ 
-          error: "Failed to parse measurement data from the PDF. The AI could not extract valid data." 
-        }),
-        { status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          success: true, 
+          pdfText: combinedText,
+          measurements: measurements 
+        }), 
+        {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    } catch (error) {
+      console.error("Error processing EagleView PDF:", error);
+      return new Response(
+        JSON.stringify({ success: false, error: error.message }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
-    
-  } catch (error) {
-    console.error("Error processing request:", error);
-    
-    return new Response(
-      JSON.stringify({ error: `Error processing request: ${error.message}` }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   }
+  
+  return new Response(
+    JSON.stringify({ success: false, error: "Invalid request method" }),
+    {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
 });
+
+// Function to extract EagleView measurements from the PDF text
+function extractEagleViewMeasurements(text: string) {
+  const measurements: {
+    filename: string | null;
+    totalArea: number | null;
+    totalSquares: number | null;
+    predominantPitch: string | null;
+    ridges: number | null;
+    valleys: number | null;
+    hips: number | null;
+    rakes: number | null;
+    eaves: number | null;
+    flashing: number | null;
+    stepFlashing: number | null;
+    penetrations: number | null;
+    penetrationsPerimeter: number | null;
+    wastePercentage: number | null;
+    areasPerPitch: Array<{pitch: string; area: number; percentage: number}>;
+    lengthMeasurements: any;
+    rawText: string;
+  } = {
+    filename: extractText(text, /Report\s*ID:\s*([A-Z0-9_-]+)/i) || 
+              extractText(text, /Order\s*Number:\s*([A-Z0-9_-]+)/i),
+    totalArea: extractNumber(text, /Total Area:\s*([\d,.]+)/i) || 
+               extractNumber(text, /Total Square Footage:\s*([\d,.]+)/i),
+    totalSquares: null,
+    predominantPitch: extractText(text, /Predominant Pitch:\s*([^\n\r]+)/i),
+    ridges: extractNumber(text, /Ridge Length:\s*([\d,.]+)/i),
+    valleys: extractNumber(text, /Valley Length:\s*([\d,.]+)/i),
+    hips: extractNumber(text, /Hip Length:\s*([\d,.]+)/i),
+    rakes: extractNumber(text, /Rake Length:\s*([\d,.]+)/i),
+    eaves: extractNumber(text, /Eave Length:\s*([\d,.]+)/i),
+    flashing: extractNumber(text, /Flashing Length:\s*([\d,.]+)/i),
+    stepFlashing: extractNumber(text, /Step Flashing Length:\s*([\d,.]+)/i),
+    penetrations: extractNumber(text, /Penetrations Area:\s*([\d,.]+)/i),
+    penetrationsPerimeter: extractNumber(text, /Penetrations Perimeter:\s*([\d,.]+)/i),
+    wastePercentage: extractNumber(text, /Waste Percentage:\s*([\d,.]+)/i) || 
+                     calculateWastePercentage(text),
+    areasPerPitch: extractAreasPerPitch(text),
+    lengthMeasurements: extractLengthMeasurements(text),
+    rawText: text,
+  };
+
+  // Calculate total squares if total area is available (1 square = 100 sq ft)
+  if (measurements.totalArea) {
+    measurements.totalSquares = Math.ceil(measurements.totalArea / 100);
+  }
+
+  return measurements;
+}
+
+// Helper function to extract numbers from text using regex
+function extractNumber(text: string, regex: RegExp): number | null {
+  const match = text.match(regex);
+  if (match && match[1]) {
+    // Remove commas and convert to number
+    return parseFloat(match[1].replace(/,/g, ''));
+  }
+  return null;
+}
+
+// Helper function to extract text using regex
+function extractText(text: string, regex: RegExp): string | null {
+  const match = text.match(regex);
+  if (match && match[1]) {
+    return match[1].trim();
+  }
+  return null;
+}
+
+// Helper function to extract areas per pitch
+function extractAreasPerPitch(text: string): Array<{pitch: string; area: number; percentage: number}> {
+  const pitchAreas: Array<{pitch: string; area: number; percentage: number}> = [];
+  const pitchRegex = /(\d+\/\d+)\s*pitch\s*[\-:]\s*([\d,.]+)\s*(?:sq\.?\s*ft\.?|square\s*feet)\s*\(?\s*([\d.]+)%\s*\)?/gi;
+  
+  let match;
+  while ((match = pitchRegex.exec(text)) !== null) {
+    pitchAreas.push({
+      pitch: match[1],
+      area: parseFloat(match[2].replace(/,/g, '')),
+      percentage: parseFloat(match[3])
+    });
+  }
+  
+  return pitchAreas;
+}
+
+// Helper function to extract length measurements
+function extractLengthMeasurements(text: string): any {
+  return {
+    ridgeCount: extractNumber(text, /Ridge Count:\s*([\d,.]+)/i),
+    hipCount: extractNumber(text, /Hip Count:\s*([\d,.]+)/i),
+    valleyCount: extractNumber(text, /Valley Count:\s*([\d,.]+)/i),
+    rakeCount: extractNumber(text, /Rake Count:\s*([\d,.]+)/i),
+    eaveCount: extractNumber(text, /Eave Count:\s*([\d,.]+)/i),
+    stepFlashingCount: extractNumber(text, /Step Flashing Count:\s*([\d,.]+)/i),
+    chimneyCount: extractNumber(text, /Chimney Count:\s*([\d,.]+)/i),
+    skylightCount: extractNumber(text, /Skylight Count:\s*([\d,.]+)/i),
+    turbineVentCount: extractNumber(text, /Turbine Vent Count:\s*([\d,.]+)/i),
+    pipeVentCount: extractNumber(text, /Pipe Vent Count:\s*([\d,.]+)/i)
+  };
+}
+
+// Helper function to calculate waste percentage based on roof complexity
+function calculateWastePercentage(text: string): number | null {
+  // If we can't find explicit waste percentage, calculate based on roof complexity
+  const totalArea = extractNumber(text, /Total Area:\s*([\d,.]+)/i) || 
+                    extractNumber(text, /Total Square Footage:\s*([\d,.]+)/i);
+  const valleyLength = extractNumber(text, /Valley Length:\s*([\d,.]+)/i) || 0;
+  const hipLength = extractNumber(text, /Hip Length:\s*([\d,.]+)/i) || 0;
+  
+  if (totalArea) {
+    // Calculate complexity factor based on valley and hip lengths per square
+    const complexityFactor = ((valleyLength + hipLength) / totalArea) * 100;
+    
+    // Assign waste percentage based on complexity
+    if (complexityFactor > 15) {
+      return 20; // Very complex roof
+    } else if (complexityFactor > 10) {
+      return 17; // Complex roof
+    } else if (complexityFactor > 5) {
+      return 15; // Moderately complex roof
+    } else if (complexityFactor > 2) {
+      return 12; // Somewhat complex roof
+    } else {
+      return 10; // Simple roof
+    }
+  }
+  
+  return null;
+}
