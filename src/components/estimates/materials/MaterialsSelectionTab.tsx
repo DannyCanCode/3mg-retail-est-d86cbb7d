@@ -1,0 +1,341 @@
+
+import React, { useState, useEffect } from "react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { MeasurementValues } from "../measurement/types";
+import { ROOFING_MATERIALS } from "./data";
+import { Material, MaterialCategory } from "./types";
+import { calculateMaterialQuantity, calculateMaterialTotal, groupMaterialsByCategory } from "./utils";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+
+interface MaterialsSelectionTabProps {
+  measurements: MeasurementValues;
+  goToPreviousTab: () => void;
+  onContinue: (selectedMaterials: {[key: string]: Material}, quantities: {[key: string]: number}) => void;
+}
+
+export function MaterialsSelectionTab({
+  measurements,
+  goToPreviousTab,
+  onContinue,
+}: MaterialsSelectionTabProps) {
+  const [wasteFactor, setWasteFactor] = useState(10); // Default 10% waste
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([
+    MaterialCategory.SHINGLES
+  ]);
+  const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
+  const [quantities, setQuantities] = useState<{[key: string]: number}>({});
+  const [showLowSlope, setShowLowSlope] = useState(false);
+  
+  // Group materials by category
+  const groupedMaterials = groupMaterialsByCategory(ROOFING_MATERIALS);
+  
+  // Check if there are flat/low-slope areas on the roof
+  useEffect(() => {
+    const hasFlatRoofAreas = measurements.areasByPitch.some(
+      area => ["0:12", "1:12", "2:12"].includes(area.pitch)
+    );
+    
+    setShowLowSlope(hasFlatRoofAreas);
+    
+    // If there are flat roof areas, auto-expand that category
+    if (hasFlatRoofAreas && !expandedCategories.includes(MaterialCategory.LOW_SLOPE)) {
+      setExpandedCategories([...expandedCategories, MaterialCategory.LOW_SLOPE]);
+    }
+  }, [measurements]);
+  
+  // Calculate total with current selections
+  const calculateEstimateTotal = () => {
+    return Object.entries(selectedMaterials).reduce((total, [materialId, material]) => {
+      const quantity = quantities[materialId] || 0;
+      return total + (quantity * material.price);
+    }, 0);
+  };
+  
+  // Add material to selection
+  const addMaterial = (material: Material) => {
+    // Calculate suggested quantity based on measurements
+    const suggestedQuantity = calculateMaterialQuantity(
+      material, 
+      measurements, 
+      wasteFactor / 100
+    );
+    
+    setSelectedMaterials({
+      ...selectedMaterials,
+      [material.id]: material
+    });
+    
+    setQuantities({
+      ...quantities,
+      [material.id]: suggestedQuantity
+    });
+  };
+  
+  // Remove material from selection
+  const removeMaterial = (materialId: string) => {
+    const newSelectedMaterials = { ...selectedMaterials };
+    const newQuantities = { ...quantities };
+    
+    delete newSelectedMaterials[materialId];
+    delete newQuantities[materialId];
+    
+    setSelectedMaterials(newSelectedMaterials);
+    setQuantities(newQuantities);
+  };
+  
+  // Update quantity for a material
+  const updateQuantity = (materialId: string, newQuantity: number) => {
+    if (newQuantity < 0) return;
+    
+    setQuantities({
+      ...quantities,
+      [materialId]: newQuantity
+    });
+  };
+  
+  // Toggle category expansion
+  const toggleCategory = (category: string) => {
+    if (expandedCategories.includes(category)) {
+      setExpandedCategories(expandedCategories.filter(c => c !== category));
+    } else {
+      setExpandedCategories([...expandedCategories, category]);
+    }
+  };
+  
+  // Handle waste factor change
+  const handleWasteFactorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseInt(e.target.value);
+    if (isNaN(value)) return;
+    
+    setWasteFactor(Math.max(0, Math.min(50, value))); // Limit between 0-50%
+    
+    // Recalculate all quantities with new waste factor
+    const newQuantities = { ...quantities };
+    Object.keys(selectedMaterials).forEach(materialId => {
+      newQuantities[materialId] = calculateMaterialQuantity(
+        selectedMaterials[materialId],
+        measurements,
+        value / 100
+      );
+    });
+    
+    setQuantities(newQuantities);
+  };
+  
+  // Handle continue button click
+  const handleContinue = () => {
+    onContinue(selectedMaterials, quantities);
+  };
+  
+  // Format price to display as currency
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(price);
+  };
+  
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Material selection panel */}
+      <div className="lg:col-span-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Select Materials</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-4 pb-4">
+              <Label htmlFor="wasteFactor">Waste Factor:</Label>
+              <Input
+                id="wasteFactor"
+                type="number"
+                value={wasteFactor}
+                onChange={handleWasteFactorChange}
+                className="w-24"
+                min="0"
+                max="50"
+              />
+              <span className="text-sm text-muted-foreground">%</span>
+              <span className="text-sm text-muted-foreground">
+                (Applied to all material calculations)
+              </span>
+            </div>
+            
+            <Accordion type="multiple" defaultValue={[MaterialCategory.SHINGLES]} className="w-full">
+              {/* Render material categories */}
+              {Object.entries(groupedMaterials).map(([category, materials]) => {
+                // Skip low slope category if no flat roof areas
+                if (category === MaterialCategory.LOW_SLOPE && !showLowSlope) {
+                  return null;
+                }
+                
+                return (
+                  <AccordionItem key={category} value={category}>
+                    <AccordionTrigger className="text-lg font-semibold py-3">
+                      {category}
+                      {category === MaterialCategory.LOW_SLOPE && showLowSlope && (
+                        <Badge variant="outline" className="ml-2 text-yellow-600 border-yellow-300 bg-yellow-50">
+                          Flat/Low-Slope Required
+                        </Badge>
+                      )}
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-2 pt-2">
+                        {materials.map(material => (
+                          <div 
+                            key={material.id} 
+                            className="flex justify-between items-center p-3 rounded-md border hover:bg-secondary/20"
+                          >
+                            <div className="space-y-1">
+                              <div className="font-medium">{material.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {material.price} per {material.unit}
+                                {material.approxPerSquare && ` (~${formatPrice(material.approxPerSquare)}/square)`}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{material.coverageRule.description}</div>
+                            </div>
+                            <Button 
+                              size="sm" 
+                              variant={selectedMaterials[material.id] ? "secondary" : "outline"}
+                              onClick={() => {
+                                if (selectedMaterials[material.id]) {
+                                  removeMaterial(material.id);
+                                } else {
+                                  addMaterial(material);
+                                }
+                              }}
+                              className="min-w-24"
+                            >
+                              {selectedMaterials[material.id] ? (
+                                <>
+                                  <Check className="mr-1 h-4 w-4" />
+                                  Selected
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="mr-1 h-4 w-4" />
+                                  Add
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          </CardContent>
+          <CardFooter className="flex justify-between">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={goToPreviousTab}
+              className="flex items-center gap-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back to Measurements
+            </Button>
+            
+            <Button 
+              onClick={handleContinue}
+              disabled={Object.keys(selectedMaterials).length === 0}
+              className="flex items-center gap-2"
+            >
+              Continue
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+      
+      {/* Selected materials panel */}
+      <div className="lg:col-span-1">
+        <Card>
+          <CardHeader>
+            <CardTitle>Selected Materials</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.keys(selectedMaterials).length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No materials selected yet</p>
+                <p className="text-sm mt-2">Select materials from the list to add them to your estimate</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {Object.entries(selectedMaterials).map(([materialId, material]) => (
+                  <div key={materialId} className="border rounded-md p-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="font-medium">{material.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {formatPrice(material.price)} per {material.unit}
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeMaterial(materialId)}
+                      >
+                        <Trash className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                    <div className="mt-2 flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => updateQuantity(materialId, (quantities[materialId] || 0) - 1)}
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                      <Input
+                        value={quantities[materialId] || 0}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value);
+                          if (!isNaN(value)) {
+                            updateQuantity(materialId, value);
+                          }
+                        }}
+                        className="h-8 w-16 text-center"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => updateQuantity(materialId, (quantities[materialId] || 0) + 1)}
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                      <span className="text-sm">{material.unit}(s)</span>
+                    </div>
+                    <div className="mt-2 flex justify-between text-sm">
+                      <span>Subtotal:</span>
+                      <span className="font-medium">
+                        {formatPrice(calculateMaterialTotal(quantities[materialId] || 0, material.price))}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex justify-between font-medium text-lg pt-2 border-t">
+                  <span>Total:</span>
+                  <span>{formatPrice(calculateEstimateTotal())}</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
