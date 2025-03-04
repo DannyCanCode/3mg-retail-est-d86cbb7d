@@ -1,6 +1,7 @@
 // @deno-types="npm:@types/node"
 // @ts-ignore
 import { resolvePDFJS } from "https://esm.sh/pdfjs-serverless@0.4.2";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -164,78 +165,154 @@ function extractMeasurementsFromText(text: string) {
 
 console.log("Starting parse-eagleview-pdf function!");
 
-// @ts-ignore
-Deno.serve(async (req) => {
+serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  console.log("Checking method...");
-  if (req.method === "POST") {
-    try {
-      const { pdfUrl } = await req.json();
-      console.log("Processing EagleView PDF:", pdfUrl);
-      
-      const response = await fetch(pdfUrl);
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch the PDF. Status: ${response.status} ${response.statusText}`,
-        );
-      }
-      
-      const data = new Uint8Array(await response.arrayBuffer());
-      console.log("Fetched PDF successfully! Processing...");
-      
-      const { getDocument } = await resolvePDFJS();
-      const doc = await getDocument({ data, useSystemFonts: true }).promise;
-      const allText: string[] = [];
-      
-      console.log("Processing PDF pages...");
-      for (let i = 1; i <= doc.numPages; i++) {
-        const page = await doc.getPage(i);
-        const textContent = await page.getTextContent();
-        const contents = textContent.items.map((item: any) => item.str).join(" ");
-        allText.push(contents);
-      }
-      
-      const combinedText = allText.join("\n");
-      console.log("Processed PDF successfully!");
-
-      // Extract EagleView measurements from the PDF text
-      const measurements = extractEagleViewMeasurements(combinedText);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          pdfText: combinedText,
-          measurements: measurements 
-        }), 
-        {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-    } catch (error) {
-      console.error("Error processing EagleView PDF:", error);
-      return new Response(
-        JSON.stringify({ success: false, error: error.message }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
+    return new Response(null, {
+      headers: corsHeaders
+    });
   }
   
-  return new Response(
-    JSON.stringify({ success: false, error: "Invalid request method" }),
-    {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+  try {
+    // Extract request data
+    const { fileName, pdfBase64, timestamp, requestId, processingMode, modelType } = await req.json();
+    
+    console.log(`Processing PDF: ${fileName}, Request ID: ${requestId}, Model: ${modelType || 'gpt-4o-mini'}`);
+    
+    // Get OpenAI API key from environment variables
+    const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openAiApiKey) {
+      throw new Error('OpenAI API key not found in environment variables');
     }
-  );
+    
+    // Convert base64 to binary data
+    let pdfBinary;
+    try {
+      // Remove data URI prefix if present
+      const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, '');
+      pdfBinary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    } catch (error) {
+      console.error('Error decoding base64:', error);
+      throw new Error('Invalid PDF format. Expected base64 encoded PDF.');
+    }
+    
+    // Create form data for file upload
+    const formData = new FormData();
+    const pdfBlob = new Blob([pdfBinary], { type: 'application/pdf' });
+    formData.append('file', pdfBlob, fileName);
+    formData.append('purpose', 'assistants');
+    
+    // Upload file to OpenAI
+    console.log('Uploading file to OpenAI...');
+    const uploadResponse = await fetch('https://api.openai.com/v1/files', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAiApiKey}`
+      },
+      body: formData
+    });
+    
+    if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.json();
+      console.error('File upload error:', errorData);
+      throw new Error(`Failed to upload file to OpenAI: ${errorData.error?.message || 'Unknown error'}`);
+    }
+    
+    const uploadData = await uploadResponse.json();
+    const fileId = uploadData.id;
+    console.log(`File uploaded successfully. File ID: ${fileId}`);
+    
+    // Create system prompt
+    const systemPrompt = `You are an expert at analyzing EagleView roof measurement reports. Extract all measurements accurately.`;
+    
+    // Create messages for the OpenAI API using the file ID
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { 
+        role: "user", 
+        content: [
+          { 
+            type: "text", 
+            text: "Please extract the measurement data from this EagleView PDF roof report. Return the data in valid JSON format with the following structure: { \"totalArea\": number, \"predominantPitch\": string, \"ridgeLength\": number, \"hipLength\": number, \"valleyLength\": number, \"rakeLength\": number, \"eaveLength\": number, \"ridgeCount\": number, \"hipCount\": number, \"valleyCount\": number, \"rakeCount\": number, \"eaveCount\": number, \"stepFlashingLength\": number, \"stepFlashingCount\": number, \"chimneyCount\": number, \"skylightCount\": number, \"turbineVentCount\": number, \"pipeVentCount\": number, \"penetrationsArea\": number, \"penetrationsPerimeter\": number }. All length measurements should be in feet, areas in square feet."
+          },
+          {
+            type: "file_path",
+            file_path: fileId
+          }
+        ]
+      }
+    ];
+    
+    console.log(`Sending request to OpenAI API using model: ${modelType || 'gpt-4o-mini'}`);
+    
+    // Make API call to OpenAI
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openAiApiKey}`
+      },
+      body: JSON.stringify({
+        model: modelType || 'gpt-4o-mini',
+        messages: messages,
+        temperature: 0.1,
+        max_tokens: 1500
+      })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+    }
+    
+    const data = await response.json();
+    
+    // Extract the measurements from the response
+    let measurements;
+    try {
+      const content = data.choices[0].message.content;
+      // Try to extract JSON from the response
+      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/) || [null, content];
+      const jsonStr = jsonMatch[1] || content;
+      measurements = JSON.parse(jsonStr.trim());
+      console.log('Successfully parsed measurements:', measurements);
+    } catch (error) {
+      console.error('Error parsing measurements:', error);
+      throw new Error('Failed to parse measurements from OpenAI response');
+    }
+    
+    // Clean up - delete the file after use
+    await fetch(`https://api.openai.com/v1/files/${fileId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${openAiApiKey}`
+      }
+    });
+    
+    // Return the measurements
+    return new Response(JSON.stringify({ 
+      measurements,
+      truncated: false
+    }), {
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error processing request:', error);
+    return new Response(JSON.stringify({ 
+      error: error.message || 'Unknown error occurred'
+    }), {
+      status: 500,
+      headers: {
+        "Content-Type": "application/json",
+        ...corsHeaders
+      }
+    });
+  }
 });
 
 // Function to extract EagleView measurements from the PDF text
