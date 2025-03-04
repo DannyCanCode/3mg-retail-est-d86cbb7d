@@ -174,14 +174,48 @@ serve(async (req) => {
   }
   
   try {
-    // Extract request data
-    const { fileName, pdfBase64, timestamp, requestId, processingMode, modelType } = await req.json();
+    console.log("Received request to parse-eagleview-pdf function");
     
-    console.log(`Processing PDF: ${fileName}, Request ID: ${requestId}, Model: ${modelType || 'gpt-4o-mini'}`);
+    // Extract request data
+    let requestData;
+    try {
+      requestData = await req.json();
+      console.log("Request data parsed successfully");
+    } catch (jsonError) {
+      console.error("Error parsing request JSON:", jsonError);
+      return new Response(JSON.stringify({ 
+        error: "Invalid JSON in request body" 
+      }), {
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      });
+    }
+    
+    const { fileName, pdfBase64, timestamp, requestId, processingMode, modelType } = requestData;
+    
+    if (!fileName || !pdfBase64) {
+      console.error("Missing required fields in request");
+      return new Response(JSON.stringify({ 
+        error: "Missing required fields: fileName and pdfBase64 are required" 
+      }), {
+        status: 400,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      });
+    }
+    
+    console.log(`Processing PDF: ${fileName}, Request ID: ${requestId || 'none'}, Model: ${modelType || 'gpt-4o-mini'}`);
+    console.log(`PDF base64 length: ${pdfBase64.length} characters`);
     
     // Get OpenAI API key from environment variables
     const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAiApiKey) {
+      console.error("OpenAI API key not found in environment variables");
       throw new Error('OpenAI API key not found in environment variables');
     }
     
@@ -191,6 +225,7 @@ serve(async (req) => {
       // Remove data URI prefix if present
       const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, '');
       pdfBinary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+      console.log(`Successfully converted base64 to binary. Binary length: ${pdfBinary.length} bytes`);
     } catch (error) {
       console.error('Error decoding base64:', error);
       throw new Error('Invalid PDF format. Expected base64 encoded PDF.');
@@ -204,18 +239,24 @@ serve(async (req) => {
     
     // Upload file to OpenAI
     console.log('Uploading file to OpenAI...');
-    const uploadResponse = await fetch('https://api.openai.com/v1/files', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAiApiKey}`
-      },
-      body: formData
-    });
-    
-    if (!uploadResponse.ok) {
-      const errorData = await uploadResponse.json();
-      console.error('File upload error:', errorData);
-      throw new Error(`Failed to upload file to OpenAI: ${errorData.error?.message || 'Unknown error'}`);
+    let uploadResponse;
+    try {
+      uploadResponse = await fetch('https://api.openai.com/v1/files', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openAiApiKey}`
+        },
+        body: formData
+      });
+      
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        console.error('File upload error:', errorData);
+        throw new Error(`Failed to upload file to OpenAI: ${errorData.error?.message || 'Unknown error'}`);
+      }
+    } catch (uploadError) {
+      console.error('Error during file upload:', uploadError);
+      throw new Error(`Error uploading file to OpenAI: ${uploadError.message}`);
     }
     
     const uploadData = await uploadResponse.json();
@@ -246,24 +287,30 @@ serve(async (req) => {
     console.log(`Sending request to OpenAI API using model: ${modelType || 'gpt-4o-mini'}`);
     
     // Make API call to OpenAI
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openAiApiKey}`
-      },
-      body: JSON.stringify({
-        model: modelType || 'gpt-4o-mini',
-        messages: messages,
-        temperature: 0.1,
-        max_tokens: 1500
-      })
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('OpenAI API error:', errorData);
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+    let response;
+    try {
+      response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openAiApiKey}`
+        },
+        body: JSON.stringify({
+          model: modelType || 'gpt-4o-mini',
+          messages: messages,
+          temperature: 0.1,
+          max_tokens: 1500
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('OpenAI API error:', errorData);
+        throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+      }
+    } catch (apiError) {
+      console.error('Error during OpenAI API call:', apiError);
+      throw new Error(`Error calling OpenAI API: ${apiError.message}`);
     }
     
     const data = await response.json();
@@ -272,9 +319,13 @@ serve(async (req) => {
     let measurements;
     try {
       const content = data.choices[0].message.content;
+      console.log('Raw OpenAI response:', content);
+      
       // Try to extract JSON from the response
       const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/) || [null, content];
       const jsonStr = jsonMatch[1] || content;
+      
+      console.log('Extracted JSON string:', jsonStr);
       measurements = JSON.parse(jsonStr.trim());
       console.log('Successfully parsed measurements:', measurements);
     } catch (error) {
@@ -283,14 +334,21 @@ serve(async (req) => {
     }
     
     // Clean up - delete the file after use
-    await fetch(`https://api.openai.com/v1/files/${fileId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${openAiApiKey}`
-      }
-    });
+    try {
+      await fetch(`https://api.openai.com/v1/files/${fileId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${openAiApiKey}`
+        }
+      });
+      console.log(`Successfully deleted file ${fileId} from OpenAI`);
+    } catch (deleteError) {
+      console.error(`Warning: Failed to delete file ${fileId} from OpenAI:`, deleteError);
+      // Continue even if deletion fails
+    }
     
     // Return the measurements
+    console.log('Returning successful response with measurements');
     return new Response(JSON.stringify({ 
       measurements,
       truncated: false
