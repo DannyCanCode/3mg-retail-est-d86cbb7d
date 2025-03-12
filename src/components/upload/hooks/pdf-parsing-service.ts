@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { ParsedMeasurements } from "@/api/measurements";
 import { FileUploadStatus } from "./useFileUpload";
-import { ModelType, ProcessingMode } from "./pdf-constants";
+import { ProcessingMode } from "./pdf-constants";
 import { 
   handleEdgeFunctionError, 
   handleSuccessfulParsing 
@@ -12,7 +12,6 @@ export const parsePdfWithSupabase = async (
   file: File,
   fileSizeMB: number,
   processingMode: ProcessingMode,
-  modelType: ModelType,
   setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
   setErrorDetails: React.Dispatch<React.SetStateAction<string>>
 ): Promise<ParsedMeasurements | null> => {
@@ -23,16 +22,7 @@ export const parsePdfWithSupabase = async (
     const timestamp = new Date().getTime();
     const requestId = crypto.randomUUID(); // Generate unique request ID
     
-    console.log(`Processing file ${file.name} (${fileSizeMB.toFixed(2)} MB) with parse-eagleview-pdf. Request ID: ${requestId}, Model: ${modelType}`);
-    
-    // Create form data for file upload
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('fileName', file.name);
-    formData.append('timestamp', timestamp.toString());
-    formData.append('requestId', requestId);
-    formData.append('processingMode', processingMode);
-    formData.append('modelType', modelType);
+    console.log(`Processing file ${file.name} (${fileSizeMB.toFixed(2)} MB) with parse-eagleview-pdf. Request ID: ${requestId}`);
     
     // Upload the file to Supabase Storage first
     const fileExt = file.name.split('.').pop();
@@ -67,8 +57,7 @@ export const parsePdfWithSupabase = async (
         pdfUrl,
         timestamp,
         requestId,
-        processingMode,
-        modelType
+        processingMode
       }
     });
     
@@ -143,10 +132,15 @@ export const parsePdfWithSupabase = async (
       throw new Error("Invalid response data");
     }
     
+    // Check if we received extracted text - this can be useful for debugging
+    if (data.extractedText) {
+      console.log("Extracted text sample:", data.extractedText.substring(0, 200) + "...");
+    }
+    
     console.log("Parsed measurements:", data.measurements);
     
     // Handle success
-    handleSuccessfulParsing(file.name, setStatus, data.truncated);
+    handleSuccessfulParsing(file.name, setStatus, false);
     
     // Clean up the uploaded file
     await supabase.storage.from('pdf-uploads').remove([filePath]);
@@ -181,8 +175,7 @@ const tryFallbackProcessing = async (
         pdfUrl,
         timestamp: new Date().getTime(),
         requestId: crypto.randomUUID(),
-        processingMode: "fallback",
-        modelType: "gpt-4o-mini" // Always use mini model for fallback
+        processingMode: "fallback"
       }
     });
     

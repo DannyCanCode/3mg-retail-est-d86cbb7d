@@ -171,7 +171,7 @@ function extractMeasurementsFromText(text: string) {
   return measurements;
 }
 
-console.log("Starting parse-eagleview-pdf function with URL-based processing!");
+console.log("Starting parse-eagleview-pdf function with PDF.js processing!");
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -205,7 +205,7 @@ serve(async (req) => {
       });
     }
     
-    const { fileName, pdfUrl, timestamp, requestId: reqId, processingMode, modelType } = requestData;
+    const { fileName, pdfUrl, timestamp, requestId: reqId, processingMode } = requestData;
     requestId = reqId || "no-id";
     
     if (!fileName || !pdfUrl) {
@@ -221,15 +221,8 @@ serve(async (req) => {
       });
     }
     
-    console.log(`[${requestId}] Processing PDF: ${fileName}, Model: ${modelType || 'gpt-4o-mini'}, Mode: ${processingMode || 'regular'}`);
+    console.log(`[${requestId}] Processing PDF: ${fileName}, Mode: ${processingMode || 'regular'}`);
     console.log(`[${requestId}] PDF URL: ${pdfUrl}`);
-    
-    // Get OpenAI API key from environment variables
-    const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAiApiKey) {
-      console.error(`[${requestId}] OpenAI API key not found in environment variables`);
-      throw new Error('OpenAI API key not found in environment variables');
-    }
     
     // Fetch the PDF from the URL
     console.log(`[${requestId}] Fetching PDF from URL...`);
@@ -246,127 +239,40 @@ serve(async (req) => {
     }
     
     // Get the PDF binary data
-    const pdfBinary = new Uint8Array(await pdfResponse.arrayBuffer());
-    console.log(`[${requestId}] Successfully fetched PDF. Binary length: ${pdfBinary.length} bytes`);
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    console.log(`[${requestId}] Successfully fetched PDF. Binary length: ${pdfBuffer.byteLength} bytes`);
     
-    // Create form data for file upload to OpenAI
-    const formData = new FormData();
-    const pdfBlob = new Blob([pdfBinary], { type: 'application/pdf' });
-    formData.append('file', pdfBlob, fileName);
-    formData.append('purpose', 'assistants');
+    // Use pdfjs-serverless to extract text from the PDF
+    console.log(`[${requestId}] Using PDF.js to extract text...`);
+    const pdfjsLib = await resolvePDFJS();
     
-    // Upload file to OpenAI
-    console.log(`[${requestId}] Uploading file to OpenAI...`);
-    let uploadResponse;
-    try {
-      uploadResponse = await fetch('https://api.openai.com/v1/files', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openAiApiKey}`
-        },
-        body: formData
-      });
+    // Load the PDF document
+    const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+    const pdfDocument = await loadingTask.promise;
+    
+    console.log(`[${requestId}] PDF document loaded. Number of pages: ${pdfDocument.numPages}`);
+    
+    // Extract text from all pages
+    let extractedText = '';
+    const maxPages = Math.min(pdfDocument.numPages, 20); // Limit to first 20 pages to avoid processing huge PDFs
+    
+    for (let pageNumber = 1; pageNumber <= maxPages; pageNumber++) {
+      console.log(`[${requestId}] Processing page ${pageNumber}...`);
+      const page = await pdfDocument.getPage(pageNumber);
+      const textContent = await page.getTextContent();
       
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        console.error(`[${requestId}] OpenAI API upload error:`, errorData);
-        throw new Error(`OpenAI API upload error: ${errorData.error?.message || 'Unknown error'}`);
-      }
-    } catch (uploadError) {
-      console.error(`[${requestId}] Error uploading file to OpenAI:`, uploadError);
-      throw new Error(`Failed to upload file to OpenAI: ${uploadError.message}`);
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      extractedText += pageText + '\n';
     }
     
-    const uploadData = await uploadResponse.json();
-    const fileId = uploadData.id;
-    console.log(`[${requestId}] File uploaded to OpenAI. File ID: ${fileId}`);
+    console.log(`[${requestId}] Text extraction complete. Extracted ${extractedText.length} characters.`);
     
-    // Prepare prompt for processing the PDF
-    const messages = [
-      {
-        role: "system",
-        content: "You will analyze an EagleView Premium PDF report for a roof and extract the measurements. Your response should be a valid JSON object with measurements from the report. DO NOT include any text outside the JSON."
-      },
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `I've uploaded an EagleView PDF report for a roof inspection. Please extract all the measurements including:
-1. Total roof area (in sq ft)
-2. Predominant pitch
-3. All lengths (ridge, hip, valley, rake, eave, step flashing, etc.)
-4. Any penetrations (skylights, chimneys, vents)
-5. Areas by pitch if available
-
-Return the data as a JSON object with numbers as values (not strings). Do not include any text or explanation outside the JSON object.`
-          },
-          {
-            type: "file_path",
-            file_path: fileId
-          }
-        ]
-      }
-    ];
-    
-    console.log(`[${requestId}] Sending request to OpenAI API using model: ${modelType || 'gpt-4o-mini'}`);
-    
-    // Make API call to OpenAI
-    let response;
-    try {
-      response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openAiApiKey}`
-        },
-        body: JSON.stringify({
-          model: modelType || 'gpt-4o-mini',
-          messages: messages,
-          temperature: 0.1,
-          max_tokens: 1500
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error(`[${requestId}] OpenAI API error:`, errorData);
-        throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
-      }
-    } catch (apiError) {
-      console.error(`[${requestId}] Error during OpenAI API call:`, apiError);
-      throw new Error(`Error calling OpenAI API: ${apiError.message}`);
-    }
-    
-    const data = await response.json();
-    
-    // Extract the measurements from the response
-    let measurements;
-    try {
-      const content = data.choices[0].message.content;
-      console.log(`[${requestId}] Raw OpenAI response:`, content);
-      
-      // Try to extract JSON from the response
-      const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/) || [null, content];
-      const jsonStr = jsonMatch[1] || content;
-      
-      console.log(`[${requestId}] Extracted JSON string:`, jsonStr);
-      measurements = JSON.parse(jsonStr.trim());
-      console.log(`[${requestId}] Successfully parsed measurements:`, measurements);
-    } catch (parseError) {
-      console.error(`[${requestId}] Error parsing OpenAI response:`, parseError);
-      throw new Error(`Error parsing OpenAI response: ${parseError.message}`);
-    }
-    
-    // Clean up the file from OpenAI (in the background)
-    fetch(`https://api.openai.com/v1/files/${fileId}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${openAiApiKey}`
-      }
-    }).catch(error => {
-      console.warn(`[${requestId}] Error deleting file from OpenAI:`, error);
-    });
+    // Extract measurements from the text
+    console.log(`[${requestId}] Extracting measurements...`);
+    const measurements = extractMeasurementsFromText(extractedText);
     
     const processingTime = (Date.now() - startTime) / 1000; // in seconds
     console.log(`[${requestId}] Processing completed in ${processingTime.toFixed(2)} seconds`);
@@ -377,7 +283,8 @@ Return the data as a JSON object with numbers as values (not strings). Do not in
         success: true,
         processingTime: processingTime,
         fileName: fileName,
-        requestId: requestId
+        requestId: requestId,
+        extractedText: extractedText.length > 1000 ? extractedText.substring(0, 1000) + '...' : extractedText
       }),
       {
         headers: {
@@ -409,57 +316,6 @@ Return the data as a JSON object with numbers as values (not strings). Do not in
   }
 });
 
-// Function to extract EagleView measurements from the PDF text
-function extractEagleViewMeasurements(text: string) {
-  const measurements: {
-    filename: string | null;
-    totalArea: number | null;
-    totalSquares: number | null;
-    predominantPitch: string | null;
-    ridges: number | null;
-    valleys: number | null;
-    hips: number | null;
-    rakes: number | null;
-    eaves: number | null;
-    flashing: number | null;
-    stepFlashing: number | null;
-    penetrations: number | null;
-    penetrationsPerimeter: number | null;
-    wastePercentage: number | null;
-    areasPerPitch: Array<{pitch: string; area: number; percentage: number}>;
-    lengthMeasurements: any;
-    rawText: string;
-  } = {
-    filename: extractText(text, /Report\s*ID:\s*([A-Z0-9_-]+)/i) || 
-              extractText(text, /Order\s*Number:\s*([A-Z0-9_-]+)/i),
-    totalArea: extractNumber(text, /Total Area:\s*([\d,.]+)/i) || 
-               extractNumber(text, /Total Square Footage:\s*([\d,.]+)/i),
-    totalSquares: null,
-    predominantPitch: extractText(text, /Predominant Pitch:\s*([^\n\r]+)/i),
-    ridges: extractNumber(text, /Ridge Length:\s*([\d,.]+)/i),
-    valleys: extractNumber(text, /Valley Length:\s*([\d,.]+)/i),
-    hips: extractNumber(text, /Hip Length:\s*([\d,.]+)/i),
-    rakes: extractNumber(text, /Rake Length:\s*([\d,.]+)/i),
-    eaves: extractNumber(text, /Eave Length:\s*([\d,.]+)/i),
-    flashing: extractNumber(text, /Flashing Length:\s*([\d,.]+)/i),
-    stepFlashing: extractNumber(text, /Step Flashing Length:\s*([\d,.]+)/i),
-    penetrations: extractNumber(text, /Penetrations Area:\s*([\d,.]+)/i),
-    penetrationsPerimeter: extractNumber(text, /Penetrations Perimeter:\s*([\d,.]+)/i),
-    wastePercentage: extractNumber(text, /Waste Percentage:\s*([\d,.]+)/i) || 
-                     calculateWastePercentage(text),
-    areasPerPitch: extractAreasPerPitch(text),
-    lengthMeasurements: extractLengthMeasurements(text),
-    rawText: text,
-  };
-
-  // Calculate total squares if total area is available (1 square = 100 sq ft)
-  if (measurements.totalArea) {
-    measurements.totalSquares = Math.ceil(measurements.totalArea / 100);
-  }
-
-  return measurements;
-}
-
 // Helper function to extract numbers from text using regex
 function extractNumber(text: string, regex: RegExp): number | null {
   const match = text.match(regex);
@@ -476,67 +332,5 @@ function extractText(text: string, regex: RegExp): string | null {
   if (match && match[1]) {
     return match[1].trim();
   }
-  return null;
-}
-
-// Helper function to extract areas per pitch
-function extractAreasPerPitch(text: string): Array<{pitch: string; area: number; percentage: number}> {
-  const pitchAreas: Array<{pitch: string; area: number; percentage: number}> = [];
-  const pitchRegex = /(\d+\/\d+)\s*pitch\s*[\-:]\s*([\d,.]+)\s*(?:sq\.?\s*ft\.?|square\s*feet)\s*\(?\s*([\d.]+)%\s*\)?/gi;
-  
-  let match;
-  while ((match = pitchRegex.exec(text)) !== null) {
-    pitchAreas.push({
-      pitch: match[1],
-      area: parseFloat(match[2].replace(/,/g, '')),
-      percentage: parseFloat(match[3])
-    });
-  }
-  
-  return pitchAreas;
-}
-
-// Helper function to extract length measurements
-function extractLengthMeasurements(text: string): any {
-  return {
-    ridgeCount: extractNumber(text, /Ridge Count:\s*([\d,.]+)/i),
-    hipCount: extractNumber(text, /Hip Count:\s*([\d,.]+)/i),
-    valleyCount: extractNumber(text, /Valley Count:\s*([\d,.]+)/i),
-    rakeCount: extractNumber(text, /Rake Count:\s*([\d,.]+)/i),
-    eaveCount: extractNumber(text, /Eave Count:\s*([\d,.]+)/i),
-    stepFlashingCount: extractNumber(text, /Step Flashing Count:\s*([\d,.]+)/i),
-    chimneyCount: extractNumber(text, /Chimney Count:\s*([\d,.]+)/i),
-    skylightCount: extractNumber(text, /Skylight Count:\s*([\d,.]+)/i),
-    turbineVentCount: extractNumber(text, /Turbine Vent Count:\s*([\d,.]+)/i),
-    pipeVentCount: extractNumber(text, /Pipe Vent Count:\s*([\d,.]+)/i)
-  };
-}
-
-// Helper function to calculate waste percentage based on roof complexity
-function calculateWastePercentage(text: string): number | null {
-  // If we can't find explicit waste percentage, calculate based on roof complexity
-  const totalArea = extractNumber(text, /Total Area:\s*([\d,.]+)/i) || 
-                    extractNumber(text, /Total Square Footage:\s*([\d,.]+)/i);
-  const valleyLength = extractNumber(text, /Valley Length:\s*([\d,.]+)/i) || 0;
-  const hipLength = extractNumber(text, /Hip Length:\s*([\d,.]+)/i) || 0;
-  
-  if (totalArea) {
-    // Calculate complexity factor based on valley and hip lengths per square
-    const complexityFactor = ((valleyLength + hipLength) / totalArea) * 100;
-    
-    // Assign waste percentage based on complexity
-    if (complexityFactor > 15) {
-      return 20; // Very complex roof
-    } else if (complexityFactor > 10) {
-      return 17; // Complex roof
-    } else if (complexityFactor > 5) {
-      return 15; // Moderately complex roof
-    } else if (complexityFactor > 2) {
-      return 12; // Somewhat complex roof
-    } else {
-      return 10; // Simple roof
-    }
-  }
-  
   return null;
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ParsedMeasurements } from "@/api/measurements";
 import { validatePdfFile } from "../pdf-utils";
 import { FileUploadStatus } from "./useFileUpload";
-import { ModelType, ProcessingMode } from "./pdf-constants";
+import { ProcessingMode } from "./pdf-constants";
 import { 
   handlePdfSizeError, 
   handleInvalidPdfError, 
@@ -13,7 +13,6 @@ import { parsePdfWithSupabase } from "./pdf-parsing-service";
 export function usePdfParser() {
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
   const [processingMode, setProcessingMode] = useState<ProcessingMode>("regular");
-  const [modelType, setModelType] = useState<ModelType>("gpt-4o-mini"); // Default to mini for faster processing
   
   const parsePdf = async (
     file: File, 
@@ -53,7 +52,6 @@ export function usePdfParser() {
           file,
           fileSizeMB,
           processingMode,
-          modelType,
           setStatus,
           setErrorDetails
         );
@@ -78,8 +76,6 @@ export function usePdfParser() {
     parsedData,
     setParsedData,
     parsePdf,
-    processingMode,
-    modelType,
-    setModelType
+    processingMode
   };
 }
