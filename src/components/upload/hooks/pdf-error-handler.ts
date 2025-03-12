@@ -1,4 +1,3 @@
-
 import { toast } from "@/hooks/use-toast";
 import { FileUploadStatus } from "./useFileUpload";
 import { MAX_ALLOWED_SIZE_MB, MAX_RECOMMENDED_SIZE_MB } from "./pdf-constants";
@@ -46,19 +45,6 @@ export const handleInvalidPdfError = (
   });
 };
 
-export const handleBase64ConversionError = (
-  setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
-  setErrorDetails: React.Dispatch<React.SetStateAction<string>>
-) => {
-  setStatus("error");
-  setErrorDetails("Failed to process the PDF. The file may be corrupted or not a valid PDF.");
-  toast({
-    title: "Processing failed",
-    description: "Could not process this file. It may be corrupted or in an unsupported format.",
-    variant: "destructive",
-  });
-};
-
 export const handleEdgeFunctionError = (
   error: any,
   fileSizeMB: number,
@@ -72,10 +58,7 @@ export const handleEdgeFunctionError = (
     setErrorDetails("Connection to Edge Function failed. This might be due to a temporary network issue or the function is still being deployed. Please try again in a moment.");
   } 
   // Check if it's an invalid PDF format error
-  else if (error.message && (
-    error.message.includes("Invalid PDF format") || 
-    error.message.includes("Expected base64")
-  )) {
+  else if (error.message && error.message.includes("Invalid PDF format")) {
     setErrorDetails("The file appears to be corrupted or isn't in a standard PDF format. Please try a different PDF file.");
   }
   // Check if it's a size-related or token limit error
@@ -87,6 +70,10 @@ export const handleEdgeFunctionError = (
   )) {
     setErrorDetails(`The PDF file is too complex to process (${fileSizeMB.toFixed(2)} MB). Please try a smaller file or one with fewer pages.`);
   } 
+  // Check if it's a fetch error
+  else if (error.message && error.message.includes("Failed to fetch PDF")) {
+    setErrorDetails("Failed to access PDF file from storage. Please try uploading again.");
+  }
   else {
     setErrorDetails(error.message || "Unknown edge function error");
   }

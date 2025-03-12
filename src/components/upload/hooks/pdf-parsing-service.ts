@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { ParsedMeasurements } from "@/api/measurements";
 import { FileUploadStatus } from "./useFileUpload";
@@ -10,8 +9,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 
 export const parsePdfWithSupabase = async (
-  fileName: string,
-  base64File: string,
+  file: File,
   fileSizeMB: number,
   processingMode: ProcessingMode,
   modelType: ModelType,
@@ -25,17 +23,52 @@ export const parsePdfWithSupabase = async (
     const timestamp = new Date().getTime();
     const requestId = crypto.randomUUID(); // Generate unique request ID
     
-    console.log(`Sending file ${fileName} (${fileSizeMB.toFixed(2)} MB) to parse-eagleview-pdf. Request ID: ${requestId}, Model: ${modelType}`);
+    console.log(`Processing file ${file.name} (${fileSizeMB.toFixed(2)} MB) with parse-eagleview-pdf. Request ID: ${requestId}, Model: ${modelType}`);
     
-    // Include processing mode and model type in request
+    // Create form data for file upload
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('fileName', file.name);
+    formData.append('timestamp', timestamp.toString());
+    formData.append('requestId', requestId);
+    formData.append('processingMode', processingMode);
+    formData.append('modelType', modelType);
+    
+    // Upload the file to Supabase Storage first
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${requestId}-${timestamp}.${fileExt}`;
+    
+    console.log(`Uploading file to Supabase Storage: ${filePath}`);
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('pdf-uploads')
+      .upload(filePath, file);
+    
+    if (uploadError) {
+      console.error("File upload error:", uploadError);
+      setErrorDetails(`Error uploading file: ${uploadError.message}`);
+      throw uploadError;
+    }
+    
+    console.log("File uploaded successfully:", uploadData);
+    
+    // Get the public URL for the uploaded file
+    const { data: publicUrlData } = supabase.storage
+      .from('pdf-uploads')
+      .getPublicUrl(filePath);
+    
+    const pdfUrl = publicUrlData.publicUrl;
+    console.log("PDF public URL:", pdfUrl);
+    
+    // Call the Edge Function with the file URL
     const { data, error } = await supabase.functions.invoke('parse-eagleview-pdf', {
       body: { 
-        fileName: fileName,
-        pdfBase64: base64File,
+        fileName: file.name,
+        pdfUrl,
         timestamp,
         requestId,
-        processingMode: processingMode,
-        modelType: modelType // Send the selected model type to the API
+        processingMode,
+        modelType
       }
     });
     
@@ -59,7 +92,7 @@ export const parsePdfWithSupabase = async (
           });
           
           // Retry with fallback mode
-          return tryFallbackProcessing(fileName, base64File, fileSizeMB, setStatus, setErrorDetails);
+          return tryFallbackProcessing(file, fileSizeMB, filePath, setStatus, setErrorDetails);
         } else {
           // Already in fallback mode, can't process
           setErrorDetails(`Error: The PDF file is too complex to process. Please try a smaller file with fewer pages.`);
@@ -75,6 +108,9 @@ export const parsePdfWithSupabase = async (
       } else {
         setErrorDetails(`Error: ${error.message}`);
       }
+      
+      // Clean up the uploaded file
+      await supabase.storage.from('pdf-uploads').remove([filePath]);
       throw error;
     }
     
@@ -83,7 +119,7 @@ export const parsePdfWithSupabase = async (
       console.error("PDF parsing error:", data.error);
       
       // Handle specific error for invalid PDF format
-      if (data.error.includes("Invalid PDF format") || data.error.includes("Expected base64")) {
+      if (data.error.includes("Invalid PDF format")) {
         setErrorDetails(`Error: ${data.error}. Please try a different PDF file.`);
         toast({
           title: "Invalid PDF format",
@@ -93,18 +129,27 @@ export const parsePdfWithSupabase = async (
       } else {
         setErrorDetails(data.error);
       }
+      
+      // Clean up the uploaded file
+      await supabase.storage.from('pdf-uploads').remove([filePath]);
       throw new Error(data.error);
     }
     
     if (!data || !data.measurements) {
       setErrorDetails("The parsing service returned invalid data");
+      
+      // Clean up the uploaded file
+      await supabase.storage.from('pdf-uploads').remove([filePath]);
       throw new Error("Invalid response data");
     }
     
     console.log("Parsed measurements:", data.measurements);
     
     // Handle success
-    handleSuccessfulParsing(fileName, setStatus, data.truncated);
+    handleSuccessfulParsing(file.name, setStatus, data.truncated);
+    
+    // Clean up the uploaded file
+    await supabase.storage.from('pdf-uploads').remove([filePath]);
     
     return data.measurements;
     
@@ -116,17 +161,24 @@ export const parsePdfWithSupabase = async (
 
 // Helper function to try fallback processing mode
 const tryFallbackProcessing = async (
-  fileName: string,
-  base64File: string,
+  file: File,
   fileSizeMB: number,
+  filePath: string,
   setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
   setErrorDetails: React.Dispatch<React.SetStateAction<string>>
 ): Promise<ParsedMeasurements | null> => {
   try {
+    // Get the public URL for the uploaded file
+    const { data: publicUrlData } = supabase.storage
+      .from('pdf-uploads')
+      .getPublicUrl(filePath);
+    
+    const pdfUrl = publicUrlData.publicUrl;
+    
     const { data: fallbackData, error: fallbackError } = await supabase.functions.invoke('parse-eagleview-pdf', {
       body: { 
-        fileName: fileName,
-        pdfBase64: base64File,
+        fileName: file.name,
+        pdfUrl,
         timestamp: new Date().getTime(),
         requestId: crypto.randomUUID(),
         processingMode: "fallback",
@@ -137,18 +189,27 @@ const tryFallbackProcessing = async (
     if (fallbackError) {
       console.error("Fallback processing error:", fallbackError);
       setErrorDetails(`Error: ${fallbackError.message}`);
+      
+      // Clean up the uploaded file
+      await supabase.storage.from('pdf-uploads').remove([filePath]);
       throw fallbackError;
     }
     
     if (!fallbackData || !fallbackData.measurements) {
       setErrorDetails("The parsing service returned invalid data in fallback mode");
+      
+      // Clean up the uploaded file
+      await supabase.storage.from('pdf-uploads').remove([filePath]);
       throw new Error("Invalid response data");
     }
     
     console.log("Parsed measurements (fallback mode):", fallbackData.measurements);
     
     // Handle success
-    handleSuccessfulParsing(fileName, setStatus);
+    handleSuccessfulParsing(file.name, setStatus);
+    
+    // Clean up the uploaded file
+    await supabase.storage.from('pdf-uploads').remove([filePath]);
     
     return fallbackData.measurements;
   } catch (error: any) {

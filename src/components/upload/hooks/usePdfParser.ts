@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { ParsedMeasurements } from "@/api/measurements";
-import { readFileAsBase64, validatePdfFile } from "../pdf-utils";
+import { validatePdfFile } from "../pdf-utils";
 import { FileUploadStatus } from "./useFileUpload";
 import { ModelType, ProcessingMode } from "./pdf-constants";
 import { 
   handlePdfSizeError, 
   handleInvalidPdfError, 
-  handleBase64ConversionError,
   handleGeneralPdfError
 } from "./pdf-error-handler";
 import { parsePdfWithSupabase } from "./pdf-parsing-service";
@@ -15,8 +14,7 @@ export function usePdfParser() {
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
   const [processingMode, setProcessingMode] = useState<ProcessingMode>("regular");
   const [modelType, setModelType] = useState<ModelType>("gpt-4o-mini"); // Default to mini for faster processing
-  const [useImageConversion, setUseImageConversion] = useState<boolean>(false); // Kept for backward compatibility but not used
-
+  
   const parsePdf = async (
     file: File, 
     setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
@@ -47,20 +45,12 @@ export function usePdfParser() {
         setProcessingMode("regular");
       }
       
-      // Always use the pdfjs-serverless approach through Supabase Edge Function
+      console.log(`Processing PDF file: ${file.name} (${fileSizeMB.toFixed(2)} MB) using mode: ${processingMode}`);
+      
       try {
-        const base64File = await readFileAsBase64(file);
-        console.log(`Base64 length: ${base64File.length} chars`);
-        
-        // Extra validation for base64 format
-        if (!base64File || base64File.trim().length === 0) {
-          throw new Error("Failed to convert PDF to base64 format");
-        }
-        
-        // Parse PDF with Supabase
+        // Parse PDF with Supabase using direct file upload
         const measurements = await parsePdfWithSupabase(
-          file.name,
-          base64File,
+          file,
           fileSizeMB,
           processingMode,
           modelType,
@@ -75,9 +65,8 @@ export function usePdfParser() {
         setParsedData(measurements);
         
         return measurements;
-      } catch (base64Error) {
-        handleBase64ConversionError(setStatus, setErrorDetails);
-        return null;
+      } catch (processingError) {
+        throw processingError; // Let the main error handler deal with it
       }
     } catch (error: any) {
       handleGeneralPdfError(error, setStatus, setErrorDetails);
@@ -91,8 +80,6 @@ export function usePdfParser() {
     parsePdf,
     processingMode,
     modelType,
-    setModelType,
-    useImageConversion,
-    setUseImageConversion
+    setModelType
   };
 }

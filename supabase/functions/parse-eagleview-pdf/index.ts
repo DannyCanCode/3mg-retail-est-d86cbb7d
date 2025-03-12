@@ -1,7 +1,15 @@
 // @deno-types="npm:@types/node"
 // @ts-ignore
 import { resolvePDFJS } from "https://esm.sh/pdfjs-serverless@0.4.2";
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+// Add Deno global type declaration
+declare const Deno: {
+  env: {
+    get(key: string): string | undefined;
+  };
+};
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -163,7 +171,7 @@ function extractMeasurementsFromText(text: string) {
   return measurements;
 }
 
-console.log("Starting parse-eagleview-pdf function!");
+console.log("Starting parse-eagleview-pdf function with URL-based processing!");
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -172,6 +180,9 @@ serve(async (req) => {
       headers: corsHeaders
     });
   }
+  
+  const startTime = Date.now();
+  let requestId = "unknown";
   
   try {
     console.log("Received request to parse-eagleview-pdf function");
@@ -194,12 +205,13 @@ serve(async (req) => {
       });
     }
     
-    const { fileName, pdfBase64, timestamp, requestId, processingMode, modelType } = requestData;
+    const { fileName, pdfUrl, timestamp, requestId: reqId, processingMode, modelType } = requestData;
+    requestId = reqId || "no-id";
     
-    if (!fileName || !pdfBase64) {
-      console.error("Missing required fields in request");
+    if (!fileName || !pdfUrl) {
+      console.error(`[${requestId}] Missing required fields in request`);
       return new Response(JSON.stringify({ 
-        error: "Missing required fields: fileName and pdfBase64 are required" 
+        error: "Missing required fields: fileName and pdfUrl are required" 
       }), {
         status: 400,
         headers: {
@@ -209,36 +221,42 @@ serve(async (req) => {
       });
     }
     
-    console.log(`Processing PDF: ${fileName}, Request ID: ${requestId || 'none'}, Model: ${modelType || 'gpt-4o-mini'}`);
-    console.log(`PDF base64 length: ${pdfBase64.length} characters`);
+    console.log(`[${requestId}] Processing PDF: ${fileName}, Model: ${modelType || 'gpt-4o-mini'}, Mode: ${processingMode || 'regular'}`);
+    console.log(`[${requestId}] PDF URL: ${pdfUrl}`);
     
     // Get OpenAI API key from environment variables
     const openAiApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAiApiKey) {
-      console.error("OpenAI API key not found in environment variables");
+      console.error(`[${requestId}] OpenAI API key not found in environment variables`);
       throw new Error('OpenAI API key not found in environment variables');
     }
     
-    // Convert base64 to binary data
-    let pdfBinary;
+    // Fetch the PDF from the URL
+    console.log(`[${requestId}] Fetching PDF from URL...`);
+    let pdfResponse;
     try {
-      // Remove data URI prefix if present
-      const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, '');
-      pdfBinary = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-      console.log(`Successfully converted base64 to binary. Binary length: ${pdfBinary.length} bytes`);
-    } catch (error) {
-      console.error('Error decoding base64:', error);
-      throw new Error('Invalid PDF format. Expected base64 encoded PDF.');
+      pdfResponse = await fetch(pdfUrl);
+      
+      if (!pdfResponse.ok) {
+        throw new Error(`Failed to fetch PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
+      }
+    } catch (fetchError) {
+      console.error(`[${requestId}] Error fetching PDF:`, fetchError);
+      throw new Error(`Failed to fetch PDF: ${fetchError.message}`);
     }
     
-    // Create form data for file upload
+    // Get the PDF binary data
+    const pdfBinary = new Uint8Array(await pdfResponse.arrayBuffer());
+    console.log(`[${requestId}] Successfully fetched PDF. Binary length: ${pdfBinary.length} bytes`);
+    
+    // Create form data for file upload to OpenAI
     const formData = new FormData();
     const pdfBlob = new Blob([pdfBinary], { type: 'application/pdf' });
     formData.append('file', pdfBlob, fileName);
     formData.append('purpose', 'assistants');
     
     // Upload file to OpenAI
-    console.log('Uploading file to OpenAI...');
+    console.log(`[${requestId}] Uploading file to OpenAI...`);
     let uploadResponse;
     try {
       uploadResponse = await fetch('https://api.openai.com/v1/files', {
@@ -251,30 +269,37 @@ serve(async (req) => {
       
       if (!uploadResponse.ok) {
         const errorData = await uploadResponse.json();
-        console.error('File upload error:', errorData);
-        throw new Error(`Failed to upload file to OpenAI: ${errorData.error?.message || 'Unknown error'}`);
+        console.error(`[${requestId}] OpenAI API upload error:`, errorData);
+        throw new Error(`OpenAI API upload error: ${errorData.error?.message || 'Unknown error'}`);
       }
     } catch (uploadError) {
-      console.error('Error during file upload:', uploadError);
-      throw new Error(`Error uploading file to OpenAI: ${uploadError.message}`);
+      console.error(`[${requestId}] Error uploading file to OpenAI:`, uploadError);
+      throw new Error(`Failed to upload file to OpenAI: ${uploadError.message}`);
     }
     
     const uploadData = await uploadResponse.json();
     const fileId = uploadData.id;
-    console.log(`File uploaded successfully. File ID: ${fileId}`);
+    console.log(`[${requestId}] File uploaded to OpenAI. File ID: ${fileId}`);
     
-    // Create system prompt
-    const systemPrompt = `You are an expert at analyzing EagleView roof measurement reports. Extract all measurements accurately.`;
-    
-    // Create messages for the OpenAI API using the file ID
+    // Prepare prompt for processing the PDF
     const messages = [
-      { role: "system", content: systemPrompt },
-      { 
-        role: "user", 
+      {
+        role: "system",
+        content: "You will analyze an EagleView Premium PDF report for a roof and extract the measurements. Your response should be a valid JSON object with measurements from the report. DO NOT include any text outside the JSON."
+      },
+      {
+        role: "user",
         content: [
-          { 
-            type: "text", 
-            text: "Please extract the measurement data from this EagleView PDF roof report. Return the data in valid JSON format with the following structure: { \"totalArea\": number, \"predominantPitch\": string, \"ridgeLength\": number, \"hipLength\": number, \"valleyLength\": number, \"rakeLength\": number, \"eaveLength\": number, \"ridgeCount\": number, \"hipCount\": number, \"valleyCount\": number, \"rakeCount\": number, \"eaveCount\": number, \"stepFlashingLength\": number, \"stepFlashingCount\": number, \"chimneyCount\": number, \"skylightCount\": number, \"turbineVentCount\": number, \"pipeVentCount\": number, \"penetrationsArea\": number, \"penetrationsPerimeter\": number }. All length measurements should be in feet, areas in square feet."
+          {
+            type: "text",
+            text: `I've uploaded an EagleView PDF report for a roof inspection. Please extract all the measurements including:
+1. Total roof area (in sq ft)
+2. Predominant pitch
+3. All lengths (ridge, hip, valley, rake, eave, step flashing, etc.)
+4. Any penetrations (skylights, chimneys, vents)
+5. Areas by pitch if available
+
+Return the data as a JSON object with numbers as values (not strings). Do not include any text or explanation outside the JSON object.`
           },
           {
             type: "file_path",
@@ -284,7 +309,7 @@ serve(async (req) => {
       }
     ];
     
-    console.log(`Sending request to OpenAI API using model: ${modelType || 'gpt-4o-mini'}`);
+    console.log(`[${requestId}] Sending request to OpenAI API using model: ${modelType || 'gpt-4o-mini'}`);
     
     // Make API call to OpenAI
     let response;
@@ -305,11 +330,11 @@ serve(async (req) => {
       
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('OpenAI API error:', errorData);
+        console.error(`[${requestId}] OpenAI API error:`, errorData);
         throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
       }
     } catch (apiError) {
-      console.error('Error during OpenAI API call:', apiError);
+      console.error(`[${requestId}] Error during OpenAI API call:`, apiError);
       throw new Error(`Error calling OpenAI API: ${apiError.message}`);
     }
     
@@ -319,57 +344,68 @@ serve(async (req) => {
     let measurements;
     try {
       const content = data.choices[0].message.content;
-      console.log('Raw OpenAI response:', content);
+      console.log(`[${requestId}] Raw OpenAI response:`, content);
       
       // Try to extract JSON from the response
       const jsonMatch = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/```([\s\S]*?)```/) || [null, content];
       const jsonStr = jsonMatch[1] || content;
       
-      console.log('Extracted JSON string:', jsonStr);
+      console.log(`[${requestId}] Extracted JSON string:`, jsonStr);
       measurements = JSON.parse(jsonStr.trim());
-      console.log('Successfully parsed measurements:', measurements);
-    } catch (error) {
-      console.error('Error parsing measurements:', error);
-      throw new Error('Failed to parse measurements from OpenAI response');
+      console.log(`[${requestId}] Successfully parsed measurements:`, measurements);
+    } catch (parseError) {
+      console.error(`[${requestId}] Error parsing OpenAI response:`, parseError);
+      throw new Error(`Error parsing OpenAI response: ${parseError.message}`);
     }
     
-    // Clean up - delete the file after use
-    try {
-      await fetch(`https://api.openai.com/v1/files/${fileId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${openAiApiKey}`
-        }
-      });
-      console.log(`Successfully deleted file ${fileId} from OpenAI`);
-    } catch (deleteError) {
-      console.error(`Warning: Failed to delete file ${fileId} from OpenAI:`, deleteError);
-      // Continue even if deletion fails
-    }
-    
-    // Return the measurements
-    console.log('Returning successful response with measurements');
-    return new Response(JSON.stringify({ 
-      measurements,
-      truncated: false
-    }), {
+    // Clean up the file from OpenAI (in the background)
+    fetch(`https://api.openai.com/v1/files/${fileId}`, {
+      method: 'DELETE',
       headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders
+        'Authorization': `Bearer ${openAiApiKey}`
       }
+    }).catch(error => {
+      console.warn(`[${requestId}] Error deleting file from OpenAI:`, error);
     });
+    
+    const processingTime = (Date.now() - startTime) / 1000; // in seconds
+    console.log(`[${requestId}] Processing completed in ${processingTime.toFixed(2)} seconds`);
+    
+    return new Response(
+      JSON.stringify({
+        measurements,
+        success: true,
+        processingTime: processingTime,
+        fileName: fileName,
+        requestId: requestId
+      }),
+      {
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      }
+    );
     
   } catch (error) {
-    console.error('Error processing request:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Unknown error occurred'
-    }), {
-      status: 500,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders
+    const processingTime = (Date.now() - startTime) / 1000; // in seconds
+    console.error(`[${requestId}] Error in parse-eagleview-pdf function:`, error);
+    
+    return new Response(
+      JSON.stringify({
+        error: error.message,
+        success: false,
+        processingTime: processingTime,
+        requestId: requestId
+      }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
       }
-    });
+    );
   }
 });
 
