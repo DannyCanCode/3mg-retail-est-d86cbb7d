@@ -1,28 +1,38 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ParsedMeasurements {
+  // Areas
   totalArea: number;
+  penetrationsArea: number;
+  
+  // Main pitch
   predominantPitch: string;
+  
+  // Lengths
   ridgeLength: number;
   hipLength: number;
   valleyLength: number;
   rakeLength: number;
   eaveLength: number;
+  stepFlashingLength: number;
+  flashingLength: number;
+  dripEdgeLength: number;
+  
+  // Counts
   ridgeCount: number;
   hipCount: number;
   valleyCount: number;
   rakeCount: number;
   eaveCount: number;
-  stepFlashingLength: number;
-  stepFlashingCount: number;
-  chimneyCount: number;
-  skylightCount: number;
-  turbineVentCount: number;
-  pipeVentCount: number;
-  penetrationsArea: number;
+  
+  // Penetrations
   penetrationsPerimeter: number;
+  
+  // Areas by pitch - for storing the pitch table data
   areasByPitch: Record<string, number>;
-  [key: string]: any;  // Allow for additional properties
+  
+  // Allow for any additional properties that might be used internally
+  [key: string]: any;
 }
 
 export const saveMeasurement = async (

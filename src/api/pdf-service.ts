@@ -90,13 +90,27 @@ export async function saveMeasurementsToDatabase(
       throw new Error('Supabase is not configured. Please add your API keys to the .env file.');
     }
 
+    // Mapping to match the database schema from the images
     const { data, error } = await supabase
       .from('measurements')
       .insert({
         filename: fileName,
-        file_url: fileUrl,
-        measurements: measurements,
-        created_at: new Date().toISOString(),
+        total_area: measurements.totalArea || 0,
+        predominant_pitch: measurements.predominantPitch || '',
+        ridges: measurements.ridgeLength || 0,
+        valleys: measurements.valleyLength || 0,
+        hips: measurements.hipLength || 0,
+        eaves: measurements.eaveLength || 0,
+        rakes: measurements.rakeLength || 0,
+        step_flashing: measurements.stepFlashingLength || 0,
+        flashing: measurements.flashingLength || 0,
+        raw_text: JSON.stringify(measurements),
+        areas_per_pitch: measurements.areasByPitch || {},
+        penetrations: measurements.penetrationsArea || 0,
+        penetrations_perimeter: measurements.penetrationsPerimeter || 0,
+        waste_percentage: 10, // Default waste percentage
+        total_squares: Math.ceil((measurements.totalArea || 0) / 100),
+        created_at: new Date().toISOString()
       })
       .select()
       .single();

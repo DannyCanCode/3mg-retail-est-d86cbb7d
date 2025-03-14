@@ -1,105 +1,88 @@
 # 3MG Retail Estimator
 
-A web application for parsing EagleView PDF reports and generating roofing estimates.
+A web application for processing roof measurement PDFs and generating estimates.
 
 ## Features
 
-- PDF parsing using Supabase Edge Functions
-- Measurement extraction from EagleView reports
-- Estimate creation and management
-- Material pricing calculation
+- PDF upload and processing
+- Automatic measurement extraction 
+- Save measurements to Supabase database
+- Create and manage roofing estimates
 
-## Technologies Used
+## Tech Stack
 
-- Vite
-- TypeScript
-- React
-- Supabase (Backend as a Service)
-- shadcn-ui
+- React + TypeScript + Vite
 - Tailwind CSS
+- Supabase (storage, edge functions, database)
+- PDF.js for PDF processing
 
-## Project Setup
+## Setup
 
-Follow these steps to set up the project locally:
+### Prerequisites
 
-```sh
-# Step 1: Clone the repository
-git clone https://github.com/DannyCanCode/3mg-retail-est-d86cbb7d.git
+- Node.js 16+
+- npm or yarn
+- Supabase account
 
-# Step 2: Navigate to the project directory
-cd 3mg-retail-est-d86cbb7d
+### Installation
 
-# Step 3: Install the necessary dependencies
-npm install
+1. Clone the repository:
+   ```
+   git clone https://github.com/DannyCanCode/3mg-retail-est-d86cbb7d.git
+   cd 3mg-retail-est-d86cbb7d
+   ```
 
-# Step 4: Create a .env file based on .env.example
-cp .env.example .env
-# Then edit the .env file with your Supabase credentials
+2. Install dependencies:
+   ```
+   npm install
+   ```
 
-# Step 5: Start the development server
-npm run dev
-```
+3. Environment setup:
+   - Copy `.env` file and update with your Supabase credentials
+   - Ensure the `pdf-uploads` bucket exists in your Supabase project
 
-## Supabase Configuration
+4. Deploy Supabase Edge Function:
+   ```
+   cd supabase/functions/process-pdf
+   supabase functions deploy process-pdf
+   ```
 
-This project uses Supabase for backend functionality. Key components include:
+5. Run the application:
+   ```
+   npm run dev
+   ```
 
-1. **Edge Function (parse-eagleview-pdf)**:
-   - Located in `supabase/functions/parse-eagleview-pdf/`
-   - Processes PDF files to extract measurements
-   - Uses OpenAI API to interpret PDF content
+### Supabase Configuration
 
-2. **Database Tables**:
-   - `measurements`: Stores extracted PDF measurements
-   - `pricing_lists`: Stores material pricing information
-   - `estimates`: Stores customer estimates
+The application requires the following Supabase resources:
 
-3. **Storage Buckets**:
-   - `pdf-uploads`: Temporarily stores PDF files for processing
+1. Storage bucket named `pdf-uploads` with public access
+2. Edge function named `process-pdf` for PDF processing
+3. Database tables:
+   - `measurements` - stores extracted roof measurements
+   - `estimates` - stores estimates created from measurements
+   - `estimate_items` - stores line items for estimates
+   - `pricing` - stores pricing data
+   - `pricing_lists` - stores pricing list data
 
-## Deployment
+## Usage
 
-### Frontend Deployment (Netlify)
-
-1. Connect your GitHub repository to Netlify
-2. Set build command to `npm run build`
-3. Set publish directory to `dist`
-4. Add environment variables from your `.env` file
-
-### Supabase Edge Function Deployment
-
-Deploy the Edge Function to your Supabase project:
-
-```sh
-# Install Supabase CLI if you haven't already
-npm install -g supabase
-
-# Login to Supabase
-supabase login
-
-# Deploy the Edge Function
-cd supabase/functions
-supabase functions deploy parse-eagleview-pdf --project-ref YOUR_PROJECT_REF
-```
-
-Make sure to set the OPENAI_API_KEY in your Supabase project's environment variables.
-
-## Development Workflow
-
-1. Make changes to the codebase
-2. Test locally using `npm run dev`
-3. Commit and push changes to GitHub
-4. Netlify will automatically deploy the updated frontend
-5. Manually deploy Supabase Edge Functions when they change
+1. Upload an EagleView PDF file
+2. The system will process the PDF and extract measurements
+3. View the extracted measurements
+4. Create an estimate based on the measurements
+5. Add pricing and materials to the estimate
+6. Generate the final estimate
 
 ## Troubleshooting
 
-If you encounter issues with PDF parsing:
+- **PDF Upload Issues**: Check Supabase storage bucket permissions
+- **Processing Errors**: Verify Edge Function deployment and logs
+- **Database Issues**: Check database structure matches the required schema
 
-1. Check Supabase function logs in the Supabase dashboard
-2. Verify that CORS is properly configured
-3. Check that your OpenAI API key has sufficient credits
-4. Ensure the PDF-uploads bucket has appropriate permissions
+## License
+
+MIT
 
 ## Project info
 

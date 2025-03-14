@@ -4,5 +4,5 @@ export const MAX_RECOMMENDED_SIZE_MB = 5;
 // Maximum allowed PDF size (will reject larger files)
 export const MAX_ALLOWED_SIZE_MB = 10;
 
-// Processing modes for PDF parsing
-export type ProcessingMode = "regular" | "fallback" | "supabase";
+// Processing modes for PDF files
+export type ProcessingMode = 'supabase' | 'client';
