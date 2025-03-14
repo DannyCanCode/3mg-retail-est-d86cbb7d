@@ -2,10 +2,42 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = "https://zdgicsuqfohnufowksgq.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZ2ljc3VxZm9obnVmb3drc2dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA3NTk2MzcsImV4cCI6MjA1NjMzNTYzN30.Zg7a-BeP6O1lkNQ2oE9EUEY32cUcbiCkD2RZ_mdsxdg";
+// Get URL and key from environment variables or use empty values
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+// Create a dummy client if no URL/key is provided
+const createDummyClient = () => {
+  console.warn("Supabase client is in offline mode. Database features will not work.");
+  
+  // Return a mock client that doesn't do anything
+  return {
+    from: () => ({
+      insert: async () => ({ data: null, error: new Error("Supabase is in offline mode") }),
+      select: async () => ({ data: null, error: new Error("Supabase is in offline mode") }),
+      update: async () => ({ data: null, error: new Error("Supabase is in offline mode") }),
+      delete: async () => ({ data: null, error: new Error("Supabase is in offline mode") }),
+    }),
+    storage: {
+      from: () => ({
+        upload: async () => ({ data: null, error: new Error("Supabase is in offline mode") }),
+        getPublicUrl: () => ({ data: { publicUrl: "" } }),
+        remove: async () => ({ data: null, error: null }),
+      }),
+    },
+    functions: {
+      invoke: async () => ({ data: null, error: new Error("Supabase is in offline mode") }),
+    },
+  };
+};
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+// Determine if we should use a real client or a dummy one
+const shouldUseRealClient = SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY;
+
+// Create and export the appropriate client
+export const supabase = shouldUseRealClient 
+  ? createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+  : createDummyClient() as any; 
+
+// Check if we're in online or offline mode
+export const isOnlineMode = shouldUseRealClient;

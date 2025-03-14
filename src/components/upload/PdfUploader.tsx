@@ -26,7 +26,8 @@ export function PdfUploader() {
     parsedData, 
     setParsedData, 
     parsePdf, 
-    processingMode
+    processingMode,
+    processingProgress
   } = usePdfParser();
   
   const { saveToDatabase } = useMeasurementStorage();
@@ -67,7 +68,17 @@ export function PdfUploader() {
 
   const handleSaveToDatabase = async () => {
     if (!parsedData || !file) return;
-    await saveToDatabase(file.name, parsedData);
+    
+    try {
+      await saveToDatabase(file.name, parsedData);
+    } catch (error) {
+      console.error("Error saving to database:", error);
+      toast({
+        title: "Save failed",
+        description: "Failed to save measurements to database. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleResetUpload = () => {
@@ -107,6 +118,7 @@ export function PdfUploader() {
               status={status} 
               fileName={file?.name || ""} 
               processingMode={processingMode}
+              progress={processingProgress}
             />
           )}
           

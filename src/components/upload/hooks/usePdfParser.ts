@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ParsedMeasurements } from "@/api/measurements";
-import { validatePdfFile } from "../pdf-utils";
+import { validatePdfFile, processPdfInBrowser, extractMeasurementsFromText } from "../pdf-utils";
 import { FileUploadStatus } from "./useFileUpload";
 import { ProcessingMode } from "./pdf-constants";
 import { 
@@ -8,11 +8,15 @@ import {
   handleInvalidPdfError, 
   handleGeneralPdfError
 } from "./pdf-error-handler";
-import { parsePdfWithSupabase } from "./pdf-parsing-service";
 
 export function usePdfParser() {
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
   const [processingMode, setProcessingMode] = useState<ProcessingMode>("regular");
+  const [processingProgress, setProcessingProgress] = useState<{
+    page: number;
+    totalPages: number;
+    status: string;
+  } | null>(null);
   
   const parsePdf = async (
     file: File, 
@@ -21,6 +25,7 @@ export function usePdfParser() {
   ) => {
     setStatus("uploading");
     setErrorDetails("");
+    setProcessingProgress(null);
     
     try {
       // Validate that this is actually a PDF file
@@ -46,15 +51,25 @@ export function usePdfParser() {
       
       console.log(`Processing PDF file: ${file.name} (${fileSizeMB.toFixed(2)} MB) using mode: ${processingMode}`);
       
+      setStatus("parsing");
+      setProcessingProgress({
+        page: 0,
+        totalPages: 0,
+        status: "Loading PDF..."
+      });
+      
       try {
-        // Parse PDF with Supabase using direct file upload
-        const measurements = await parsePdfWithSupabase(
-          file,
-          fileSizeMB,
-          processingMode,
-          setStatus,
-          setErrorDetails
-        );
+        // Process PDF directly in the browser
+        const { text, pageCount } = await processPdfInBrowser(file);
+        
+        setProcessingProgress({
+          page: pageCount,
+          totalPages: pageCount,
+          status: "Extracting measurements..."
+        });
+        
+        // Extract measurements from the text
+        const measurements = extractMeasurementsFromText(text);
         
         // Reset parsedData before setting the new data to ensure we don't keep old state
         setParsedData(null);
@@ -62,13 +77,23 @@ export function usePdfParser() {
         // Store the parsed measurements
         setParsedData(measurements);
         
+        setStatus("success");
+        
+        // Show success message
+        console.log("PDF processing complete", measurements);
+        
         return measurements;
       } catch (processingError) {
-        throw processingError; // Let the main error handler deal with it
+        console.error("PDF processing error:", processingError);
+        setStatus("error");
+        setErrorDetails(`Error processing PDF: ${processingError.message}`);
+        return null;
       }
     } catch (error: any) {
       handleGeneralPdfError(error, setStatus, setErrorDetails);
       return null;
+    } finally {
+      setProcessingProgress(null);
     }
   };
 
@@ -76,6 +101,7 @@ export function usePdfParser() {
     parsedData,
     setParsedData,
     parsePdf,
-    processingMode
+    processingMode,
+    processingProgress
   };
 }

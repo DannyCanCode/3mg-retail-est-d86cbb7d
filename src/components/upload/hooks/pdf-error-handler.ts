@@ -45,42 +45,6 @@ export const handleInvalidPdfError = (
   });
 };
 
-export const handleEdgeFunctionError = (
-  error: any,
-  fileSizeMB: number,
-  setErrorDetails: React.Dispatch<React.SetStateAction<string>>,
-  setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>
-) => {
-  console.error("Edge function error:", error);
-  
-  // Check if it's a connection error
-  if (error.message && error.message.includes("Failed to send a request")) {
-    setErrorDetails("Connection to Edge Function failed. This might be due to a temporary network issue or the function is still being deployed. Please try again in a moment.");
-  } 
-  // Check if it's an invalid PDF format error
-  else if (error.message && error.message.includes("Invalid PDF format")) {
-    setErrorDetails("The file appears to be corrupted or isn't in a standard PDF format. Please try a different PDF file.");
-  }
-  // Check if it's a size-related or token limit error
-  else if (error.message && (
-      error.message.includes("too long") || 
-      error.message.includes("too large") ||
-      error.message.includes("context length") ||
-      error.message.includes("maximum context length")
-  )) {
-    setErrorDetails(`The PDF file is too complex to process (${fileSizeMB.toFixed(2)} MB). Please try a smaller file or one with fewer pages.`);
-  } 
-  // Check if it's a fetch error
-  else if (error.message && error.message.includes("Failed to fetch PDF")) {
-    setErrorDetails("Failed to access PDF file from storage. Please try uploading again.");
-  }
-  else {
-    setErrorDetails(error.message || "Unknown edge function error");
-  }
-  
-  setStatus("error");
-};
-
 export const handleGeneralPdfError = (
   error: any,
   setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
@@ -90,34 +54,27 @@ export const handleGeneralPdfError = (
   setStatus("error");
   
   // Set a generic message if no specific error was already set
-  if (!setErrorDetails) {
-    setErrorDetails(error.message || "Unknown error occurred");
+  if (!error.message) {
+    setErrorDetails("An unknown error occurred while processing the PDF. Please try a different file.");
+  } else {
+    setErrorDetails(`Error: ${error.message}`);
   }
   
   toast({
     title: "Parsing failed",
-    description: "There was an error processing your file. Please try again with a smaller file.",
+    description: "There was an error processing your file. Please try a different PDF file.",
     variant: "destructive",
   });
 };
 
 export const handleSuccessfulParsing = (
   fileName: string, 
-  setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
-  wasTruncated: boolean = false
+  setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>
 ) => {
   setStatus("success");
   
-  if (wasTruncated) {
-    toast({
-      title: "File was truncated",
-      description: "The file was too large and was processed with reduced detail. Some measurements might be approximate.",
-      variant: "default",
-    });
-  }
-  
   toast({
     title: "Parsing successful",
-    description: `${fileName} has been processed.`,
+    description: `${fileName} has been processed successfully.`,
   });
 };
