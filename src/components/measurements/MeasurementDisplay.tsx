@@ -26,11 +26,6 @@ export function MeasurementDisplay({
     valleyLength,
     rakeLength,
     eaveLength,
-    ridgeCount,
-    hipCount,
-    valleyCount,
-    rakeCount,
-    eaveCount,
     stepFlashingLength,
     flashingLength,
     penetrationsArea,
@@ -90,27 +85,27 @@ export function MeasurementDisplay({
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
             <div className="flex justify-between">
               <span className="text-sm">Ridges =</span>
-              <span className="text-sm font-medium">{ridgeLength} ft ({ridgeCount} Ridges)</span>
+              <span className="text-sm font-medium">{ridgeLength} ft</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Hips =</span>
-              <span className="text-sm font-medium">{hipLength} ft ({hipCount} Hips)</span>
+              <span className="text-sm font-medium">{hipLength} ft</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Valleys =</span>
-              <span className="text-sm font-medium">{valleyLength} ft ({valleyCount} Valleys)</span>
+              <span className="text-sm font-medium">{valleyLength} ft</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Rakes† =</span>
-              <span className="text-sm font-medium">{rakeLength} ft ({rakeCount} Rakes)</span>
+              <span className="text-sm font-medium">{rakeLength} ft</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Eaves/Starter‡ =</span>
-              <span className="text-sm font-medium">{eaveLength} ft ({eaveCount} Eaves)</span>
+              <span className="text-sm font-medium">{eaveLength} ft</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Drip Edge (Eaves + Rakes) =</span>
-              <span className="text-sm font-medium">{dripEdgeLength} ft ({eaveCount + rakeCount} Lengths)</span>
+              <span className="text-sm font-medium">{dripEdgeLength} ft</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm">Flashing =</span>
