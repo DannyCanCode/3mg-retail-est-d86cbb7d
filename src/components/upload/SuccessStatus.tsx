@@ -1,139 +1,101 @@
-
 import React from "react";
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Download, FileText, RotateCcw, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ParsedMeasurements } from "@/api/measurements";
-import { Separator } from "@/components/ui/separator";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { renderMeasurementValue } from "./pdf-utils";
 
-interface SuccessStatusProps {
+export interface SuccessStatusProps {
   fileName: string;
   parsedData: ParsedMeasurements;
+  fileUrl?: string | null;
   saveToDatabase: () => Promise<void>;
   resetUpload: () => void;
 }
 
-export function SuccessStatus({ fileName, parsedData, saveToDatabase, resetUpload }: SuccessStatusProps) {
-  // Helper function to render measurement value with proper units
-  const renderValue = (key: string, value: number | string | undefined): string => {
-    if (value === undefined || value === null) {
-      return 'N/A';
+export function SuccessStatus({ 
+  fileName, 
+  parsedData, 
+  fileUrl, 
+  saveToDatabase, 
+  resetUpload 
+}: SuccessStatusProps) {
+  const handleViewOriginal = () => {
+    if (fileUrl) {
+      window.open(fileUrl, '_blank');
     }
-    
-    if (key.includes('Pitch')) {
-      return value.toString();
-    }
-    
-    if (key.includes('Area')) {
-      return `${value} sq ft`;
-    }
-    
-    if (key.includes('Length') || key.includes('Perimeter')) {
-      return `${value} ft`;
-    }
-    
-    return value.toString();
   };
-  
-  // Filter and group fields for better display
-  const getTotalFields = () => {
-    return Object.entries(parsedData).filter(([key]) => 
-      key.includes('total') || key.includes('Total') || key === 'penetrationsArea' || key === 'penetrationsPerimeter' || key === 'predominantPitch' || key === 'roofPitch'
-    );
-  };
-  
-  const getLengthFields = () => {
-    return Object.entries(parsedData).filter(([key]) => 
-      key.includes('Length') && !key.includes('Count')
-    );
-  };
-  
-  const getCountFields = () => {
-    return Object.entries(parsedData).filter(([key]) => 
-      key.includes('Count')
-    );
-  };
-  
-  // Helper to format display names
-  const formatDisplayName = (key: string): string => {
-    return key
-      .replace(/([A-Z])/g, ' $1') // Insert space before capital letters
-      .replace(/^./, (str) => str.toUpperCase()) // Capitalize first character
-      .trim();
-  };
-  
+
   return (
     <>
-      <div className="p-4 rounded-full bg-[#10b981]/10 mb-4">
-        <CheckCircle className="h-8 w-8 text-[#10b981]" />
+      <div className="p-4 rounded-full bg-green-100 dark:bg-green-900 mb-4">
+        <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-300" />
       </div>
-      <h3 className="text-lg font-medium mb-1">Parsing Complete</h3>
-      <p className="text-muted-foreground text-sm mb-4 text-center">
-        {fileName} has been processed successfully
+      <h3 className="text-lg font-medium mb-1">Successfully processed {fileName}</h3>
+      <p className="text-muted-foreground text-sm mb-6 text-center">
+        We've successfully extracted the following measurements from your PDF
       </p>
       
-      <div className="w-full max-w-md bg-secondary/50 rounded-lg p-4 mb-6">
-        <h4 className="font-medium text-sm mb-2">Extracted Measurements:</h4>
-        
-        <div className="mb-3">
-          <h5 className="text-xs text-muted-foreground mb-1">Total Area & Pitch</h5>
-          <div className="grid grid-cols-2 gap-2">
-            {getTotalFields().map(([key, value]) => (
-              <div key={key} className="text-xs">
-                <span className="text-muted-foreground capitalize">
-                  {formatDisplayName(key)}:
-                </span>{' '}
-                <span className="font-medium">{renderValue(key, value)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        
-        <Separator className="my-2" />
-        
-        <div className="mb-3">
-          <h5 className="text-xs text-muted-foreground mb-1">Length Measurements</h5>
-          <div className="grid grid-cols-2 gap-2">
-            {getLengthFields().map(([key, value]) => {
-              const countKey = key.replace('Length', 'Count');
-              const count = parsedData[countKey as keyof ParsedMeasurements];
+      <Card className="w-full max-w-2xl mb-6">
+        <CardHeader>
+          <CardTitle>Extracted Measurements</CardTitle>
+          <CardDescription>
+            These values will be used in your estimate
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(parsedData).map(([key, value]) => {
+              // Skip objects like areasByPitch for now
+              if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                return null;
+              }
               
               return (
-                <div key={key} className="text-xs">
-                  <span className="text-muted-foreground capitalize">
-                    {formatDisplayName(key.replace('Length', ''))}:
-                  </span>{' '}
+                <div key={key} className="flex justify-between gap-2 py-1 border-b">
                   <span className="font-medium">
-                    {renderValue(key, value)}
-                    {count ? ` (${count} ${formatDisplayName(key.replace('Length', ''))}s)` : ''}
+                    {key.replace(/([A-Z])/g, ' $1').trim()}:
+                  </span>
+                  <span className="text-right">
+                    {renderMeasurementValue(key, value)}
                   </span>
                 </div>
               );
             })}
           </div>
-        </div>
-        
-        <Separator className="my-2" />
-        
-        <div>
-          <h5 className="text-xs text-muted-foreground mb-1">Count Information</h5>
-          <div className="grid grid-cols-2 gap-2">
-            {getCountFields().map(([key, value]) => (
-              <div key={key} className="text-xs">
-                <span className="text-muted-foreground capitalize">
-                  {formatDisplayName(key)}:
-                </span>{' '}
-                <span className="font-medium">{value}</span>
+          
+          {/* Show areas by pitch if available */}
+          {parsedData.areasByPitch && Object.keys(parsedData.areasByPitch).length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-medium mb-2">Areas by Pitch:</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {Object.entries(parsedData.areasByPitch).map(([pitch, area]) => (
+                  <div key={pitch} className="flex justify-between gap-2 py-1 border-b">
+                    <span>Pitch {pitch}:</span>
+                    <span>{area} sq ft</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       
-      <div className="flex gap-4">
-        <Button onClick={saveToDatabase}>
-          Save Measurements
+      <div className="flex flex-wrap gap-3 justify-center">
+        <Button onClick={saveToDatabase} className="gap-2">
+          <Save className="h-4 w-4" />
+          Save to Database
         </Button>
-        <Button variant="outline" onClick={resetUpload}>
+        
+        {fileUrl && (
+          <Button variant="outline" onClick={handleViewOriginal} className="gap-2">
+            <FileText className="h-4 w-4" />
+            View Original PDF
+          </Button>
+        )}
+        
+        <Button variant="outline" onClick={resetUpload} className="gap-2">
+          <RotateCcw className="h-4 w-4" />
           Upload Another
         </Button>
       </div>

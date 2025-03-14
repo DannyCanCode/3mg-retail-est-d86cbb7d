@@ -1,7 +1,8 @@
-// Maximum recommended file size in MB before warning users
-export const MAX_RECOMMENDED_SIZE_MB = 2;
-// Absolute maximum file size in MB that we'll attempt to process
-export const MAX_ALLOWED_SIZE_MB = 6;
+// Maximum recommended PDF size (will show warning)
+export const MAX_RECOMMENDED_SIZE_MB = 5;
 
-// Processing modes
-export type ProcessingMode = "regular" | "fallback";
+// Maximum allowed PDF size (will reject larger files)
+export const MAX_ALLOWED_SIZE_MB = 10;
+
+// Processing modes for PDF parsing
+export type ProcessingMode = "regular" | "fallback" | "supabase";

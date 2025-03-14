@@ -1,33 +1,28 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface ParsedMeasurements {
-  totalArea?: number;
-  roofPitch?: string;
-  ridgeLength?: number;
-  ridgeCount?: number;
-  valleyLength?: number;
-  valleyCount?: number;
-  hipLength?: number;
-  hipCount?: number;
-  eaveLength?: number;
-  eaveCount?: number;
-  rakeLength?: number;
-  rakeCount?: number;
-  stepFlashingLength?: number;
-  stepFlashingCount?: number;
-  flashingLength?: number;
-  flashingCount?: number;
-  dripEdgeLength?: number;
-  parapetWallLength?: number;
-  parapetWallCount?: number;
-  penetrationsArea?: number;
-  penetrationsPerimeter?: number;
-  predominantPitch?: string;
-  chimneyCount?: number;
-  skylightCount?: number;
-  ventCount?: number;
-  areasPerPitch?: Record<string, { area: number; percentage: number }>;
+  totalArea: number;
+  predominantPitch: string;
+  ridgeLength: number;
+  hipLength: number;
+  valleyLength: number;
+  rakeLength: number;
+  eaveLength: number;
+  ridgeCount: number;
+  hipCount: number;
+  valleyCount: number;
+  rakeCount: number;
+  eaveCount: number;
+  stepFlashingLength: number;
+  stepFlashingCount: number;
+  chimneyCount: number;
+  skylightCount: number;
+  turbineVentCount: number;
+  pipeVentCount: number;
+  penetrationsArea: number;
+  penetrationsPerimeter: number;
+  areasByPitch: Record<string, number>;
+  [key: string]: any;  // Allow for additional properties
 }
 
 export const saveMeasurement = async (

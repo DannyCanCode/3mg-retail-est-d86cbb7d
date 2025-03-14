@@ -27,7 +27,8 @@ export function PdfUploader() {
     setParsedData, 
     parsePdf, 
     processingMode,
-    processingProgress
+    processingProgress,
+    fileUrl
   } = usePdfParser();
   
   const { saveToDatabase } = useMeasurementStorage();
@@ -70,7 +71,7 @@ export function PdfUploader() {
     if (!parsedData || !file) return;
     
     try {
-      await saveToDatabase(file.name, parsedData);
+      await saveToDatabase(file.name, parsedData, fileUrl || undefined);
     } catch (error) {
       console.error("Error saving to database:", error);
       toast({
@@ -126,6 +127,7 @@ export function PdfUploader() {
             <SuccessStatus 
               fileName={file?.name || ""} 
               parsedData={parsedData}
+              fileUrl={fileUrl}
               saveToDatabase={handleSaveToDatabase}
               resetUpload={handleResetUpload}
             />

@@ -1,27 +1,35 @@
 import { useNavigate } from "react-router-dom";
-import { saveMeasurement, ParsedMeasurements } from "@/api/measurements";
+import { ParsedMeasurements } from "@/api/measurements";
 import { toast } from "@/hooks/use-toast";
-import { isOnlineMode } from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/integrations/supabase/client";
+import { saveMeasurementsToDatabase } from "@/api/pdf-service";
 
 export function useMeasurementStorage() {
   const navigate = useNavigate();
 
-  const saveToDatabase = async (fileName: string, parsedData: ParsedMeasurements) => {
+  const saveToDatabase = async (
+    fileName: string, 
+    parsedData: ParsedMeasurements,
+    fileUrl?: string
+  ) => {
     try {
-      if (!isOnlineMode) {
-        console.log("Running in offline mode, measurements will not be saved to database");
+      if (!isSupabaseConfigured()) {
+        console.log("Supabase not configured, measurements will not be saved to database");
         toast({
-          title: "Offline Mode",
-          description: "Measurements processed successfully, but not saved to database (offline mode).",
+          title: "Configuration Missing",
+          description: "Measurements processed successfully, but not saved to database (Supabase not configured).",
+          variant: "destructive",
         });
         
-        // In offline mode, we'll still navigate to the estimates page,
-        // but without a measurement ID
+        // Still navigate to the estimates page but without a measurement ID
         navigate(`/estimates`);
         return null;
       }
       
-      const { data, error } = await saveMeasurement(fileName, parsedData);
+      // Use the provided fileUrl or a placeholder
+      const url = fileUrl || `local://pdf/${fileName}`;
+      
+      const { data, error } = await saveMeasurementsToDatabase(fileName, url, parsedData);
       
       if (error) {
         throw error;
@@ -33,8 +41,10 @@ export function useMeasurementStorage() {
       });
       
       // Navigate to create estimate page with measurement ID
-      if (data) {
+      if (data && data.id) {
         navigate(`/estimates?measurementId=${data.id}`);
+      } else {
+        navigate(`/estimates`);
       }
 
       return data;
