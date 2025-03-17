@@ -9,13 +9,15 @@ import {
   handleGeneralPdfError
 } from "./pdf-error-handler";
 import { processPdfWithSupabase } from "@/api/pdf-service";
-import { isSupabaseConfigured } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 // Import PDF.js for client-side parsing
 import * as pdfjs from 'pdfjs-dist';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 // Import the AreaByPitch type for proper typing
 import { AreaByPitch } from "@/components/estimates/measurement/types";
+// Import PDF parsing service for Supabase fallback
+import * as pdfParsingService from "./pdf-parsing-service";
 
 // Extend ParsedMeasurements to include the array format for areasByPitch
 interface ExtendedParsedMeasurements extends Omit<ParsedMeasurements, 'areasByPitch'> {
@@ -83,8 +85,11 @@ export function usePdfParser() {
         
         console.log("Client-side parsed measurements:", measurements);
         
-        // Store the parsed measurements
-        setParsedData(measurements);
+        // Store the parsed measurements in the format expected by the application
+        setParsedData({
+          measurements: measurements
+        } as any);
+        
         setStatus("success");
         
         // If we have Supabase configured, we can still upload the file for storage
@@ -104,7 +109,10 @@ export function usePdfParser() {
           }
         }
         
-        return measurements;
+        // Return in the format expected by the application
+        return {
+          measurements: measurements
+        };
       } catch (clientSideError: unknown) {
         console.error("Client-side parsing failed:", clientSideError instanceof Error ? clientSideError.message : String(clientSideError));
         
@@ -114,24 +122,49 @@ export function usePdfParser() {
           setProcessingMode("supabase");
           
           try {
-            // Process with Supabase
-            const { data, error, fileUrl } = await processPdfWithSupabase(file);
+            // Use the imported pdf parsing service
+            const measurements = await pdfParsingService.parsePdfWithSupabase(
+              file,
+              fileSizeMB,
+              "supabase",
+              setStatus,
+              setErrorDetails
+            );
             
-            if (error) {
-              handleGeneralPdfError(error, setStatus, setErrorDetails);
+            if (!measurements) {
+              console.error("No measurements returned from Supabase processing");
               return null;
             }
             
-            if (data) {
-              console.log("Supabase parsed measurements:", data);
-              setParsedData(data);
-              setStatus("success");
-              setFileUrl(fileUrl);
-              return data;
+            console.log("Supabase parsed measurements:", measurements);
+            setParsedData({
+              measurements: measurements
+            } as any);
+            
+            setStatus("success");
+            
+            // Get the file URL for the Supabase-processed file
+            try {
+              const timestamp = new Date().getTime();
+              const { data: publicUrlData } = supabase.storage
+                .from('pdf-uploads')
+                .getPublicUrl(`${timestamp}-${file.name}`);
+              
+              if (publicUrlData?.publicUrl) {
+                setFileUrl(publicUrlData.publicUrl);
+              }
+            } catch (urlError) {
+              console.warn("Error getting file URL:", urlError);
             }
+            
+            // Return in the format expected by the application
+            return {
+              measurements: measurements
+            };
           } catch (supabaseError) {
             console.error("Supabase processing error:", supabaseError);
             handleGeneralPdfError(supabaseError, setStatus, setErrorDetails);
+            return null;
           }
         } else {
           console.error("Client-side parsing failed and Supabase is not configured");
@@ -140,10 +173,9 @@ export function usePdfParser() {
             setStatus,
             setErrorDetails
           );
+          return null;
         }
       }
-      
-      return null;
     } catch (error) {
       console.error("PDF parsing error:", error);
       handleGeneralPdfError(error, setStatus, setErrorDetails);
@@ -160,6 +192,12 @@ export function usePdfParser() {
       if (!isSupabaseConfigured()) {
         return { error: new Error("Supabase not configured"), fileUrl: null };
       }
+      
+      // Calculate file size in MB for error handling
+      const fileSizeMB = file.size / (1024 * 1024);
+      
+      // Import the proper function for Supabase processing
+      const { processPdfWithSupabase } = await import('@/api/pdf-service');
       
       // Upload to Supabase Storage
       const { data, error, fileUrl } = await processPdfWithSupabase(file);
