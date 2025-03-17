@@ -33,6 +33,11 @@ export interface ParsedMeasurements {
   
   // Allow for any additional properties that might be used internally
   [key: string]: any;
+  
+  // Add new fields for property information
+  longitude?: string;
+  latitude?: string;
+  propertyAddress?: string;
 }
 
 export const saveMeasurement = async (

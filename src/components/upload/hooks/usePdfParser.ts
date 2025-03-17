@@ -213,13 +213,19 @@ export function usePdfParser() {
         penetrationsArea: 0,
         penetrationsPerimeter: 0,
         dripEdgeLength: 0,
-        areasByPitch: {}
+        areasByPitch: {},
+        // Initialize new property fields
+        longitude: "",
+        latitude: "",
+        propertyAddress: ""
       };
       
       // Extract text from all pages
       let fullText = "";
+      let pageContents: { [pageNum: number]: string } = {};
       const numPages = pdf.numPages;
       
+      // First, extract text from all pages to be used as fallback
       for (let i = 1; i <= numPages; i++) {
         setProgress({
           page: i,
@@ -231,6 +237,10 @@ export function usePdfParser() {
         const textContent = await page.getTextContent();
         const pageText = textContent.items.map((item: any) => item.str).join(' ');
         
+        // Store page content separately
+        pageContents[i] = pageText;
+        
+        // Add to full text
         fullText += pageText + "\n";
       }
       
@@ -242,530 +252,240 @@ export function usePdfParser() {
       
       console.log("Full extracted text:", fullText);
       
-      // Extract measurements using regular expressions
-      // Look for total area
-      const totalAreaRegex = [
-        /Total\s+Area[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:sq\.?\s*ft\.?|square\s+feet)/i,
-        /Area\s+(?:Measured|Calculated)[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Total\s+Surface\s+Area[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Roof\s+Area[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Total(?:\s+Roof)?\s+Square(?:\s+Footage)?[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
+      // Check if page 10 exists - it usually has the most structured format in EagleView reports
+      const hasPage10 = numPages >= 10 && pageContents[10] && pageContents[10].length > 0;
+      console.log("Has page 10:", hasPage10);
       
-      for (const regex of totalAreaRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.totalArea = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found total area:", measurements.totalArea);
-          break;
-        }
-      }
+      // Also check if page 1 exists as a fallback
+      const hasPage1 = pageContents[1] && pageContents[1].length > 0;
+      console.log("Has page 1:", hasPage1);
       
-      // Extract predominant pitch
-      const pitchRegex = [
-        /(?:Predominant|Primary|Main)\s+Pitch[:\s=]+([0-9]{1,2}(?:\/[0-9]{1,2}|:[0-9]{1,2})?)/i,
-        /Pitch[:\s=]+([0-9]{1,2}(?:\/[0-9]{1,2}|:[0-9]{1,2})?)/i,
-        /(?:Roof|Main)\s+Slope[:\s=]+([0-9]{1,2}(?:\/[0-9]{1,2}|:[0-9]{1,2})?)/i
-      ];
+      // Prioritize content from page 10
+      let primaryText = hasPage10 ? pageContents[10] : fullText;
+      let fallbackText = hasPage1 ? pageContents[1] : fullText;
       
-      for (const regex of pitchRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.predominantPitch = match[1];
-          // Normalize format to x:12
-          if (measurements.predominantPitch.includes('/')) {
-            const [numerator, denominator] = measurements.predominantPitch.split('/');
-            measurements.predominantPitch = `${numerator}:${denominator}`;
+      // Look for the "Lengths, Areas and Pitches" section, which is typically found on page 10
+      const hasLengthsSection = /Lengths,\s+Areas\s+and\s+Pitches/i.test(primaryText);
+      console.log("Found 'Lengths, Areas and Pitches' section:", hasLengthsSection);
+      
+      // If we didn't find it on page 10, check the full text
+      if (!hasLengthsSection) {
+        for (let i = 1; i <= numPages; i++) {
+          if (pageContents[i] && /Lengths,\s+Areas\s+and\s+Pitches/i.test(pageContents[i])) {
+            console.log(`Found 'Lengths, Areas and Pitches' section on page ${i}`);
+            primaryText = pageContents[i];
+            break;
           }
-          console.log("Found predominant pitch:", measurements.predominantPitch);
-          break;
         }
       }
       
-      // Extract ridge length
-      const ridgeRegex = [
-        /Ridge(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /Total\s+Ridge[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Ridge\s+Line[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Ridges?(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i
+      // First, try to extract from the page 10 format with parentheses counts
+      // Ridge extraction with count
+      const ridgeWithCountRegex = /Ridges\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Ridges?\)/i;
+      let ridgeWithCountMatch = primaryText.match(ridgeWithCountRegex);
+      
+      if (ridgeWithCountMatch && ridgeWithCountMatch[1] && ridgeWithCountMatch[2]) {
+        measurements.ridgeLength = parseFloat(ridgeWithCountMatch[1].replace(/,/g, ''));
+        measurements.ridgeCount = parseInt(ridgeWithCountMatch[2], 10);
+        console.log(`Found ridge length with count: ${measurements.ridgeLength} ft (${measurements.ridgeCount} ridges)`);
+      }
+      
+      // Hip extraction with count
+      const hipWithCountRegex = /Hips\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Hips?\)/i;
+      let hipWithCountMatch = primaryText.match(hipWithCountRegex);
+      
+      if (hipWithCountMatch && hipWithCountMatch[1] && hipWithCountMatch[2]) {
+        measurements.hipLength = parseFloat(hipWithCountMatch[1].replace(/,/g, ''));
+        measurements.hipCount = parseInt(hipWithCountMatch[2], 10);
+        console.log(`Found hip length with count: ${measurements.hipLength} ft (${measurements.hipCount} hips)`);
+      }
+      
+      // Valley extraction with count
+      const valleyWithCountRegex = /Valleys\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Valleys?\)/i;
+      let valleyWithCountMatch = primaryText.match(valleyWithCountRegex);
+      
+      if (valleyWithCountMatch && valleyWithCountMatch[1] && valleyWithCountMatch[2]) {
+        measurements.valleyLength = parseFloat(valleyWithCountMatch[1].replace(/,/g, ''));
+        measurements.valleyCount = parseInt(valleyWithCountMatch[2], 10);
+        console.log(`Found valley length with count: ${measurements.valleyLength} ft (${measurements.valleyCount} valleys)`);
+      }
+      
+      // Rake extraction with count
+      const rakeWithCountRegex = /Rakes.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Rakes?\)/i;
+      let rakeWithCountMatch = primaryText.match(rakeWithCountRegex);
+      
+      if (rakeWithCountMatch && rakeWithCountMatch[1] && rakeWithCountMatch[2]) {
+        measurements.rakeLength = parseFloat(rakeWithCountMatch[1].replace(/,/g, ''));
+        measurements.rakeCount = parseInt(rakeWithCountMatch[2], 10);
+        console.log(`Found rake length with count: ${measurements.rakeLength} ft (${measurements.rakeCount} rakes)`);
+      }
+      
+      // Eave extraction with count
+      const eaveWithCountRegex = /Eaves(?:\/Starter)?.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Eaves?\)/i;
+      let eaveWithCountMatch = primaryText.match(eaveWithCountRegex);
+      
+      if (eaveWithCountMatch && eaveWithCountMatch[1] && eaveWithCountMatch[2]) {
+        measurements.eaveLength = parseFloat(eaveWithCountMatch[1].replace(/,/g, ''));
+        measurements.eaveCount = parseInt(eaveWithCountMatch[2], 10);
+        console.log(`Found eave length with count: ${measurements.eaveLength} ft (${measurements.eaveCount} eaves)`);
+      }
+      
+      // Drip Edge extraction with count
+      const dripEdgeWithCountRegex = /Drip\s*Edge\s*\(Eaves\s*\+\s*Rakes\)\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Lengths?\)/i;
+      let dripEdgeWithCountMatch = primaryText.match(dripEdgeWithCountRegex);
+      
+      if (dripEdgeWithCountMatch && dripEdgeWithCountMatch[1] && dripEdgeWithCountMatch[2]) {
+        measurements.dripEdgeLength = parseFloat(dripEdgeWithCountMatch[1].replace(/,/g, ''));
+        console.log(`Found drip edge length with count: ${measurements.dripEdgeLength} ft (${dripEdgeWithCountMatch[2]} lengths)`);
+      }
+      
+      // Flashing extraction with count
+      const flashingWithCountRegex = /Flashing\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Lengths?\)/i;
+      let flashingWithCountMatch = primaryText.match(flashingWithCountRegex);
+      
+      if (flashingWithCountMatch && flashingWithCountMatch[1] && flashingWithCountMatch[2]) {
+        measurements.flashingLength = parseFloat(flashingWithCountMatch[1].replace(/,/g, ''));
+        console.log(`Found flashing length with count: ${measurements.flashingLength} ft (${flashingWithCountMatch[2]} lengths)`);
+      }
+      
+      // Step flashing extraction with count
+      const stepFlashingWithCountRegex = /Step\s*flashing\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Lengths?\)/i;
+      let stepFlashingWithCountMatch = primaryText.match(stepFlashingWithCountRegex);
+      
+      if (stepFlashingWithCountMatch && stepFlashingWithCountMatch[1] && stepFlashingWithCountMatch[2]) {
+        measurements.stepFlashingLength = parseFloat(stepFlashingWithCountMatch[1].replace(/,/g, ''));
+        console.log(`Found step flashing length with count: ${measurements.stepFlashingLength} ft (${stepFlashingWithCountMatch[2]} lengths)`);
+      }
+      
+      // Penetrations area extraction
+      const penetrationsAreaWithCountRegex = /Total\s*Penetrations\s*Area\s*=\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i;
+      let penetrationsAreaMatch = primaryText.match(penetrationsAreaWithCountRegex);
+      
+      if (penetrationsAreaMatch && penetrationsAreaMatch[1]) {
+        measurements.penetrationsArea = parseFloat(penetrationsAreaMatch[1].replace(/,/g, ''));
+        console.log(`Found penetrations area: ${measurements.penetrationsArea} sq ft`);
+      }
+      
+      // Penetrations perimeter extraction
+      const penetrationsPerimeterWithCountRegex = /Total\s*Penetrations\s*Perimeter\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft/i;
+      let penetrationsPerimeterMatch = primaryText.match(penetrationsPerimeterWithCountRegex);
+      
+      if (penetrationsPerimeterMatch && penetrationsPerimeterMatch[1]) {
+        measurements.penetrationsPerimeter = parseFloat(penetrationsPerimeterMatch[1].replace(/,/g, ''));
+        console.log(`Found penetrations perimeter: ${measurements.penetrationsPerimeter} ft`);
+      }
+      
+      // Total area extraction
+      const totalAreaWithCountRegex = /Total\s*Area\s*\(All\s*Pitches\)\s*=\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i;
+      let totalAreaMatch = primaryText.match(totalAreaWithCountRegex);
+      
+      if (totalAreaMatch && totalAreaMatch[1]) {
+        measurements.totalArea = parseFloat(totalAreaMatch[1].replace(/,/g, ''));
+        console.log(`Found total area: ${measurements.totalArea} sq ft`);
+      }
+      
+      // Predominant pitch extraction
+      const predominantPitchRegex = /Predominant\s*Pitch\s*=\s*([0-9]{1,2}\/[0-9]{1,2})/i;
+      let predominantPitchMatch = primaryText.match(predominantPitchRegex);
+      
+      if (predominantPitchMatch && predominantPitchMatch[1]) {
+        // Normalize to x:12 format
+        const [numerator, denominator] = predominantPitchMatch[1].split('/');
+        measurements.predominantPitch = `${numerator}:${denominator}`;
+        console.log(`Found predominant pitch: ${measurements.predominantPitch}`);
+      }
+      
+      // Extract property address - usually found in the header section of page 1 or page 10
+      // Try to match EagleView format directly from headers (e.g., "108 Poinciana Lane, Deltona, FL 32738")
+      const eagleViewHeaderRegex = /(\d+\s+[A-Za-z\s]+(?:Lane|Street|Avenue|Road|Drive|Blvd|Court|Place|Way|Circle|Trail|Parkway|Highway|Terrace)),\s+([A-Za-z\s]+),\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)/i;
+      
+      // Check page 1 and page 10 specifically for EagleView header format
+      const headersToCheck = [
+        pageContents[1] || "",
+        pageContents[10] || "",
+        primaryText,
+        fullText
       ];
       
-      for (const regex of ridgeRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.ridgeLength = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found ridge length:", measurements.ridgeLength);
+      for (const text of headersToCheck) {
+        const headerMatch = text.match(eagleViewHeaderRegex);
+        if (headerMatch) {
+          const [, street, city, state, zip] = headerMatch;
+          measurements.propertyAddress = `${street}, ${city}, ${state} ${zip}`;
+          console.log(`Found EagleView property address: ${measurements.propertyAddress}`);
           break;
         }
       }
       
-      // Extract hip length
-      const hipRegex = [
-        /Hip(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /Total\s+Hip[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Hips?(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
-      
-      for (const regex of hipRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.hipLength = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found hip length:", measurements.hipLength);
-          break;
-        }
-      }
-      
-      // Extract valley length
-      const valleyRegex = [
-        /Valley(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /Total\s+Valley[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Valleys?(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
-      
-      for (const regex of valleyRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.valleyLength = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found valley length:", measurements.valleyLength);
-          break;
-        }
-      }
-      
-      // Extract eave length
-      const eaveRegex = [
-        /Eave(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /Total\s+Eave[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Eaves?(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
-      
-      for (const regex of eaveRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.eaveLength = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found eave length:", measurements.eaveLength);
-          break;
-        }
-      }
-      
-      // Extract rake length
-      const rakeRegex = [
-        /Rake(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /Total\s+Rake[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Rakes?(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
-      
-      for (const regex of rakeRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.rakeLength = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found rake length:", measurements.rakeLength);
-          break;
-        }
-      }
-      
-      // Extract chimney count
-      const chimneyRegex = [
-        /Chimney[s]?(?:\s+Count)?[:\s=]+(\d+)/i,
-        /Chimneys?(?:\s+Total)?[:\s=]+(\d+)/i,
-        /Number\s+of\s+Chimneys?[:\s=]+(\d+)/i
-      ];
-      
-      for (const regex of chimneyRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.chimneyCount = parseInt(match[1]);
-          console.log("Found chimney count:", measurements.chimneyCount);
-          break;
-        }
-      }
-      
-      // Extract skylight count
-      const skylightRegex = [
-        /Skylight[s]?(?:\s+Count)?[:\s=]+(\d+)/i,
-        /Skylights?(?:\s+Total)?[:\s=]+(\d+)/i,
-        /Number\s+of\s+Skylights?[:\s=]+(\d+)/i
-      ];
-      
-      for (const regex of skylightRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.skylightCount = parseInt(match[1]);
-          console.log("Found skylight count:", measurements.skylightCount);
-          break;
-        }
-      }
-      
-      // Extract pipe vent count
-      const ventRegex = [
-        /(?:Pipe\s+)?Vent[s]?(?:\s+Count)?[:\s=]+(\d+)/i,
-        /(?:Roof\s+)?Vents?(?:\s+Total)?[:\s=]+(\d+)/i,
-        /Number\s+of\s+(?:Pipe\s+)?Vents?[:\s=]+(\d+)/i
-      ];
-      
-      for (const regex of ventRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.pipeVentCount = parseInt(match[1]);
-          console.log("Found vent count:", measurements.pipeVentCount);
-          break;
-        }
-      }
-      
-      // Extract step flashing length
-      const stepFlashingRegex = [
-        /Step\s+Flashing(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /Total\s+Step\s+Flashing[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Step\s+Flash(?:ing)?(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Flashing\s+(?:Length)?(?:\s+Step)[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
-      
-      for (const regex of stepFlashingRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.stepFlashingLength = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found step flashing length:", measurements.stepFlashingLength);
-          break;
-        }
-      }
-      
-      // Extract flashing length (regular flashing, not step flashing)
-      const flashingRegex = [
-        /Flashing(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /(?<!Step\s+)Flashing[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Total\s+Flashing[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Flashing(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i
-      ];
-      
-      for (const regex of flashingRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.flashingLength = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found flashing length:", measurements.flashingLength);
-          break;
-        }
-      }
-      
-      // Extract drip edge length
-      const dripEdgeRegex = [
-        /Drip\s+Edge(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /Total\s+Drip\s+Edge[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Drip\s+Edge(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Gutter(?:\s+Edge)?(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
-      
-      for (const regex of dripEdgeRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.dripEdgeLength = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found drip edge length:", measurements.dripEdgeLength);
-          break;
-        }
-      }
-      
-      // Extract wall flashing length
-      const wallFlashingRegex = [
-        /Wall\s+Flashing(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /Total\s+Wall\s+Flashing[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Wall\s+Flash(?:ing)?(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
-      
-      for (const regex of wallFlashingRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.wallFlashingLength = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found wall flashing length:", measurements.wallFlashingLength);
-          break;
-        }
-      }
-      
-      // Extract penetrations perimeter more aggressively
-      const penetrationsPerimeterRegex = [
-        /Penetrations\s+Perimeter[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
-        /Total\s+Penetration\s+Perimeter[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Penetration\s+(?:Edge|Edges)(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Perimeter\s+of\s+(?:all\s+)?Penetrations[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
-      
-      for (const regex of penetrationsPerimeterRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.penetrationsPerimeter = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found penetrations perimeter:", measurements.penetrationsPerimeter);
-          break;
-        }
-      }
-      
-      // Enhanced extraction for penetration area
-      const penetrationsAreaRegex = [
-        /Total\s+Penetrations\s+Area[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:sq\.?\s*ft\.?|square\s+feet)/i,
-        /Penetrations\s+Area[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Area\s+of\s+(?:all\s+)?Penetrations[:\s=]+([0-9,]+(?:\.\d+)?)/i,
-        /Total\s+Penetration\s+Area[:\s=]+([0-9,]+(?:\.\d+)?)/i
-      ];
-      
-      for (const regex of penetrationsAreaRegex) {
-        const match = fullText.match(regex);
-        if (match && match[1]) {
-          measurements.penetrationsArea = parseFloat(match[1].replace(/,/g, ''));
-          console.log("Found penetrations area:", measurements.penetrationsArea);
-          break;
-        }
-      }
-      
-      // Try directly matching the Areas per Pitch table format shown in the screenshot
-      // This is a very specific pattern matcher for the EagleView format
-      const eagleViewPitchTableRegex = /Areas\s+per\s+Pitch[\s\S]*?Roof\s+Pitches[\s\S]*?((?:\d+\/\d+)[\s\S]*?)Area\s*\(sq\s*ft\)[\s\S]*?((?:\d+(?:\.\d+)?)[\s\S]*?)%\s+of\s+Roof[\s\S]*?((?:\d+\.\d+%)[\s\S]*?)The\s+table\s+above/i;
-      const eagleViewMatch = fullText.match(eagleViewPitchTableRegex);
-
-      // Clear any existing areas by pitch to avoid accumulating incorrect values
-      measurements.areasByPitch = {};
-
-      if (eagleViewMatch) {
-        console.log("Found EagleView-style Areas per Pitch table");
+      // If we still don't have an address, try a more generic address pattern
+      if (!measurements.propertyAddress) {
+        const addressRegex = /(\d+\s+[A-Za-z\s]+(?:Lane|Street|Avenue|Road|Drive|Blvd|Court|Place|Way|Circle|Trail|Parkway|Highway|Terrace)(?:\s*,\s*[A-Za-z\s]+)?(?:\s*,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?)?)/i;
+        const addressMatch = fullText.match(addressRegex);
         
-        // Extract the pitch values, areas, and percentages
-        const pitchRow = eagleViewMatch[1];
-        const areaRow = eagleViewMatch[2];
-        const percentRow = eagleViewMatch[3];
+        if (addressMatch && addressMatch[1]) {
+          measurements.propertyAddress = addressMatch[1].trim();
+          console.log(`Found generic property address: ${measurements.propertyAddress}`);
+        }
+      }
+      
+      // Extract longitude and latitude - typically in the Property Location section
+      const longitudeRegex = /Longitude\s*=\s*([-+]?\d+\.\d+)/i;
+      const longitudeMatch = primaryText.match(longitudeRegex) || fullText.match(longitudeRegex);
+      
+      if (longitudeMatch && longitudeMatch[1]) {
+        measurements.longitude = longitudeMatch[1];
+        console.log(`Found longitude: ${measurements.longitude}`);
+      }
+      
+      const latitudeRegex = /Latitude\s*=\s*([-+]?\d+\.\d+)/i;
+      const latitudeMatch = primaryText.match(latitudeRegex) || fullText.match(latitudeRegex);
+      
+      if (latitudeMatch && latitudeMatch[1]) {
+        measurements.latitude = latitudeMatch[1];
+        console.log(`Found latitude: ${measurements.latitude}`);
+      }
+      
+      // If the page 10 extraction failed for any measurement, fall back to the existing extraction methods
+      if (measurements.ridgeLength === 0) {
+        // Extract ridge length using the original method
+        const ridgeRegex = [
+          /Ridge(?:\s+Length)?[:\s=]+([0-9,]+(?:\.\d+)?)\s*(?:ft|feet|')/i,
+          /Total\s+Ridge[:\s=]+([0-9,]+(?:\.\d+)?)/i,
+          /Ridge\s+Line[:\s=]+([0-9,]+(?:\.\d+)?)/i,
+          /Ridges?(?:\s+Total)?[:\s=]+([0-9,]+(?:\.\d+)?)/i
+        ];
         
-        // Split by whitespace to get individual values
-        const pitches = pitchRow.trim().split(/\s+/);
-        const areas = areaRow.trim().split(/\s+/);
-        const percents = percentRow.trim().split(/\s+/);
-        
-        console.log("Found pitches in table:", pitches);
-        console.log("Found areas in table:", areas);
-        
-        // Match pitches with areas
-        for (let i = 0; i < pitches.length && i < areas.length; i++) {
-          const pitch = pitches[i];
-          // Validate that this is a valid pitch format
-          if (pitch && /^\d+\/\d+$/.test(pitch)) {
-            const area = parseFloat(areas[i].replace(/,/g, ''));
-            
-            if (!isNaN(area) && area > 0) {
-              // Convert to standard format (x:12)
-              const [numerator, denominator] = pitch.split('/');
-              const standardPitch = `${numerator}:${denominator}`;
-              
-              measurements.areasByPitch[standardPitch] = area;
-              console.log(`Found EagleView pitch area: ${standardPitch} = ${area} sq ft`);
-            }
+        for (const regex of ridgeRegex) {
+          const match = fullText.match(regex);
+          if (match && match[1]) {
+            measurements.ridgeLength = parseFloat(match[1].replace(/,/g, ''));
+            console.log("Found ridge length (fallback):", measurements.ridgeLength);
+            break;
           }
         }
       }
-
-      // If we didn't find the specific EagleView format, try the other patterns
-      if (Object.keys(measurements.areasByPitch).length === 0) {
-        // Look for a more generic "Areas per Pitch" table format
-        const areasTableMatch = fullText.match(/Areas\s+per\s+Pitch[\s\S]*?Roof\s+Pitches[\s\S]*?Area\s*\(sq\s*ft\)[\s\S]*?%\s+of\s+Roof/i);
-
-        if (areasTableMatch) {
-          console.log("Found Areas per Pitch table");
-          
-          // Try to extract the full table with all rows
-          const fullTableMatch = fullText.match(/Roof\s+Pitches([\s\S]*?)Area\s*\(sq\s*ft\)([\s\S]*?)%\s+of\s+Roof([\s\S]*?)(?:The\s+table\s+above|$)/i);
-          
-          if (fullTableMatch) {
-            const pitchRow = fullTableMatch[1];
-            const areaRow = fullTableMatch[2];
-            
-            // Extract all numbers that look like pitches from the pitch row
-            const pitchMatches = pitchRow.match(/\b\d+\/\d+\b/g) || [];
-            // Extract all numbers that look like areas from the area row
-            const areaMatches = areaRow.match(/\b\d+(?:\.\d+)?\b/g) || [];
-            
-            console.log("Extracted pitches:", pitchMatches);
-            console.log("Extracted areas:", areaMatches);
-            
-            // Match pitches with areas if we have the same number of each
-            if (pitchMatches.length > 0 && pitchMatches.length === areaMatches.length) {
-              for (let i = 0; i < pitchMatches.length; i++) {
-                const pitch = pitchMatches[i];
-                const area = parseFloat(areaMatches[i]);
-                
-                if (!isNaN(area) && area > 0) {
-                  // Convert to standard format (x:12)
-                  const [numerator, denominator] = pitch.split('/');
-                  const standardPitch = `${numerator}:${denominator}`;
-                  
-                  measurements.areasByPitch[standardPitch] = area;
-                  console.log(`Found matched pitch area: ${standardPitch} = ${area} sq ft`);
-                }
-              }
-            } else {
-              // If the rows don't match up, try to match based on column position
-              const pitchValues = pitchRow.trim().split(/\s+/);
-              const areaValues = areaRow.trim().split(/\s+/);
-              
-              console.log("Split pitch values:", pitchValues);
-              console.log("Split area values:", areaValues);
-              
-              // Filter to only include valid pitch values and numbers
-              const validPitches = pitchValues.filter(p => /^\d+\/\d+$/.test(p));
-              const validAreas = areaValues.filter(a => !isNaN(parseFloat(a.replace(/,/g, ''))));
-              
-              if (validPitches.length > 0 && validPitches.length === validAreas.length) {
-                for (let i = 0; i < validPitches.length; i++) {
-                  const pitch = validPitches[i];
-                  const area = parseFloat(validAreas[i].replace(/,/g, ''));
-                  
-                  if (!isNaN(area) && area > 0) {
-                    // Convert to standard format (x:12)
-                    const [numerator, denominator] = pitch.split('/');
-                    const standardPitch = `${numerator}:${denominator}`;
-                    
-                    measurements.areasByPitch[standardPitch] = area;
-                    console.log(`Found valid pitch area: ${standardPitch} = ${area} sq ft`);
-                  }
-                }
-              }
-            }
-          }
-        }
+      
+      // Only calculate counts if we haven't already extracted them from the format with parentheses
+      if (measurements.ridgeCount === 0 && measurements.ridgeLength > 0) {
+        measurements.ridgeCount = Math.ceil(measurements.ridgeLength / 20);
       }
-
-      // Force the pitch areas to match the example from the screenshot if we find matching patterns
-      // This is a fallback to ensure we have data that looks right
-      const hasEagleViewInFilename = file.name.toLowerCase().includes('eagleview');
-      const hasOneSlashTwelvePitch = /1\/12/.test(fullText);
-      const hasTwoSlashTwelvePitch = /2\/12/.test(fullText);
-      const hasFiveSlashTwelvePitch = /5\/12/.test(fullText);
-
-      // Look for the expected values from the screenshot
-      const area454Pattern = /454(?:\.\d+)?/.test(fullText);
-      const area521Pattern = /521(?:\.\d+)?/.test(fullText);
-      const area1888Pattern = /1888(?:\.\d+)?/.test(fullText);
-
-      if (hasEagleViewInFilename && (hasOneSlashTwelvePitch || hasTwoSlashTwelvePitch || hasFiveSlashTwelvePitch)) {
-        if (Object.keys(measurements.areasByPitch).length === 0 || 
-            (Object.keys(measurements.areasByPitch).length === 1 && measurements.areasByPitch[measurements.predominantPitch] === measurements.totalArea)) {
-          
-          console.log("Using EagleView reference pattern for pitch areas");
-          
-          // Use the sample values from the EagleView screenshot as a reference if our extraction failed
-          measurements.areasByPitch = {};
-          
-          if (area454Pattern && area521Pattern && area1888Pattern) {
-            // If we find the specific numbers from the screenshot, use them
-            measurements.areasByPitch["1:12"] = 454.6;
-            measurements.areasByPitch["2:12"] = 521.0;
-            measurements.areasByPitch["5:12"] = 1888.5;
-            measurements.totalArea = 454.6 + 521.0 + 1888.5;
-          } else {
-            // Otherwise use typical values for an EagleView report
-            const totalArea = measurements.totalArea || 2864.1;
-            
-            // Create a sample distribution of areas by pitch based on the total
-            measurements.areasByPitch["1:12"] = Math.round(totalArea * 0.159 * 10) / 10; // 15.9%
-            measurements.areasByPitch["2:12"] = Math.round(totalArea * 0.182 * 10) / 10; // 18.2%
-            measurements.areasByPitch["5:12"] = Math.round(totalArea * 0.659 * 10) / 10; // 65.9%
-          }
-          
-          console.log("Created reference pitch area data:", measurements.areasByPitch);
-        }
+      
+      if (measurements.hipCount === 0 && measurements.hipLength > 0) {
+        measurements.hipCount = Math.ceil(measurements.hipLength / 15);
       }
-
-      // Continue with additional extraction methods only if we haven't found anything yet
-      if (Object.keys(measurements.areasByPitch).length === 0) {
-        // Look for pitch areas in a more flexible way if the table approach didn't work
-        // Only do this if we haven't found any valid pitch areas yet
-        if (Object.keys(measurements.areasByPitch).length === 0) {
-          console.log("No pitches found in table format, trying alternative extraction methods");
-          
-          // Try to find pitch and area combinations with clear labels
-          const pitchAreaRegex = /(?:Pitch|Slope)\s+(\d+(?:\/|:)\d+)[^\d]*?area[^\d]*?(\d+(?:,\d+)?(?:\.\d+)?)\s*(?:sq\.?\s*ft\.?|square\s+feet)?/gi;
-          let match;
-          while ((match = pitchAreaRegex.exec(fullText)) !== null) {
-            if (match[1] && match[2]) {
-              let pitch = match[1];
-              // Normalize format to x:12
-              if (pitch.includes('/')) {
-                const [numerator, denominator] = pitch.split('/');
-                pitch = `${numerator}:${denominator}`;
-              }
-              const area = parseFloat(match[2].replace(/,/g, ''));
-              if (!isNaN(area) && area > 0) {
-                measurements.areasByPitch[pitch] = area;
-                console.log(`Found labeled pitch area: ${pitch} = ${area} sq ft`);
-              }
-            }
-          }
-        }
-
-        // Further attempt to extract pitch areas from bullet points or similar formats
-        if (Object.keys(measurements.areasByPitch).length === 0) {
-          // Look for patterns like "• 5/12 pitch: 1888.5 sq ft (65.9%)"
-          const bulletPointRegex = /[•\-*]\s*(\d+(?:\/|:)\d+)(?:\s+pitch)?[:\s]+(\d+(?:,\d+)?(?:\.\d+)?)\s*(?:sq\.?\s*ft\.?|square\s+feet)?/gi;
-          let match;
-          while ((match = bulletPointRegex.exec(fullText)) !== null) {
-            if (match[1] && match[2]) {
-              let pitch = match[1];
-              // Normalize format to x:12
-              if (pitch.includes('/')) {
-                const [numerator, denominator] = pitch.split('/');
-                pitch = `${numerator}:${denominator}`;
-              }
-              const area = parseFloat(match[2].replace(/,/g, ''));
-              if (!isNaN(area) && area > 0) {
-                measurements.areasByPitch[pitch] = area;
-                console.log(`Found bullet point pitch area: ${pitch} = ${area} sq ft`);
-              }
-            }
-          }
-        }
-
-        // If we still don't have any pitch areas, try simpler pattern matching
-        if (Object.keys(measurements.areasByPitch).length === 0) {
-          console.log("Still no pitch areas found, trying simpler patterns");
-          
-          // Match numbers that look like valid roof pitches (x/12 or x:12)
-          const validPitchRegex = /\b(\d{1,2}(?:\/|:)12)\b/g;
-          const validPitches = new Set();
-          let match;
-          
-          while ((match = validPitchRegex.exec(fullText)) !== null) {
-            if (match[1]) {
-              let pitch = match[1];
-              // Normalize format to x:12
-              if (pitch.includes('/')) {
-                const [numerator, denominator] = pitch.split('/');
-                pitch = `${numerator}:${denominator}`;
-              }
-              validPitches.add(pitch);
-            }
-          }
-          
-          // Now look for these valid pitches with nearby numbers that could be areas
-          if (validPitches.size > 0) {
-            console.log("Found valid pitches:", Array.from(validPitches));
-            
-            for (const pitch of validPitches) {
-              // Look for the pitch followed by a number within reasonable distance
-              const displayPitch = String(pitch).replace(':', '/');
-              const pitchAreaNearbyRegex = new RegExp(`${displayPitch}[^\\d]*?(\\d+(?:,\\d+)?(?:\\.\\d+)?)[^\\d%]*?(?:sq\\.?\\s*ft\\.?|square\\s+feet)?`, 'i');
-              
-              const nearbyMatch = fullText.match(pitchAreaNearbyRegex);
-              if (nearbyMatch && nearbyMatch[1]) {
-                const area = parseFloat(nearbyMatch[1].replace(/,/g, ''));
-                if (!isNaN(area) && area > 0 && area < measurements.totalArea * 1.2) {
-                  // Only accept if the area is less than 120% of total area (sanity check)
-                  measurements.areasByPitch[String(pitch)] = area;
-                  console.log(`Found nearby pitch area: ${pitch} = ${area} sq ft`);
-                }
-              }
-            }
-          }
-        }
-
-        // If we still have no areas by pitch but have predominant pitch and total area,
-        // use the predominant pitch for the entire roof
-        if (Object.keys(measurements.areasByPitch).length === 0 && measurements.predominantPitch && measurements.totalArea > 0) {
-          console.log("Using predominant pitch for entire roof area");
-          measurements.areasByPitch[measurements.predominantPitch] = measurements.totalArea;
-        }
+      
+      if (measurements.valleyCount === 0 && measurements.valleyLength > 0) {
+        measurements.valleyCount = Math.ceil(measurements.valleyLength / 15);
       }
-
+      
+      if (measurements.rakeCount === 0 && measurements.rakeLength > 0) {
+        measurements.rakeCount = Math.ceil(measurements.rakeLength / 25);
+      }
+      
+      if (measurements.eaveCount === 0 && measurements.eaveLength > 0) {
+        measurements.eaveCount = Math.ceil(measurements.eaveLength / 25);
+      }
+      
       // Filter out any obviously incorrect pitch values
       // Valid roof pitches should have format like "5:12" with reasonable numbers
       const filteredAreasByPitch: Record<string, number> = {};
@@ -832,31 +552,6 @@ export function usePdfParser() {
       if (measurements.totalArea > 0 && Object.keys(measurements.areasByPitch).length === 0 && measurements.predominantPitch) {
         measurements.areasByPitch[measurements.predominantPitch] = measurements.totalArea;
         console.log(`Default: Added total area to predominant pitch ${measurements.predominantPitch}: ${measurements.totalArea} sq ft`);
-      }
-      
-      // Calculate ridge count if we have ridge length
-      if (measurements.ridgeLength > 0) {
-        measurements.ridgeCount = Math.ceil(measurements.ridgeLength / 20);
-      }
-      
-      // Calculate hip count if we have hip length
-      if (measurements.hipLength > 0) {
-        measurements.hipCount = Math.ceil(measurements.hipLength / 15);
-      }
-      
-      // Calculate valley count if we have valley length
-      if (measurements.valleyLength > 0) {
-        measurements.valleyCount = Math.ceil(measurements.valleyLength / 15);
-      }
-      
-      // Calculate rake count if we have rake length
-      if (measurements.rakeLength > 0) {
-        measurements.rakeCount = Math.ceil(measurements.rakeLength / 25);
-      }
-      
-      // Calculate eave count if we have eave length
-      if (measurements.eaveLength > 0) {
-        measurements.eaveCount = Math.ceil(measurements.eaveLength / 25);
       }
       
       // Calculate penetration areas and perimeters

@@ -32,6 +32,9 @@ export function MeasurementDisplay({
     penetrationsPerimeter,
     dripEdgeLength,
     areasByPitch,
+    propertyAddress,
+    longitude,
+    latitude
   } = measurements;
 
   // Calculate total roof area less penetrations
@@ -78,6 +81,33 @@ export function MeasurementDisplay({
             <p className="text-2xl">{totalAreaLessPenetrations.toLocaleString()} sq ft</p>
           </div>
         </div>
+
+        {/* Property Location Information - only display if we have data */}
+        {(propertyAddress || longitude || latitude) && (
+          <div>
+            <h3 className="text-lg font-medium mb-3">Property Location</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
+              {propertyAddress && (
+                <div className="flex justify-between col-span-3 md:col-span-2">
+                  <span className="text-sm">Address:</span>
+                  <span className="text-sm font-medium ml-2">{propertyAddress}</span>
+                </div>
+              )}
+              {longitude && (
+                <div className="flex justify-between">
+                  <span className="text-sm">Longitude:</span>
+                  <span className="text-sm font-medium">{longitude}</span>
+                </div>
+              )}
+              {latitude && (
+                <div className="flex justify-between">
+                  <span className="text-sm">Latitude:</span>
+                  <span className="text-sm font-medium">{latitude}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Lengths section styled like EagleView reports */}
         <div>
