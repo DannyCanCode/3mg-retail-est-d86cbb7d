@@ -29,7 +29,7 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
         ? initialValues.areasByPitch.length 
         : Object.keys(initialValues.areasByPitch || {}).length;
       
-      alert(`MeasurementForm mounting with data!\nTotal Area: ${initialValues.totalArea}\nAreas by pitch: ${areasByPitchCount}`);
+      alert(`MeasurementForm mounting with data!\nTotal Area: ${initialValues.totalArea}\nAreas by pitch: ${areasByPitchCount}\nPredominant Pitch: ${initialValues.roofPitch}`);
       
       // Force an update of measurements state with the initial values immediately
       const formattedValues = applyInitialValues(initialValues);
