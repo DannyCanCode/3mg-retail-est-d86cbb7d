@@ -17,12 +17,18 @@ import { GlobalWorkerOptions } from 'pdfjs-dist';
 // Import the AreaByPitch type for proper typing
 import { AreaByPitch } from "@/components/estimates/measurement/types";
 
+// Extend ParsedMeasurements to include the array format for areasByPitch
+interface ExtendedParsedMeasurements extends Omit<ParsedMeasurements, 'areasByPitch'> {
+  areasByPitch: Record<string, number> | AreaByPitch[];
+  roofPitch?: string;
+}
+
 // Set up the PDF.js worker
 const pdfjsVersion = '3.11.174'; // Match this with your installed version
 GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`;
 
 export function usePdfParser() {
-  const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
+  const [parsedData, setParsedData] = useState<ExtendedParsedMeasurements | null>(null);
   const [processingMode, setProcessingMode] = useState<ProcessingMode>("client");
   const [processingProgress, setProcessingProgress] = useState<{
     page: number;
@@ -104,50 +110,42 @@ export function usePdfParser() {
         
         // Fall back to Supabase if client-side parsing fails
         if (isSupabaseConfigured()) {
+          console.log("Falling back to Supabase for PDF processing...");
           setProcessingMode("supabase");
-          setStatus("parsing");
-          setProcessingProgress({
-            page: 0,
-            totalPages: 1,
-            status: "Uploading to Supabase for processing..."
-          });
           
-          console.log(`Falling back to Supabase for: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
-          
-          // Process PDF with Supabase
-          const { data, error, fileUrl } = await processPdfWithSupabase(file);
-          
-          if (error) {
-            console.error("Error processing PDF with Supabase:", error);
-            setStatus("error");
-            setErrorDetails(`Error: ${error.message}`);
-            return null;
+          try {
+            // Process with Supabase
+            const { data, error, fileUrl } = await processPdfWithSupabase(file);
+            
+            if (error) {
+              handleGeneralPdfError(error, setStatus, setErrorDetails);
+              return null;
+            }
+            
+            if (data) {
+              console.log("Supabase parsed measurements:", data);
+              setParsedData(data);
+              setStatus("success");
+              setFileUrl(fileUrl);
+              return data;
+            }
+          } catch (supabaseError) {
+            console.error("Supabase processing error:", supabaseError);
+            handleGeneralPdfError(supabaseError, setStatus, setErrorDetails);
           }
-          
-          if (!data) {
-            setStatus("error");
-            setErrorDetails("No data returned from PDF processing");
-            return null;
-          }
-          
-          // Set the file URL (for downloading or viewing)
-          if (fileUrl) {
-            setFileUrl(fileUrl);
-          }
-          
-          // Store the parsed measurements
-          setParsedData(data);
-          setStatus("success");
-          
-          return data;
         } else {
-          // No fallback available
-          setStatus("error");
-          setErrorDetails(`Client-side parsing failed: ${clientSideError.message}`);
-        return null;
+          console.error("Client-side parsing failed and Supabase is not configured");
+          handleGeneralPdfError(
+            new Error("PDF parsing failed and cloud processing is not available"),
+            setStatus,
+            setErrorDetails
+          );
         }
       }
-    } catch (error: any) {
+      
+      return null;
+    } catch (error) {
+      console.error("PDF parsing error:", error);
       handleGeneralPdfError(error, setStatus, setErrorDetails);
       return null;
     } finally {
@@ -181,7 +179,7 @@ export function usePdfParser() {
       totalPages: number;
       status: string;
     } | null>>
-  ): Promise<(ParsedMeasurements & { areasByPitch: AreaByPitch[] }) | null> => {
+  ): Promise<ExtendedParsedMeasurements | null> => {
     try {
       // Create a URL to the PDF file
       const fileURL = URL.createObjectURL(file);
@@ -197,7 +195,7 @@ export function usePdfParser() {
       const pdf = await loadingTask.promise;
       
       // Create a measurements object
-      const measurements: ParsedMeasurements = {
+      const measurements: ExtendedParsedMeasurements = {
         totalArea: 0,
         predominantPitch: "",
         ridgeLength: 0,
@@ -741,36 +739,46 @@ export function usePdfParser() {
       
       // Calculate total area from all pitches for percentage calculation
       let totalPitchArea = 0;
-      for (const pitch in measurements.areasByPitch) {
-        if (measurements.areasByPitch.hasOwnProperty(pitch)) {
-          totalPitchArea += measurements.areasByPitch[pitch];
-        }
-      }
       
-      // Convert to array format with percentages
-      for (const pitch in measurements.areasByPitch) {
-        if (measurements.areasByPitch.hasOwnProperty(pitch)) {
-          const area = measurements.areasByPitch[pitch];
-          const percentage = totalPitchArea > 0 
-            ? Math.round((area / totalPitchArea) * 100) 
-            : 0;
-          
-          areasByPitchArray.push({
-            pitch,
-            area,
-            percentage
-          });
+      // Check if areasByPitch is an object or already an array
+      if (measurements.areasByPitch && typeof measurements.areasByPitch === 'object' && !Array.isArray(measurements.areasByPitch)) {
+        const pitchesObj = measurements.areasByPitch as Record<string, number>;
+        
+        for (const pitch in pitchesObj) {
+          if (Object.prototype.hasOwnProperty.call(pitchesObj, pitch)) {
+            totalPitchArea += pitchesObj[pitch];
+          }
         }
+        
+        // Convert to array format with percentages
+        for (const pitch in pitchesObj) {
+          if (Object.prototype.hasOwnProperty.call(pitchesObj, pitch)) {
+            const area = pitchesObj[pitch];
+            const percentage = totalPitchArea > 0 
+              ? Math.round((area / totalPitchArea) * 100) 
+              : 0;
+            
+            areasByPitchArray.push({
+              pitch,
+              area,
+              percentage
+            });
+          }
+        }
+      } else if (Array.isArray(measurements.areasByPitch)) {
+        // If it's already an array, just use it directly
+        return {
+          ...measurements,
+          areasByPitch: measurements.areasByPitch as AreaByPitch[],
+          roofPitch: measurements.predominantPitch
+        };
       }
       
       // Sort by area (largest first)
       areasByPitchArray.sort((a, b) => b.area - a.area);
       
       // Create the final measurements object in the format expected by the application
-      const formattedMeasurements: ParsedMeasurements & { 
-        areasByPitch: AreaByPitch[];
-        roofPitch: string;
-      } = {
+      const formattedMeasurements: ExtendedParsedMeasurements = {
         ...measurements,
         areasByPitch: areasByPitchArray,
         // Set the predominant pitch as the roofPitch (for compatibility)
