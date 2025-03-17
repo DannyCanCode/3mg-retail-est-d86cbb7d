@@ -15,6 +15,7 @@ import { ParsedMeasurements } from "@/api/measurements";
 import { cn } from "@/lib/utils";
 import { useNavigate, useParams } from "react-router-dom";
 import { AreaByPitch } from "../components/estimates/measurement/types";
+import { debugPdfParsingResult, sanitizeMeasurements } from "@/components/upload/hooks/debug-utils";
 
 // Create the SidebarNav component
 interface SidebarNavItem {
@@ -209,18 +210,28 @@ export default function Estimates() {
   const handlePdfParsed = (data: ParsedMeasurements, fileName: string) => {
     console.log("PDF successfully parsed:", data);
     
-    // Alert to verify we're receiving the data
-    alert(`PDF Parsed! Found: ${Object.keys(data.measurements?.areasByPitch || {}).length} areas by pitch. Areas: ${JSON.stringify(data.measurements?.areasByPitch)}`);
+    // Debug the parsed data using our utility
+    debugPdfParsingResult(data, "handlePdfParsed");
     
-    setParsedPdfData(data);
+    // Sanitize the measurements to ensure correct format
+    if (data && data.measurements) {
+      const sanitized = sanitizeMeasurements(data.measurements);
+      console.log("Sanitized measurements:", sanitized);
+      
+      // Store the sanitized data
+      setParsedPdfData({
+        ...data,
+        measurements: sanitized
+      });
+    } else {
+      setParsedPdfData(data);
+    }
+    
     setHasPdfData(true);
     setPdfFileName(fileName);
     setMeasurementsProcessed(false);
     
-    // Debug log to check areasByPitch data
-    console.log("PDF areasByPitch data:", data.measurements?.areasByPitch);
-    
-    // Immediately process the data to be ready for the measurements form
+    // Process the data for the measurement form
     processParsedPdfData(data);
   };
   
@@ -233,122 +244,78 @@ export default function Estimates() {
     
     console.log("CRITICAL: Processing parsed PDF data for measurements form:", data);
     
-    // Process the areasByPitch data from the PDF to ensure it's in the correct format
-    let formattedAreasByPitch: AreaByPitch[] = [];
+    // Get the measurements data and sanitize it
+    const rawMeasurements = data.measurements;
+    const sanitizedMeasurements = sanitizeMeasurements(rawMeasurements);
     
-    if (data.measurements.areasByPitch && Object.keys(data.measurements.areasByPitch).length > 0) {
-      console.log("CRITICAL: Raw areasByPitch data:", data.measurements.areasByPitch);
-      
-      // Transform the object format to array format required by the RoofAreaTab
-      formattedAreasByPitch = Object.entries(data.measurements.areasByPitch).map(([pitch, area]) => {
-        // Check if area is a number and convert if not
-        const numericArea = typeof area === 'number' ? area : parseFloat(String(area)) || 0;
-        
-        // Round the area to 2 decimal places to avoid excessive digits
-        const roundedArea = Math.round(numericArea * 100) / 100;
-        
-        // Calculate percentage of total roof area
-        const totalArea = data.measurements.totalArea || 
-          // Type-safe reducer for calculating total area from pitch areas
-          Object.values(data.measurements.areasByPitch).reduce((sum: number, a: any) => {
-            // Safely convert any value to number
-            const numValue = typeof a === 'number' ? a : parseFloat(String(a)) || 0;
-            return sum + numValue;
-          }, 0);
-        
-        const percentage = totalArea > 0 ? (roundedArea / totalArea) * 100 : 0;
-        
-        return {
-          pitch,
-          area: roundedArea,
-          percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal place
-        };
+    // Process the areasByPitch data from the PDF to ensure it's in the correct format
+    const formattedAreasByPitch = Array.isArray(sanitizedMeasurements.areasByPitch) 
+      ? sanitizedMeasurements.areasByPitch 
+      : Object.entries(sanitizedMeasurements.areasByPitch).map(([pitch, area]) => {
+          const numericArea = typeof area === 'number' ? area : parseFloat(String(area)) || 0;
+          const totalArea = sanitizedMeasurements.totalArea || 0;
+          const percentage = totalArea > 0 ? (numericArea / totalArea) * 100 : 0;
+          
+          return {
+            pitch,
+            area: Math.round(numericArea * 100) / 100, // Round to 2 decimal places
+            percentage: Math.round(percentage * 10) / 10 // Round to 1 decimal place
+          };
+        }).sort((a, b) => b.area - a.area); // Sort by area (largest first)
+    
+    console.log("CRITICAL: Formatted areasByPitch:", formattedAreasByPitch);
+    
+    // IMPORTANT: If there are no formatted areas, create a default one
+    if (formattedAreasByPitch.length === 0) {
+      console.log("CRITICAL: No formatted areas, creating default one");
+      formattedAreasByPitch.push({
+        pitch: sanitizedMeasurements.predominantPitch || "6:12",
+        area: Math.round(sanitizedMeasurements.totalArea * 100) / 100,
+        percentage: 100
       });
-      
-      console.log("CRITICAL: Formatted areasByPitch with rounded values:", formattedAreasByPitch);
-      console.log("CRITICAL: Number of pitch areas:", formattedAreasByPitch.length);
-      
-      // Log each pitch area for verification
-      formattedAreasByPitch.forEach((area, index) => {
-        console.log(`CRITICAL: Pitch Area ${index}: ${area.pitch} = ${area.area} sq ft (${area.percentage}%)`);
-      });
-      
-      // IMPORTANT: If there are no formatted areas, create a default one
-      if (formattedAreasByPitch.length === 0) {
-        console.log("CRITICAL: No formatted areas, creating default one");
-        formattedAreasByPitch = [{
-          pitch: data.measurements.predominantPitch || "6:12",
-          area: Math.round(data.measurements.totalArea * 100) / 100,
-          percentage: 100
-        }];
-      }
-    } else {
-      console.warn("CRITICAL: No areasByPitch data found in the parsed PDF");
-      
-      // If we have a predominant pitch but no areas by pitch data, create a default entry
-      if (data.measurements.predominantPitch && data.measurements.totalArea) {
-        formattedAreasByPitch = [{
-          pitch: data.measurements.predominantPitch,
-          area: Math.round(data.measurements.totalArea * 100) / 100, // Round to 2 decimal places
-          percentage: 100
-        }];
-        console.log("CRITICAL: Created default areasByPitch entry:", formattedAreasByPitch);
-      }
     }
 
-    // Set state for measurement values - ensure all numeric values are properly rounded
+    // Set state for measurement values with sanitized and formatted data
     const measurementValues: MeasurementValues = {
-      totalArea: Math.round((data.measurements.totalArea || 0) * 100) / 100,
-      ridgeLength: Math.round((data.measurements.ridgeLength || 0) * 100) / 100,
-      hipLength: Math.round((data.measurements.hipLength || 0) * 100) / 100,
-      valleyLength: Math.round((data.measurements.valleyLength || 0) * 100) / 100,
-      rakeLength: Math.round((data.measurements.rakeLength || 0) * 100) / 100,
-      eaveLength: Math.round((data.measurements.eaveLength || 0) * 100) / 100,
-      roofPitch: data.measurements.predominantPitch || "",
+      totalArea: Math.round((sanitizedMeasurements.totalArea || 0) * 100) / 100,
+      ridgeLength: Math.round((sanitizedMeasurements.ridgeLength || 0) * 100) / 100,
+      hipLength: Math.round((sanitizedMeasurements.hipLength || 0) * 100) / 100,
+      valleyLength: Math.round((sanitizedMeasurements.valleyLength || 0) * 100) / 100,
+      rakeLength: Math.round((sanitizedMeasurements.rakeLength || 0) * 100) / 100,
+      eaveLength: Math.round((sanitizedMeasurements.eaveLength || 0) * 100) / 100,
+      roofPitch: sanitizedMeasurements.predominantPitch || "",
       areasByPitch: formattedAreasByPitch,
-      stepFlashingLength: Math.round((data.measurements.stepFlashingLength || 0) * 100) / 100,
-      flashingLength: Math.round((data.measurements.flashingLength || 0) * 100) / 100,
-      penetrationsArea: Math.round((data.measurements.penetrationsArea || 0) * 100) / 100,
+      stepFlashingLength: Math.round((sanitizedMeasurements.stepFlashingLength || 0) * 100) / 100,
+      flashingLength: Math.round((sanitizedMeasurements.flashingLength || 0) * 100) / 100,
+      penetrationsArea: Math.round((sanitizedMeasurements.penetrationsArea || 0) * 100) / 100,
+      // Add latitude, longitude, and property address
+      latitude: sanitizedMeasurements.latitude || "",
+      longitude: sanitizedMeasurements.longitude || "",
+      propertyAddress: sanitizedMeasurements.propertyAddress || ""
     };
     
-    // CRITICAL: Log all the values to verify they're correct
+    // Log the final measurement values
     console.log("CRITICAL: Final measurement values to be set in state:", measurementValues);
     console.log("CRITICAL: areasByPitch in final state:", measurementValues.areasByPitch);
     
-    // Add an alert to verify the data before setting state
-    alert(`Processing complete! Areas by pitch: ${JSON.stringify(measurementValues.areasByPitch)}`);
+    // Force a clean state update by creating a completely new object
+    setMeasurements(null); // First clear the state
     
-    // Set measurements in state - force a new object to ensure React detects the change
-    setMeasurements({...measurementValues});
-    
-    // Set flag to indicate measurements are processed
-    setMeasurementsProcessed(true);
-
-    // DEBUG: Verify state updates
-    console.log("CRITICAL: Measurements processed - state should update:", measurementValues);
-
-    // Save the measurementValues to localStorage for persistence
-    localStorage.setItem("measurementValues", JSON.stringify(measurementValues));
-    
-    console.log("CRITICAL: Measurements processed and ready for auto-navigation");
-    
-    // CRITICAL: Force navigation to measurements tab immediately and after delay
-    // Set active tab immediately
-    setActiveTab("measurements");
-    
-    // Also set after a short delay to ensure state has updated
+    // Then set it after a small delay to ensure the null update is processed
     setTimeout(() => {
-      console.log("CRITICAL: Force navigating to measurements tab");
-      setActiveTab("measurements");
+      setMeasurements({...measurementValues});
       
-      // Force a re-render of the measurements state
-      setMeasurements(prevState => {
-        if (prevState === null) {
-          return measurementValues;
-        }
-        return {...prevState};
-      });
-    }, 300);
+      // Set flag to indicate measurements are processed
+      setMeasurementsProcessed(true);
+  
+      // Save the measurementValues to localStorage for persistence
+      localStorage.setItem("measurementValues", JSON.stringify(measurementValues));
+      
+      console.log("CRITICAL: Measurements processed and ready for auto-navigation");
+      
+      // Set active tab immediately
+      setActiveTab("measurements");
+    }, 100);
   };
 
   // Effect to auto-navigate to measurements tab when data is ready
