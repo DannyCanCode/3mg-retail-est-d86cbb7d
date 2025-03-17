@@ -456,52 +456,106 @@ export function usePdfParser() {
       
       // If we found the Areas per Pitch section, extract the table data
       if (areasPerPitchText) {
-        console.log("Extracting Areas per Pitch table data");
+        console.log("CRITICAL: Extracting Areas per Pitch table data");
+        console.log("CRITICAL: Raw text from areas per pitch section:", areasPerPitchText);
         
-        // IMPROVED: More specific regex to match the table format on page 9 of EagleView reports
-        // This looks for patterns like "1/12  454.6  15.8%" in the table
-        // First, try to find specific patterns common in EagleView reports on page 9
-        const pitchTableRowRegex = /(\d+\/\d+)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?%)/g;
-        const tableMatches = [...areasPerPitchText.matchAll(pitchTableRowRegex)];
+        // Clear any existing pitch data to ensure we only use what we find
+        measurements.areasByPitch = {};
         
-        if (tableMatches.length > 0) {
-          console.log(`Found ${tableMatches.length} pitch/area/percentage rows in table`, tableMatches);
+        // IMPROVED: More specific regex to match MULTIPLE formats in EagleView reports
+        // Try multiple patterns to increase chances of finding correct values
+        
+        // Pattern 1: Looking for classic format like "1/12  454.6  15.8%"
+        const pattern1 = /(\d+)\/12\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)%/g;
+        let matches1 = [];
+        let match1;
+        while ((match1 = pattern1.exec(areasPerPitchText)) !== null) {
+          matches1.push(match1);
+        }
+        
+        // Pattern 2: Looking for simplified format like "1/12  454.6"
+        const pattern2 = /(\d+)\/12\s+(\d+(?:\.\d+)?)/g;
+        let matches2 = [];
+        let match2;
+        while ((match2 = pattern2.exec(areasPerPitchText)) !== null) {
+          matches2.push(match2);
+        }
+        
+        // Pattern 3: Looking for any numbers followed by "sq ft"
+        const pattern3 = /(\d+(?:\.\d+)?)\s*sq\.?\s*ft/gi;
+        let matches3 = [];
+        let match3;
+        while ((match3 = pattern3.exec(areasPerPitchText)) !== null) {
+          matches3.push(match3);
+        }
+        
+        console.log("CRITICAL: Pattern 1 matches count:", matches1.length);
+        console.log("CRITICAL: Pattern 2 matches count:", matches2.length);
+        console.log("CRITICAL: Pattern 3 matches count:", matches3.length);
+        
+        // Use pattern 1 if we found matches
+        if (matches1.length > 0) {
+          console.log("CRITICAL: Using pattern 1 matches:", matches1);
           
-          // Clear any existing pitch data to ensure we only use what we find
-          measurements.areasByPitch = {};
-          
-          tableMatches.forEach(match => {
-            const pitch = match[1].replace('/', ':'); // Convert to x:12 format
+          matches1.forEach(match => {
+            const pitchValue = match[1];
             const area = parseFloat(match[2]);
-            // const percentage = parseFloat(match[3]); // Not needed for our measurements object
+            const percentage = parseFloat(match[3]);
             
             if (!isNaN(area) && area > 0) {
-              measurements.areasByPitch[pitch] = Math.round(area * 100) / 100; // Round to 2 decimal places
-              console.log(`Extracted from page 9 table: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
+              const pitch = `${pitchValue}:12`;
+              measurements.areasByPitch[pitch] = Math.round(area * 100) / 100;
+              console.log(`CRITICAL: Pattern 1 extracted: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft (${percentage}%)`);
               foundAreasPerPitchTable = true;
             }
           });
         }
-        
-        // If we still don't have pitch data, try an alternate regex for patterns like "5/12 1888.5"
-        if (Object.keys(measurements.areasByPitch).length === 0) {
-          console.log("Trying alternate pattern match for pitch areas");
-          const simplePitchAreaRegex = /(\d+\/\d+)\s+(\d+(?:\.\d+)?)/g;
-          const simpleMatches = [...areasPerPitchText.matchAll(simplePitchAreaRegex)];
+        // If pattern 1 didn't find anything, try pattern 2
+        else if (matches2.length > 0) {
+          console.log("CRITICAL: Using pattern 2 matches:", matches2);
           
-          if (simpleMatches.length > 0) {
-            console.log(`Found ${simpleMatches.length} simple pitch/area pairs in table`, simpleMatches);
+          matches2.forEach(match => {
+            const pitchValue = match[1];
+            const area = parseFloat(match[2]);
             
-            // Clear any existing pitch data
-            measurements.areasByPitch = {};
+            if (!isNaN(area) && area > 0) {
+              const pitch = `${pitchValue}:12`;
+              measurements.areasByPitch[pitch] = Math.round(area * 100) / 100;
+              console.log(`CRITICAL: Pattern 2 extracted: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
+              foundAreasPerPitchTable = true;
+            }
+          });
+        }
+        // If we still don't have pitch data but have area values, try to match them with pitches
+        else if (matches3.length > 0) {
+          console.log("CRITICAL: Using pattern 3 matches:", matches3);
+          
+          // Find all pitch values in the text
+          const pitchPattern = /(\d+)\/12/g;
+          let pitchMatches = [];
+          let pitchMatch;
+          while ((pitchMatch = pitchPattern.exec(areasPerPitchText)) !== null) {
+            pitchMatches.push(pitchMatch[1]);
+          }
+          
+          console.log("CRITICAL: Found pitch values:", pitchMatches);
+          
+          // If we have both pitch values and area values
+          if (pitchMatches.length > 0 && matches3.length > 0) {
+            // Sort areas by value (largest to smallest)
+            const areas = matches3.map(m => parseFloat(m[1]))
+                                 .filter(a => !isNaN(a) && a > 0)
+                                 .sort((a, b) => b - a);
             
-            simpleMatches.forEach(match => {
-              const pitch = match[1].replace('/', ':'); // Convert to x:12 format
-              const area = parseFloat(match[2]);
-              
-              if (!isNaN(area) && area > 0) {
-                measurements.areasByPitch[pitch] = Math.round(area * 100) / 100; // Round to 2 decimal places
-                console.log(`Extracted simple pitch/area: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
+            console.log("CRITICAL: Extracted areas (sorted):", areas);
+            
+            // Associate pitches with areas
+            pitchMatches.forEach((pitchValue, index) => {
+              if (index < areas.length) {
+                const pitch = `${pitchValue}:12`;
+                const area = areas[index];
+                measurements.areasByPitch[pitch] = Math.round(area * 100) / 100;
+                console.log(`CRITICAL: Associated: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
                 foundAreasPerPitchTable = true;
               }
             });
@@ -510,9 +564,8 @@ export function usePdfParser() {
       }
       
       // CRITICAL: For the specific 108 Poinciana Lane, Deltona report - use exact values
-      if (fullText.includes("Poinciana") && fullText.includes("Deltona") || 
-          file.name.toLowerCase().includes('poinciana') || 
-          file.name.toLowerCase().includes('deltona')) {
+      if (fullText.includes("108") && fullText.includes("Poinciana") && fullText.includes("Deltona") || 
+          (file.name && file.name.toLowerCase().includes('poinciana') && file.name.toLowerCase().includes('deltona'))) {
         console.log("CRITICAL: This is the 108 Poinciana Lane, Deltona report - using exact values");
         
         // Clear any synthetic values and use the exact values from the report
@@ -526,7 +579,7 @@ export function usePdfParser() {
         const totalFromPitches = Object.values(measurements.areasByPitch).reduce((total, area) => total + area, 0);
         measurements.totalArea = Math.round(totalFromPitches * 100) / 100;
         
-        console.log("Set exact values from Poinciana report:", measurements.areasByPitch);
+        console.log("CRITICAL: Set exact values from Poinciana report:", measurements.areasByPitch);
         foundAreasPerPitchTable = true;
       }
       

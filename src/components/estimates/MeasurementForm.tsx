@@ -37,25 +37,26 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
     areasByPitch: [{ pitch: "6:12", area: 0, percentage: 100 }]
   };
   
-  const [measurements, setMeasurements] = useState<MeasurementValues>(defaultMeasurements);
-  
-  // CRITICAL: Use initialValues immediately when the component first renders
-  useEffect(() => {
+  // Initialize measurements with initialValues or defaults
+  const [measurements, setMeasurements] = useState<MeasurementValues>(() => {
     if (initialValues) {
-      applyInitialValues(initialValues);
+      console.log("CRITICAL: MeasurementForm: Initializing directly with initialValues:", initialValues);
+      return applyInitialValues(initialValues);
     }
-  }, []); // Empty dependency array ensures this only runs once on mount
+    return defaultMeasurements;
+  });
   
   // Use initialValues when they change
   useEffect(() => {
     if (initialValues) {
       console.log("CRITICAL: MeasurementForm: RECEIVED NEW initialValues:", initialValues);
-      applyInitialValues(initialValues);
+      const formattedValues = applyInitialValues(initialValues);
+      setMeasurements(formattedValues);
     }
   }, [initialValues]);
   
-  // Extract the logic to apply initial values to a separate function
-  const applyInitialValues = (values: MeasurementValues) => {
+  // Extract the logic to apply initial values to a separate function that returns formatted values
+  const applyInitialValues = (values: MeasurementValues): MeasurementValues => {
     console.log("CRITICAL: Applying initial values:", values);
     console.log("CRITICAL: Initial areasByPitch:", values.areasByPitch);
     
@@ -113,7 +114,7 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
     }
     
     // Ensure the values are the correct types (defensive programming)
-    formattedValues = {
+    const finalValues = {
       ...formattedValues,
       totalArea: Number(formattedValues.totalArea || 0),
       ridgeLength: Number(formattedValues.ridgeLength || 0),
@@ -133,25 +134,21 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
         [{ pitch: "6:12", area: formattedValues.totalArea || 0, percentage: 100 }]
     };
     
-    console.log("CRITICAL: Final formatted values:", formattedValues);
-    console.log("CRITICAL: Final areasByPitch:", formattedValues.areasByPitch);
-    
-    // Update the measurements state with the formatted values
-    setMeasurements(formattedValues);
-    
-    // CRITICAL: Log the state update
-    console.log("CRITICAL: Setting measurements state:", formattedValues);
+    console.log("CRITICAL: Final formatted values:", finalValues);
+    console.log("CRITICAL: Final areasByPitch:", finalValues.areasByPitch);
     
     // Verify that values are correct
     console.log("CRITICAL: Verifying lengths:", {
-      ridgeLength: formattedValues.ridgeLength,
-      hipLength: formattedValues.hipLength,
-      valleyLength: formattedValues.valleyLength,
-      rakeLength: formattedValues.rakeLength,
-      eaveLength: formattedValues.eaveLength,
-      stepFlashingLength: formattedValues.stepFlashingLength,
-      flashingLength: formattedValues.flashingLength
+      ridgeLength: finalValues.ridgeLength,
+      hipLength: finalValues.hipLength,
+      valleyLength: finalValues.valleyLength,
+      rakeLength: finalValues.rakeLength,
+      eaveLength: finalValues.eaveLength,
+      stepFlashingLength: finalValues.stepFlashingLength,
+      flashingLength: finalValues.flashingLength
     });
+    
+    return finalValues;
   };
   
   // Debug output to track state changes

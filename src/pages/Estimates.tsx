@@ -237,11 +237,21 @@ export default function Estimates() {
       
       // Transform the object format to array format required by the RoofAreaTab
       formattedAreasByPitch = Object.entries(data.measurements.areasByPitch).map(([pitch, area]) => {
+        // Check if area is a number and convert if not
+        const numericArea = typeof area === 'number' ? area : parseFloat(String(area)) || 0;
+        
         // Round the area to 2 decimal places to avoid excessive digits
-        const roundedArea = Math.round(Number(area) * 100) / 100;
+        const roundedArea = Math.round(numericArea * 100) / 100;
         
         // Calculate percentage of total roof area
-        const totalArea = data.measurements.totalArea || 0;
+        const totalArea = data.measurements.totalArea || 
+          // Type-safe reducer for calculating total area from pitch areas
+          Object.values(data.measurements.areasByPitch).reduce((sum: number, a: any) => {
+            // Safely convert any value to number
+            const numValue = typeof a === 'number' ? a : parseFloat(String(a)) || 0;
+            return sum + numValue;
+          }, 0);
+        
         const percentage = totalArea > 0 ? (roundedArea / totalArea) * 100 : 0;
         
         return {
@@ -252,6 +262,16 @@ export default function Estimates() {
       });
       
       console.log("CRITICAL: Formatted areasByPitch with rounded values:", formattedAreasByPitch);
+      
+      // IMPORTANT: If there are no formatted areas, create a default one
+      if (formattedAreasByPitch.length === 0) {
+        console.log("CRITICAL: No formatted areas, creating default one");
+        formattedAreasByPitch = [{
+          pitch: data.measurements.predominantPitch || "6:12",
+          area: Math.round(data.measurements.totalArea * 100) / 100,
+          percentage: 100
+        }];
+      }
     } else {
       console.warn("CRITICAL: No areasByPitch data found in the parsed PDF");
       
@@ -282,19 +302,8 @@ export default function Estimates() {
     };
     
     // CRITICAL: Log all the values to verify they're correct
-    console.log("CRITICAL: Final measurement values to be set in state:", {
-      totalArea: measurementValues.totalArea,
-      ridgeLength: measurementValues.ridgeLength,
-      hipLength: measurementValues.hipLength,
-      valleyLength: measurementValues.valleyLength,
-      rakeLength: measurementValues.rakeLength,
-      eaveLength: measurementValues.eaveLength,
-      roofPitch: measurementValues.roofPitch,
-      areasByPitch: measurementValues.areasByPitch,
-      stepFlashingLength: measurementValues.stepFlashingLength,
-      flashingLength: measurementValues.flashingLength,
-      penetrationsArea: measurementValues.penetrationsArea,
-    });
+    console.log("CRITICAL: Final measurement values to be set in state:", measurementValues);
+    console.log("CRITICAL: areasByPitch in final state:", measurementValues.areasByPitch);
     
     // Set measurements in state
     setMeasurements(measurementValues);
@@ -310,11 +319,15 @@ export default function Estimates() {
     
     console.log("CRITICAL: Measurements processed and ready for auto-navigation");
     
-    // CRITICAL: Force navigation to measurements tab immediately
+    // CRITICAL: Force navigation to measurements tab immediately and after delay
+    // Set active tab immediately
+    setActiveTab("measurements");
+    
+    // Also set after a short delay to ensure state has updated
     setTimeout(() => {
       console.log("CRITICAL: Force navigating to measurements tab");
       setActiveTab("measurements");
-    }, 500);
+    }, 300);
   };
 
   // Effect to auto-navigate to measurements tab when data is ready
@@ -323,7 +336,15 @@ export default function Estimates() {
       // After measurements are processed, automatically navigate to measurements tab
       console.log("CRITICAL: Auto-navigating to measurements tab with processed data");
       console.log("CRITICAL: Measurements state before navigation:", measurements);
+      
+      // Force navigation to measurements tab
       setActiveTab("measurements");
+      
+      // Additional backup: force navigation again after a short delay
+      setTimeout(() => {
+        console.log("CRITICAL: Secondary navigation to measurements tab");
+        setActiveTab("measurements");
+      }, 300);
     }
   }, [measurementsProcessed, hasPdfData, parsedPdfData]);
 
