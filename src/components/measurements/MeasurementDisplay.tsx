@@ -31,7 +31,6 @@ export function MeasurementDisplay({
     penetrationsArea,
     penetrationsPerimeter,
     dripEdgeLength,
-    areasByPitch,
     propertyAddress,
     longitude,
     latitude
@@ -46,12 +45,25 @@ export function MeasurementDisplay({
     const pitchData = measurements.areasByPitch || measurements.areasPerPitch || {};
     
     console.log("Pitch data debugging:");
+    console.log("- measurements object:", measurements);
     console.log("- measurements.areasByPitch:", measurements.areasByPitch);
     console.log("- measurements.areasPerPitch:", measurements.areasPerPitch);
     console.log("- Selected pitchData:", pitchData);
     console.log("- pitchData type:", typeof pitchData);
     console.log("- Is array:", Array.isArray(pitchData));
     console.log("- Keys:", Object.keys(pitchData));
+    
+    // Create a special backup entry if we have predominant pitch but no pitch data
+    if ((!pitchData || typeof pitchData !== 'object' || Object.keys(pitchData).length === 0) 
+         && predominantPitch && totalArea > 0) {
+      console.log("Creating backup pitch entry from predominant pitch");
+      // Return minimal data for the predominant pitch
+      return [{
+        pitch: predominantPitch,
+        area: totalArea,
+        displayPitch: predominantPitch.replace(':', '/')
+      }];
+    }
     
     // Handle both object format and potential undefined/null values
     if (!pitchData || typeof pitchData !== 'object') {
@@ -66,29 +78,62 @@ export function MeasurementDisplay({
     
     console.log("Processed entries:", entries);
     
-    return entries.map(([pitch, area]) => ({
-      pitch,
-      area: typeof area === 'number' ? area : Number(area),
-      // Convert from X:12 to X/12 format for display
-      displayPitch: String(pitch).replace(':', '/')
-    })).sort((a, b) => {
+    // Map the entries to our display format
+    const mappedEntries = entries.map(([pitch, area]) => {
+      // Skip any entries with invalid data
+      if (!pitch || area === undefined || area === null) {
+        console.log("Skipping invalid entry:", { pitch, area });
+        return null;
+      }
+      
+      // Convert area to number and ensure we have a valid format
+      const numericArea = typeof area === 'number' ? area : Number(area);
+      
+      // Skip if we couldn't parse the area as a number
+      if (isNaN(numericArea)) {
+        console.log("Skipping entry with NaN area:", { pitch, area });
+        return null;
+      }
+      
+      // Ensure the pitch is in the right format
+      let formattedPitch = String(pitch);
+      
+      // If it's already in our display format (X/12), convert to storage format (X:12)
+      if (formattedPitch.includes('/')) {
+        formattedPitch = formattedPitch.replace('/', ':');
+      }
+      
+      // If it doesn't have a separator, assume it's just the numerator and add :12
+      if (!formattedPitch.includes(':')) {
+        formattedPitch = `${formattedPitch}:12`;
+      }
+      
+      return {
+        pitch: formattedPitch,
+        area: numericArea,
+        // Convert from X:12 to X/12 format for display
+        displayPitch: formattedPitch.replace(':', '/')
+      };
+    }).filter(Boolean); // Remove any null entries
+    
+    // Sort the entries by pitch value
+    return mappedEntries.sort((a, b) => {
       // Sort by pitch value (numerically)
       const pitchA = parseFloat(a.pitch.split(':')[0]);
       const pitchB = parseFloat(b.pitch.split(':')[0]);
       return pitchA - pitchB; // Sort ascending (lowest pitch first, like EagleView)
     });
-  }, [measurements]);
+  }, [measurements, predominantPitch, totalArea]);
   
   // Debug the result
   console.log("Processed pitchAreas:", pitchAreas);
   
-  // If we have a predominant pitch but no pitch areas, create a fallback entry
-  React.useEffect(() => {
-    if (pitchAreas.length === 0 && predominantPitch && totalArea > 0) {
-      console.log("Creating fallback pitch area for:", predominantPitch, totalArea);
-      // This doesn't update the actual data source, just for debugging
-    }
-  }, [pitchAreas.length, predominantPitch, totalArea]);
+  // Debug if we have the expected elements
+  const hasAreasByPitch = React.useMemo(() => {
+    return pitchAreas && pitchAreas.length > 0;
+  }, [pitchAreas]);
+  
+  console.log("Has areas by pitch:", hasAreasByPitch);
 
   return (
     <Card className={cn("w-full", className)}>
@@ -227,44 +272,6 @@ export function MeasurementDisplay({
                         {totalArea > 0 ? `${(area / totalArea * 100).toFixed(1)}%` : '0.0%'}
                       </td>
                     ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              The table above lists each pitch on this roof and the total area and percent (both rounded) of the roof with that pitch.
-            </p>
-          </div>
-        )}
-
-        {/* Simple Areas by Pitch - Alternative view if the table doesn't have data */}
-        {pitchAreas.length === 0 && totalArea > 0 && predominantPitch && (
-          <div className="mt-6">
-            <div className="bg-gray-600 text-white p-2 font-medium">
-              Areas per Pitch
-            </div>
-            <div className="border border-gray-300">
-              <table className="min-w-full border-collapse">
-                <thead>
-                  <tr>
-                    <th className="p-2 text-left font-medium border-b border-r border-gray-300 w-1/4">Roof Pitches</th>
-                    <th className="p-2 text-center font-medium border-b border-r border-gray-300 bg-white">
-                      {predominantPitch.replace(':', '/')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="p-2 text-left font-medium border-b border-r border-gray-300">Area (sq ft)</td>
-                    <td className="p-2 text-center border-b border-r border-gray-300 bg-blue-50">
-                      {totalArea.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="p-2 text-left font-medium border-b border-r border-gray-300">% of Roof</td>
-                    <td className="p-2 text-center border-b border-r border-gray-300 bg-blue-50">
-                      100.0%
-                    </td>
                   </tr>
                 </tbody>
               </table>

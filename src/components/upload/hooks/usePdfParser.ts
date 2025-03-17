@@ -395,6 +395,176 @@ export function usePdfParser() {
         console.log(`Found predominant pitch: ${measurements.predominantPitch}`);
       }
       
+      // Extract Areas per Pitch table - specifically look for this section in EagleView reports
+      console.log("Looking for Areas per Pitch table...");
+      
+      // First look for the Areas per Pitch section header
+      const areasPerPitchSectionRegex = /Areas\s+per\s+Pitch/i;
+      
+      // Search for the Areas per Pitch table in various pages, prioritizing page 10
+      let foundAreasPerPitchTable = false;
+      let areasPerPitchText = "";
+      
+      if (hasPage10 && areasPerPitchSectionRegex.test(pageContents[10])) {
+        areasPerPitchText = pageContents[10];
+        console.log("Found Areas per Pitch section on page 10");
+      } else {
+        // Search through all pages for the Areas per Pitch section
+        for (let i = 1; i <= numPages; i++) {
+          if (pageContents[i] && areasPerPitchSectionRegex.test(pageContents[i])) {
+            areasPerPitchText = pageContents[i];
+            console.log(`Found Areas per Pitch section on page ${i}`);
+            break;
+          }
+        }
+      }
+      
+      // If we found the Areas per Pitch section, extract the table data
+      if (areasPerPitchText) {
+        console.log("Extracting Areas per Pitch table data");
+        
+        // EagleView typically shows the pitch values in the format X/12
+        // We need to extract each pitch and its corresponding area
+        
+        // Method 1: Extract from table-like format with "Roof Pitches" header
+        const tablePitchRegex = /Roof\s+Pitches[^\n]*\n([\s\S]*?)(?:\n\s*\n|$)/i;
+        const tableMatch = areasPerPitchText.match(tablePitchRegex);
+        
+        if (tableMatch && tableMatch[1]) {
+          const tableContent = tableMatch[1];
+          console.log("Found table content:", tableContent);
+          
+          // Extract pitches from the table header
+          const pitchHeaderRegex = /(\d+\/\d+)/g;
+          const pitchMatches = [...tableContent.matchAll(pitchHeaderRegex)];
+          
+          if (pitchMatches.length > 0) {
+            console.log(`Found ${pitchMatches.length} pitches in table header`);
+            
+            // Now extract areas for each pitch
+            const areaRowRegex = /Area\s*\(sq\s*ft\)[^\n]*\n([^\n]*)/i;
+            const areaRowMatch = tableContent.match(areaRowRegex);
+            
+            if (areaRowMatch && areaRowMatch[1]) {
+              const areaRow = areaRowMatch[1];
+              console.log("Found area row:", areaRow);
+              
+              // Extract numeric values from the area row
+              const areaValues = areaRow.match(/[\d,]+(?:\.\d+)?/g);
+              
+              if (areaValues && areaValues.length >= pitchMatches.length) {
+                console.log(`Found ${areaValues.length} area values`);
+                
+                // Match each pitch with its area
+                pitchMatches.forEach((pitchMatch, index) => {
+                  if (index < areaValues.length) {
+                    const pitch = pitchMatch[0];
+                    const area = parseFloat(areaValues[index].replace(/,/g, ''));
+                    
+                    // Convert X/12 format to X:12 format for internal storage
+                    const normalizedPitch = pitch.replace('/', ':');
+                    
+                    measurements.areasByPitch[normalizedPitch] = area;
+                    console.log(`Extracted from table: Pitch ${normalizedPitch} = ${area} sq ft`);
+                    foundAreasPerPitchTable = true;
+                  }
+                });
+              }
+            }
+          }
+        }
+        
+        // Method 2: Look for direct assignments in the text like "5/12 Pitch = 1234 sq ft"
+        if (!foundAreasPerPitchTable || Object.keys(measurements.areasByPitch).length === 0) {
+          const directPitchAssignmentRegex = /(\d+\/\d+)\s*Pitch\s*=\s*([\d,]+(?:\.\d+)?)\s*sq\s*ft/gi;
+          const directAssignments = [...areasPerPitchText.matchAll(directPitchAssignmentRegex)];
+          
+          if (directAssignments.length > 0) {
+            console.log(`Found ${directAssignments.length} direct pitch assignments`);
+            
+            directAssignments.forEach(match => {
+              const pitch = match[1];
+              const area = parseFloat(match[2].replace(/,/g, ''));
+              
+              // Convert X/12 format to X:12 format for internal storage
+              const normalizedPitch = pitch.replace('/', ':');
+              
+              measurements.areasByPitch[normalizedPitch] = area;
+              console.log(`Extracted direct assignment: Pitch ${normalizedPitch} = ${area} sq ft`);
+              foundAreasPerPitchTable = true;
+            });
+          }
+        }
+      }
+      
+      // Method 3: Try to extract from "Areas by Pitch" section found in some versions
+      if (!foundAreasPerPitchTable || Object.keys(measurements.areasByPitch).length === 0) {
+        const areasByPitchSectionRegex = /Areas\s+by\s+Pitch/i;
+        let areasByPitchText = "";
+        
+        // Search through all pages for the Areas by Pitch section
+        for (let i = 1; i <= numPages; i++) {
+          if (pageContents[i] && areasByPitchSectionRegex.test(pageContents[i])) {
+            areasByPitchText = pageContents[i];
+            console.log(`Found Areas by Pitch section on page ${i}`);
+            break;
+          }
+        }
+        
+        if (areasByPitchText) {
+          // Look for patterns like "5:12 Pitch: 1234.5 sq ft"
+          const pitchAreaRegex = /(\d+(?:[:/]\d+)?)\s*Pitch:?\s*([\d,]+(?:\.\d+)?)\s*sq\s*ft/gi;
+          const matches = [...areasByPitchText.matchAll(pitchAreaRegex)];
+          
+          if (matches.length > 0) {
+            console.log(`Found ${matches.length} pitch/area pairs`);
+            
+            matches.forEach(match => {
+              let pitch = match[1];
+              const area = parseFloat(match[2].replace(/,/g, ''));
+              
+              // Ensure consistent pitch format (X:12)
+              if (pitch.includes('/')) {
+                pitch = pitch.replace('/', ':');
+              } else if (!pitch.includes(':')) {
+                pitch = `${pitch}:12`; // Add default denominator if missing
+              }
+              
+              measurements.areasByPitch[pitch] = area;
+              console.log(`Extracted from Areas by Pitch: ${pitch} = ${area} sq ft`);
+              foundAreasPerPitchTable = true;
+            });
+          }
+        }
+      }
+      
+      // Scan full document for pitch/area pairs if we still don't have any areas by pitch
+      if (!foundAreasPerPitchTable || Object.keys(measurements.areasByPitch).length === 0) {
+        console.log("Scanning full text for pitch/area pairs");
+        
+        // Look for patterns like "5/12 (or 5:12) = 1234.5 square feet (or sq ft)"
+        const fullTextPitchRegex = /(\d+[:/]\d+)\s*(?:pitch)?(?:=|:)\s*([\d,]+(?:\.\d+)?)\s*(?:sq(?:uare)?\s*ft|square\s*feet)/gi;
+        const fullTextMatches = [...fullText.matchAll(fullTextPitchRegex)];
+        
+        if (fullTextMatches.length > 0) {
+          console.log(`Found ${fullTextMatches.length} pitch/area pairs in full text`);
+          
+          fullTextMatches.forEach(match => {
+            let pitch = match[1];
+            const area = parseFloat(match[2].replace(/,/g, ''));
+            
+            // Normalize pitch format
+            if (pitch.includes('/')) {
+              pitch = pitch.replace('/', ':');
+            }
+            
+            measurements.areasByPitch[pitch] = area;
+            console.log(`Extracted from full text: ${pitch} = ${area} sq ft`);
+            foundAreasPerPitchTable = true;
+          });
+        }
+      }
+      
       // Extract property address - usually found in the header section of page 1 or page 10
       // Try to match EagleView format directly from headers (e.g., "108 Poinciana Lane, Deltona, FL 32738")
       const eagleViewHeaderRegex = /(\d+\s+[A-Za-z\s]+(?:Lane|Street|Avenue|Road|Drive|Blvd|Court|Place|Way|Circle|Trail|Parkway|Highway|Terrace)),\s+([A-Za-z\s]+),\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)/i;
