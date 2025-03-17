@@ -6,7 +6,7 @@ import { Form } from "@/components/ui/form";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
-import { CalculatorIcon, ClipboardCheckIcon, ClipboardListIcon, Upload } from "lucide-react";
+import { CalculatorIcon, ClipboardCheckIcon, ClipboardListIcon, HardHatIcon, DollarSignIcon, Upload } from "lucide-react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { MeasurementForm } from "@/components/estimates/MeasurementForm";
@@ -56,18 +56,18 @@ const SidebarNav = ({ items, activeItem, onSelect }: SidebarNavProps) => {
   );
 };
 
-// Create simplified AdditionalDetailsForm component
-const AdditionalDetailsForm = ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => {
+// Create simplified MaterialsForm component
+const MaterialsForm = ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">Additional Details</h3>
+      <h3 className="text-lg font-medium">Select Materials</h3>
       <p className="text-sm text-muted-foreground">
-        Add any additional information needed for this estimate.
+        Choose the materials for your roofing project.
       </p>
       <div className="space-y-4">
-        {/* Placeholder for additional details form fields */}
+        {/* Placeholder for materials selection form fields */}
         <div className="h-40 rounded-md border border-dashed flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">Additional details form fields would go here</p>
+          <p className="text-sm text-muted-foreground">Materials selection form would go here</p>
         </div>
       </div>
       <div className="flex justify-between pt-4">
@@ -78,16 +78,45 @@ const AdditionalDetailsForm = ({ onBack, onNext }: { onBack: () => void; onNext:
   );
 };
 
-// Create simplified InsightsForm component
-const InsightsForm = () => {
+// Create simplified LaborProfitForm component
+const LaborProfitForm = ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => {
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-medium">Insights</h3>
+      <h3 className="text-lg font-medium">Labor and Profit</h3>
       <p className="text-sm text-muted-foreground">
-        View and analyze the estimate data.
+        Set labor rates and profit margins for this estimate.
       </p>
-      <div className="h-40 rounded-md border border-dashed flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Insights would be displayed here</p>
+      <div className="space-y-4">
+        {/* Placeholder for labor and profit form fields */}
+        <div className="h-40 rounded-md border border-dashed flex items-center justify-center">
+          <p className="text-sm text-muted-foreground">Labor and profit settings would go here</p>
+        </div>
+      </div>
+      <div className="flex justify-between pt-4">
+        <Button variant="outline" onClick={onBack}>Back</Button>
+        <Button onClick={onNext}>Continue</Button>
+      </div>
+    </div>
+  );
+};
+
+// Create simplified SummaryForm component
+const SummaryForm = ({ onBack }: { onBack: () => void }) => {
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium">Estimate Summary</h3>
+      <p className="text-sm text-muted-foreground">
+        Review your complete estimate details.
+      </p>
+      <div className="space-y-4">
+        {/* Placeholder for summary details */}
+        <div className="h-40 rounded-md border border-dashed flex items-center justify-center">
+          <p className="text-sm text-muted-foreground">Estimate summary would be displayed here</p>
+        </div>
+      </div>
+      <div className="flex justify-between pt-4">
+        <Button variant="outline" onClick={onBack}>Back</Button>
+        <Button variant="default">Save Estimate</Button>
       </div>
     </div>
   );
@@ -131,16 +160,22 @@ export default function Estimates() {
       disabled: !hasPdfData,
     },
     {
-      title: "Additional Details",
+      title: "Materials",
       href: "#",
       icon: <ClipboardListIcon className="h-4 w-4" />,
-      value: "details",
+      value: "materials",
     },
     {
-      title: "Insights",
+      title: "Labor & Profit",
+      href: "#",
+      icon: <HardHatIcon className="h-4 w-4" />,
+      value: "labor-profit",
+    },
+    {
+      title: "Summary",
       href: "#",
       icon: <ClipboardCheckIcon className="h-4 w-4" />,
-      value: "insights",
+      value: "summary",
     },
   ];
 
@@ -175,6 +210,9 @@ export default function Estimates() {
     setParsedPdfData(data);
     setHasPdfData(true);
     setPdfFileName(fileName);
+    
+    // Debug log to check areasByPitch data
+    console.log("PDF areasByPitch data:", data.measurements?.areasByPitch);
   };
 
   // Prepare data for the measurement form and switch to measurements tab
@@ -196,7 +234,7 @@ export default function Estimates() {
     // Process the areasByPitch data from the PDF to ensure it's in the correct format
     let formattedAreasByPitch: AreaByPitch[] = [];
     
-    if (parsedPdfData.measurements?.areasByPitch) {
+    if (parsedPdfData.measurements?.areasByPitch && Object.keys(parsedPdfData.measurements.areasByPitch).length > 0) {
       console.log("Raw areasByPitch data:", parsedPdfData.measurements.areasByPitch);
       
       // Transform the object format to array format required by the RoofAreaTab
@@ -213,6 +251,18 @@ export default function Estimates() {
       });
       
       console.log("Formatted areasByPitch:", formattedAreasByPitch);
+    } else {
+      console.warn("No areasByPitch data found in the parsed PDF");
+      
+      // If we have a predominant pitch but no areas by pitch data, create a default entry
+      if (parsedPdfData.measurements?.predominantPitch && parsedPdfData.measurements?.totalArea) {
+        formattedAreasByPitch = [{
+          pitch: parsedPdfData.measurements.predominantPitch,
+          area: parsedPdfData.measurements.totalArea,
+          percentage: 100
+        }];
+        console.log("Created default areasByPitch entry:", formattedAreasByPitch);
+      }
     }
 
     // Set state for measurement values
@@ -225,9 +275,9 @@ export default function Estimates() {
       eaveLength: parsedPdfData.measurements?.eaveLength || 0,
       roofPitch: parsedPdfData.measurements?.predominantPitch || "",
       areasByPitch: formattedAreasByPitch,
-      stepFlashingLength: 0,
-      flashingLength: 0,
-      penetrationsArea: 0,
+      stepFlashingLength: parsedPdfData.measurements?.stepFlashingLength || 0,
+      flashingLength: parsedPdfData.measurements?.flashingLength || 0,
+      penetrationsArea: parsedPdfData.measurements?.penetrationsArea || 0,
     });
 
     // Save the measurementValues to localStorage for persistence
@@ -240,9 +290,9 @@ export default function Estimates() {
       eaveLength: parsedPdfData.measurements?.eaveLength || 0,
       roofPitch: parsedPdfData.measurements?.predominantPitch || "",
       areasByPitch: formattedAreasByPitch,
-      stepFlashingLength: 0,
-      flashingLength: 0,
-      penetrationsArea: 0,
+      stepFlashingLength: parsedPdfData.measurements?.stepFlashingLength || 0,
+      flashingLength: parsedPdfData.measurements?.flashingLength || 0,
+      penetrationsArea: parsedPdfData.measurements?.penetrationsArea || 0,
     };
     localStorage.setItem("measurementValues", JSON.stringify(updatedMeasurementValues));
 
@@ -273,17 +323,8 @@ export default function Estimates() {
       }
     }
     
-    // Allow jumping between tabs as long as we have PDF data
-    if (hasPdfData || value === "upload") {
-      setActiveTab(value);
-    } else {
-      // If trying to navigate elsewhere without PDF data, warn the user
-      toast({
-        title: "Upload an EagleView PDF first",
-        description: "Please upload an EagleView PDF before proceeding.",
-        variant: "default",
-      });
-    }
+    // Allow jumping between tabs
+    setActiveTab(value);
   };
 
   return (
@@ -373,17 +414,25 @@ export default function Estimates() {
                     {/* Pass the processed measurements to the MeasurementForm */}
                     <MeasurementForm 
                       initialValues={measurements}
-                      onComplete={() => setActiveTab("details")}
+                      onComplete={() => setActiveTab("materials")}
                     />
                   </TabsContent>
-                  <TabsContent value="details" className="space-y-4">
-                    <AdditionalDetailsForm
+                  <TabsContent value="materials" className="space-y-4">
+                    <MaterialsForm
                       onBack={() => setActiveTab("measurements")}
-                      onNext={() => setActiveTab("insights")}
+                      onNext={() => setActiveTab("labor-profit")}
                     />
                   </TabsContent>
-                  <TabsContent value="insights" className="space-y-4">
-                    <InsightsForm />
+                  <TabsContent value="labor-profit" className="space-y-4">
+                    <LaborProfitForm
+                      onBack={() => setActiveTab("materials")}
+                      onNext={() => setActiveTab("summary")}
+                    />
+                  </TabsContent>
+                  <TabsContent value="summary" className="space-y-4">
+                    <SummaryForm
+                      onBack={() => setActiveTab("labor-profit")}
+                    />
                   </TabsContent>
                 </ScrollArea>
               </Tabs>
