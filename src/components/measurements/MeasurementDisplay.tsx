@@ -7,343 +7,194 @@ import {
 } from "@/components/ui/card";
 import { ParsedMeasurements } from "@/api/measurements";
 import React, { useEffect } from "react";
-import { cn } from "@/lib/utils";
+import { cn, formatMeasurement } from "@/lib/utils";
 
 interface MeasurementDisplayProps {
   measurements: ParsedMeasurements;
   className?: string;
 }
 
-export function MeasurementDisplay({
-  measurements,
-  className,
-}: MeasurementDisplayProps) {
-  const {
-    totalArea,
-    predominantPitch,
-    ridgeLength,
-    hipLength,
-    valleyLength,
-    rakeLength,
-    eaveLength,
-    stepFlashingLength,
-    flashingLength,
-    penetrationsArea,
-    penetrationsPerimeter,
-    dripEdgeLength,
-    propertyAddress,
-    longitude,
-    latitude
-  } = measurements;
+export function MeasurementDisplay({ measurements, className = "" }: MeasurementDisplayProps) {
+  // Helper function to format measurements with units
+  const formatValue = (value: number | undefined, unit: string, decimals: number = 0) => {
+    if (value === undefined || value === 0) return "-";
+    return `${formatMeasurement(value, decimals)} ${unit}`;
+  };
 
-  // URGENT DEBUG: Log the measurements object to identify the issue with multiple pitches
-  useEffect(() => {
-    console.log("URGENT DEBUG - MeasurementDisplay received measurements:", measurements);
-    console.log("URGENT DEBUG - areasByPitch specifically:", measurements.areasByPitch);
-    console.log("URGENT DEBUG - areasPerPitch specifically:", measurements.areasPerPitch);
-    
-    // Check if we have correct data structures
-    if (measurements.areasByPitch) {
-      console.log("URGENT DEBUG - Number of pitches in areasByPitch:", Object.keys(measurements.areasByPitch).length);
-      console.log("URGENT DEBUG - Keys in areasByPitch:", Object.keys(measurements.areasByPitch));
-      console.log("URGENT DEBUG - Values in areasByPitch:", Object.values(measurements.areasByPitch));
-    } else {
-      console.error("URGENT DEBUG - areasByPitch is missing or null!");
-    }
-    
-    if (measurements.areasPerPitch) {
-      console.log("URGENT DEBUG - Number of pitches in areasPerPitch:", Object.keys(measurements.areasPerPitch).length);
-    } else {
-      console.error("URGENT DEBUG - areasPerPitch is missing or null!");
-    }
-  }, [measurements]);
-
-  // Calculate total roof area less penetrations
-  const totalAreaLessPenetrations = totalArea - penetrationsArea;
-
-  // Format the areas by pitch as an array for display
-  const pitchAreas = React.useMemo(() => {
-    console.log("URGENT DEBUG - Entering pitchAreas calculation");
-    
-    // Handle naming inconsistency between areasByPitch and areasPerPitch
-    const pitchData = measurements.areasByPitch || measurements.areasPerPitch || {};
-    
-    console.log("Pitch data debugging:");
-    console.log("- measurements object keys:", Object.keys(measurements));
-    console.log("- measurements.areasByPitch:", measurements.areasByPitch);
-    console.log("- measurements.areasPerPitch:", measurements.areasPerPitch);
-    console.log("- Selected pitchData:", pitchData);
-    console.log("- pitchData type:", typeof pitchData);
-    console.log("- Is array:", Array.isArray(pitchData));
-    console.log("- Keys:", Object.keys(pitchData));
-    
-    // EMERGENCY FIX: If this is a DAISY-martinez PDF and we only have one pitch,
-    // add some test data to ensure the multi-pitch display works
-    if (Object.keys(pitchData).length <= 1 && totalArea > 2000) {
-      console.log("EMERGENCY FIX: Adding test pitches for display");
-      
-      // Create at least three pitches from the total area for testing
-      const testPitchData = {
-        "4:12": totalArea * 0.1,  // 10% of roof area
-        "5:12": totalArea * 0.7,  // 70% of roof area
-        "6:12": totalArea * 0.2   // 20% of roof area
-      };
-      
-      console.log("EMERGENCY FIX: Created test pitch data:", testPitchData);
-      
-      // Use the test data instead
-      return Object.entries(testPitchData).map(([pitch, area]) => ({
-        pitch,
-        area: typeof area === 'number' ? area : Number(area),
-        displayPitch: pitch.replace(':', '/')
-      })).sort((a, b) => {
-        const pitchA = parseFloat(a.pitch.split(':')[0]);
-        const pitchB = parseFloat(b.pitch.split(':')[0]);
-        return pitchA - pitchB;
-      });
-    }
-    
-    // Create a special backup entry if we have predominant pitch but no pitch data
-    if ((!pitchData || typeof pitchData !== 'object' || Object.keys(pitchData).length === 0) 
-         && predominantPitch && totalArea > 0) {
-      console.log("Creating backup pitch entry from predominant pitch");
-      // Return minimal data for the predominant pitch
-      return [{
-        pitch: predominantPitch,
-        area: totalArea,
-        displayPitch: predominantPitch.replace(':', '/')
-      }];
-    }
-    
-    // Handle both object format and potential undefined/null values
-    if (!pitchData || typeof pitchData !== 'object') {
-      console.log("No valid pitch data found");
-      return [];
-    }
-    
-    // Handle both Record<string, number> and array formats
-    const entries = Array.isArray(pitchData) 
-      ? pitchData.map(item => [item.pitch, item.area]) 
-      : Object.entries(pitchData);
-    
-    console.log("Processed entries:", entries);
-    
-    // Map the entries to our display format
-    const mappedEntries = entries.map(([pitch, area]) => {
-      // Skip any entries with invalid data
-      if (!pitch || area === undefined || area === null) {
-        console.log("Skipping invalid entry:", { pitch, area });
-        return null;
-      }
-      
-      // Convert area to number and ensure we have a valid format
-      const numericArea = typeof area === 'number' ? area : Number(area);
-      
-      // Skip if we couldn't parse the area as a number
-      if (isNaN(numericArea)) {
-        console.log("Skipping entry with NaN area:", { pitch, area });
-        return null;
-      }
-      
-      // Ensure the pitch is in the right format
-      let formattedPitch = String(pitch);
-      
-      // If it's already in our display format (X/12), convert to storage format (X:12)
-      if (formattedPitch.includes('/')) {
-        formattedPitch = formattedPitch.replace('/', ':');
-      }
-      
-      // If it doesn't have a separator, assume it's just the numerator and add :12
-      if (!formattedPitch.includes(':')) {
-        formattedPitch = `${formattedPitch}:12`;
-      }
-      
-      return {
-        pitch: formattedPitch,
-        area: numericArea,
-        // Convert from X:12 to X/12 format for display
-        displayPitch: formattedPitch.replace(':', '/')
-      };
-    }).filter(Boolean); // Remove any null entries
-    
-    // Sort the entries by pitch value
-    const sortedEntries = mappedEntries.sort((a, b) => {
-      // Sort by pitch value (numerically)
-      const pitchA = parseFloat(a.pitch.split(':')[0]);
-      const pitchB = parseFloat(b.pitch.split(':')[0]);
-      return pitchA - pitchB; // Sort ascending (lowest pitch first, like EagleView)
-    });
-    
-    console.log("URGENT DEBUG - Final pitchAreas array:", sortedEntries);
-    return sortedEntries;
-  }, [measurements, predominantPitch, totalArea]);
-  
-  // Debug the result
-  console.log("Processed pitchAreas:", pitchAreas);
-  
-  // Debug if we have the expected elements
-  const hasAreasByPitch = React.useMemo(() => {
-    return pitchAreas && pitchAreas.length > 0;
-  }, [pitchAreas]);
-  
-  console.log("Has areas by pitch:", hasAreasByPitch);
-  console.log("Number of pitches for display:", pitchAreas.length);
-
-  // URGENT FIX: Additional check to ensure we're actually rendering multiple columns
-  const pitchColumnCount = pitchAreas.length;
-  console.log(`URGENT: Will render table with ${pitchColumnCount} pitch columns`);
-  
-  // Ensure we have a valid area by pitch display for the return JSX
-  const shouldDisplayPitchTable = pitchAreas.length > 0;
-  console.log("Should display pitch table:", shouldDisplayPitchTable);
+  // Only show counts if they are greater than 0
+  const showCounts = 
+    measurements.ridgeCount > 0 || 
+    measurements.hipCount > 0 || 
+    measurements.valleyCount > 0 || 
+    measurements.rakeCount > 0 || 
+    measurements.eaveCount > 0;
 
   return (
-    <Card className={cn("w-full", className)}>
-      <CardHeader>
-        <CardTitle>Extracted Measurements</CardTitle>
-        <CardDescription>
-          These values will be used in your estimate
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Main Areas and Pitches */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Total Area (All Pitches):</h3>
-            <p className="text-2xl font-bold">{totalArea.toLocaleString()} sq ft</p>
+    <div className={`w-full space-y-6 ${className}`}>
+      {/* Main Area Summary */}
+      <div>
+        <h3 className="text-lg font-medium mb-3">Area Summary</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+          <div className="flex justify-between">
+            <span className="text-sm">Total Area:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.totalArea, "sq ft")}</span>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Predominant Pitch:</h3>
-            <p className="text-2xl font-bold">{predominantPitch.replace(':', '/')}</p>
+          
+          <div className="flex justify-between">
+            <span className="text-sm">Predominant Pitch:</span>
+            <span className="text-sm font-medium">{measurements.predominantPitch || "-"}</span>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Total Penetrations Area:</h3>
-            <p className="text-2xl">{penetrationsArea.toLocaleString()} sq ft</p>
+          
+          <div className="flex justify-between">
+            <span className="text-sm">Penetrations Area:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.penetrationsArea, "sq ft")}</span>
           </div>
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Total Roof Area Less Penetrations:</h3>
-            <p className="text-2xl">{totalAreaLessPenetrations.toLocaleString()} sq ft</p>
+          
+          {measurements.penetrationsPerimeter > 0 && (
+            <div className="flex justify-between">
+              <span className="text-sm">Penetrations Perimeter:</span>
+              <span className="text-sm font-medium">{formatValue(measurements.penetrationsPerimeter, "ft")}</span>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Roof Features */}
+      <div>
+        <h3 className="text-lg font-medium mb-3">Roof Features</h3>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+          <div className="flex justify-between">
+            <span className="text-sm">Ridge:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.ridgeLength, "ft")}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-sm">Hip:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.hipLength, "ft")}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-sm">Valley:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.valleyLength, "ft")}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-sm">Rake:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.rakeLength, "ft")}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-sm">Eave:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.eaveLength, "ft")}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-sm">Drip Edge:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.dripEdgeLength, "ft")}</span>
           </div>
         </div>
-
-        {/* Property Location Information - only display if we have data */}
-        {(propertyAddress || longitude || latitude) && (
-          <div>
-            <h3 className="text-lg font-medium mb-3">Property Location</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
-              {propertyAddress && (
-                <div className="flex justify-between col-span-3 md:col-span-2">
-                  <span className="text-sm">Address:</span>
-                  <span className="text-sm font-medium ml-2">{propertyAddress}</span>
-                </div>
-              )}
-              {longitude && (
-                <div className="flex justify-between">
-                  <span className="text-sm">Longitude:</span>
-                  <span className="text-sm font-medium">{longitude}</span>
-                </div>
-              )}
-              {latitude && (
-                <div className="flex justify-between">
-                  <span className="text-sm">Latitude:</span>
-                  <span className="text-sm font-medium">{latitude}</span>
-                </div>
-              )}
-            </div>
+      </div>
+      
+      {/* Flashing */}
+      <div>
+        <h3 className="text-lg font-medium mb-3">Flashing</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+          <div className="flex justify-between">
+            <span className="text-sm">Step Flashing:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.stepFlashingLength, "ft")}</span>
           </div>
-        )}
-
-        {/* Lengths section styled like EagleView reports */}
+          
+          <div className="flex justify-between">
+            <span className="text-sm">Wall Flashing:</span>
+            <span className="text-sm font-medium">{formatValue(measurements.flashingLength, "ft")}</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Feature Counts - only show if we have counts */}
+      {showCounts && (
         <div>
-          <h3 className="text-lg font-medium mb-3">Lengths, Areas and Pitches</h3>
+          <h3 className="text-lg font-medium mb-3">Feature Counts</h3>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3">
-            <div className="flex justify-between">
-              <span className="text-sm">Ridges =</span>
-              <span className="text-sm font-medium">{ridgeLength} ft</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm">Hips =</span>
-              <span className="text-sm font-medium">{hipLength} ft</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm">Valleys =</span>
-              <span className="text-sm font-medium">{valleyLength} ft</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm">Rakes† =</span>
-              <span className="text-sm font-medium">{rakeLength} ft</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm">Eaves/Starter‡ =</span>
-              <span className="text-sm font-medium">{eaveLength} ft</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm">Drip Edge (Eaves + Rakes) =</span>
-              <span className="text-sm font-medium">{dripEdgeLength} ft</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm">Flashing =</span>
-              <span className="text-sm font-medium">{flashingLength} ft</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm">Step flashing =</span>
-              <span className="text-sm font-medium">{stepFlashingLength} ft</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm">Total Penetrations Area =</span>
-              <span className="text-sm font-medium">{penetrationsArea.toLocaleString()} sq ft</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm">Total Penetrations Perimeter =</span>
-              <span className="text-sm font-medium">{penetrationsPerimeter} ft</span>
-            </div>
+            {measurements.ridgeCount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-sm">Ridge Count:</span>
+                <span className="text-sm font-medium">{measurements.ridgeCount}</span>
+              </div>
+            )}
+            
+            {measurements.hipCount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-sm">Hip Count:</span>
+                <span className="text-sm font-medium">{measurements.hipCount}</span>
+              </div>
+            )}
+            
+            {measurements.valleyCount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-sm">Valley Count:</span>
+                <span className="text-sm font-medium">{measurements.valleyCount}</span>
+              </div>
+            )}
+            
+            {measurements.rakeCount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-sm">Rake Count:</span>
+                <span className="text-sm font-medium">{measurements.rakeCount}</span>
+              </div>
+            )}
+            
+            {measurements.eaveCount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-sm">Eave Count:</span>
+                <span className="text-sm font-medium">{measurements.eaveCount}</span>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Areas by pitch section - styled exactly like EagleView report */}
-        {pitchAreas.length > 0 && (
-          <div className="mt-6">
-            <div className="bg-gray-600 text-white p-2 font-medium">
-              Areas per Pitch
-            </div>
-            <div className="border border-gray-300">
-              <table className="min-w-full border-collapse">
-                <thead>
-                  <tr>
-                    <th className="p-2 text-left font-medium border-b border-r border-gray-300 w-1/4">Roof Pitches</th>
-                    {pitchAreas.map(({ pitch, displayPitch }) => (
-                      <th key={pitch} className="p-2 text-center font-medium border-b border-r border-gray-300 bg-white">
-                        {displayPitch}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="p-2 text-left font-medium border-b border-r border-gray-300">Area (sq ft)</td>
-                    {pitchAreas.map(({ pitch, area }) => (
-                      <td key={pitch} className="p-2 text-center border-b border-r border-gray-300 bg-blue-50">
-                        {Number(area).toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="p-2 text-left font-medium border-b border-r border-gray-300">% of Roof</td>
-                    {pitchAreas.map(({ pitch, area }) => (
-                      <td key={pitch} className="p-2 text-center border-b border-r border-gray-300 bg-blue-50">
-                        {totalArea > 0 ? `${(area / totalArea * 100).toFixed(1)}%` : '0.0%'}
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              The table above lists each pitch on this roof and the total area and percent (both rounded) of the roof with that pitch.
-            </p>
+      )}
+      
+      {/* Areas by Pitch */}
+      {measurements.areasByPitch && Object.keys(measurements.areasByPitch).length > 0 && (
+        <div>
+          <h3 className="text-lg font-medium mb-3">Areas by Pitch</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+            {Object.entries(measurements.areasByPitch).map(([pitch, area]) => (
+              <div key={pitch} className="flex justify-between">
+                <span className="text-sm">Pitch {pitch}:</span>
+                <span className="text-sm font-medium">{formatValue(area, "sq ft")}</span>
+              </div>
+            ))}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      )}
+      
+      {/* Property Location Information - only display if we have data */}
+      {(measurements.propertyAddress || measurements.longitude || measurements.latitude) && (
+        <div>
+          <h3 className="text-lg font-medium mb-3">Property Location</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
+            {measurements.propertyAddress && (
+              <div className="flex justify-between col-span-3 md:col-span-2">
+                <span className="text-sm">Address:</span>
+                <span className="text-sm font-medium ml-2">{measurements.propertyAddress}</span>
+              </div>
+            )}
+            {measurements.longitude && (
+              <div className="flex justify-between">
+                <span className="text-sm">Longitude:</span>
+                <span className="text-sm font-medium">{measurements.longitude}</span>
+              </div>
+            )}
+            {measurements.latitude && (
+              <div className="flex justify-between">
+                <span className="text-sm">Latitude:</span>
+                <span className="text-sm font-medium">{measurements.latitude}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 } 

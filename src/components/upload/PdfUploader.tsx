@@ -212,13 +212,20 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
             </CardDescription>
           </CardHeader>
           
-          <CardContent className="pt-4 pb-0 px-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-2">
+          <CardContent className="p-6">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-lg font-medium mb-2">Extracted Measurements</h2>
+                <p className="text-sm text-muted-foreground mb-4">
+                  We've successfully extracted the following measurements from your PDF.
+                </p>
+              </div>
+              
               <MeasurementDisplay measurements={parsedData} />
             </div>
           </CardContent>
           
-          <CardFooter className="flex justify-between pt-4 pb-4">
+          <CardFooter className="flex justify-between pt-4 pb-4 border-t bg-muted/20">
             <Button variant="secondary" onClick={() => window.location.reload()}>
               <RotateCcw className="h-4 w-4 mr-2" /> Upload Another
             </Button>
