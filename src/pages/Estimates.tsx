@@ -37,7 +37,11 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
     flashingLength: parsedData.flashingLength || 0, 
     penetrationsArea: parsedData.penetrationsArea || 0,
     roofPitch: parsedData.predominantPitch || "6:12",
-    areasByPitch: areasByPitch.length > 0 ? areasByPitch : [{ pitch: "6:12", area: 0, percentage: 100 }]
+    areasByPitch: areasByPitch.length > 0 ? areasByPitch : [{ pitch: "6:12", area: 0, percentage: 100 }],
+    // Include property location information
+    propertyAddress: parsedData.propertyAddress || undefined,
+    latitude: parsedData.latitude || undefined,
+    longitude: parsedData.longitude || undefined
   };
 };
 
