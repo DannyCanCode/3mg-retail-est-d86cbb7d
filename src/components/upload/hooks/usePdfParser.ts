@@ -867,7 +867,7 @@ export function usePdfParser() {
             console.log("ADDING MULTIPLE PITCHES for EagleView report");
             
             const totalArea = measurements.totalArea;
-            const mainPitch = Object.keys(measurements.areasByPitch)[0] || "4:12";
+            const mainPitch = Object.keys(measurements.areasByPitch)[0] || measurements.predominantPitch || "4:12";
             const mainArea = Object.values(measurements.areasByPitch)[0] || totalArea;
             
             // Create multiple pitches for a more realistic display - adjusting based on the main pitch
@@ -878,21 +878,21 @@ export function usePdfParser() {
               // Convert the main pitch to a number for comparison
               const mainPitchValue = parseInt(mainPitch.split(':')[0]);
               
-              // Main pitch gets 60-80% of the area
-              newPitches[mainPitch] = mainArea * 0.7; 
+              // Main pitch gets 70% of the area (round to 2 decimal places)
+              newPitches[mainPitch] = Math.round(mainArea * 0.7 * 100) / 100; 
               
               // Add a higher pitch (if possible)
               const higherPitch = `${Math.min(mainPitchValue + 2, 12)}:12`;
-              newPitches[higherPitch] = mainArea * 0.2;
+              newPitches[higherPitch] = Math.round(mainArea * 0.2 * 100) / 100;
               
               // Add a lower pitch (if possible)
               const lowerPitchValue = Math.max(mainPitchValue - 2, 0);
               if (lowerPitchValue > 0) {
                 const lowerPitch = `${lowerPitchValue}:12`;
-                newPitches[lowerPitch] = mainArea * 0.1;
+                newPitches[lowerPitch] = Math.round(mainArea * 0.1 * 100) / 100;
               } else {
                 // If we can't go lower, add a small flat section
-                newPitches["0:12"] = mainArea * 0.1;
+                newPitches["0:12"] = Math.round(mainArea * 0.1 * 100) / 100;
               }
               
               measurements.areasByPitch = newPitches;
@@ -982,6 +982,18 @@ export function usePdfParser() {
       
       // Clean up the URL
       URL.revokeObjectURL(fileURL);
+      
+      // Round all numeric values in measurements to 2 decimal places for cleaner display
+      for (const key in measurements) {
+        if (typeof measurements[key] === 'number') {
+          measurements[key] = Math.round(measurements[key] * 100) / 100;
+        }
+      }
+
+      // Round all values in areasByPitch to 2 decimal places
+      Object.entries(measurements.areasByPitch).forEach(([pitch, area]) => {
+        measurements.areasByPitch[pitch] = Math.round(area * 100) / 100;
+      });
       
       return measurements;
     } catch (error) {
