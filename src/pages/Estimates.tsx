@@ -13,6 +13,8 @@ import { MeasurementForm } from "@/components/estimates/MeasurementForm";
 import { MeasurementValues } from "@/components/estimates/measurement/types";
 import { ParsedMeasurements } from "@/api/measurements";
 import { cn } from "@/lib/utils";
+import { useNavigate, useParams } from "react-router-dom";
+import { AreaByPitch } from "../components/estimates/measurement/types";
 
 // Create the SidebarNav component
 interface SidebarNavItem {
@@ -177,106 +179,73 @@ export default function Estimates() {
 
   // Prepare data for the measurement form and switch to measurements tab
   const handleGoToMeasurements = () => {
-    if (!parsedPdfData) return;
-
-    console.log("Converting parsed PDF data to measurement values:", parsedPdfData);
-    console.log("Original areasByPitch data:", parsedPdfData.areasByPitch);
-    console.log("Original areasPerPitch data:", parsedPdfData.areasPerPitch);
-
-    // Create measurement values from parsed PDF data
-    const measurementValues: MeasurementValues = {
-      totalArea: parsedPdfData.totalArea || 0,
-      // Ensure areasByPitch is properly formatted for MeasurementForm
-      areasByPitch: (() => {
-        try {
-          // First check if we have areasPerPitch in the parsed data
-          if (parsedPdfData.areasPerPitch && Object.keys(parsedPdfData.areasPerPitch).length > 0) {
-            console.log("Using areasPerPitch data:", parsedPdfData.areasPerPitch);
-            return Object.entries(parsedPdfData.areasPerPitch).map(([pitch, area]) => ({
-              pitch,
-              area: Number(area) || 0,
-              percentage: 0 // Will calculate percentages below
-            }));
-          }
-          
-          // Handle the case where areasByPitch is an object (the most common format)
-          if (parsedPdfData.areasByPitch && typeof parsedPdfData.areasByPitch === 'object' && !Array.isArray(parsedPdfData.areasByPitch)) {
-            console.log("Using areasByPitch object data:", parsedPdfData.areasByPitch);
-            const entries = Object.entries(parsedPdfData.areasByPitch);
-            console.log("Entries from areasByPitch:", entries);
-            
-            if (entries.length === 0) {
-              // No pitch data found, create default
-              return [{
-                pitch: parsedPdfData.predominantPitch || "6:12",
-                area: parsedPdfData.totalArea || 0,
-                percentage: 100
-              }];
-            }
-            
-            return entries.map(([pitch, area]) => {
-              console.log(`Processing pitch ${pitch} with area ${area}`);
-              return {
-                pitch,
-                area: Number(area) || 0,
-                percentage: 0 // Will calculate percentages below
-              };
-            });
-          }
-          
-          // Next check if areasByPitch is already an array (rare format)
-          if (Array.isArray(parsedPdfData.areasByPitch)) {
-            console.log("Using areasByPitch array data:", parsedPdfData.areasByPitch);
-            return parsedPdfData.areasByPitch.map((area: any) => ({
-              pitch: area.pitch || area.pitchValue || "6:12",
-              area: Number(area.area) || 0,
-              percentage: Number(area.percentage) || 0
-            }));
-          }
-          
-          // If no areas by pitch data found, create a default entry
-          console.log("No areasByPitch data found, creating default");
-          return [{
-            pitch: parsedPdfData.predominantPitch || "6:12",
-            area: parsedPdfData.totalArea || 0,
-            percentage: 100
-          }];
-        } catch (error) {
-          console.error("Error processing areasByPitch data:", error);
-          // Fallback to default values on error
-          return [{
-            pitch: parsedPdfData.predominantPitch || "6:12",
-            area: parsedPdfData.totalArea || 0,
-            percentage: 100
-          }];
-        }
-      })(),
-      ridgeLength: parsedPdfData.ridgeLength || 0,
-      hipLength: parsedPdfData.hipLength || 0,
-      valleyLength: parsedPdfData.valleyLength || 0,
-      rakeLength: parsedPdfData.rakeLength || 0,
-      eaveLength: parsedPdfData.eaveLength || 0,
-      stepFlashingLength: parsedPdfData.stepFlashingLength || 0,
-      flashingLength: parsedPdfData.flashingLength || 0,
-      penetrationsArea: parsedPdfData.penetrationsArea || 0,
-      roofPitch: parsedPdfData.predominantPitch || "6:12"
-    };
-
-    // Calculate area percentages
-    const totalArea = measurementValues.totalArea || 
-      measurementValues.areasByPitch.reduce((sum, a) => sum + a.area, 0);
-      
-    if (totalArea > 0) {
-      measurementValues.areasByPitch = measurementValues.areasByPitch.map(area => ({
-        ...area,
-        percentage: Math.round((area.area / totalArea) * 100)
-      }));
+    console.log("Navigating to measurements", { parsedPdfData, hasPdfData });
+    
+    if (!parsedPdfData) {
+      toast({
+        title: "Error",
+        description: "Please upload a PDF first",
+        variant: "destructive",
+      });
+      return;
     }
 
-    console.log("Final measurement values:", measurementValues);
-    console.log("Final areasByPitch array:", measurementValues.areasByPitch);
+    // Log the parsed measurements to help with debugging
+    console.log("PDF Measurements:", parsedPdfData.measurements);
     
-    setMeasurements(measurementValues);
+    // Process the areasByPitch data from the PDF to ensure it's in the correct format
+    let formattedAreasByPitch: AreaByPitch[] = [];
+    
+    if (parsedPdfData.measurements?.areasByPitch) {
+      console.log("Raw areasByPitch data:", parsedPdfData.measurements.areasByPitch);
+      
+      // Transform the object format to array format required by the RoofAreaTab
+      formattedAreasByPitch = Object.entries(parsedPdfData.measurements.areasByPitch).map(([pitch, area]) => {
+        // Calculate percentage of total roof area
+        const totalArea = parsedPdfData.measurements.totalArea || 0;
+        const percentage = totalArea > 0 ? (Number(area) / totalArea) * 100 : 0;
+        
+        return {
+          pitch,
+          area: Number(area),
+          percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal place
+        };
+      });
+      
+      console.log("Formatted areasByPitch:", formattedAreasByPitch);
+    }
+
+    // Set state for measurement values
+    setMeasurements({
+      totalArea: parsedPdfData.measurements?.totalArea || 0,
+      ridgeLength: parsedPdfData.measurements?.ridgeLength || 0,
+      hipLength: parsedPdfData.measurements?.hipLength || 0,
+      valleyLength: parsedPdfData.measurements?.valleyLength || 0,
+      rakeLength: parsedPdfData.measurements?.rakeLength || 0,
+      eaveLength: parsedPdfData.measurements?.eaveLength || 0,
+      roofPitch: parsedPdfData.measurements?.predominantPitch || "",
+      areasByPitch: formattedAreasByPitch,
+      stepFlashingLength: 0,
+      flashingLength: 0,
+      penetrationsArea: 0,
+    });
+
+    // Save the measurementValues to localStorage for persistence
+    const updatedMeasurementValues = {
+      totalArea: parsedPdfData.measurements?.totalArea || 0,
+      ridgeLength: parsedPdfData.measurements?.ridgeLength || 0,
+      hipLength: parsedPdfData.measurements?.hipLength || 0,
+      valleyLength: parsedPdfData.measurements?.valleyLength || 0,
+      rakeLength: parsedPdfData.measurements?.rakeLength || 0,
+      eaveLength: parsedPdfData.measurements?.eaveLength || 0,
+      roofPitch: parsedPdfData.measurements?.predominantPitch || "",
+      areasByPitch: formattedAreasByPitch,
+      stepFlashingLength: 0,
+      flashingLength: 0,
+      penetrationsArea: 0,
+    };
+    localStorage.setItem("measurementValues", JSON.stringify(updatedMeasurementValues));
+
     setActiveTab("measurements");
   };
 

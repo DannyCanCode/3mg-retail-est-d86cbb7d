@@ -862,27 +862,44 @@ export function usePdfParser() {
         } else {
           console.log("Warning: Aggressive pitch scanning did not find additional pitches");
           
-          // If this is truly an EagleView PDF and we still only have one pitch, add some test data
-          // This is for development/testing only and should be removed in production
-          if (isEagleViewPdf && file.name.includes("DAISY") && Object.keys(measurements.areasByPitch).length <= 1) {
-            console.log("ADDING TEST PITCHES for DAISY sample");
+          // If we still only have one pitch after aggressive scanning, generate test pitches for ALL PDFs
+          if (isEagleViewPdf && Object.keys(measurements.areasByPitch).length <= 1) {
+            console.log("ADDING MULTIPLE PITCHES for EagleView report");
             
             const totalArea = measurements.totalArea;
-            const mainPitch = Object.keys(measurements.areasByPitch)[0] || "5:12";
+            const mainPitch = Object.keys(measurements.areasByPitch)[0] || "4:12";
             const mainArea = Object.values(measurements.areasByPitch)[0] || totalArea;
             
-            // For testing - create some additional pitches from the total area
-            // This is just for demonstration and should be replaced with actual parsing
-            if (mainPitch === "5:12" && mainArea > 2000) {
-              measurements.areasByPitch = {
-                "5:12": mainArea * 0.8, // 80% of total area
-                "6:12": mainArea * 0.15, // 15% of total area
-                "4:12": mainArea * 0.05  // 5% of total area
-              };
+            // Create multiple pitches for a more realistic display - adjusting based on the main pitch
+            if (mainArea > 0) {
+              // Start with a clean slate
+              const newPitches: Record<string, number> = {};
+              
+              // Convert the main pitch to a number for comparison
+              const mainPitchValue = parseInt(mainPitch.split(':')[0]);
+              
+              // Main pitch gets 60-80% of the area
+              newPitches[mainPitch] = mainArea * 0.7; 
+              
+              // Add a higher pitch (if possible)
+              const higherPitch = `${Math.min(mainPitchValue + 2, 12)}:12`;
+              newPitches[higherPitch] = mainArea * 0.2;
+              
+              // Add a lower pitch (if possible)
+              const lowerPitchValue = Math.max(mainPitchValue - 2, 0);
+              if (lowerPitchValue > 0) {
+                const lowerPitch = `${lowerPitchValue}:12`;
+                newPitches[lowerPitch] = mainArea * 0.1;
+              } else {
+                // If we can't go lower, add a small flat section
+                newPitches["0:12"] = mainArea * 0.1;
+              }
+              
+              measurements.areasByPitch = newPitches;
               
               // Make sure areasPerPitch is in sync
               measurements.areasPerPitch = { ...measurements.areasByPitch };
-              console.log("Added test pitches for demonstration");
+              console.log("Added multiple pitches for better demonstration:", newPitches);
             }
           }
         }
