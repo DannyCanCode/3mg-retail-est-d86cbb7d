@@ -30,6 +30,10 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
         : Object.keys(initialValues.areasByPitch || {}).length;
       
       alert(`MeasurementForm mounting with data!\nTotal Area: ${initialValues.totalArea}\nAreas by pitch: ${areasByPitchCount}`);
+      
+      // Force an update of measurements state with the initial values immediately
+      const formattedValues = applyInitialValues(initialValues);
+      setMeasurements(formattedValues);
     } else {
       console.log("No initial values on mount");
     }
@@ -90,14 +94,25 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   // Extract the logic to apply initial values to a separate function that returns formatted values
   const applyInitialValues = (values: MeasurementValues): MeasurementValues => {
     console.log("CRITICAL: Applying initial values:", values);
-    console.log("CRITICAL: Initial areasByPitch:", values.areasByPitch);
+    
+    // Debug the incoming areasByPitch data to see what format it's in
+    if (values.areasByPitch) {
+      if (Array.isArray(values.areasByPitch)) {
+        console.log("CRITICAL: Initial areasByPitch is an array:", values.areasByPitch);
+      } else {
+        console.log("CRITICAL: Initial areasByPitch is an object:", values.areasByPitch);
+        console.log("CRITICAL: Keys:", Object.keys(values.areasByPitch));
+        console.log("CRITICAL: Values:", Object.values(values.areasByPitch));
+      }
+    }
     
     // Ensure that areasByPitch is properly formatted
     let formattedValues = { ...values };
     
     // If areasByPitch is empty, create a default one
     if (!formattedValues.areasByPitch || 
-        (Array.isArray(formattedValues.areasByPitch) && formattedValues.areasByPitch.length === 0)) {
+        (Array.isArray(formattedValues.areasByPitch) && formattedValues.areasByPitch.length === 0) ||
+        (!Array.isArray(formattedValues.areasByPitch) && Object.keys(formattedValues.areasByPitch).length === 0)) {
       console.log("CRITICAL: Creating default areasByPitch");
       formattedValues.areasByPitch = [{ 
         pitch: formattedValues.roofPitch || "6:12", 
@@ -111,11 +126,16 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
     if (formattedValues.areasByPitch && !Array.isArray(formattedValues.areasByPitch)) {
       console.log("CRITICAL: Converting areasByPitch from object to array format");
       try {
-        const areasByPitchArray = Object.entries(formattedValues.areasByPitch).map(([pitch, area]) => ({
-          pitch,
-          area: Number(area) || 0,
-          percentage: 0 // Will calculate percentages later
-        }));
+        const areasByPitchArray = Object.entries(formattedValues.areasByPitch)
+          .map(([pitch, area]) => {
+            console.log(`Converting pitch ${pitch} with area ${area}`);
+            return {
+              pitch: pitch,
+              area: Number(area) || 0,
+              percentage: 0 // Will calculate percentages later
+            };
+          });
+        
         formattedValues.areasByPitch = areasByPitchArray;
         console.log("CRITICAL: Converted areasByPitch to array:", areasByPitchArray);
       } catch (error) {
