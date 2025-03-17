@@ -1164,6 +1164,40 @@ export function usePdfParser() {
         measurements.areasByPitch[pitch] = Math.round(area * 100) / 100;
       });
       
+      // Final check - make sure we have something in areasByPitch
+      const areasByPitchCount = Object.keys(measurements.areasByPitch).length;
+      console.log(`CRITICAL: Final areasByPitch has ${areasByPitchCount} entries:`, measurements.areasByPitch);
+      
+      // If we still have no pitch data, use the total area with predominant pitch
+      if (areasByPitchCount === 0 && measurements.totalArea > 0 && measurements.predominantPitch) {
+        console.log("CRITICAL: No pitch data found, using total area with predominant pitch");
+        measurements.areasByPitch[measurements.predominantPitch] = measurements.totalArea;
+      }
+
+      // CRITICAL: Make sure measurements are properly formatted before returning
+      // Make sure all values are numbers, not strings
+      measurements.totalArea = Number(measurements.totalArea);
+      measurements.ridgeLength = Number(measurements.ridgeLength || 0);
+      measurements.hipLength = Number(measurements.hipLength || 0);
+      measurements.valleyLength = Number(measurements.valleyLength || 0);
+      measurements.rakeLength = Number(measurements.rakeLength || 0);
+      measurements.eaveLength = Number(measurements.eaveLength || 0);
+      measurements.stepFlashingLength = Number(measurements.stepFlashingLength || 0);
+      measurements.flashingLength = Number(measurements.flashingLength || 0);
+      measurements.penetrationsArea = Number(measurements.penetrationsArea || 0);
+
+      // CRITICAL: Make sure predominant pitch is set if we have any pitch data
+      if (areasByPitchCount > 0 && !measurements.predominantPitch) {
+        // Use the pitch with the largest area as predominant
+        const [maxPitch] = Object.entries(measurements.areasByPitch)
+          .sort(([,a], [,b]) => Number(b) - Number(a))[0];
+        measurements.predominantPitch = maxPitch;
+        console.log(`CRITICAL: Setting predominant pitch from areas: ${maxPitch}`);
+      }
+
+      // Save original areasByPitch format
+      measurements.areasPerPitch = { ...measurements.areasByPitch };
+      
       return measurements;
     } catch (error) {
       console.error("Error parsing PDF client-side:", error);

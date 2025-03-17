@@ -21,6 +21,18 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   // Debug initial values when component mounts
   useEffect(() => {
     console.log("CRITICAL: MeasurementForm: MOUNT with initialValues:", initialValues);
+    
+    // Alert for debugging - this will tell us if initialValues are being passed
+    if (initialValues) {
+      console.log("Has initial values on mount:", initialValues);
+      const areasByPitchCount = Array.isArray(initialValues.areasByPitch) 
+        ? initialValues.areasByPitch.length 
+        : Object.keys(initialValues.areasByPitch || {}).length;
+      
+      alert(`MeasurementForm mounting with data!\nTotal Area: ${initialValues.totalArea}\nAreas by pitch: ${areasByPitchCount}`);
+    } else {
+      console.log("No initial values on mount");
+    }
   }, []);
   
   const defaultMeasurements: MeasurementValues = {
@@ -41,7 +53,27 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   const [measurements, setMeasurements] = useState<MeasurementValues>(() => {
     if (initialValues) {
       console.log("CRITICAL: MeasurementForm: Initializing directly with initialValues:", initialValues);
-      return applyInitialValues(initialValues);
+      
+      const formattedValues = applyInitialValues(initialValues);
+      
+      // Log the actual values we're using for initialization
+      console.log("CRITICAL: Using these values for initialization:", formattedValues);
+      
+      // Force values to string to ensure they're displayed
+      const stringifiedValues = {
+        ...formattedValues,
+        totalArea: Number(formattedValues.totalArea || 0),
+        ridgeLength: Number(formattedValues.ridgeLength || 0),
+        hipLength: Number(formattedValues.hipLength || 0),
+        valleyLength: Number(formattedValues.valleyLength || 0),
+        eaveLength: Number(formattedValues.eaveLength || 0),
+        rakeLength: Number(formattedValues.rakeLength || 0),
+        stepFlashingLength: Number(formattedValues.stepFlashingLength || 0),
+        flashingLength: Number(formattedValues.flashingLength || 0),
+        penetrationsArea: Number(formattedValues.penetrationsArea || 0)
+      };
+      
+      return stringifiedValues;
     }
     return defaultMeasurements;
   });

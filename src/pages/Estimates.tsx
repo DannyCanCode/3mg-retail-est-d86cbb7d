@@ -208,6 +208,10 @@ export default function Estimates() {
   // Store parsed PDF data and set state to indicate we have data
   const handlePdfParsed = (data: ParsedMeasurements, fileName: string) => {
     console.log("PDF successfully parsed:", data);
+    
+    // Alert to verify we're receiving the data
+    alert(`PDF Parsed! Found: ${Object.keys(data.measurements?.areasByPitch || {}).length} areas by pitch`);
+    
     setParsedPdfData(data);
     setHasPdfData(true);
     setPdfFileName(fileName);

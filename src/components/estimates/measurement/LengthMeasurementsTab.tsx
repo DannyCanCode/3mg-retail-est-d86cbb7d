@@ -62,7 +62,7 @@ export function LengthMeasurementsTab({
               id="ridgeLength"
               name="ridgeLength"
               type="number"
-              value={formatValueForInput(measurements.ridgeLength)}
+              value={String(measurements.ridgeLength || '')}
               onChange={handleInputChange}
               placeholder="Enter ridge length"
               data-testid="ridge-length-input"
@@ -78,7 +78,7 @@ export function LengthMeasurementsTab({
               id="hipLength"
               name="hipLength"
               type="number"
-              value={formatValueForInput(measurements.hipLength)}
+              value={String(measurements.hipLength || '')}
               onChange={handleInputChange}
               placeholder="Enter hip length"
               data-testid="hip-length-input"
@@ -94,7 +94,7 @@ export function LengthMeasurementsTab({
               id="valleyLength"
               name="valleyLength"
               type="number"
-              value={formatValueForInput(measurements.valleyLength)}
+              value={String(measurements.valleyLength || '')}
               onChange={handleInputChange}
               placeholder="Enter valley length"
               data-testid="valley-length-input"
@@ -110,7 +110,7 @@ export function LengthMeasurementsTab({
               id="eaveLength"
               name="eaveLength"
               type="number"
-              value={formatValueForInput(measurements.eaveLength)}
+              value={String(measurements.eaveLength || '')}
               onChange={handleInputChange}
               placeholder="Enter eave length"
               data-testid="eave-length-input"
@@ -126,7 +126,7 @@ export function LengthMeasurementsTab({
               id="rakeLength"
               name="rakeLength"
               type="number"
-              value={formatValueForInput(measurements.rakeLength)}
+              value={String(measurements.rakeLength || '')}
               onChange={handleInputChange}
               placeholder="Enter rake length"
               data-testid="rake-length-input"
@@ -142,7 +142,7 @@ export function LengthMeasurementsTab({
               id="stepFlashingLength"
               name="stepFlashingLength"
               type="number"
-              value={formatValueForInput(measurements.stepFlashingLength)}
+              value={String(measurements.stepFlashingLength || '')}
               onChange={handleInputChange}
               placeholder="Enter step flashing length"
               data-testid="step-flashing-length-input"
@@ -158,7 +158,7 @@ export function LengthMeasurementsTab({
               id="flashingLength"
               name="flashingLength"
               type="number"
-              value={formatValueForInput(measurements.flashingLength)}
+              value={String(measurements.flashingLength || '')}
               onChange={handleInputChange}
               placeholder="Enter wall flashing length"
               data-testid="wall-flashing-length-input"
