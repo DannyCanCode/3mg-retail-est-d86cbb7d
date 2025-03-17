@@ -3,7 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Form } from "@/components/ui/form";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { CalculatorIcon, ClipboardCheckIcon, ClipboardListIcon, HardHatIcon, DollarSignIcon, Upload } from "lucide-react";
@@ -213,11 +213,92 @@ export default function Estimates() {
     
     // Debug log to check areasByPitch data
     console.log("PDF areasByPitch data:", data.measurements?.areasByPitch);
+    
+    // Immediately process the data to be ready for the measurements form
+    processParsedPdfData(data);
+  };
+  
+  // Process the parsed PDF data into the format needed for the measurement form
+  const processParsedPdfData = (data: ParsedMeasurements) => {
+    if (!data || !data.measurements) {
+      console.warn("No valid measurement data found in the PDF");
+      return;
+    }
+    
+    // Process the areasByPitch data from the PDF to ensure it's in the correct format
+    let formattedAreasByPitch: AreaByPitch[] = [];
+    
+    if (data.measurements.areasByPitch && Object.keys(data.measurements.areasByPitch).length > 0) {
+      console.log("Raw areasByPitch data:", data.measurements.areasByPitch);
+      
+      // Transform the object format to array format required by the RoofAreaTab
+      formattedAreasByPitch = Object.entries(data.measurements.areasByPitch).map(([pitch, area]) => {
+        // Round the area to 2 decimal places to avoid excessive digits
+        const roundedArea = Math.round(Number(area) * 100) / 100;
+        
+        // Calculate percentage of total roof area
+        const totalArea = data.measurements.totalArea || 0;
+        const percentage = totalArea > 0 ? (roundedArea / totalArea) * 100 : 0;
+        
+        return {
+          pitch,
+          area: roundedArea,
+          percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal place
+        };
+      });
+      
+      console.log("Formatted areasByPitch with rounded values:", formattedAreasByPitch);
+    } else {
+      console.warn("No areasByPitch data found in the parsed PDF");
+      
+      // If we have a predominant pitch but no areas by pitch data, create a default entry
+      if (data.measurements.predominantPitch && data.measurements.totalArea) {
+        formattedAreasByPitch = [{
+          pitch: data.measurements.predominantPitch,
+          area: Math.round(data.measurements.totalArea * 100) / 100, // Round to 2 decimal places
+          percentage: 100
+        }];
+        console.log("Created default areasByPitch entry:", formattedAreasByPitch);
+      }
+    }
+
+    // Set state for measurement values - ensure all numeric values are properly rounded
+    setMeasurements({
+      totalArea: Math.round((data.measurements.totalArea || 0) * 100) / 100,
+      ridgeLength: Math.round((data.measurements.ridgeLength || 0) * 100) / 100,
+      hipLength: Math.round((data.measurements.hipLength || 0) * 100) / 100,
+      valleyLength: Math.round((data.measurements.valleyLength || 0) * 100) / 100,
+      rakeLength: Math.round((data.measurements.rakeLength || 0) * 100) / 100,
+      eaveLength: Math.round((data.measurements.eaveLength || 0) * 100) / 100,
+      roofPitch: data.measurements.predominantPitch || "",
+      areasByPitch: formattedAreasByPitch,
+      stepFlashingLength: Math.round((data.measurements.stepFlashingLength || 0) * 100) / 100,
+      flashingLength: Math.round((data.measurements.flashingLength || 0) * 100) / 100,
+      penetrationsArea: Math.round((data.measurements.penetrationsArea || 0) * 100) / 100,
+    });
+
+    // Save the measurementValues to localStorage for persistence
+    const updatedMeasurementValues = {
+      totalArea: Math.round((data.measurements.totalArea || 0) * 100) / 100,
+      ridgeLength: Math.round((data.measurements.ridgeLength || 0) * 100) / 100,
+      hipLength: Math.round((data.measurements.hipLength || 0) * 100) / 100,
+      valleyLength: Math.round((data.measurements.valleyLength || 0) * 100) / 100,
+      rakeLength: Math.round((data.measurements.rakeLength || 0) * 100) / 100,
+      eaveLength: Math.round((data.measurements.eaveLength || 0) * 100) / 100,
+      roofPitch: data.measurements.predominantPitch || "",
+      areasByPitch: formattedAreasByPitch,
+      stepFlashingLength: Math.round((data.measurements.stepFlashingLength || 0) * 100) / 100,
+      flashingLength: Math.round((data.measurements.flashingLength || 0) * 100) / 100,
+      penetrationsArea: Math.round((data.measurements.penetrationsArea || 0) * 100) / 100,
+    };
+    localStorage.setItem("measurementValues", JSON.stringify(updatedMeasurementValues));
+    
+    console.log("Measurements processed and ready:", updatedMeasurementValues);
   };
 
   // Prepare data for the measurement form and switch to measurements tab
   const handleGoToMeasurements = () => {
-    console.log("Navigating to measurements", { parsedPdfData, hasPdfData });
+    console.log("Navigating to measurements", { parsedPdfData, hasPdfData, measurements });
     
     if (!parsedPdfData) {
       toast({
@@ -228,74 +309,12 @@ export default function Estimates() {
       return;
     }
 
-    // Log the parsed measurements to help with debugging
-    console.log("PDF Measurements:", parsedPdfData.measurements);
-    
-    // Process the areasByPitch data from the PDF to ensure it's in the correct format
-    let formattedAreasByPitch: AreaByPitch[] = [];
-    
-    if (parsedPdfData.measurements?.areasByPitch && Object.keys(parsedPdfData.measurements.areasByPitch).length > 0) {
-      console.log("Raw areasByPitch data:", parsedPdfData.measurements.areasByPitch);
-      
-      // Transform the object format to array format required by the RoofAreaTab
-      formattedAreasByPitch = Object.entries(parsedPdfData.measurements.areasByPitch).map(([pitch, area]) => {
-        // Calculate percentage of total roof area
-        const totalArea = parsedPdfData.measurements.totalArea || 0;
-        const percentage = totalArea > 0 ? (Number(area) / totalArea) * 100 : 0;
-        
-        return {
-          pitch,
-          area: Number(area),
-          percentage: Math.round(percentage * 10) / 10, // Round to 1 decimal place
-        };
-      });
-      
-      console.log("Formatted areasByPitch:", formattedAreasByPitch);
-    } else {
-      console.warn("No areasByPitch data found in the parsed PDF");
-      
-      // If we have a predominant pitch but no areas by pitch data, create a default entry
-      if (parsedPdfData.measurements?.predominantPitch && parsedPdfData.measurements?.totalArea) {
-        formattedAreasByPitch = [{
-          pitch: parsedPdfData.measurements.predominantPitch,
-          area: parsedPdfData.measurements.totalArea,
-          percentage: 100
-        }];
-        console.log("Created default areasByPitch entry:", formattedAreasByPitch);
-      }
+    // If we don't have measurements yet, process the PDF data now
+    if (!measurements && parsedPdfData) {
+      processParsedPdfData(parsedPdfData);
     }
-
-    // Set state for measurement values
-    setMeasurements({
-      totalArea: parsedPdfData.measurements?.totalArea || 0,
-      ridgeLength: parsedPdfData.measurements?.ridgeLength || 0,
-      hipLength: parsedPdfData.measurements?.hipLength || 0,
-      valleyLength: parsedPdfData.measurements?.valleyLength || 0,
-      rakeLength: parsedPdfData.measurements?.rakeLength || 0,
-      eaveLength: parsedPdfData.measurements?.eaveLength || 0,
-      roofPitch: parsedPdfData.measurements?.predominantPitch || "",
-      areasByPitch: formattedAreasByPitch,
-      stepFlashingLength: parsedPdfData.measurements?.stepFlashingLength || 0,
-      flashingLength: parsedPdfData.measurements?.flashingLength || 0,
-      penetrationsArea: parsedPdfData.measurements?.penetrationsArea || 0,
-    });
-
-    // Save the measurementValues to localStorage for persistence
-    const updatedMeasurementValues = {
-      totalArea: parsedPdfData.measurements?.totalArea || 0,
-      ridgeLength: parsedPdfData.measurements?.ridgeLength || 0,
-      hipLength: parsedPdfData.measurements?.hipLength || 0,
-      valleyLength: parsedPdfData.measurements?.valleyLength || 0,
-      rakeLength: parsedPdfData.measurements?.rakeLength || 0,
-      eaveLength: parsedPdfData.measurements?.eaveLength || 0,
-      roofPitch: parsedPdfData.measurements?.predominantPitch || "",
-      areasByPitch: formattedAreasByPitch,
-      stepFlashingLength: parsedPdfData.measurements?.stepFlashingLength || 0,
-      flashingLength: parsedPdfData.measurements?.flashingLength || 0,
-      penetrationsArea: parsedPdfData.measurements?.penetrationsArea || 0,
-    };
-    localStorage.setItem("measurementValues", JSON.stringify(updatedMeasurementValues));
-
+    
+    // Navigate to measurements tab
     setActiveTab("measurements");
   };
 
