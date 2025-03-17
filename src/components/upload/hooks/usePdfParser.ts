@@ -665,12 +665,12 @@ export function usePdfParser() {
       const filteredAreasByPitch: Record<string, number> = {};
       for (const [pitch, area] of Object.entries(measurements.areasByPitch)) {
         // Only keep pitches that match the pattern x:y where x and y are reasonable numbers
-        // Roof pitches typically have denominator 12 and numerator between 1-12
+        // Roof pitches typically have denominator 12 and numerator between 0-12
         if (/^\d{1,2}:\d{1,2}$/.test(pitch)) {
           const [numerator, denominator] = pitch.split(':').map(Number);
           
-          // Typical roof pitches have denominator 12 and numerator between 1-12
-          if (denominator === 12 && numerator >= 1 && numerator <= 12) {
+          // Typical roof pitches have denominator 12 and numerator between 0-12 (including flat roofs)
+          if (denominator === 12 && numerator >= 0 && numerator <= 12) {
             filteredAreasByPitch[pitch] = area;
           }
         }

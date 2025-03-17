@@ -7,10 +7,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { CalculatorIcon, ClipboardCheckIcon, ClipboardListIcon, Upload } from "lucide-react";
-import MainLayout from "@/layouts/MainLayout";
+import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { MeasurementForm } from "@/components/estimates/MeasurementForm";
-import { MeasurementValues } from "@/types/estimates";
+import { MeasurementValues } from "@/components/estimates/measurement/types";
 import { ParsedMeasurements } from "@/api/measurements";
 import { cn } from "@/lib/utils";
 
@@ -185,28 +185,51 @@ export default function Estimates() {
     const measurementValues: MeasurementValues = {
       totalArea: parsedPdfData.totalArea || 0,
       // Ensure areasByPitch is properly formatted for MeasurementForm
-      areasByPitch: Array.isArray(parsedPdfData.areasByPitch) 
-        ? parsedPdfData.areasByPitch.map((area: any) => ({
-            pitch: area.pitch || "6:12",
+      areasByPitch: (() => {
+        // First check if we have areasPerPitch in the parsed data (this is the new format)
+        if (parsedPdfData.areasPerPitch && Object.keys(parsedPdfData.areasPerPitch).length > 0) {
+          console.log("Using areasPerPitch data:", parsedPdfData.areasPerPitch);
+          return Object.entries(parsedPdfData.areasPerPitch).map(([pitch, data]: [string, any]) => ({
+            pitch,
+            area: typeof data === 'object' ? (data.area || 0) : Number(data) || 0,
+            percentage: typeof data === 'object' ? (data.percentage || 0) : 0
+          }));
+        }
+        
+        // Next check if areasByPitch is an array (this is an intermediate format)
+        if (Array.isArray(parsedPdfData.areasByPitch)) {
+          console.log("Using areasByPitch array data:", parsedPdfData.areasByPitch);
+          return parsedPdfData.areasByPitch.map((area: any) => ({
+            pitch: area.pitch || area.pitchValue || "6:12",
             area: area.area || 0,
             percentage: area.percentage || 0
-          }))
-        : Object.entries(parsedPdfData.areasByPitch || {}).map(([pitch, area]) => {
-            // Calculate the total area for percentage calculations
-            const totalArea = parsedPdfData.totalArea || 
-              Object.values(parsedPdfData.areasByPitch || {}).reduce((sum, a) => sum + Number(a), 0);
+          }));
+        }
+        
+        // Finally, handle the case where areasByPitch is an object (the most common format)
+        if (parsedPdfData.areasByPitch && typeof parsedPdfData.areasByPitch === 'object') {
+          console.log("Using areasByPitch object data:", parsedPdfData.areasByPitch);
+          const totalArea = parsedPdfData.totalArea || 
+            Object.values(parsedPdfData.areasByPitch).reduce((sum, a) => sum + Number(a), 0);
             
-            // Calculate percentage if total area is available
-            const percentage = totalArea > 0 
-              ? Math.round((Number(area) / totalArea) * 100) 
-              : 0;
-            
+          return Object.entries(parsedPdfData.areasByPitch).map(([pitch, area]) => {
+            const areaValue = Number(area);
+            const percentage = totalArea > 0 ? Math.round((areaValue / totalArea) * 100) : 0;
             return {
               pitch,
-              area: Number(area),
+              area: areaValue,
               percentage
             };
-          }),
+          });
+        }
+        
+        // If no areas by pitch data found, create a default entry
+        return [{
+          pitch: parsedPdfData.predominantPitch || "6:12",
+          area: parsedPdfData.totalArea || 0,
+          percentage: 100
+        }];
+      })(),
       ridgeLength: parsedPdfData.ridgeLength || 0,
       hipLength: parsedPdfData.hipLength || 0,
       valleyLength: parsedPdfData.valleyLength || 0,
@@ -225,13 +248,38 @@ export default function Estimates() {
 
   // Handle tab changes separately from active tab state to preserve state when navigating
   const handleTabChange = (value: string) => {
-    // If going back to upload and we have measurements, preserve the state
-    if (value === "upload" && measurements) {
-      // Just change the tab without resetting state
+    console.log(`Tab change requested: ${activeTab} -> ${value}`);
+    
+    // Special case for navigating to measurements tab
+    if (value === "measurements") {
+      // If we have parsed PDF data but no measurements yet, convert the data
+      if (parsedPdfData && !measurements) {
+        handleGoToMeasurements();
+        return;
+      }
+      
+      // If measurements tab is disabled, don't navigate
+      if (!hasPdfData) {
+        console.log("Measurements tab is disabled, not navigating");
+        toast({
+          title: "Upload an EagleView PDF first",
+          description: "Please upload an EagleView PDF to access the measurements tab.",
+          variant: "default",
+        });
+        return;
+      }
+    }
+    
+    // Allow jumping between tabs as long as we have PDF data
+    if (hasPdfData || value === "upload") {
       setActiveTab(value);
     } else {
-      // For other tabs, set active tab normally
-      setActiveTab(value);
+      // If trying to navigate elsewhere without PDF data, warn the user
+      toast({
+        title: "Upload an EagleView PDF first",
+        description: "Please upload an EagleView PDF before proceeding.",
+        variant: "default",
+      });
     }
   };
 

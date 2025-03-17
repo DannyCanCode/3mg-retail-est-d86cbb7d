@@ -51,14 +51,65 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
         }];
       }
       
+      // Check if areasByPitch is an array of objects with pitch, area, percentage
+      // If not, convert it to the correct format
+      if (formattedValues.areasByPitch && !Array.isArray(formattedValues.areasByPitch)) {
+        console.log("Converting areasByPitch from object to array format");
+        const areasByPitchArray = Object.entries(formattedValues.areasByPitch).map(([pitch, area]) => ({
+          pitch,
+          area: Number(area) || 0,
+          percentage: 0 // Will calculate percentages later
+        }));
+        formattedValues.areasByPitch = areasByPitchArray;
+      }
+      
+      // Calculate percentages if they're not already set
+      const totalArea = formattedValues.totalArea || 
+        formattedValues.areasByPitch.reduce((sum, p) => sum + Number(p.area), 0);
+      
+      if (totalArea > 0) {
+        formattedValues.areasByPitch = formattedValues.areasByPitch.map(p => ({
+          ...p,
+          percentage: p.percentage || Math.round((Number(p.area) / totalArea) * 100)
+        }));
+      }
+      
+      // Ensure the values are the correct types
+      formattedValues = {
+        ...formattedValues,
+        totalArea: Number(formattedValues.totalArea || 0),
+        ridgeLength: Number(formattedValues.ridgeLength || 0),
+        hipLength: Number(formattedValues.hipLength || 0),
+        valleyLength: Number(formattedValues.valleyLength || 0),
+        eaveLength: Number(formattedValues.eaveLength || 0),
+        rakeLength: Number(formattedValues.rakeLength || 0),
+        stepFlashingLength: Number(formattedValues.stepFlashingLength || 0),
+        flashingLength: Number(formattedValues.flashingLength || 0),
+        penetrationsArea: Number(formattedValues.penetrationsArea || 0),
+        areasByPitch: formattedValues.areasByPitch.map(area => ({
+          pitch: String(area.pitch || "6:12"),
+          area: Number(area.area || 0),
+          percentage: Number(area.percentage || 0)
+        }))
+      };
+      
+      console.log("MeasurementForm: Formatted values:", formattedValues);
+      
       // Update the measurements state with the formatted values
       setMeasurements(formattedValues);
     }
   }, [initialValues]);
+  
+  // Debug output to track state changes
+  useEffect(() => {
+    console.log("MeasurementForm: Current measurements state:", measurements);
+  }, [measurements]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = name !== "roofPitch" ? parseFloat(value) || 0 : value;
+    
+    console.log(`Input change: ${name} = ${value}`);
     
     setMeasurements((prev) => ({
       ...prev,

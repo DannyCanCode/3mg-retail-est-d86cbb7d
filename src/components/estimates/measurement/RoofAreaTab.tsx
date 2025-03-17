@@ -28,9 +28,10 @@ export function RoofAreaTab({
   removePitchArea,
   goToNextTab,
 }: RoofAreaTabProps) {
-  // Debug log when measurements change
+  // Add debug logging to track measurements
   useEffect(() => {
     console.log("RoofAreaTab rendering with measurements:", measurements);
+    console.log("AreasByPitch data:", measurements.areasByPitch);
   }, [measurements]);
 
   // Calculate if any of the pitches are flat (requires special materials)
