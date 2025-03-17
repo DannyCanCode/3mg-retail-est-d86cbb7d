@@ -21,14 +21,25 @@ export function LengthMeasurementsTab({
 }: LengthMeasurementsTabProps) {
   // Debug log when measurements change
   useEffect(() => {
-    console.log("LengthMeasurementsTab: Rendering with measurements:", measurements);
-    console.log("LengthMeasurementsTab: Ridge length:", measurements.ridgeLength);
-    console.log("LengthMeasurementsTab: Hip length:", measurements.hipLength);
-    console.log("LengthMeasurementsTab: Valley length:", measurements.valleyLength);
-    console.log("LengthMeasurementsTab: Eave length:", measurements.eaveLength);
-    console.log("LengthMeasurementsTab: Rake length:", measurements.rakeLength);
-    console.log("LengthMeasurementsTab: Step flashing length:", measurements.stepFlashingLength);
-    console.log("LengthMeasurementsTab: Wall flashing length:", measurements.flashingLength);
+    console.log("CRITICAL: LengthMeasurementsTab - Measurements received:", measurements);
+    console.log("CRITICAL: LengthMeasurementsTab - Length values:", {
+      ridgeLength: measurements.ridgeLength,
+      hipLength: measurements.hipLength,
+      valleyLength: measurements.valleyLength,
+      rakeLength: measurements.rakeLength,
+      eaveLength: measurements.eaveLength,
+      stepFlashingLength: measurements.stepFlashingLength,
+      flashingLength: measurements.flashingLength,
+    });
+    console.log("CRITICAL: LengthMeasurementsTab - Value types:", {
+      ridgeLength: typeof measurements.ridgeLength,
+      hipLength: typeof measurements.hipLength,
+      valleyLength: typeof measurements.valleyLength,
+      rakeLength: typeof measurements.rakeLength,
+      eaveLength: typeof measurements.eaveLength,
+      stepFlashingLength: typeof measurements.stepFlashingLength,
+      flashingLength: typeof measurements.flashingLength,
+    });
   }, [measurements]);
 
   // Helper function to format value display

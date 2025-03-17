@@ -20,7 +20,7 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   
   // Debug initial values when component mounts
   useEffect(() => {
-    console.log("MeasurementForm: MOUNT with initialValues:", initialValues);
+    console.log("CRITICAL: MeasurementForm: MOUNT with initialValues:", initialValues);
   }, []);
   
   const defaultMeasurements: MeasurementValues = {
@@ -39,101 +39,128 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   
   const [measurements, setMeasurements] = useState<MeasurementValues>(defaultMeasurements);
   
-  // Use initialValues if provided
+  // CRITICAL: Use initialValues immediately when the component first renders
   useEffect(() => {
     if (initialValues) {
-      console.log("MeasurementForm: RECEIVED NEW initialValues:", initialValues);
-      console.log("MeasurementForm: Initial areasByPitch:", initialValues.areasByPitch);
-      
-      // Ensure that areasByPitch is properly formatted
-      let formattedValues = { ...initialValues };
-      
-      // If areasByPitch is empty, create a default one
-      if (!formattedValues.areasByPitch || 
-          (Array.isArray(formattedValues.areasByPitch) && formattedValues.areasByPitch.length === 0)) {
-        console.log("MeasurementForm: Creating default areasByPitch");
+      applyInitialValues(initialValues);
+    }
+  }, []); // Empty dependency array ensures this only runs once on mount
+  
+  // Use initialValues when they change
+  useEffect(() => {
+    if (initialValues) {
+      console.log("CRITICAL: MeasurementForm: RECEIVED NEW initialValues:", initialValues);
+      applyInitialValues(initialValues);
+    }
+  }, [initialValues]);
+  
+  // Extract the logic to apply initial values to a separate function
+  const applyInitialValues = (values: MeasurementValues) => {
+    console.log("CRITICAL: Applying initial values:", values);
+    console.log("CRITICAL: Initial areasByPitch:", values.areasByPitch);
+    
+    // Ensure that areasByPitch is properly formatted
+    let formattedValues = { ...values };
+    
+    // If areasByPitch is empty, create a default one
+    if (!formattedValues.areasByPitch || 
+        (Array.isArray(formattedValues.areasByPitch) && formattedValues.areasByPitch.length === 0)) {
+      console.log("CRITICAL: Creating default areasByPitch");
+      formattedValues.areasByPitch = [{ 
+        pitch: formattedValues.roofPitch || "6:12", 
+        area: formattedValues.totalArea || 0, 
+        percentage: 100 
+      }];
+    }
+    
+    // Check if areasByPitch is an array of objects with pitch, area, percentage
+    // If not, convert it to the correct format
+    if (formattedValues.areasByPitch && !Array.isArray(formattedValues.areasByPitch)) {
+      console.log("CRITICAL: Converting areasByPitch from object to array format");
+      try {
+        const areasByPitchArray = Object.entries(formattedValues.areasByPitch).map(([pitch, area]) => ({
+          pitch,
+          area: Number(area) || 0,
+          percentage: 0 // Will calculate percentages later
+        }));
+        formattedValues.areasByPitch = areasByPitchArray;
+        console.log("CRITICAL: Converted areasByPitch to array:", areasByPitchArray);
+      } catch (error) {
+        console.error("CRITICAL: Error converting areasByPitch:", error);
+        // Fallback to default
         formattedValues.areasByPitch = [{ 
           pitch: formattedValues.roofPitch || "6:12", 
           area: formattedValues.totalArea || 0, 
           percentage: 100 
         }];
       }
-      
-      // Check if areasByPitch is an array of objects with pitch, area, percentage
-      // If not, convert it to the correct format
-      if (formattedValues.areasByPitch && !Array.isArray(formattedValues.areasByPitch)) {
-        console.log("MeasurementForm: Converting areasByPitch from object to array format");
-        try {
-          const areasByPitchArray = Object.entries(formattedValues.areasByPitch).map(([pitch, area]) => ({
-            pitch,
-            area: Number(area) || 0,
-            percentage: 0 // Will calculate percentages later
-          }));
-          formattedValues.areasByPitch = areasByPitchArray;
-          console.log("MeasurementForm: Converted areasByPitch to array:", areasByPitchArray);
-        } catch (error) {
-          console.error("MeasurementForm: Error converting areasByPitch:", error);
-          // Fallback to default
-          formattedValues.areasByPitch = [{ 
-            pitch: formattedValues.roofPitch || "6:12", 
-            area: formattedValues.totalArea || 0, 
-            percentage: 100 
-          }];
-        }
-      }
-      
-      // Calculate percentages if they're not already set
-      const totalArea = formattedValues.totalArea || 
-        (Array.isArray(formattedValues.areasByPitch) ? 
-          formattedValues.areasByPitch.reduce((sum, p) => sum + Number(p.area), 0) : 0);
-      
-      console.log("MeasurementForm: Total area for percentage calculation:", totalArea);
-      
-      if (totalArea > 0 && Array.isArray(formattedValues.areasByPitch)) {
-        formattedValues.areasByPitch = formattedValues.areasByPitch.map(p => {
-          const area = Number(p.area) || 0;
-          const percentage = p.percentage || Math.round((area / totalArea) * 100);
-          return { ...p, area, percentage };
-        });
-        console.log("MeasurementForm: Updated percentages:", formattedValues.areasByPitch);
-      }
-      
-      // Ensure the values are the correct types (defensive programming)
-      formattedValues = {
-        ...formattedValues,
-        totalArea: Number(formattedValues.totalArea || 0),
-        ridgeLength: Number(formattedValues.ridgeLength || 0),
-        hipLength: Number(formattedValues.hipLength || 0),
-        valleyLength: Number(formattedValues.valleyLength || 0),
-        eaveLength: Number(formattedValues.eaveLength || 0),
-        rakeLength: Number(formattedValues.rakeLength || 0),
-        stepFlashingLength: Number(formattedValues.stepFlashingLength || 0),
-        flashingLength: Number(formattedValues.flashingLength || 0),
-        penetrationsArea: Number(formattedValues.penetrationsArea || 0),
-        areasByPitch: Array.isArray(formattedValues.areasByPitch) ? 
-          formattedValues.areasByPitch.map(area => ({
-            pitch: String(area.pitch || "6:12"),
-            area: Number(area.area || 0),
-            percentage: Number(area.percentage || 0)
-          })) : 
-          [{ pitch: "6:12", area: formattedValues.totalArea || 0, percentage: 100 }]
-      };
-      
-      console.log("MeasurementForm: Final formatted values:", formattedValues);
-      console.log("MeasurementForm: Final areasByPitch:", formattedValues.areasByPitch);
-      
-      // Update the measurements state with the formatted values
-      setMeasurements(formattedValues);
     }
-  }, [initialValues]);
+    
+    // Calculate percentages if they're not already set
+    const totalArea = formattedValues.totalArea || 
+      (Array.isArray(formattedValues.areasByPitch) ? 
+        formattedValues.areasByPitch.reduce((sum, p) => sum + Number(p.area), 0) : 0);
+    
+    console.log("CRITICAL: Total area for percentage calculation:", totalArea);
+    
+    if (totalArea > 0 && Array.isArray(formattedValues.areasByPitch)) {
+      formattedValues.areasByPitch = formattedValues.areasByPitch.map(p => {
+        const area = Number(p.area) || 0;
+        const percentage = p.percentage || Math.round((area / totalArea) * 100);
+        return { ...p, area, percentage };
+      });
+      console.log("CRITICAL: Updated percentages:", formattedValues.areasByPitch);
+    }
+    
+    // Ensure the values are the correct types (defensive programming)
+    formattedValues = {
+      ...formattedValues,
+      totalArea: Number(formattedValues.totalArea || 0),
+      ridgeLength: Number(formattedValues.ridgeLength || 0),
+      hipLength: Number(formattedValues.hipLength || 0),
+      valleyLength: Number(formattedValues.valleyLength || 0),
+      eaveLength: Number(formattedValues.eaveLength || 0),
+      rakeLength: Number(formattedValues.rakeLength || 0),
+      stepFlashingLength: Number(formattedValues.stepFlashingLength || 0),
+      flashingLength: Number(formattedValues.flashingLength || 0),
+      penetrationsArea: Number(formattedValues.penetrationsArea || 0),
+      areasByPitch: Array.isArray(formattedValues.areasByPitch) ? 
+        formattedValues.areasByPitch.map(area => ({
+          pitch: String(area.pitch || "6:12"),
+          area: Number(area.area || 0),
+          percentage: Number(area.percentage || 0)
+        })) : 
+        [{ pitch: "6:12", area: formattedValues.totalArea || 0, percentage: 100 }]
+    };
+    
+    console.log("CRITICAL: Final formatted values:", formattedValues);
+    console.log("CRITICAL: Final areasByPitch:", formattedValues.areasByPitch);
+    
+    // Update the measurements state with the formatted values
+    setMeasurements(formattedValues);
+    
+    // CRITICAL: Log the state update
+    console.log("CRITICAL: Setting measurements state:", formattedValues);
+    
+    // Verify that values are correct
+    console.log("CRITICAL: Verifying lengths:", {
+      ridgeLength: formattedValues.ridgeLength,
+      hipLength: formattedValues.hipLength,
+      valleyLength: formattedValues.valleyLength,
+      rakeLength: formattedValues.rakeLength,
+      eaveLength: formattedValues.eaveLength,
+      stepFlashingLength: formattedValues.stepFlashingLength,
+      flashingLength: formattedValues.flashingLength
+    });
+  };
   
   // Debug output to track state changes
   useEffect(() => {
-    console.log("MeasurementForm: Current measurements state:", measurements);
-    console.log("MeasurementForm: Current areasByPitch:", measurements.areasByPitch);
+    console.log("CRITICAL: MeasurementForm: Current measurements state:", measurements);
+    console.log("CRITICAL: MeasurementForm: Current areasByPitch:", measurements.areasByPitch);
     
     // Debug numeric field values specifically to ensure they're numbers not strings
-    console.log("MeasurementForm: Numeric field values type check:", {
+    console.log("CRITICAL: MeasurementForm: Numeric field values type check:", {
       totalArea: typeof measurements.totalArea,
       ridgeLength: typeof measurements.ridgeLength,
       hipLength: typeof measurements.hipLength,

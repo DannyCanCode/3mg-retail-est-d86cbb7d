@@ -227,13 +227,13 @@ export default function Estimates() {
       return;
     }
     
-    console.log("DEBUG: Processing parsed PDF data for measurements form:", data);
+    console.log("CRITICAL: Processing parsed PDF data for measurements form:", data);
     
     // Process the areasByPitch data from the PDF to ensure it's in the correct format
     let formattedAreasByPitch: AreaByPitch[] = [];
     
     if (data.measurements.areasByPitch && Object.keys(data.measurements.areasByPitch).length > 0) {
-      console.log("Raw areasByPitch data:", data.measurements.areasByPitch);
+      console.log("CRITICAL: Raw areasByPitch data:", data.measurements.areasByPitch);
       
       // Transform the object format to array format required by the RoofAreaTab
       formattedAreasByPitch = Object.entries(data.measurements.areasByPitch).map(([pitch, area]) => {
@@ -251,9 +251,9 @@ export default function Estimates() {
         };
       });
       
-      console.log("Formatted areasByPitch with rounded values:", formattedAreasByPitch);
+      console.log("CRITICAL: Formatted areasByPitch with rounded values:", formattedAreasByPitch);
     } else {
-      console.warn("No areasByPitch data found in the parsed PDF");
+      console.warn("CRITICAL: No areasByPitch data found in the parsed PDF");
       
       // If we have a predominant pitch but no areas by pitch data, create a default entry
       if (data.measurements.predominantPitch && data.measurements.totalArea) {
@@ -262,7 +262,7 @@ export default function Estimates() {
           area: Math.round(data.measurements.totalArea * 100) / 100, // Round to 2 decimal places
           percentage: 100
         }];
-        console.log("Created default areasByPitch entry:", formattedAreasByPitch);
+        console.log("CRITICAL: Created default areasByPitch entry:", formattedAreasByPitch);
       }
     }
 
@@ -281,24 +281,48 @@ export default function Estimates() {
       penetrationsArea: Math.round((data.measurements.penetrationsArea || 0) * 100) / 100,
     };
     
+    // CRITICAL: Log all the values to verify they're correct
+    console.log("CRITICAL: Final measurement values to be set in state:", {
+      totalArea: measurementValues.totalArea,
+      ridgeLength: measurementValues.ridgeLength,
+      hipLength: measurementValues.hipLength,
+      valleyLength: measurementValues.valleyLength,
+      rakeLength: measurementValues.rakeLength,
+      eaveLength: measurementValues.eaveLength,
+      roofPitch: measurementValues.roofPitch,
+      areasByPitch: measurementValues.areasByPitch,
+      stepFlashingLength: measurementValues.stepFlashingLength,
+      flashingLength: measurementValues.flashingLength,
+      penetrationsArea: measurementValues.penetrationsArea,
+    });
+    
+    // Set measurements in state
     setMeasurements(measurementValues);
+    
+    // Set flag to indicate measurements are processed
     setMeasurementsProcessed(true);
 
-    // Debug to verify state updates
-    console.log("DEBUG: Measurements processed - state should update:", measurementValues);
+    // DEBUG: Verify state updates
+    console.log("CRITICAL: Measurements processed - state should update:", measurementValues);
 
     // Save the measurementValues to localStorage for persistence
     localStorage.setItem("measurementValues", JSON.stringify(measurementValues));
     
-    console.log("Measurements processed and ready:", measurementValues);
+    console.log("CRITICAL: Measurements processed and ready for auto-navigation");
+    
+    // CRITICAL: Force navigation to measurements tab immediately
+    setTimeout(() => {
+      console.log("CRITICAL: Force navigating to measurements tab");
+      setActiveTab("measurements");
+    }, 500);
   };
 
   // Effect to auto-navigate to measurements tab when data is ready
   useEffect(() => {
     if (measurementsProcessed && hasPdfData && parsedPdfData) {
       // After measurements are processed, automatically navigate to measurements tab
-      console.log("Auto-navigating to measurements tab with processed data");
-      console.log("DEBUG: Measurements state before navigation:", measurements);
+      console.log("CRITICAL: Auto-navigating to measurements tab with processed data");
+      console.log("CRITICAL: Measurements state before navigation:", measurements);
       setActiveTab("measurements");
     }
   }, [measurementsProcessed, hasPdfData, parsedPdfData]);

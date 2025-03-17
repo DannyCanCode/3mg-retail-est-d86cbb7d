@@ -30,11 +30,25 @@ export function RoofAreaTab({
 }: RoofAreaTabProps) {
   // Add debug logging to track measurements
   useEffect(() => {
-    console.log("RoofAreaTab: Rendering with measurements:", measurements);
-    console.log("RoofAreaTab: Areas by pitch data:", measurements.areasByPitch);
-    console.log("RoofAreaTab: Total area:", measurements.totalArea);
-    console.log("RoofAreaTab: Roof pitch:", measurements.roofPitch);
-    console.log("RoofAreaTab: Penetrations area:", measurements.penetrationsArea);
+    console.log("CRITICAL: RoofAreaTab: Rendering with measurements:", measurements);
+    console.log("CRITICAL: RoofAreaTab: Areas by pitch data:", measurements.areasByPitch);
+    console.log("CRITICAL: RoofAreaTab: Areas by pitch type:", Array.isArray(measurements.areasByPitch) ? "array" : typeof measurements.areasByPitch);
+    console.log("CRITICAL: RoofAreaTab: Total area:", measurements.totalArea);
+    console.log("CRITICAL: RoofAreaTab: Roof pitch:", measurements.roofPitch);
+    console.log("CRITICAL: RoofAreaTab: Penetrations area:", measurements.penetrationsArea);
+    
+    // Verify the data structure is correct
+    if (Array.isArray(measurements.areasByPitch)) {
+      measurements.areasByPitch.forEach((area, index) => {
+        console.log(`CRITICAL: RoofAreaTab: Area ${index}:`, {
+          pitch: area.pitch,
+          area: area.area,
+          percentage: area.percentage,
+          typeOfArea: typeof area.area,
+          typeOfPercentage: typeof area.percentage
+        });
+      });
+    }
   }, [measurements]);
 
   // Helper function to format value display
