@@ -37,8 +37,22 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   // Use initialValues if provided
   useEffect(() => {
     if (initialValues) {
-      console.log("Setting initial measurement values:", initialValues);
-      setMeasurements(initialValues);
+      console.log("MeasurementForm: Setting initial values:", initialValues);
+      
+      // Ensure that areasByPitch is properly formatted
+      let formattedValues = { ...initialValues };
+      
+      // If areasByPitch is empty, create a default one
+      if (!formattedValues.areasByPitch || formattedValues.areasByPitch.length === 0) {
+        formattedValues.areasByPitch = [{ 
+          pitch: formattedValues.roofPitch || "6:12", 
+          area: formattedValues.totalArea || 0, 
+          percentage: 100 
+        }];
+      }
+      
+      // Update the measurements state with the formatted values
+      setMeasurements(formattedValues);
     }
   }, [initialValues]);
 
@@ -50,6 +64,21 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
       ...prev,
       [name]: numValue,
     }));
+    
+    // Update related values for certain fields
+    if (name === "totalArea" && parseFloat(value) > 0) {
+      // Recalculate percentages for areas by pitch
+      const totalArea = parseFloat(value);
+      const updatedAreas = measurements.areasByPitch.map(area => {
+        const percentage = Math.round((area.area / totalArea) * 100);
+        return { ...area, percentage };
+      });
+      
+      setMeasurements(prev => ({
+        ...prev,
+        areasByPitch: updatedAreas
+      }));
+    }
   };
 
   const handleAreaByPitchChange = (index: number, field: keyof AreaByPitch, value: string) => {
@@ -212,7 +241,10 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   };
 
   return (
-    <form onSubmit={handleSave} className="space-y-6">
+    <form onSubmit={(e) => {
+      e.preventDefault();
+      handleSave();
+    }} className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full grid grid-cols-3 mb-6">
           <TabsTrigger value="roof-area">Roof Area</TabsTrigger>

@@ -179,6 +179,8 @@ export default function Estimates() {
   const handleGoToMeasurements = () => {
     if (!parsedPdfData) return;
 
+    console.log("Converting parsed PDF data to measurement values:", parsedPdfData);
+
     // Create measurement values from parsed PDF data
     const measurementValues: MeasurementValues = {
       totalArea: parsedPdfData.totalArea || 0,
@@ -189,11 +191,22 @@ export default function Estimates() {
             area: area.area || 0,
             percentage: area.percentage || 0
           }))
-        : Object.entries(parsedPdfData.areasByPitch || {}).map(([pitch, area]) => ({
-            pitch,
-            area: Number(area),
-            percentage: 0 // Will be calculated later
-          })),
+        : Object.entries(parsedPdfData.areasByPitch || {}).map(([pitch, area]) => {
+            // Calculate the total area for percentage calculations
+            const totalArea = parsedPdfData.totalArea || 
+              Object.values(parsedPdfData.areasByPitch || {}).reduce((sum, a) => sum + Number(a), 0);
+            
+            // Calculate percentage if total area is available
+            const percentage = totalArea > 0 
+              ? Math.round((Number(area) / totalArea) * 100) 
+              : 0;
+            
+            return {
+              pitch,
+              area: Number(area),
+              percentage
+            };
+          }),
       ridgeLength: parsedPdfData.ridgeLength || 0,
       hipLength: parsedPdfData.hipLength || 0,
       valleyLength: parsedPdfData.valleyLength || 0,
@@ -205,8 +218,21 @@ export default function Estimates() {
       roofPitch: parsedPdfData.predominantPitch || "6:12"
     };
 
+    console.log("Created measurement values:", measurementValues);
     setMeasurements(measurementValues);
     setActiveTab("measurements");
+  };
+
+  // Handle tab changes separately from active tab state to preserve state when navigating
+  const handleTabChange = (value: string) => {
+    // If going back to upload and we have measurements, preserve the state
+    if (value === "upload" && measurements) {
+      // Just change the tab without resetting state
+      setActiveTab(value);
+    } else {
+      // For other tabs, set active tab normally
+      setActiveTab(value);
+    }
   };
 
   return (
@@ -223,14 +249,14 @@ export default function Estimates() {
 
       <div className="flex flex-col space-y-8 lg:flex-row lg:space-x-8 lg:space-y-0">
         <aside className="lg:w-1/5">
-          <SidebarNav items={sidebarNavItems} activeItem={activeTab} onSelect={setActiveTab} />
+          <SidebarNav items={sidebarNavItems} activeItem={activeTab} onSelect={handleTabChange} />
         </aside>
         <div className="flex-1 lg:max-w-4xl">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <Tabs
                 value={activeTab}
-                onValueChange={setActiveTab}
+                onValueChange={handleTabChange}
                 className="space-y-4"
               >
                 <TabsList className="w-full">
