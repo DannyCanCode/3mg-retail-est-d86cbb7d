@@ -144,6 +144,7 @@ export default function Estimates() {
   const [parsedPdfData, setParsedPdfData] = useState<ParsedMeasurements | null>(null);
   const [hasPdfData, setHasPdfData] = useState(false);
   const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+  const [measurementsProcessed, setMeasurementsProcessed] = useState(false);
 
   const sidebarNavItems = [
     {
@@ -210,6 +211,7 @@ export default function Estimates() {
     setParsedPdfData(data);
     setHasPdfData(true);
     setPdfFileName(fileName);
+    setMeasurementsProcessed(false);
     
     // Debug log to check areasByPitch data
     console.log("PDF areasByPitch data:", data.measurements?.areasByPitch);
@@ -263,22 +265,7 @@ export default function Estimates() {
     }
 
     // Set state for measurement values - ensure all numeric values are properly rounded
-    setMeasurements({
-      totalArea: Math.round((data.measurements.totalArea || 0) * 100) / 100,
-      ridgeLength: Math.round((data.measurements.ridgeLength || 0) * 100) / 100,
-      hipLength: Math.round((data.measurements.hipLength || 0) * 100) / 100,
-      valleyLength: Math.round((data.measurements.valleyLength || 0) * 100) / 100,
-      rakeLength: Math.round((data.measurements.rakeLength || 0) * 100) / 100,
-      eaveLength: Math.round((data.measurements.eaveLength || 0) * 100) / 100,
-      roofPitch: data.measurements.predominantPitch || "",
-      areasByPitch: formattedAreasByPitch,
-      stepFlashingLength: Math.round((data.measurements.stepFlashingLength || 0) * 100) / 100,
-      flashingLength: Math.round((data.measurements.flashingLength || 0) * 100) / 100,
-      penetrationsArea: Math.round((data.measurements.penetrationsArea || 0) * 100) / 100,
-    });
-
-    // Save the measurementValues to localStorage for persistence
-    const updatedMeasurementValues = {
+    const measurementValues: MeasurementValues = {
       totalArea: Math.round((data.measurements.totalArea || 0) * 100) / 100,
       ridgeLength: Math.round((data.measurements.ridgeLength || 0) * 100) / 100,
       hipLength: Math.round((data.measurements.hipLength || 0) * 100) / 100,
@@ -291,10 +278,24 @@ export default function Estimates() {
       flashingLength: Math.round((data.measurements.flashingLength || 0) * 100) / 100,
       penetrationsArea: Math.round((data.measurements.penetrationsArea || 0) * 100) / 100,
     };
-    localStorage.setItem("measurementValues", JSON.stringify(updatedMeasurementValues));
     
-    console.log("Measurements processed and ready:", updatedMeasurementValues);
+    setMeasurements(measurementValues);
+    setMeasurementsProcessed(true);
+
+    // Save the measurementValues to localStorage for persistence
+    localStorage.setItem("measurementValues", JSON.stringify(measurementValues));
+    
+    console.log("Measurements processed and ready:", measurementValues);
   };
+
+  // Effect to auto-navigate to measurements tab when data is ready
+  useEffect(() => {
+    if (measurementsProcessed && hasPdfData && parsedPdfData) {
+      // After measurements are processed, automatically navigate to measurements tab
+      console.log("Auto-navigating to measurements tab with processed data");
+      setActiveTab("measurements");
+    }
+  }, [measurementsProcessed, hasPdfData, parsedPdfData]);
 
   // Prepare data for the measurement form and switch to measurements tab
   const handleGoToMeasurements = () => {
