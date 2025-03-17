@@ -18,6 +18,11 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   const [activeTab, setActiveTab] = useState("roof-area");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Debug initial values when component mounts
+  useEffect(() => {
+    console.log("MeasurementForm: MOUNT with initialValues:", initialValues);
+  }, []);
+  
   const defaultMeasurements: MeasurementValues = {
     totalArea: 0,
     ridgeLength: 0,
@@ -37,7 +42,7 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   // Use initialValues if provided
   useEffect(() => {
     if (initialValues) {
-      console.log("MeasurementForm: Setting initial values:", initialValues);
+      console.log("MeasurementForm: RECEIVED NEW initialValues:", initialValues);
       console.log("MeasurementForm: Initial areasByPitch:", initialValues.areasByPitch);
       
       // Ensure that areasByPitch is properly formatted
@@ -126,6 +131,19 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   useEffect(() => {
     console.log("MeasurementForm: Current measurements state:", measurements);
     console.log("MeasurementForm: Current areasByPitch:", measurements.areasByPitch);
+    
+    // Debug numeric field values specifically to ensure they're numbers not strings
+    console.log("MeasurementForm: Numeric field values type check:", {
+      totalArea: typeof measurements.totalArea,
+      ridgeLength: typeof measurements.ridgeLength,
+      hipLength: typeof measurements.hipLength,
+      valleyLength: typeof measurements.valleyLength, 
+      eaveLength: typeof measurements.eaveLength,
+      rakeLength: typeof measurements.rakeLength,
+      stepFlashingLength: typeof measurements.stepFlashingLength,
+      flashingLength: typeof measurements.flashingLength,
+      penetrationsArea: typeof measurements.penetrationsArea
+    });
   }, [measurements]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -330,7 +348,7 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
           <RoofAreaTab
             measurements={measurements}
             handleInputChange={handleInputChange}
-            handleAreaByPitchChange={handleAreaByPitchChange}
+            handlePitchAreaChange={handleAreaByPitchChange}
             addPitchArea={addPitchArea}
             removePitchArea={removePitchArea}
             goToNextTab={goToNextTab}

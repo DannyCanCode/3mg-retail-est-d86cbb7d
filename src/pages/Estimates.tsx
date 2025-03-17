@@ -227,6 +227,8 @@ export default function Estimates() {
       return;
     }
     
+    console.log("DEBUG: Processing parsed PDF data for measurements form:", data);
+    
     // Process the areasByPitch data from the PDF to ensure it's in the correct format
     let formattedAreasByPitch: AreaByPitch[] = [];
     
@@ -282,6 +284,9 @@ export default function Estimates() {
     setMeasurements(measurementValues);
     setMeasurementsProcessed(true);
 
+    // Debug to verify state updates
+    console.log("DEBUG: Measurements processed - state should update:", measurementValues);
+
     // Save the measurementValues to localStorage for persistence
     localStorage.setItem("measurementValues", JSON.stringify(measurementValues));
     
@@ -293,6 +298,7 @@ export default function Estimates() {
     if (measurementsProcessed && hasPdfData && parsedPdfData) {
       // After measurements are processed, automatically navigate to measurements tab
       console.log("Auto-navigating to measurements tab with processed data");
+      console.log("DEBUG: Measurements state before navigation:", measurements);
       setActiveTab("measurements");
     }
   }, [measurementsProcessed, hasPdfData, parsedPdfData]);

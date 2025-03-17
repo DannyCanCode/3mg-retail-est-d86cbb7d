@@ -72,7 +72,7 @@ export const parsePdfWithSupabase = async (
         error.message.includes("maximum context length")
       )) {
         // If in regular mode, try fallback mode
-        if (processingMode === "regular") {
+        if (processingMode === "regular" || processingMode === "client" || processingMode === "supabase") {
           console.log("Switching to fallback processing mode due to size issues");
           toast({
             title: "Using optimized processing",
@@ -140,7 +140,7 @@ export const parsePdfWithSupabase = async (
     console.log("Parsed measurements:", data.measurements);
     
     // Handle success
-    handleSuccessfulParsing(file.name, setStatus, false);
+    handleSuccessfulParsing(file.name, setStatus);
     
     // Clean up the uploaded file
     await supabase.storage.from('pdf-uploads').remove([filePath]);
