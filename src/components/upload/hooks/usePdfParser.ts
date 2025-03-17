@@ -279,120 +279,337 @@ export function usePdfParser() {
         }
       }
       
+      // Log all the page content for debugging
+      console.log("Processing page content for measurements extraction...");
+      for (let i = 1; i <= Math.min(12, numPages); i++) {
+        console.log(`Page ${i} content (first 100 chars):`, pageContents[i]?.substring(0, 100));
+      }
+      
       // First, try to extract from the page 10 format with parentheses counts
-      // Ridge extraction with count
-      const ridgeWithCountRegex = /Ridges\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Ridges?\)/i;
-      let ridgeWithCountMatch = primaryText.match(ridgeWithCountRegex);
+      // Ridge extraction with count - try multiple patterns
+      const ridgePatterns = [
+        /Ridges\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Ridges?\)/i,
+        /Ridge.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Ridge.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Ridge.*?length.*?:\s*([0-9,]+(?:\.\d+)?)/i,
+        /Ridge.*?length.*?=\s*([0-9,]+(?:\.\d+)?)/i
+      ];
       
-      if (ridgeWithCountMatch && ridgeWithCountMatch[1] && ridgeWithCountMatch[2]) {
-        measurements.ridgeLength = parseFloat(ridgeWithCountMatch[1].replace(/,/g, ''));
-        measurements.ridgeCount = parseInt(ridgeWithCountMatch[2], 10);
-        console.log(`Found ridge length with count: ${measurements.ridgeLength} ft (${measurements.ridgeCount} ridges)`);
+      let foundRidge = false;
+      for (const pattern of ridgePatterns) {
+        const ridgeMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (ridgeMatch && ridgeMatch[1]) {
+          measurements.ridgeLength = parseFloat(ridgeMatch[1].replace(/,/g, ''));
+          if (ridgeMatch[2]) {
+            measurements.ridgeCount = parseInt(ridgeMatch[2], 10);
+          }
+          console.log(`Found ridge length: ${measurements.ridgeLength} ft`);
+          foundRidge = true;
+          break;
+        }
       }
       
-      // Hip extraction with count
-      const hipWithCountRegex = /Hips\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Hips?\)/i;
-      let hipWithCountMatch = primaryText.match(hipWithCountRegex);
+      // Hip extraction with count - try multiple patterns
+      const hipPatterns = [
+        /Hips\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Hips?\)/i,
+        /Hip.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Hip.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Hip.*?length.*?:\s*([0-9,]+(?:\.\d+)?)/i,
+        /Hip.*?length.*?=\s*([0-9,]+(?:\.\d+)?)/i
+      ];
       
-      if (hipWithCountMatch && hipWithCountMatch[1] && hipWithCountMatch[2]) {
-        measurements.hipLength = parseFloat(hipWithCountMatch[1].replace(/,/g, ''));
-        measurements.hipCount = parseInt(hipWithCountMatch[2], 10);
-        console.log(`Found hip length with count: ${measurements.hipLength} ft (${measurements.hipCount} hips)`);
+      let foundHip = false;
+      for (const pattern of hipPatterns) {
+        const hipMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (hipMatch && hipMatch[1]) {
+          measurements.hipLength = parseFloat(hipMatch[1].replace(/,/g, ''));
+          if (hipMatch[2]) {
+            measurements.hipCount = parseInt(hipMatch[2], 10);
+          }
+          console.log(`Found hip length: ${measurements.hipLength} ft`);
+          foundHip = true;
+          break;
+        }
       }
       
-      // Valley extraction with count
-      const valleyWithCountRegex = /Valleys\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Valleys?\)/i;
-      let valleyWithCountMatch = primaryText.match(valleyWithCountRegex);
+      // Valley extraction with count - try multiple patterns
+      const valleyPatterns = [
+        /Valleys\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Valleys?\)/i,
+        /Valley.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Valley.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Valley.*?length.*?:\s*([0-9,]+(?:\.\d+)?)/i,
+        /Valley.*?length.*?=\s*([0-9,]+(?:\.\d+)?)/i
+      ];
       
-      if (valleyWithCountMatch && valleyWithCountMatch[1] && valleyWithCountMatch[2]) {
-        measurements.valleyLength = parseFloat(valleyWithCountMatch[1].replace(/,/g, ''));
-        measurements.valleyCount = parseInt(valleyWithCountMatch[2], 10);
-        console.log(`Found valley length with count: ${measurements.valleyLength} ft (${measurements.valleyCount} valleys)`);
+      let foundValley = false;
+      for (const pattern of valleyPatterns) {
+        const valleyMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (valleyMatch && valleyMatch[1]) {
+          measurements.valleyLength = parseFloat(valleyMatch[1].replace(/,/g, ''));
+          if (valleyMatch[2]) {
+            measurements.valleyCount = parseInt(valleyMatch[2], 10);
+          }
+          console.log(`Found valley length: ${measurements.valleyLength} ft`);
+          foundValley = true;
+          break;
+        }
       }
       
-      // Rake extraction with count
-      const rakeWithCountRegex = /Rakes.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Rakes?\)/i;
-      let rakeWithCountMatch = primaryText.match(rakeWithCountRegex);
+      // Rake extraction with count - try multiple patterns
+      const rakePatterns = [
+        /Rakes.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Rakes?\)/i,
+        /Rake.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Rake.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Rake.*?length.*?:\s*([0-9,]+(?:\.\d+)?)/i,
+        /Rake.*?length.*?=\s*([0-9,]+(?:\.\d+)?)/i
+      ];
       
-      if (rakeWithCountMatch && rakeWithCountMatch[1] && rakeWithCountMatch[2]) {
-        measurements.rakeLength = parseFloat(rakeWithCountMatch[1].replace(/,/g, ''));
-        measurements.rakeCount = parseInt(rakeWithCountMatch[2], 10);
-        console.log(`Found rake length with count: ${measurements.rakeLength} ft (${measurements.rakeCount} rakes)`);
+      let foundRake = false;
+      for (const pattern of rakePatterns) {
+        const rakeMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (rakeMatch && rakeMatch[1]) {
+          measurements.rakeLength = parseFloat(rakeMatch[1].replace(/,/g, ''));
+          if (rakeMatch[2]) {
+            measurements.rakeCount = parseInt(rakeMatch[2], 10);
+          }
+          console.log(`Found rake length: ${measurements.rakeLength} ft`);
+          foundRake = true;
+          break;
+        }
       }
       
-      // Eave extraction with count
-      const eaveWithCountRegex = /Eaves(?:\/Starter)?.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Eaves?\)/i;
-      let eaveWithCountMatch = primaryText.match(eaveWithCountRegex);
+      // Eave extraction with count - try multiple patterns
+      const eavePatterns = [
+        /Eaves(?:\/Starter)?.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Eaves?\)/i,
+        /Eave.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Eave.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Eave.*?length.*?:\s*([0-9,]+(?:\.\d+)?)/i,
+        /Eave.*?length.*?=\s*([0-9,]+(?:\.\d+)?)/i,
+        /Starter.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i
+      ];
       
-      if (eaveWithCountMatch && eaveWithCountMatch[1] && eaveWithCountMatch[2]) {
-        measurements.eaveLength = parseFloat(eaveWithCountMatch[1].replace(/,/g, ''));
-        measurements.eaveCount = parseInt(eaveWithCountMatch[2], 10);
-        console.log(`Found eave length with count: ${measurements.eaveLength} ft (${measurements.eaveCount} eaves)`);
+      let foundEave = false;
+      for (const pattern of eavePatterns) {
+        const eaveMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (eaveMatch && eaveMatch[1]) {
+          measurements.eaveLength = parseFloat(eaveMatch[1].replace(/,/g, ''));
+          if (eaveMatch[2]) {
+            measurements.eaveCount = parseInt(eaveMatch[2], 10);
+          }
+          console.log(`Found eave length: ${measurements.eaveLength} ft`);
+          foundEave = true;
+          break;
+        }
       }
       
-      // Drip Edge extraction with count
-      const dripEdgeWithCountRegex = /Drip\s*Edge\s*\(Eaves\s*\+\s*Rakes\)\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Lengths?\)/i;
-      let dripEdgeWithCountMatch = primaryText.match(dripEdgeWithCountRegex);
+      // Drip Edge extraction with count - try multiple patterns
+      const dripEdgePatterns = [
+        /Drip\s*Edge\s*\(Eaves\s*\+\s*Rakes\)\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Lengths?\)/i,
+        /Drip\s*Edge.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Drip\s*Edge.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft/i
+      ];
       
-      if (dripEdgeWithCountMatch && dripEdgeWithCountMatch[1] && dripEdgeWithCountMatch[2]) {
-        measurements.dripEdgeLength = parseFloat(dripEdgeWithCountMatch[1].replace(/,/g, ''));
-        console.log(`Found drip edge length with count: ${measurements.dripEdgeLength} ft (${dripEdgeWithCountMatch[2]} lengths)`);
+      let foundDripEdge = false;
+      for (const pattern of dripEdgePatterns) {
+        const dripEdgeMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (dripEdgeMatch && dripEdgeMatch[1]) {
+          measurements.dripEdgeLength = parseFloat(dripEdgeMatch[1].replace(/,/g, ''));
+          console.log(`Found drip edge length: ${measurements.dripEdgeLength} ft`);
+          foundDripEdge = true;
+          break;
+        }
       }
       
-      // Flashing extraction with count
-      const flashingWithCountRegex = /Flashing\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Lengths?\)/i;
-      let flashingWithCountMatch = primaryText.match(flashingWithCountRegex);
+      // Flashing extraction with count - try multiple patterns
+      const flashingPatterns = [
+        /Flashing\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Lengths?\)/i,
+        /Flashing.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Flashing.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Wall\s*Flashing.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i
+      ];
       
-      if (flashingWithCountMatch && flashingWithCountMatch[1] && flashingWithCountMatch[2]) {
-        measurements.flashingLength = parseFloat(flashingWithCountMatch[1].replace(/,/g, ''));
-        console.log(`Found flashing length with count: ${measurements.flashingLength} ft (${flashingWithCountMatch[2]} lengths)`);
+      let foundFlashing = false;
+      for (const pattern of flashingPatterns) {
+        const flashingMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (flashingMatch && flashingMatch[1]) {
+          measurements.flashingLength = parseFloat(flashingMatch[1].replace(/,/g, ''));
+          console.log(`Found flashing length: ${measurements.flashingLength} ft`);
+          foundFlashing = true;
+          break;
+        }
       }
       
-      // Step flashing extraction with count
-      const stepFlashingWithCountRegex = /Step\s*flashing\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Lengths?\)/i;
-      let stepFlashingWithCountMatch = primaryText.match(stepFlashingWithCountRegex);
+      // Step flashing extraction with count - try multiple patterns
+      const stepFlashingPatterns = [
+        /Step\s*flashing\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft\s*\((\d+)\s*Lengths?\)/i,
+        /Step\s*flashing.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Step\s*flashing.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft/i
+      ];
       
-      if (stepFlashingWithCountMatch && stepFlashingWithCountMatch[1] && stepFlashingWithCountMatch[2]) {
-        measurements.stepFlashingLength = parseFloat(stepFlashingWithCountMatch[1].replace(/,/g, ''));
-        console.log(`Found step flashing length with count: ${measurements.stepFlashingLength} ft (${stepFlashingWithCountMatch[2]} lengths)`);
+      let foundStepFlashing = false;
+      for (const pattern of stepFlashingPatterns) {
+        const stepFlashingMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (stepFlashingMatch && stepFlashingMatch[1]) {
+          measurements.stepFlashingLength = parseFloat(stepFlashingMatch[1].replace(/,/g, ''));
+          console.log(`Found step flashing length: ${measurements.stepFlashingLength} ft`);
+          foundStepFlashing = true;
+          break;
+        }
       }
       
-      // Penetrations area extraction
-      const penetrationsAreaWithCountRegex = /Total\s*Penetrations\s*Area\s*=\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i;
-      let penetrationsAreaMatch = primaryText.match(penetrationsAreaWithCountRegex);
+      // Penetrations area extraction - try multiple patterns
+      const penetrationsAreaPatterns = [
+        /Total\s*Penetrations\s*Area\s*=\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i,
+        /Penetration.*?Area.*?:\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i,
+        /Penetration.*?Area.*?=\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i
+      ];
       
-      if (penetrationsAreaMatch && penetrationsAreaMatch[1]) {
-        measurements.penetrationsArea = parseFloat(penetrationsAreaMatch[1].replace(/,/g, ''));
-        console.log(`Found penetrations area: ${measurements.penetrationsArea} sq ft`);
+      let foundPenetrationsArea = false;
+      for (const pattern of penetrationsAreaPatterns) {
+        const penetrationsAreaMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (penetrationsAreaMatch && penetrationsAreaMatch[1]) {
+          measurements.penetrationsArea = parseFloat(penetrationsAreaMatch[1].replace(/,/g, ''));
+          console.log(`Found penetrations area: ${measurements.penetrationsArea} sq ft`);
+          foundPenetrationsArea = true;
+          break;
+        }
       }
       
-      // Penetrations perimeter extraction
-      const penetrationsPerimeterWithCountRegex = /Total\s*Penetrations\s*Perimeter\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft/i;
-      let penetrationsPerimeterMatch = primaryText.match(penetrationsPerimeterWithCountRegex);
+      // Penetrations perimeter extraction - try multiple patterns
+      const penetrationsPerimeterPatterns = [
+        /Total\s*Penetrations\s*Perimeter\s*=\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Penetration.*?Perimeter.*?:\s*([0-9,]+(?:\.\d+)?)\s*ft/i,
+        /Penetration.*?Perimeter.*?=\s*([0-9,]+(?:\.\d+)?)\s*ft/i
+      ];
       
-      if (penetrationsPerimeterMatch && penetrationsPerimeterMatch[1]) {
-        measurements.penetrationsPerimeter = parseFloat(penetrationsPerimeterMatch[1].replace(/,/g, ''));
-        console.log(`Found penetrations perimeter: ${measurements.penetrationsPerimeter} ft`);
+      let foundPenetrationsPerimeter = false;
+      for (const pattern of penetrationsPerimeterPatterns) {
+        const penetrationsPerimeterMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (penetrationsPerimeterMatch && penetrationsPerimeterMatch[1]) {
+          measurements.penetrationsPerimeter = parseFloat(penetrationsPerimeterMatch[1].replace(/,/g, ''));
+          console.log(`Found penetrations perimeter: ${measurements.penetrationsPerimeter} ft`);
+          foundPenetrationsPerimeter = true;
+          break;
+        }
       }
       
-      // Total area extraction
-      const totalAreaWithCountRegex = /Total\s*Area\s*\(All\s*Pitches\)\s*=\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i;
-      let totalAreaMatch = primaryText.match(totalAreaWithCountRegex);
+      // Total area extraction - try multiple patterns
+      const totalAreaPatterns = [
+        /Total\s*Area\s*\(All\s*Pitches\)\s*=\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i,
+        /Total\s*Area.*?:\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i,
+        /Total\s*Area.*?=\s*([0-9,]+(?:\.\d+)?)\s*(?:sq)?\s*(?:ft)?/i,
+        /Roof\s*Area.*?:\s*([0-9,]+(?:\.\d+)?)\s*sq\s*ft/i
+      ];
       
-      if (totalAreaMatch && totalAreaMatch[1]) {
-        measurements.totalArea = parseFloat(totalAreaMatch[1].replace(/,/g, ''));
-        console.log(`Found total area: ${measurements.totalArea} sq ft`);
+      let foundTotalArea = false;
+      for (const pattern of totalAreaPatterns) {
+        const totalAreaMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (totalAreaMatch && totalAreaMatch[1]) {
+          measurements.totalArea = parseFloat(totalAreaMatch[1].replace(/,/g, ''));
+          console.log(`Found total area: ${measurements.totalArea} sq ft`);
+          foundTotalArea = true;
+          break;
+        }
       }
       
-      // Predominant pitch extraction
-      const predominantPitchRegex = /Predominant\s*Pitch\s*=\s*([0-9]{1,2}\/[0-9]{1,2})/i;
-      let predominantPitchMatch = primaryText.match(predominantPitchRegex);
+      // Predominant pitch extraction - try multiple patterns
+      const predominantPitchPatterns = [
+        /Predominant\s*Pitch\s*=\s*([0-9]{1,2}\/[0-9]{1,2})/i,
+        /Predominant\s*Pitch.*?:\s*([0-9]{1,2}\/[0-9]{1,2})/i,
+        /Pitch.*?:\s*([0-9]{1,2}\/[0-9]{1,2})/i,
+        /Pitch.*?=\s*([0-9]{1,2}\/[0-9]{1,2})/i,
+        /([0-9]{1,2}\/[0-9]{1,2}).*?pitch/i
+      ];
       
-      if (predominantPitchMatch && predominantPitchMatch[1]) {
-        // Normalize to x:12 format
-        const [numerator, denominator] = predominantPitchMatch[1].split('/');
-        measurements.predominantPitch = `${numerator}:${denominator}`;
-        console.log(`Found predominant pitch: ${measurements.predominantPitch}`);
+      let foundPredominantPitch = false;
+      for (const pattern of predominantPitchPatterns) {
+        const predominantPitchMatch = primaryText.match(pattern) || fullText.match(pattern);
+        if (predominantPitchMatch && predominantPitchMatch[1]) {
+          // Normalize to x:12 format
+          const [numerator, denominator] = predominantPitchMatch[1].split('/');
+          measurements.predominantPitch = `${numerator}:${denominator}`;
+          console.log(`Found predominant pitch: ${measurements.predominantPitch}`);
+          foundPredominantPitch = true;
+          break;
+        }
+      }
+      
+      // Try extracting measurements from tables
+      if (!foundTotalArea || !foundRidge || !foundHip || !foundValley || !foundRake || !foundEave) {
+        console.log("Trying to extract measurements from tables in the text...");
+        
+        // Look for table-like structures with measurements
+        // Example: "Ridge: 40 ft"
+        const tableRowRegex = /([A-Za-z\s]+):\s*([0-9,.]+)\s*(sq\s*ft|ft|count|inches)/gi;
+        let tableMatch;
+        
+        while ((tableMatch = tableRowRegex.exec(fullText)) !== null) {
+          const [_, label, value, unit] = tableMatch;
+          const numericValue = parseFloat(value.replace(/,/g, ''));
+          
+          if (isNaN(numericValue)) continue;
+          
+          const lcLabel = label.toLowerCase().trim();
+          
+          console.log(`Found table row: ${lcLabel}: ${numericValue} ${unit}`);
+          
+          if (lcLabel.includes('total area') || lcLabel.includes('roof area')) {
+            if (!foundTotalArea) {
+              measurements.totalArea = numericValue;
+              console.log(`Found total area from table: ${numericValue} sq ft`);
+            }
+          } else if (lcLabel.includes('ridge')) {
+            if (!foundRidge) {
+              measurements.ridgeLength = numericValue;
+              console.log(`Found ridge length from table: ${numericValue} ft`);
+            }
+          } else if (lcLabel.includes('hip')) {
+            if (!foundHip) {
+              measurements.hipLength = numericValue;
+              console.log(`Found hip length from table: ${numericValue} ft`);
+            }
+          } else if (lcLabel.includes('valley')) {
+            if (!foundValley) {
+              measurements.valleyLength = numericValue;
+              console.log(`Found valley length from table: ${numericValue} ft`);
+            }
+          } else if (lcLabel.includes('rake')) {
+            if (!foundRake) {
+              measurements.rakeLength = numericValue;
+              console.log(`Found rake length from table: ${numericValue} ft`);
+            }
+          } else if (lcLabel.includes('eave') || lcLabel.includes('starter')) {
+            if (!foundEave) {
+              measurements.eaveLength = numericValue;
+              console.log(`Found eave length from table: ${numericValue} ft`);
+            }
+          } else if (lcLabel.includes('drip edge')) {
+            if (!foundDripEdge) {
+              measurements.dripEdgeLength = numericValue;
+              console.log(`Found drip edge length from table: ${numericValue} ft`);
+            }
+          } else if (lcLabel.includes('flashing') && !lcLabel.includes('step')) {
+            if (!foundFlashing) {
+              measurements.flashingLength = numericValue;
+              console.log(`Found flashing length from table: ${numericValue} ft`);
+            }
+          } else if (lcLabel.includes('step flashing')) {
+            if (!foundStepFlashing) {
+              measurements.stepFlashingLength = numericValue;
+              console.log(`Found step flashing length from table: ${numericValue} ft`);
+            }
+          } else if (lcLabel.includes('penetration') && lcLabel.includes('area')) {
+            if (!foundPenetrationsArea) {
+              measurements.penetrationsArea = numericValue;
+              console.log(`Found penetrations area from table: ${numericValue} sq ft`);
+            }
+          } else if (lcLabel.includes('penetration') && lcLabel.includes('perimeter')) {
+            if (!foundPenetrationsPerimeter) {
+              measurements.penetrationsPerimeter = numericValue;
+              console.log(`Found penetrations perimeter from table: ${numericValue} ft`);
+            }
+          }
+        }
       }
       
       // Extract property address - usually found in the header section of page 1 or page 10
