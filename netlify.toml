@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Handle SPA routing (React Router)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build.environment]
+  # Set NODE_VERSION for the build
+  NODE_VERSION = "18" 
