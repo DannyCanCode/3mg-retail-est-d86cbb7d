@@ -434,12 +434,13 @@ export function usePdfParser() {
           const tableContent = tableMatch[1];
           console.log("Found table content:", tableContent);
           
-          // Extract pitches from the table header
-          const pitchHeaderRegex = /(\d+\/\d+)/g;
+          // Extract pitches from the table header - including 0/12 for flat roofs
+          // Make the regex more flexible to catch flat roofs (0/12) and low slopes (1/12, 2/12)
+          const pitchHeaderRegex = /(\d+\/\d+|\d+\.\d+\/\d+|0\/\d+)/g;
           const pitchMatches = [...tableContent.matchAll(pitchHeaderRegex)];
           
           if (pitchMatches.length > 0) {
-            console.log(`Found ${pitchMatches.length} pitches in table header`);
+            console.log(`Found ${pitchMatches.length} pitches in table header:`, pitchMatches.map(m => m[0]));
             
             // Now extract areas for each pitch
             const areaRowRegex = /Area\s*\(sq\s*ft\)[^\n]*\n([^\n]*)/i;
@@ -453,7 +454,7 @@ export function usePdfParser() {
               const areaValues = areaRow.match(/[\d,]+(?:\.\d+)?/g);
               
               if (areaValues && areaValues.length >= pitchMatches.length) {
-                console.log(`Found ${areaValues.length} area values`);
+                console.log(`Found ${areaValues.length} area values:`, areaValues);
                 
                 // Match each pitch with its area
                 pitchMatches.forEach((pitchMatch, index) => {
@@ -475,15 +476,18 @@ export function usePdfParser() {
         }
         
         // Method 2: Look for direct assignments in the text like "5/12 Pitch = 1234 sq ft"
+        // Also look explicitly for flat roof areas like "0/12" or "Flat"
         if (!foundAreasPerPitchTable || Object.keys(measurements.areasByPitch).length === 0) {
-          const directPitchAssignmentRegex = /(\d+\/\d+)\s*Pitch\s*=\s*([\d,]+(?:\.\d+)?)\s*sq\s*ft/gi;
+          // Also catch "Flat" or "0/12" pitches
+          const directPitchAssignmentRegex = /(?:(\d+\/\d+|\d+\.\d+\/\d+|0\/\d+)\s*Pitch|Flat\s*Area)\s*=\s*([\d,]+(?:\.\d+)?)\s*sq\s*ft/gi;
           const directAssignments = [...areasPerPitchText.matchAll(directPitchAssignmentRegex)];
           
           if (directAssignments.length > 0) {
-            console.log(`Found ${directAssignments.length} direct pitch assignments`);
+            console.log(`Found ${directAssignments.length} direct pitch assignments:`, directAssignments.map(m => `${m[1] || 'Flat'} = ${m[2]}`));
             
             directAssignments.forEach(match => {
-              const pitch = match[1];
+              // Handle "Flat" specifically
+              const pitch = match[1] || "0/12"; // Default to 0/12 if pitch is not found (likely "Flat")
               const area = parseFloat(match[2].replace(/,/g, ''));
               
               // Convert X/12 format to X:12 format for internal storage

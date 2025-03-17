@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,11 @@ export function LengthMeasurementsTab({
   goToPreviousTab,
   goToNextTab,
 }: LengthMeasurementsTabProps) {
+  // Debug log when measurements change
+  useEffect(() => {
+    console.log("LengthMeasurementsTab rendering with measurements:", measurements);
+  }, [measurements]);
+
   return (
     <Card>
       <CardHeader>
@@ -36,6 +40,7 @@ export function LengthMeasurementsTab({
               value={measurements.ridgeLength || ""}
               onChange={handleInputChange}
               placeholder="Enter ridge length"
+              data-testid="ridge-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all ridges
@@ -51,6 +56,7 @@ export function LengthMeasurementsTab({
               value={measurements.hipLength || ""}
               onChange={handleInputChange}
               placeholder="Enter hip length"
+              data-testid="hip-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all hip ridges
@@ -66,6 +72,7 @@ export function LengthMeasurementsTab({
               value={measurements.valleyLength || ""}
               onChange={handleInputChange}
               placeholder="Enter valley length"
+              data-testid="valley-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all valleys
@@ -81,6 +88,7 @@ export function LengthMeasurementsTab({
               value={measurements.eaveLength || ""}
               onChange={handleInputChange}
               placeholder="Enter eave length"
+              data-testid="eave-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all eaves
@@ -96,6 +104,7 @@ export function LengthMeasurementsTab({
               value={measurements.rakeLength || ""}
               onChange={handleInputChange}
               placeholder="Enter rake length"
+              data-testid="rake-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all rake edges
@@ -111,6 +120,7 @@ export function LengthMeasurementsTab({
               value={measurements.stepFlashingLength || ""}
               onChange={handleInputChange}
               placeholder="Enter step flashing length"
+              data-testid="step-flashing-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of step flashing
@@ -126,6 +136,7 @@ export function LengthMeasurementsTab({
               value={measurements.flashingLength || ""}
               onChange={handleInputChange}
               placeholder="Enter wall flashing length"
+              data-testid="wall-flashing-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of wall flashing

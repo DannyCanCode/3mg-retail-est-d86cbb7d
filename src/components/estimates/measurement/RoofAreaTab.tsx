@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,11 @@ export function RoofAreaTab({
   removePitchArea,
   goToNextTab,
 }: RoofAreaTabProps) {
+  // Debug log when measurements change
+  useEffect(() => {
+    console.log("RoofAreaTab rendering with measurements:", measurements);
+  }, [measurements]);
+
   // Calculate if any of the pitches are flat (requires special materials)
   const hasFlatRoofAreas = measurements.areasByPitch.some(
     area => ["0:12", "1:12", "2:12"].includes(area.pitch)
@@ -114,9 +118,10 @@ export function RoofAreaTab({
             <div key={index} className="grid grid-cols-12 gap-2 items-center">
               <div className="col-span-3">
                 <Input
-                  value={area.pitch}
+                  value={area.pitch || ""}
                   onChange={(e) => handleAreaByPitchChange(index, 'pitch', e.target.value)}
                   placeholder="e.g., 6:12"
+                  data-testid={`pitch-input-${index}`}
                 />
               </div>
               <div className="col-span-4">
@@ -125,6 +130,7 @@ export function RoofAreaTab({
                   value={area.area || ""}
                   onChange={(e) => handleAreaByPitchChange(index, 'area', e.target.value)}
                   placeholder="Area"
+                  data-testid={`area-input-${index}`}
                 />
               </div>
               <div className="col-span-4">
@@ -135,6 +141,7 @@ export function RoofAreaTab({
                   placeholder="Percentage"
                   min="0"
                   max="100"
+                  data-testid={`percentage-input-${index}`}
                 />
               </div>
               <div className="col-span-1">
