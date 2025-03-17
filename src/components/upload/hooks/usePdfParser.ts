@@ -14,6 +14,8 @@ import { toast } from "@/hooks/use-toast";
 // Import PDF.js for client-side parsing
 import * as pdfjs from 'pdfjs-dist';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
+// Import the AreaByPitch type for proper typing
+import { AreaByPitch } from "@/components/estimates/measurement/types";
 
 // Set up the PDF.js worker
 const pdfjsVersion = '3.11.174'; // Match this with your installed version
@@ -97,8 +99,8 @@ export function usePdfParser() {
         }
         
         return measurements;
-      } catch (clientSideError) {
-        console.warn("Client-side PDF parsing failed, falling back to Supabase:", clientSideError);
+      } catch (clientSideError: unknown) {
+        console.error("Client-side parsing failed:", clientSideError instanceof Error ? clientSideError.message : String(clientSideError));
         
         // Fall back to Supabase if client-side parsing fails
         if (isSupabaseConfigured()) {
@@ -179,7 +181,7 @@ export function usePdfParser() {
       totalPages: number;
       status: string;
     } | null>>
-  ): Promise<ParsedMeasurements | null> => {
+  ): Promise<(ParsedMeasurements & { areasByPitch: AreaByPitch[] }) | null> => {
     try {
       // Create a URL to the PDF file
       const fileURL = URL.createObjectURL(file);
@@ -265,11 +267,83 @@ export function usePdfParser() {
       console.log("Has page 1:", hasPage1);
       
       // Store the property address if it can be found
-      const addressRegex = /(\d+\s+[A-Za-z\s]+(?:Road|Street|Avenue|Lane|Drive|Circle|Court|Blvd|Boulevard|Way|Terrace|Place))/i;
+      const addressRegex = /(\d+\s+[A-Za-z0-9\s\.,]+(?:Road|Street|Avenue|Lane|Drive|Circle|Court|Blvd|Boulevard|Way|Terrace|Place|Ave|Dr|Ln|Rd|St|Cir|Ct|Pkwy|Parkway|Trl|Trail|Sq|Square)(?:\s*,\s*[A-Za-z\s]+(?:,\s*[A-Z]{2})?)?)(?:\s*,\s*[A-Za-z\s]+(?:,\s*[A-Z]{2})?)?/i;
       const addressMatch = fullText.match(addressRegex);
+      
       if (addressMatch && addressMatch[1]) {
         measurements.propertyAddress = addressMatch[1].trim();
         console.log("Found property address:", measurements.propertyAddress);
+      } else {
+        // Try alternative address format
+        const altAddressRegex = /(?:Property|Address|Location)(?:\s*:|:\s*|\s+)([^,\n]+(?:,\s*[^,\n]+){1,3})/i;
+        const altAddressMatch = fullText.match(altAddressRegex);
+        
+        if (altAddressMatch && altAddressMatch[1]) {
+          measurements.propertyAddress = altAddressMatch[1].trim();
+          console.log("Found property address (alt format):", measurements.propertyAddress);
+        }
+      }
+      
+      // Extract latitude and longitude
+      const latLongRegex = /Latitude:\s*([-+]?\d+\.\d+).*?Longitude:\s*([-+]?\d+\.\d+)/is;
+      const latLongMatch = fullText.match(latLongRegex);
+      
+      if (latLongMatch && latLongMatch[1] && latLongMatch[2]) {
+        measurements.latitude = latLongMatch[1].trim();
+        measurements.longitude = latLongMatch[2].trim();
+        console.log("Found latitude:", measurements.latitude);
+        console.log("Found longitude:", measurements.longitude);
+      } else {
+        // Try alternative formats
+        
+        // Format: Lat: 12.3456, Long: -78.9012
+        const altLatLongRegex = /Lat(?:itude)?[:\s]+([-+]?\d+\.\d+)[,\s]+Long(?:itude)?[:\s]+([-+]?\d+\.\d+)/i;
+        const altLatLongMatch = fullText.match(altLatLongRegex);
+        
+        if (altLatLongMatch && altLatLongMatch[1] && altLatLongMatch[2]) {
+          measurements.latitude = altLatLongMatch[1].trim();
+          measurements.longitude = altLatLongMatch[2].trim();
+          console.log("Found lat/long (alt format):", measurements.latitude, measurements.longitude);
+        } else {
+          // Try separate patterns
+          const altLatRegex = /Lat(?:itude)?[:\s]+([-+]?\d+\.\d+)/i;
+          const altLongRegex = /Long(?:itude)?[:\s]+([-+]?\d+\.\d+)/i;
+          
+          const latMatch = fullText.match(altLatRegex);
+          const longMatch = fullText.match(altLongRegex);
+          
+          if (latMatch && latMatch[1]) {
+            measurements.latitude = latMatch[1].trim();
+            console.log("Found latitude (separate format):", measurements.latitude);
+          }
+          
+          if (longMatch && longMatch[1]) {
+            measurements.longitude = longMatch[1].trim();
+            console.log("Found longitude (separate format):", measurements.longitude);
+          }
+          
+          // Try coordinates in decimal degrees format (DD.DDDDDD°)
+          const degLatRegex = /([-+]?\d+\.\d+)°\s*N/i;
+          const degLongRegex = /([-+]?\d+\.\d+)°\s*W/i;
+          
+          const degLatMatch = fullText.match(degLatRegex);
+          const degLongMatch = fullText.match(degLongRegex);
+          
+          if (degLatMatch && degLatMatch[1]) {
+            measurements.latitude = degLatMatch[1].trim();
+            console.log("Found latitude (degree format):", measurements.latitude);
+          }
+          
+          if (degLongMatch && degLongMatch[1]) {
+            // Convert west longitude to negative value if needed
+            let longValue = degLongMatch[1].trim();
+            if (!longValue.startsWith('-') && !longValue.startsWith('+')) {
+              longValue = '-' + longValue; // West longitude is negative
+            }
+            measurements.longitude = longValue;
+            console.log("Found longitude (degree format):", measurements.longitude);
+          }
+        }
       }
       
       // Priority order for measurement data extraction
@@ -557,32 +631,6 @@ export function usePdfParser() {
             }
           }
         }
-        
-        // If we still don't have any matches, try one more approach
-        if (Object.keys(measurements.areasByPitch).length === 0) {
-          // Try to find the table structure by looking for specific patterns in the text
-          const specificPatterns = [
-            { pitch: "1:12", pattern: /1\/12[^\d]*(\d+(?:\.\d+)?)/i },
-            { pitch: "2:12", pattern: /2\/12[^\d]*(\d+(?:\.\d+)?)/i },
-            { pitch: "5:12", pattern: /5\/12[^\d]*(\d+(?:\.\d+)?)/i },
-            { pitch: "6:12", pattern: /6\/12[^\d]*(\d+(?:\.\d+)?)/i },
-            { pitch: "8:12", pattern: /8\/12[^\d]*(\d+(?:\.\d+)?)/i },
-            { pitch: "10:12", pattern: /10\/12[^\d]*(\d+(?:\.\d+)?)/i },
-            { pitch: "12:12", pattern: /12\/12[^\d]*(\d+(?:\.\d+)?)/i }
-          ];
-          
-          specificPatterns.forEach(({ pitch, pattern }) => {
-            const match = areasPerPitchText.match(pattern);
-            if (match && match[1]) {
-              const area = parseFloat(match[1]);
-              if (!isNaN(area) && area > 100) {
-                measurements.areasByPitch[pitch] = area;
-                console.log(`CRITICAL: Found specific pattern: ${pitch} = ${area} sq ft`);
-                foundAreasPerPitchTable = true;
-              }
-            }
-          });
-        }
       }
       
       // Verify we have areasByPitch data
@@ -688,7 +736,48 @@ export function usePdfParser() {
       // Final verification log
       console.log("CRITICAL: Final measurements object:", measurements);
       
-      return measurements;
+      // Convert areasByPitch from object to array format for MeasurementValues
+      const areasByPitchArray: AreaByPitch[] = [];
+      
+      // Calculate total area from all pitches for percentage calculation
+      let totalPitchArea = 0;
+      for (const pitch in measurements.areasByPitch) {
+        if (measurements.areasByPitch.hasOwnProperty(pitch)) {
+          totalPitchArea += measurements.areasByPitch[pitch];
+        }
+      }
+      
+      // Convert to array format with percentages
+      for (const pitch in measurements.areasByPitch) {
+        if (measurements.areasByPitch.hasOwnProperty(pitch)) {
+          const area = measurements.areasByPitch[pitch];
+          const percentage = totalPitchArea > 0 
+            ? Math.round((area / totalPitchArea) * 100) 
+            : 0;
+          
+          areasByPitchArray.push({
+            pitch,
+            area,
+            percentage
+          });
+        }
+      }
+      
+      // Sort by area (largest first)
+      areasByPitchArray.sort((a, b) => b.area - a.area);
+      
+      // Create the final measurements object in the format expected by the application
+      const formattedMeasurements: ParsedMeasurements & { 
+        areasByPitch: AreaByPitch[];
+        roofPitch: string;
+      } = {
+        ...measurements,
+        areasByPitch: areasByPitchArray,
+        // Set the predominant pitch as the roofPitch (for compatibility)
+        roofPitch: measurements.predominantPitch
+      };
+      
+      return formattedMeasurements;
     } catch (error) {
       console.error("Error parsing PDF client-side:", error);
       throw error;

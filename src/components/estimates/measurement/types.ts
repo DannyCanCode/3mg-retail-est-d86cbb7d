@@ -1,4 +1,3 @@
-
 export interface AreaByPitch {
   pitch: string;
   area: number;
@@ -17,4 +16,7 @@ export interface MeasurementValues {
   penetrationsArea: number;
   roofPitch: string;
   areasByPitch: AreaByPitch[];
+  latitude?: string;
+  longitude?: string;
+  propertyAddress?: string;
 }
