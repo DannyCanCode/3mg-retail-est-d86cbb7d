@@ -30,6 +30,8 @@ export interface ParsedMeasurements {
   
   // Areas by pitch - for storing the pitch table data
   areasByPitch: Record<string, number>;
+  // Also support areasPerPitch for backward compatibility
+  areasPerPitch?: Record<string, number>;
   
   // Allow for any additional properties that might be used internally
   [key: string]: any;
@@ -45,6 +47,13 @@ export const saveMeasurement = async (
   measurements: ParsedMeasurements
 ) => {
   try {
+    // Ensure consistency between areasByPitch and areasPerPitch
+    const pitchData = measurements.areasByPitch || measurements.areasPerPitch || {};
+    measurements.areasByPitch = pitchData;
+    measurements.areasPerPitch = pitchData;
+    
+    console.log("Saving measurement with pitch data:", pitchData);
+    
     const { data, error } = await supabase
       .from('measurements')
       .insert({
@@ -63,7 +72,7 @@ export const saveMeasurement = async (
         // Calculate squares from total area (1 square = 100 sq ft)
         total_squares: measurements.totalArea ? Math.ceil(measurements.totalArea / 100) : 0,
         // Store detailed information as JSON
-        areas_per_pitch: measurements.areasPerPitch || { mainPitch: measurements.predominantPitch || measurements.roofPitch },
+        areas_per_pitch: measurements.areasByPitch, // Use the consistent data
         length_measurements: JSON.stringify({
           ridge: { length: measurements.ridgeLength, count: measurements.ridgeCount },
           valley: { length: measurements.valleyLength, count: measurements.valleyCount },

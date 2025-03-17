@@ -42,18 +42,29 @@ export function MeasurementDisplay({
 
   // Format the areas by pitch as an array for display
   const pitchAreas = React.useMemo(() => {
-    console.log("areasByPitch:", areasByPitch); // Debug log
+    // Handle naming inconsistency between areasByPitch and areasPerPitch
+    const pitchData = measurements.areasByPitch || measurements.areasPerPitch || {};
+    
+    console.log("Pitch data debugging:");
+    console.log("- measurements.areasByPitch:", measurements.areasByPitch);
+    console.log("- measurements.areasPerPitch:", measurements.areasPerPitch);
+    console.log("- Selected pitchData:", pitchData);
+    console.log("- pitchData type:", typeof pitchData);
+    console.log("- Is array:", Array.isArray(pitchData));
+    console.log("- Keys:", Object.keys(pitchData));
     
     // Handle both object format and potential undefined/null values
-    if (!areasByPitch || typeof areasByPitch !== 'object') {
-      console.log("No valid areasByPitch data found");
+    if (!pitchData || typeof pitchData !== 'object') {
+      console.log("No valid pitch data found");
       return [];
     }
     
     // Handle both Record<string, number> and array formats
-    const entries = Array.isArray(areasByPitch) 
-      ? areasByPitch.map(item => [item.pitch, item.area]) 
-      : Object.entries(areasByPitch);
+    const entries = Array.isArray(pitchData) 
+      ? pitchData.map(item => [item.pitch, item.area]) 
+      : Object.entries(pitchData);
+    
+    console.log("Processed entries:", entries);
     
     return entries.map(([pitch, area]) => ({
       pitch,
@@ -66,10 +77,18 @@ export function MeasurementDisplay({
       const pitchB = parseFloat(b.pitch.split(':')[0]);
       return pitchA - pitchB; // Sort ascending (lowest pitch first, like EagleView)
     });
-  }, [areasByPitch]);
+  }, [measurements]);
   
   // Debug the result
   console.log("Processed pitchAreas:", pitchAreas);
+  
+  // If we have a predominant pitch but no pitch areas, create a fallback entry
+  React.useEffect(() => {
+    if (pitchAreas.length === 0 && predominantPitch && totalArea > 0) {
+      console.log("Creating fallback pitch area for:", predominantPitch, totalArea);
+      // This doesn't update the actual data source, just for debugging
+    }
+  }, [pitchAreas.length, predominantPitch, totalArea]);
 
   return (
     <Card className={cn("w-full", className)}>
@@ -221,11 +240,38 @@ export function MeasurementDisplay({
         {/* Simple Areas by Pitch - Alternative view if the table doesn't have data */}
         {pitchAreas.length === 0 && totalArea > 0 && predominantPitch && (
           <div className="mt-6">
-            <h3 className="text-lg font-medium mb-3">Areas by Pitch</h3>
-            <div className="flex justify-between border-b pb-2">
-              <span className="text-sm font-medium">Pitch {predominantPitch.replace(':', '/')}:</span>
-              <span className="text-sm">{totalArea.toLocaleString()} sq ft</span>
+            <div className="bg-gray-600 text-white p-2 font-medium">
+              Areas per Pitch
             </div>
+            <div className="border border-gray-300">
+              <table className="min-w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="p-2 text-left font-medium border-b border-r border-gray-300 w-1/4">Roof Pitches</th>
+                    <th className="p-2 text-center font-medium border-b border-r border-gray-300 bg-white">
+                      {predominantPitch.replace(':', '/')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="p-2 text-left font-medium border-b border-r border-gray-300">Area (sq ft)</td>
+                    <td className="p-2 text-center border-b border-r border-gray-300 bg-blue-50">
+                      {totalArea.toLocaleString(undefined, {minimumFractionDigits: 1, maximumFractionDigits: 1})}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="p-2 text-left font-medium border-b border-r border-gray-300">% of Roof</td>
+                    <td className="p-2 text-center border-b border-r border-gray-300 bg-blue-50">
+                      100.0%
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              The table above lists each pitch on this roof and the total area and percent (both rounded) of the roof with that pitch.
+            </p>
           </div>
         )}
       </CardContent>

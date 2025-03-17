@@ -575,6 +575,16 @@ export function usePdfParser() {
           (measurements.pipeVentCount * 4);
       }
       
+      // Ensure we have both areasByPitch and areasPerPitch populated to handle naming inconsistencies
+      // in different parts of the application
+      if (measurements.areasByPitch && Object.keys(measurements.areasByPitch).length > 0) {
+        measurements.areasPerPitch = { ...measurements.areasByPitch };
+        console.log("Assigned areasPerPitch from areasByPitch for consistency");
+      } else if (measurements.areasPerPitch && Object.keys(measurements.areasPerPitch).length > 0) {
+        measurements.areasByPitch = { ...measurements.areasPerPitch };
+        console.log("Assigned areasByPitch from areasPerPitch for consistency");
+      }
+      
       // Additional fallback calculations - if we didn't find step flashing length but have step flashing count
       if (measurements.stepFlashingLength === 0 && measurements.stepFlashingCount > 0) {
         // Estimate based on count - typically 4-6 ft per penetration
