@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { saveMeasurement } from "@/api/measurements";
@@ -9,15 +8,17 @@ import { ReviewTab } from "./measurement/ReviewTab";
 import { MeasurementValues, AreaByPitch } from "./measurement/types";
 
 interface MeasurementFormProps {
+  initialValues?: MeasurementValues | null;
   onMeasurementsSaved?: (measurements: MeasurementValues) => void;
+  onComplete?: () => void;
 }
 
-export function MeasurementForm({ onMeasurementsSaved }: MeasurementFormProps) {
+export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete }: MeasurementFormProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("roof-area");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [measurements, setMeasurements] = useState<MeasurementValues>({
+  const defaultMeasurements: MeasurementValues = {
     totalArea: 0,
     ridgeLength: 0,
     hipLength: 0,
@@ -29,7 +30,17 @@ export function MeasurementForm({ onMeasurementsSaved }: MeasurementFormProps) {
     penetrationsArea: 0,
     roofPitch: "6:12",
     areasByPitch: [{ pitch: "6:12", area: 0, percentage: 100 }]
-  });
+  };
+  
+  const [measurements, setMeasurements] = useState<MeasurementValues>(defaultMeasurements);
+  
+  // Use initialValues if provided
+  useEffect(() => {
+    if (initialValues) {
+      console.log("Setting initial measurement values:", initialValues);
+      setMeasurements(initialValues);
+    }
+  }, [initialValues]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -100,53 +111,83 @@ export function MeasurementForm({ onMeasurementsSaved }: MeasurementFormProps) {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async () => {
     setIsSubmitting(true);
     
     try {
-      // Prepare the areas per pitch data
-      const areasPerPitch: Record<string, { area: number; percentage: number }> = {};
-      measurements.areasByPitch.forEach(({ pitch, area, percentage }) => {
-        areasPerPitch[pitch] = { area, percentage };
-      });
-      
-      // Save measurements to the database
-      const result = await saveMeasurement(
-        `manual-entry-${new Date().toISOString()}`,
-        {
-          totalArea: measurements.totalArea,
-          ridgeLength: measurements.ridgeLength,
-          hipLength: measurements.hipLength,
-          valleyLength: measurements.valleyLength,
-          eaveLength: measurements.eaveLength,
-          rakeLength: measurements.rakeLength,
-          stepFlashingLength: measurements.stepFlashingLength,
-          flashingLength: measurements.flashingLength,
-          penetrationsArea: measurements.penetrationsArea,
-          predominantPitch: measurements.roofPitch,
-          areasPerPitch: areasPerPitch
-        }
-      );
-      
-      if (result.error) {
-        throw new Error(result.error.message);
+      // Calculate total area if needed
+      let totalArea = measurements.totalArea;
+      if (measurements.areasByPitch.length > 0 && totalArea === 0) {
+        totalArea = measurements.areasByPitch.reduce((sum, area) => sum + area.area, 0);
+        setMeasurements(prev => ({ ...prev, totalArea }));
       }
       
+      // Validate measurements
+      if (totalArea <= 0) {
+        toast({
+          title: "Validation Error",
+          description: "Total roof area must be greater than zero",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Map to the proper format for saving
+      const measurementsToSave = {
+        totalArea: measurements.totalArea,
+        predominantPitch: measurements.roofPitch,
+        
+        // Length measurements
+        ridgeLength: measurements.ridgeLength,
+        hipLength: measurements.hipLength,
+        valleyLength: measurements.valleyLength,
+        rakeLength: measurements.rakeLength,
+        eaveLength: measurements.eaveLength,
+        stepFlashingLength: measurements.stepFlashingLength,
+        flashingLength: measurements.flashingLength,
+        dripEdgeLength: 0,
+        
+        // Count fields (not currently used/collected)
+        ridgeCount: 0,
+        hipCount: 0,
+        valleyCount: 0,
+        rakeCount: 0,
+        eaveCount: 0,
+        
+        // Penetrations
+        penetrationsArea: measurements.penetrationsArea,
+        penetrationsPerimeter: 0, // Not currently used
+        
+        // Convert array to object for areasByPitch
+        areasByPitch: measurements.areasByPitch.reduce((obj, item) => {
+          obj[item.pitch] = item.area;
+          return obj;
+        }, {} as Record<string, number>),
+      };
+      
+      // Save to database
+      await saveMeasurement("manual-entry", measurementsToSave);
+      
       toast({
-        title: "Measurements saved",
-        description: "Your roof measurements have been saved successfully.",
+        title: "Measurements Saved",
+        description: "Your measurements have been saved successfully",
       });
       
       // Call the callback if provided
       if (onMeasurementsSaved) {
         onMeasurementsSaved(measurements);
       }
+      
+      // If onComplete is provided, call it
+      if (onComplete) {
+        onComplete();
+      }
     } catch (error) {
       console.error("Error saving measurements:", error);
       toast({
-        title: "Error saving measurements",
-        description: "There was a problem saving your measurements. Please try again.",
+        title: "Error",
+        description: "Failed to save measurements. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -171,7 +212,7 @@ export function MeasurementForm({ onMeasurementsSaved }: MeasurementFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSave} className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full grid grid-cols-3 mb-6">
           <TabsTrigger value="roof-area">Roof Area</TabsTrigger>

@@ -7,8 +7,14 @@ import { ProcessingStatus } from "./ProcessingStatus";
 import { SuccessStatus } from "./SuccessStatus";
 import { ErrorStatus } from "./ErrorStatus";
 import { toast } from "@/hooks/use-toast";
+import { ParsedMeasurements } from "@/api/measurements";
 
-export function PdfUploader() {
+// Add the onPdfParsed prop to the component props
+interface PdfUploaderProps {
+  onPdfParsed?: (data: ParsedMeasurements, fileName: string) => void;
+}
+
+export function PdfUploader({ onPdfParsed }: PdfUploaderProps) {
   const { 
     file, 
     status, 
@@ -54,6 +60,9 @@ export function PdfUploader() {
           description: "There was an unexpected error processing your file.",
           variant: "destructive",
         });
+      } else if (result && onPdfParsed && status === "success") {
+        // If we have a result and the onPdfParsed callback, call it
+        onPdfParsed(result, selectedFile.name);
       }
     } catch (error) {
       console.error("Error in upload and process flow:", error);
@@ -72,6 +81,11 @@ export function PdfUploader() {
     
     try {
       await saveToDatabase(file.name, parsedData, fileUrl || undefined);
+      
+      // After saving to database, also notify parent if onPdfParsed is provided
+      if (onPdfParsed) {
+        onPdfParsed(parsedData, file.name);
+      }
     } catch (error) {
       console.error("Error saving to database:", error);
       toast({
