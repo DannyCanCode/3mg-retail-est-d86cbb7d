@@ -38,12 +38,15 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   useEffect(() => {
     if (initialValues) {
       console.log("MeasurementForm: Setting initial values:", initialValues);
+      console.log("MeasurementForm: Initial areasByPitch:", initialValues.areasByPitch);
       
       // Ensure that areasByPitch is properly formatted
       let formattedValues = { ...initialValues };
       
       // If areasByPitch is empty, create a default one
-      if (!formattedValues.areasByPitch || formattedValues.areasByPitch.length === 0) {
+      if (!formattedValues.areasByPitch || 
+          (Array.isArray(formattedValues.areasByPitch) && formattedValues.areasByPitch.length === 0)) {
+        console.log("MeasurementForm: Creating default areasByPitch");
         formattedValues.areasByPitch = [{ 
           pitch: formattedValues.roofPitch || "6:12", 
           area: formattedValues.totalArea || 0, 
@@ -54,27 +57,43 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
       // Check if areasByPitch is an array of objects with pitch, area, percentage
       // If not, convert it to the correct format
       if (formattedValues.areasByPitch && !Array.isArray(formattedValues.areasByPitch)) {
-        console.log("Converting areasByPitch from object to array format");
-        const areasByPitchArray = Object.entries(formattedValues.areasByPitch).map(([pitch, area]) => ({
-          pitch,
-          area: Number(area) || 0,
-          percentage: 0 // Will calculate percentages later
-        }));
-        formattedValues.areasByPitch = areasByPitchArray;
+        console.log("MeasurementForm: Converting areasByPitch from object to array format");
+        try {
+          const areasByPitchArray = Object.entries(formattedValues.areasByPitch).map(([pitch, area]) => ({
+            pitch,
+            area: Number(area) || 0,
+            percentage: 0 // Will calculate percentages later
+          }));
+          formattedValues.areasByPitch = areasByPitchArray;
+          console.log("MeasurementForm: Converted areasByPitch to array:", areasByPitchArray);
+        } catch (error) {
+          console.error("MeasurementForm: Error converting areasByPitch:", error);
+          // Fallback to default
+          formattedValues.areasByPitch = [{ 
+            pitch: formattedValues.roofPitch || "6:12", 
+            area: formattedValues.totalArea || 0, 
+            percentage: 100 
+          }];
+        }
       }
       
       // Calculate percentages if they're not already set
       const totalArea = formattedValues.totalArea || 
-        formattedValues.areasByPitch.reduce((sum, p) => sum + Number(p.area), 0);
+        (Array.isArray(formattedValues.areasByPitch) ? 
+          formattedValues.areasByPitch.reduce((sum, p) => sum + Number(p.area), 0) : 0);
       
-      if (totalArea > 0) {
-        formattedValues.areasByPitch = formattedValues.areasByPitch.map(p => ({
-          ...p,
-          percentage: p.percentage || Math.round((Number(p.area) / totalArea) * 100)
-        }));
+      console.log("MeasurementForm: Total area for percentage calculation:", totalArea);
+      
+      if (totalArea > 0 && Array.isArray(formattedValues.areasByPitch)) {
+        formattedValues.areasByPitch = formattedValues.areasByPitch.map(p => {
+          const area = Number(p.area) || 0;
+          const percentage = p.percentage || Math.round((area / totalArea) * 100);
+          return { ...p, area, percentage };
+        });
+        console.log("MeasurementForm: Updated percentages:", formattedValues.areasByPitch);
       }
       
-      // Ensure the values are the correct types
+      // Ensure the values are the correct types (defensive programming)
       formattedValues = {
         ...formattedValues,
         totalArea: Number(formattedValues.totalArea || 0),
@@ -86,14 +105,17 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
         stepFlashingLength: Number(formattedValues.stepFlashingLength || 0),
         flashingLength: Number(formattedValues.flashingLength || 0),
         penetrationsArea: Number(formattedValues.penetrationsArea || 0),
-        areasByPitch: formattedValues.areasByPitch.map(area => ({
-          pitch: String(area.pitch || "6:12"),
-          area: Number(area.area || 0),
-          percentage: Number(area.percentage || 0)
-        }))
+        areasByPitch: Array.isArray(formattedValues.areasByPitch) ? 
+          formattedValues.areasByPitch.map(area => ({
+            pitch: String(area.pitch || "6:12"),
+            area: Number(area.area || 0),
+            percentage: Number(area.percentage || 0)
+          })) : 
+          [{ pitch: "6:12", area: formattedValues.totalArea || 0, percentage: 100 }]
       };
       
-      console.log("MeasurementForm: Formatted values:", formattedValues);
+      console.log("MeasurementForm: Final formatted values:", formattedValues);
+      console.log("MeasurementForm: Final areasByPitch:", formattedValues.areasByPitch);
       
       // Update the measurements state with the formatted values
       setMeasurements(formattedValues);
@@ -103,6 +125,7 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   // Debug output to track state changes
   useEffect(() => {
     console.log("MeasurementForm: Current measurements state:", measurements);
+    console.log("MeasurementForm: Current areasByPitch:", measurements.areasByPitch);
   }, [measurements]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

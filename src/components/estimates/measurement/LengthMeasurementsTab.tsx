@@ -21,8 +21,22 @@ export function LengthMeasurementsTab({
 }: LengthMeasurementsTabProps) {
   // Debug log when measurements change
   useEffect(() => {
-    console.log("LengthMeasurementsTab rendering with measurements:", measurements);
+    console.log("LengthMeasurementsTab: Rendering with measurements:", measurements);
+    console.log("LengthMeasurementsTab: Ridge length:", measurements.ridgeLength);
+    console.log("LengthMeasurementsTab: Hip length:", measurements.hipLength);
+    console.log("LengthMeasurementsTab: Valley length:", measurements.valleyLength);
+    console.log("LengthMeasurementsTab: Eave length:", measurements.eaveLength);
+    console.log("LengthMeasurementsTab: Rake length:", measurements.rakeLength);
+    console.log("LengthMeasurementsTab: Step flashing length:", measurements.stepFlashingLength);
+    console.log("LengthMeasurementsTab: Wall flashing length:", measurements.flashingLength);
   }, [measurements]);
+
+  // Helper function to format value display
+  const formatValueForInput = (value: number | undefined): string => {
+    if (value === undefined || value === null) return "";
+    if (value === 0) return "0";
+    return value.toString();
+  };
 
   return (
     <Card>
@@ -37,7 +51,7 @@ export function LengthMeasurementsTab({
               id="ridgeLength"
               name="ridgeLength"
               type="number"
-              value={measurements.ridgeLength || ""}
+              value={formatValueForInput(measurements.ridgeLength)}
               onChange={handleInputChange}
               placeholder="Enter ridge length"
               data-testid="ridge-length-input"
@@ -53,7 +67,7 @@ export function LengthMeasurementsTab({
               id="hipLength"
               name="hipLength"
               type="number"
-              value={measurements.hipLength || ""}
+              value={formatValueForInput(measurements.hipLength)}
               onChange={handleInputChange}
               placeholder="Enter hip length"
               data-testid="hip-length-input"
@@ -69,7 +83,7 @@ export function LengthMeasurementsTab({
               id="valleyLength"
               name="valleyLength"
               type="number"
-              value={measurements.valleyLength || ""}
+              value={formatValueForInput(measurements.valleyLength)}
               onChange={handleInputChange}
               placeholder="Enter valley length"
               data-testid="valley-length-input"
@@ -85,7 +99,7 @@ export function LengthMeasurementsTab({
               id="eaveLength"
               name="eaveLength"
               type="number"
-              value={measurements.eaveLength || ""}
+              value={formatValueForInput(measurements.eaveLength)}
               onChange={handleInputChange}
               placeholder="Enter eave length"
               data-testid="eave-length-input"
@@ -101,7 +115,7 @@ export function LengthMeasurementsTab({
               id="rakeLength"
               name="rakeLength"
               type="number"
-              value={measurements.rakeLength || ""}
+              value={formatValueForInput(measurements.rakeLength)}
               onChange={handleInputChange}
               placeholder="Enter rake length"
               data-testid="rake-length-input"
@@ -117,7 +131,7 @@ export function LengthMeasurementsTab({
               id="stepFlashingLength"
               name="stepFlashingLength"
               type="number"
-              value={measurements.stepFlashingLength || ""}
+              value={formatValueForInput(measurements.stepFlashingLength)}
               onChange={handleInputChange}
               placeholder="Enter step flashing length"
               data-testid="step-flashing-length-input"
@@ -133,7 +147,7 @@ export function LengthMeasurementsTab({
               id="flashingLength"
               name="flashingLength"
               type="number"
-              value={measurements.flashingLength || ""}
+              value={formatValueForInput(measurements.flashingLength)}
               onChange={handleInputChange}
               placeholder="Enter wall flashing length"
               data-testid="wall-flashing-length-input"
