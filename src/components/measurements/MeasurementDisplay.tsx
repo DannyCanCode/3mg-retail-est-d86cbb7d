@@ -41,17 +41,35 @@ export function MeasurementDisplay({
   const totalAreaLessPenetrations = totalArea - penetrationsArea;
 
   // Format the areas by pitch as an array for display
-  const pitchAreas = Object.entries(areasByPitch || {}).map(([pitch, area]) => ({
-    pitch,
-    area: typeof area === 'number' ? area : Number(area),
-    // Convert from X:12 to X/12 format for display
-    displayPitch: pitch.replace(':', '/')
-  })).sort((a, b) => {
-    // Sort by pitch value (numerically)
-    const pitchA = parseFloat(a.pitch.split(':')[0]);
-    const pitchB = parseFloat(b.pitch.split(':')[0]);
-    return pitchA - pitchB; // Sort ascending (lowest pitch first, like EagleView)
-  });
+  const pitchAreas = React.useMemo(() => {
+    console.log("areasByPitch:", areasByPitch); // Debug log
+    
+    // Handle both object format and potential undefined/null values
+    if (!areasByPitch || typeof areasByPitch !== 'object') {
+      console.log("No valid areasByPitch data found");
+      return [];
+    }
+    
+    // Handle both Record<string, number> and array formats
+    const entries = Array.isArray(areasByPitch) 
+      ? areasByPitch.map(item => [item.pitch, item.area]) 
+      : Object.entries(areasByPitch);
+    
+    return entries.map(([pitch, area]) => ({
+      pitch,
+      area: typeof area === 'number' ? area : Number(area),
+      // Convert from X:12 to X/12 format for display
+      displayPitch: String(pitch).replace(':', '/')
+    })).sort((a, b) => {
+      // Sort by pitch value (numerically)
+      const pitchA = parseFloat(a.pitch.split(':')[0]);
+      const pitchB = parseFloat(b.pitch.split(':')[0]);
+      return pitchA - pitchB; // Sort ascending (lowest pitch first, like EagleView)
+    });
+  }, [areasByPitch]);
+  
+  // Debug the result
+  console.log("Processed pitchAreas:", pitchAreas);
 
   return (
     <Card className={cn("w-full", className)}>
@@ -197,6 +215,17 @@ export function MeasurementDisplay({
             <p className="text-xs text-gray-500 mt-1">
               The table above lists each pitch on this roof and the total area and percent (both rounded) of the roof with that pitch.
             </p>
+          </div>
+        )}
+
+        {/* Simple Areas by Pitch - Alternative view if the table doesn't have data */}
+        {pitchAreas.length === 0 && totalArea > 0 && predominantPitch && (
+          <div className="mt-6">
+            <h3 className="text-lg font-medium mb-3">Areas by Pitch</h3>
+            <div className="flex justify-between border-b pb-2">
+              <span className="text-sm font-medium">Pitch {predominantPitch.replace(':', '/')}:</span>
+              <span className="text-sm">{totalArea.toLocaleString()} sq ft</span>
+            </div>
           </div>
         )}
       </CardContent>
