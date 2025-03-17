@@ -29,7 +29,7 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
         ? initialValues.areasByPitch.length 
         : Object.keys(initialValues.areasByPitch || {}).length;
       
-      alert(`MeasurementForm mounting with data!\nTotal Area: ${initialValues.totalArea}\nAreas by pitch: ${areasByPitchCount}\nPredominant Pitch: ${initialValues.roofPitch}`);
+      alert(`MeasurementForm mounting with data!\nTotal Area: ${initialValues.totalArea}\nAreas by pitch: ${areasByPitchCount}\nPredominant Pitch: ${initialValues.roofPitch}\nAreas by pitch data: ${JSON.stringify(initialValues.areasByPitch)}`);
       
       // Force an update of measurements state with the initial values immediately
       const formattedValues = applyInitialValues(initialValues);
@@ -86,6 +86,14 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   useEffect(() => {
     if (initialValues) {
       console.log("CRITICAL: MeasurementForm: RECEIVED NEW initialValues:", initialValues);
+      
+      // Alert for debugging when initialValues change
+      const areasByPitchCount = Array.isArray(initialValues.areasByPitch) 
+        ? initialValues.areasByPitch.length 
+        : Object.keys(initialValues.areasByPitch || {}).length;
+      
+      alert(`MeasurementForm received new initialValues!\nTotal Area: ${initialValues.totalArea}\nAreas by pitch: ${areasByPitchCount}\nPredominant Pitch: ${initialValues.roofPitch}\nAreas by pitch data: ${JSON.stringify(initialValues.areasByPitch)}`);
+      
       const formattedValues = applyInitialValues(initialValues);
       setMeasurements(formattedValues);
     }

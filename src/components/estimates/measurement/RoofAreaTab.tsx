@@ -52,9 +52,8 @@ export function RoofAreaTab({
   }, [measurements]);
 
   // Helper function to format value display
-  const formatValueForInput = (value: number | undefined): string => {
+  const formatValueForInput = (value: number | undefined | null): string => {
     if (value === undefined || value === null) return "";
-    if (value === 0) return "0";
     return value.toString();
   };
 
@@ -77,7 +76,7 @@ export function RoofAreaTab({
               id="totalArea"
               name="totalArea"
               type="number"
-              value={String(measurements.totalArea || '')}
+              value={formatValueForInput(measurements.totalArea)}
               onChange={handleInputChange}
               placeholder="Enter total roof area"
               data-testid="total-area-input"
@@ -92,7 +91,7 @@ export function RoofAreaTab({
             <Input
               id="roofPitch"
               name="roofPitch"
-              value={String(measurements.roofPitch || '')}
+              value={measurements.roofPitch || ''}
               onChange={handleInputChange}
               placeholder="e.g., 6:12"
               data-testid="roof-pitch-input"
@@ -108,7 +107,7 @@ export function RoofAreaTab({
               id="penetrationsArea"
               name="penetrationsArea"
               type="number"
-              value={String(measurements.penetrationsArea || '')}
+              value={formatValueForInput(measurements.penetrationsArea)}
               onChange={handleInputChange}
               placeholder="Enter penetrations area"
               data-testid="penetrations-area-input"
@@ -147,7 +146,7 @@ export function RoofAreaTab({
             <div key={index} className="grid grid-cols-12 gap-2 items-center">
               <div className="col-span-3">
                 <Input
-                  value={String(area.pitch || '')}
+                  value={area.pitch || ''}
                   onChange={(e) => handlePitchAreaChange(index, 'pitch', e.target.value)}
                   placeholder="e.g., 6:12"
                   data-testid={`pitch-input-${index}`}
@@ -156,7 +155,7 @@ export function RoofAreaTab({
               <div className="col-span-4">
                 <Input
                   type="number"
-                  value={String(area.area || '')}
+                  value={formatValueForInput(area.area)}
                   onChange={(e) => handlePitchAreaChange(index, 'area', e.target.value)}
                   placeholder="Area"
                   data-testid={`area-input-${index}`}
@@ -165,7 +164,7 @@ export function RoofAreaTab({
               <div className="col-span-4">
                 <Input
                   type="number"
-                  value={String(area.percentage || '')}
+                  value={formatValueForInput(area.percentage)}
                   onChange={(e) => handlePitchAreaChange(index, 'percentage', e.target.value)}
                   placeholder="Percentage"
                   min="0"

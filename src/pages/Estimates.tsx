@@ -210,7 +210,7 @@ export default function Estimates() {
     console.log("PDF successfully parsed:", data);
     
     // Alert to verify we're receiving the data
-    alert(`PDF Parsed! Found: ${Object.keys(data.measurements?.areasByPitch || {}).length} areas by pitch`);
+    alert(`PDF Parsed! Found: ${Object.keys(data.measurements?.areasByPitch || {}).length} areas by pitch. Areas: ${JSON.stringify(data.measurements?.areasByPitch)}`);
     
     setParsedPdfData(data);
     setHasPdfData(true);
@@ -315,8 +315,11 @@ export default function Estimates() {
     console.log("CRITICAL: Final measurement values to be set in state:", measurementValues);
     console.log("CRITICAL: areasByPitch in final state:", measurementValues.areasByPitch);
     
-    // Set measurements in state
-    setMeasurements(measurementValues);
+    // Add an alert to verify the data before setting state
+    alert(`Processing complete! Areas by pitch: ${JSON.stringify(measurementValues.areasByPitch)}`);
+    
+    // Set measurements in state - force a new object to ensure React detects the change
+    setMeasurements({...measurementValues});
     
     // Set flag to indicate measurements are processed
     setMeasurementsProcessed(true);
@@ -337,6 +340,14 @@ export default function Estimates() {
     setTimeout(() => {
       console.log("CRITICAL: Force navigating to measurements tab");
       setActiveTab("measurements");
+      
+      // Force a re-render of the measurements state
+      setMeasurements(prevState => {
+        if (prevState === null) {
+          return measurementValues;
+        }
+        return {...prevState};
+      });
     }, 300);
   };
 

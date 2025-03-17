@@ -442,263 +442,146 @@ export function usePdfParser() {
       if (areasPerPitchText) {
         console.log("CRITICAL: Found Areas per Pitch section, extracting table data");
         
-        // Strategy 1: Multiple regex patterns for different table formats
+        // NEW APPROACH: Look for the specific table format with Roof Pitches, Area (sq ft), % of Roof
+        // This pattern matches the table format in the screenshot
+        const tablePattern = /(\d+)\/(\d+)\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)%/g;
+        let tableMatches = [];
+        let match;
         
-        // Pattern 1: Direct table format with pitch, area, and percentage on same line
-        // This will catch formats like "0/12 344.3 7.9%" or "1/12  270.9  6.2%"
-        const tableRowPattern1 = /(\d+)\/12\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)%/g;
-        let tableMatches1 = [];
-        let match1;
-        while ((match1 = tableRowPattern1.exec(areasPerPitchText)) !== null) {
-          tableMatches1.push(match1);
+        while ((match = tablePattern.exec(areasPerPitchText)) !== null) {
+          const numerator = match[1];
+          const denominator = match[2];
+          const area = parseFloat(match[3]);
+          const percentage = parseFloat(match[4]);
+          
+          tableMatches.push({
+            pitch: `${numerator}:${denominator}`,
+            area,
+            percentage
+          });
+          
+          console.log(`CRITICAL: Found pitch ${numerator}/${denominator} with area ${area} sq ft (${percentage}%)`);
         }
         
-        console.log("CRITICAL: Pattern 1 table matches:", tableMatches1.length);
+        console.log("CRITICAL: Table matches:", tableMatches.length);
         
-        if (tableMatches1.length > 0) {
-          tableMatches1.forEach(match => {
-            const pitch = `${match[1]}:12`;
-            const area = parseFloat(match[2]);
-            
-            if (!isNaN(area) && area > 0) {
-              // Round to 1 decimal place for consistency
-              measurements.areasByPitch[pitch] = Math.round(area * 10) / 10;
-              console.log(`CRITICAL: Extracted from table pattern 1: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
+        if (tableMatches.length > 0) {
+          tableMatches.forEach(item => {
+            if (!isNaN(item.area) && item.area > 0) {
+              measurements.areasByPitch[item.pitch] = item.area;
+              console.log(`CRITICAL: Added to areasByPitch: ${item.pitch} = ${item.area} sq ft`);
               foundAreasPerPitchTable = true;
             }
           });
         }
         
-        // Try an alternative pattern for tables with different spacing
-        // This pattern is more flexible with whitespace
+        // If we didn't find any matches with the first pattern, try a more flexible pattern
         if (Object.keys(measurements.areasByPitch).length === 0) {
-          console.log("CRITICAL: Trying alternative table pattern with flexible spacing");
-          const tableRowPatternAlt = /(\d+)\/12[\s\n]*(\d+(?:,\d+)?(?:\.\d+)?)[\s\n]*(\d+(?:\.\d+)?)%/g;
-          let tableMatchesAlt = [];
-          let matchAlt;
-          while ((matchAlt = tableRowPatternAlt.exec(areasPerPitchText)) !== null) {
-            tableMatchesAlt.push(matchAlt);
+          console.log("CRITICAL: Trying more flexible pattern");
+          
+          // This pattern is more flexible with whitespace and formatting
+          const flexiblePattern = /(\d+)\/(\d+)[\s\n]*(\d+(?:,\d+)?(?:\.\d+)?)[\s\n]*(\d+(?:\.\d+)?)%/g;
+          let flexMatches = [];
+          let flexMatch;
+          
+          while ((flexMatch = flexiblePattern.exec(areasPerPitchText)) !== null) {
+            const numerator = flexMatch[1];
+            const denominator = flexMatch[2];
+            // Handle commas in numbers
+            const areaStr = flexMatch[3].replace(/,/g, '');
+            const area = parseFloat(areaStr);
+            const percentage = parseFloat(flexMatch[4]);
+            
+            flexMatches.push({
+              pitch: `${numerator}:${denominator}`,
+              area,
+              percentage
+            });
+            
+            console.log(`CRITICAL: Found with flexible pattern: pitch ${numerator}/${denominator} with area ${area} sq ft (${percentage}%)`);
           }
           
-          console.log("CRITICAL: Alternative pattern matches:", tableMatchesAlt.length);
+          console.log("CRITICAL: Flexible pattern matches:", flexMatches.length);
           
-          if (tableMatchesAlt.length > 0) {
-            tableMatchesAlt.forEach(match => {
-              const pitch = `${match[1]}:12`;
-              // Handle commas in numbers
-              const areaStr = match[2].replace(/,/g, '');
-              const area = parseFloat(areaStr);
-              
-              if (!isNaN(area) && area > 0) {
-                measurements.areasByPitch[pitch] = Math.round(area * 10) / 10;
-                console.log(`CRITICAL: Extracted from alt table pattern: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
+          if (flexMatches.length > 0) {
+            flexMatches.forEach(item => {
+              if (!isNaN(item.area) && item.area > 0) {
+                measurements.areasByPitch[item.pitch] = item.area;
+                console.log(`CRITICAL: Added to areasByPitch: ${item.pitch} = ${item.area} sq ft`);
                 foundAreasPerPitchTable = true;
               }
             });
           }
         }
         
-        // Special case for the daisy.pdf report with 5:12 pitch
-        if (Object.keys(measurements.areasByPitch).length === 0 && areasPerPitchText.includes("5/12") && areasPerPitchText.includes("2865")) {
-          console.log("CRITICAL: Detected daisy.pdf pattern with 5:12 pitch and 2865 sq ft");
-          measurements.areasByPitch["5:12"] = 2865;
-          foundAreasPerPitchTable = true;
-        }
-        
-        // Pattern 2: Find lines with just pitches followed by separate lines with just areas
+        // If we still don't have any matches, try a different approach
         if (Object.keys(measurements.areasByPitch).length === 0) {
-          console.log("CRITICAL: Trying pattern 2 - separate pitch and area lines");
-          
-          // Extract all pitches (including 0/12)
-          const pitchPattern = /(\d+)\/12/g;
-          let pitches = [];
-          let pitchMatch;
-          while ((pitchMatch = pitchPattern.exec(areasPerPitchText)) !== null) {
-            pitches.push(pitchMatch[1]);
-          }
-          
-          // Extract potential area values (larger numbers followed by optional sq ft or not)
-          const areaPattern = /(\d+(?:\.\d+)?)\s*(?:sq\.?\s*ft)?/g;
-          let areas = [];
-          let areaMatch;
-          while ((areaMatch = areaPattern.exec(areasPerPitchText)) !== null) {
-            const value = parseFloat(areaMatch[1]);
-            // Filter to only include values that are likely roof areas (larger numbers)
-            if (value > 100) {
-              areas.push(value);
-            }
-          }
-          
-          console.log("CRITICAL: Pattern 2 found pitches:", pitches);
-          console.log("CRITICAL: Pattern 2 found area values:", areas);
-          
-          // Associate pitches with areas if we have both and they're in similar quantity
-          if (pitches.length > 0 && areas.length > 0 && areas.length >= pitches.length) {
-            // Try to find areas close to the pitches in the text
-            // This is more reliable than just matching indexes, as layout can vary
-            
-            for (let i = 0; i < pitches.length; i++) {
-              const pitch = `${pitches[i]}:12`;
-              
-              // Look for a nearby area number (within next ~30 characters)
-              const pitchPos = areasPerPitchText.indexOf(`${pitches[i]}/12`);
-              if (pitchPos > -1) {
-                // Get the text after this pitch (limited length)
-                const afterPitchText = areasPerPitchText.substr(pitchPos, 100);
-                // Find the first number in this text that's > 100 (likely an area)
-                const areaMatch = afterPitchText.match(/(\d+(?:\.\d+)?)/g);
-                if (areaMatch) {
-                  // Find the first number that's likely an area (> 100)
-                  for (let j = 0; j < areaMatch.length; j++) {
-                    const value = parseFloat(areaMatch[j]);
-                    if (value > 100) {
-                      // Found an area value near this pitch
-                      measurements.areasByPitch[pitch] = Math.round(value * 10) / 10;
-                      console.log(`CRITICAL: Pattern 2 associated: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
-                      foundAreasPerPitchTable = true;
-                      break;
-                    }
-                  }
-                }
-              }
-              
-              // If still no value for this pitch, use the corresponding area by index
-              if (!measurements.areasByPitch[pitch] && i < areas.length) {
-                measurements.areasByPitch[pitch] = Math.round(areas[i] * 10) / 10;
-                console.log(`CRITICAL: Pattern 2 fallback: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
-                foundAreasPerPitchTable = true;
-              }
-            }
-          }
-        }
-        
-        // Pattern 3: Look for specific known patterns by pitch values
-        if (Object.keys(measurements.areasByPitch).length === 0) {
-          console.log("CRITICAL: Trying pattern 3 - specific pitch patterns");
-          
-          // Zero pitch special case
-          const zeroPitchPattern = /0\/12[^\d]*(\d+(?:\.\d+)?)/;
-          const zeroPitchMatch = areasPerPitchText.match(zeroPitchPattern);
-          if (zeroPitchMatch && zeroPitchMatch[1]) {
-            const area = parseFloat(zeroPitchMatch[1]);
-            if (area > 100) {
-              measurements.areasByPitch["0:12"] = Math.round(area * 10) / 10;
-              console.log(`CRITICAL: Found 0:12 pitch = ${measurements.areasByPitch["0:12"]} sq ft`);
-              foundAreasPerPitchTable = true;
-            }
-          }
-          
-          // One pitch special case
-          const onePitchPattern = /1\/12[^\d]*(\d+(?:\.\d+)?)/;
-          const onePitchMatch = areasPerPitchText.match(onePitchPattern);
-          if (onePitchMatch && onePitchMatch[1]) {
-            const area = parseFloat(onePitchMatch[1]);
-            if (area > 100) {
-              measurements.areasByPitch["1:12"] = Math.round(area * 10) / 10;
-              console.log(`CRITICAL: Found 1:12 pitch = ${measurements.areasByPitch["1:12"]} sq ft`);
-              foundAreasPerPitchTable = true;
-            }
-          }
-          
-          // Check for all other common pitches (2/12 through 12/12)
-          for (let p = 2; p <= 12; p++) {
-            const pitchPattern = new RegExp(`${p}\\/12[^\\d]*(\\d+(?:\\.\\d+)?)`);
-            const pitchMatch = areasPerPitchText.match(pitchPattern);
-            if (pitchMatch && pitchMatch[1]) {
-              const area = parseFloat(pitchMatch[1]);
-              if (area > 100) {
-                measurements.areasByPitch[`${p}:12`] = Math.round(area * 10) / 10;
-                console.log(`CRITICAL: Found ${p}:12 pitch = ${measurements.areasByPitch[`${p}:12`]} sq ft`);
-                foundAreasPerPitchTable = true;
-              }
-            }
-          }
-        }
-        
-        // Last resort - try to extract a table structure based on line positioning
-        if (Object.keys(measurements.areasByPitch).length === 0) {
-          console.log("CRITICAL: Trying last resort - table structure based on lines");
-          
-          // Split the text by lines to analyze the table structure
+          // Try to find the table structure by looking for lines with "Roof Pitches" and "Area"
           const lines = areasPerPitchText.split('\n');
-          let inTable = false;
-          let tableHeader = -1;
+          let tableHeaderIndex = -1;
           
-          // Find the table header line
+          // Find the table header
           for (let i = 0; i < lines.length; i++) {
             if (lines[i].includes("Roof Pitches") && lines[i].includes("Area")) {
-              tableHeader = i;
-              inTable = true;
+              tableHeaderIndex = i;
               console.log(`CRITICAL: Found table header at line ${i}: ${lines[i]}`);
               break;
             }
           }
           
-          // If we found the header, look for data rows
-          if (inTable && tableHeader > -1) {
-            // Start from the line after the header
-            for (let i = tableHeader + 1; i < Math.min(lines.length, tableHeader + 20); i++) {
-              // If the line contains a pitch pattern like 0/12, 4/12, etc.
-              const pitchMatch = lines[i].match(/(\d+)\/12/);
-              if (pitchMatch && pitchMatch[1]) {
-                const pitch = `${pitchMatch[1]}:12`;
+          if (tableHeaderIndex >= 0) {
+            // Look for data rows after the header
+            for (let i = tableHeaderIndex + 1; i < Math.min(lines.length, tableHeaderIndex + 10); i++) {
+              // Look for lines with pitch patterns like "1/12", "5/12", etc.
+              const pitchMatch = lines[i].match(/(\d+)\/(\d+)/);
+              if (pitchMatch) {
+                const numerator = pitchMatch[1];
+                const denominator = pitchMatch[2];
+                const pitch = `${numerator}:${denominator}`;
                 
-                // Extract all numbers from this line
+                // Extract all numbers from the line
                 const numbers = lines[i].match(/\d+(?:\.\d+)?/g);
                 if (numbers && numbers.length >= 2) {
-                  // The pitch number is already matched, get the area value
-                  // Find the largest number in the line (likely the area)
-                  let maxArea = 0;
-                  for (let num of numbers) {
-                    const value = parseFloat(num);
-                    if (value > 100 && value > maxArea) {
-                      maxArea = value;
+                  // The second number is likely the area
+                  const areaIndex = numbers.findIndex(n => n === numerator) + 1;
+                  if (areaIndex < numbers.length) {
+                    const area = parseFloat(numbers[areaIndex]);
+                    if (!isNaN(area) && area > 100) {
+                      measurements.areasByPitch[pitch] = area;
+                      console.log(`CRITICAL: Found from table row: ${pitch} = ${area} sq ft`);
+                      foundAreasPerPitchTable = true;
                     }
-                  }
-                  
-                  if (maxArea > 0) {
-                    measurements.areasByPitch[pitch] = Math.round(maxArea * 10) / 10;
-                    console.log(`CRITICAL: Found from table row: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
-                    foundAreasPerPitchTable = true;
                   }
                 }
               }
             }
           }
+        }
+        
+        // If we still don't have any matches, try one more approach
+        if (Object.keys(measurements.areasByPitch).length === 0) {
+          // Try to find the table structure by looking for specific patterns in the text
+          const specificPatterns = [
+            { pitch: "1:12", pattern: /1\/12[^\d]*(\d+(?:\.\d+)?)/i },
+            { pitch: "2:12", pattern: /2\/12[^\d]*(\d+(?:\.\d+)?)/i },
+            { pitch: "5:12", pattern: /5\/12[^\d]*(\d+(?:\.\d+)?)/i },
+            { pitch: "6:12", pattern: /6\/12[^\d]*(\d+(?:\.\d+)?)/i },
+            { pitch: "8:12", pattern: /8\/12[^\d]*(\d+(?:\.\d+)?)/i },
+            { pitch: "10:12", pattern: /10\/12[^\d]*(\d+(?:\.\d+)?)/i },
+            { pitch: "12:12", pattern: /12\/12[^\d]*(\d+(?:\.\d+)?)/i }
+          ];
           
-          // If still no pitch data, try a more aggressive approach
-          if (Object.keys(measurements.areasByPitch).length === 0) {
-            console.log("CRITICAL: Trying aggressive pitch extraction from full text");
-            
-            // Look for patterns like "5/12 2865" in the entire text
-            const fullPitchAreaPattern = /(\d+)\/12\D+(\d{3,}(?:\.\d+)?)/g;
-            let fullMatch;
-            while ((fullMatch = fullPitchAreaPattern.exec(areasPerPitchText)) !== null) {
-              const pitch = `${fullMatch[1]}:12`;
-              const area = parseFloat(fullMatch[2]);
-              
+          specificPatterns.forEach(({ pitch, pattern }) => {
+            const match = areasPerPitchText.match(pattern);
+            if (match && match[1]) {
+              const area = parseFloat(match[1]);
               if (!isNaN(area) && area > 100) {
-                measurements.areasByPitch[pitch] = Math.round(area * 10) / 10;
-                console.log(`CRITICAL: Aggressively extracted: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
+                measurements.areasByPitch[pitch] = area;
+                console.log(`CRITICAL: Found specific pattern: ${pitch} = ${area} sq ft`);
                 foundAreasPerPitchTable = true;
               }
             }
-            
-            // Try another pattern that might catch different formatting
-            const altPitchAreaPattern = /(\d+)\/12[\s\S]{1,30}?(\d{3,}(?:\.\d+)?)/g;
-            let altMatch;
-            while ((altMatch = altPitchAreaPattern.exec(areasPerPitchText)) !== null) {
-              const pitch = `${altMatch[1]}:12`;
-              const area = parseFloat(altMatch[2]);
-              
-              // Only add if we don't already have this pitch
-              if (!measurements.areasByPitch[pitch] && !isNaN(area) && area > 100) {
-                measurements.areasByPitch[pitch] = Math.round(area * 10) / 10;
-                console.log(`CRITICAL: Alt pattern extracted: ${pitch} = ${measurements.areasByPitch[pitch]} sq ft`);
-                foundAreasPerPitchTable = true;
-              }
-            }
-          }
+          });
         }
       }
       
