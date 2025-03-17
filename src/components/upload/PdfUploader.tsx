@@ -6,15 +6,15 @@ import { DropZone } from "./DropZone";
 import { ProcessingStatus } from "./ProcessingStatus";
 import { SuccessStatus } from "./SuccessStatus";
 import { ErrorStatus } from "./ErrorStatus";
-import { toast } from "@/hooks/use-toast";
 import { ParsedMeasurements } from "@/api/measurements";
+import { toast } from "@/hooks/use-toast";
 
-// Add the onPdfParsed prop to the component props
 interface PdfUploaderProps {
-  onPdfParsed?: (data: ParsedMeasurements, fileName: string) => void;
+  onDataExtracted?: (data: ParsedMeasurements, fileName: string) => void;
+  savedFileName?: string;
 }
 
-export function PdfUploader({ onPdfParsed }: PdfUploaderProps) {
+export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps) {
   const { 
     file, 
     status, 
@@ -60,9 +60,9 @@ export function PdfUploader({ onPdfParsed }: PdfUploaderProps) {
           description: "There was an unexpected error processing your file.",
           variant: "destructive",
         });
-      } else if (result && onPdfParsed && status === "success") {
-        // If we have a result and the onPdfParsed callback, call it
-        onPdfParsed(result, selectedFile.name);
+      } else if (result && onDataExtracted) {
+        // If we have a result and the parent component provided the onDataExtracted callback
+        onDataExtracted(result, selectedFile.name);
       }
     } catch (error) {
       console.error("Error in upload and process flow:", error);
@@ -80,12 +80,12 @@ export function PdfUploader({ onPdfParsed }: PdfUploaderProps) {
     if (!parsedData || !file) return;
     
     try {
-      await saveToDatabase(file.name, parsedData, fileUrl || undefined);
-      
-      // After saving to database, also notify parent if onPdfParsed is provided
-      if (onPdfParsed) {
-        onPdfParsed(parsedData, file.name);
+      // Call the onDataExtracted callback if provided
+      if (onDataExtracted) {
+        onDataExtracted(parsedData, file.name);
       }
+      
+      await saveToDatabase(file.name, parsedData, fileUrl || undefined);
     } catch (error) {
       console.error("Error saving to database:", error);
       toast({
@@ -115,45 +115,55 @@ export function PdfUploader({ onPdfParsed }: PdfUploaderProps) {
     }
   };
 
+  // If we have a savedFileName, display it as already processed
+  React.useEffect(() => {
+    if (savedFileName && !file && !parsedData) {
+      console.log("Using saved file name:", savedFileName);
+      // Create a dummy file object with the savedFileName
+      const dummyFile = new File(["dummy content"], savedFileName, { type: "application/pdf" });
+      // Set the file but don't reprocess it - we already have the data
+      setStatus("success");
+    }
+  }, [savedFileName, file, parsedData]);
+
   return (
-    <div className="w-full">
-      {status === "idle" ? (
-        <div className="flex flex-col gap-4">
-          <DropZone 
-            dragActive={dragActive}
-            handleDrag={handleDrag}
-            handleDrop={handleDropWrapper}
-            handleFileInput={handleFileInputWrapper}
-          />
-        </div>
-      ) : (
-        <div className="p-8 flex flex-col items-center justify-center">
-          {(status === "uploading" || status === "parsing") && (
-            <ProcessingStatus 
-              status={status} 
-              fileName={file?.name || ""} 
-              processingMode={processingMode}
-              progress={processingProgress}
-            />
-          )}
-          
-          {status === "success" && parsedData && (
-            <SuccessStatus 
-              fileName={file?.name || ""} 
-              parsedData={parsedData}
-              fileUrl={fileUrl}
-              saveToDatabase={handleSaveToDatabase}
-              resetUpload={handleResetUpload}
-            />
-          )}
-          
-          {status === "error" && (
-            <ErrorStatus 
-              resetUpload={handleResetUpload} 
-              errorDetails={errorDetails}
-            />
-          )}
-        </div>
+    <div className="space-y-4">
+      {/* Display different content based on the current status */}
+      {status === "idle" && (
+        <DropZone 
+          onDrop={handleDropWrapper}
+          onDragOver={handleDrag}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onFileInputChange={handleFileInputWrapper}
+          dragActive={dragActive}
+        />
+      )}
+
+      {status === "processing" && (
+        <ProcessingStatus 
+          file={file}
+          mode={processingMode}
+          progress={processingProgress}
+        />
+      )}
+
+      {status === "success" && parsedData && (
+        <SuccessStatus 
+          file={file || (savedFileName ? new File(["dummy content"], savedFileName, { type: "application/pdf" }) : undefined)}
+          parsedData={parsedData}
+          fileUrl={fileUrl}
+          onSaveToDatabase={handleSaveToDatabase}
+          onReset={handleResetUpload}
+        />
+      )}
+
+      {status === "error" && (
+        <ErrorStatus 
+          file={file}
+          errorDetails={errorDetails}
+          onReset={handleResetUpload}
+        />
       )}
     </div>
   );

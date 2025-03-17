@@ -1,507 +1,327 @@
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Form } from "@/components/ui/form";
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { useToast } from "@/hooks/use-toast";
-import { CalculatorIcon, ClipboardCheckIcon, ClipboardListIcon, HardHatIcon, DollarSignIcon, Upload } from "lucide-react";
+import React, { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Plus, ChevronRight, RefreshCw } from "lucide-react";
 import { MeasurementForm } from "@/components/estimates/MeasurementForm";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MaterialsSelectionTab } from "@/components/estimates/materials/MaterialsSelectionTab";
 import { MeasurementValues } from "@/components/estimates/measurement/types";
+import { Material } from "@/components/estimates/materials/types";
+import { useToast } from "@/hooks/use-toast";
+import { LaborProfitTab, LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
+import { EstimateSummaryTab } from "@/components/estimates/pricing/EstimateSummaryTab";
 import { ParsedMeasurements } from "@/api/measurements";
-import { cn } from "@/lib/utils";
-import { useNavigate, useParams } from "react-router-dom";
-import { AreaByPitch } from "../components/estimates/measurement/types";
-import { debugPdfParsingResult, sanitizeMeasurements } from "@/components/upload/hooks/debug-utils";
+import { useSearchParams, useNavigate } from "react-router-dom";
 
-// Create the SidebarNav component
-interface SidebarNavItem {
-  title: string;
-  href: string;
-  icon?: React.ReactNode;
-  value: string;
-  disabled?: boolean;
-}
-
-interface SidebarNavProps {
-  items: SidebarNavItem[];
-  activeItem: string;
-  onSelect: (value: string) => void;
-}
-
-const SidebarNav = ({ items, activeItem, onSelect }: SidebarNavProps) => {
-  return (
-    <nav className="flex flex-col space-y-1">
-      {items.map((item) => (
-        <Button
-          key={item.value}
-          variant={activeItem === item.value ? "default" : "ghost"}
-          size="sm"
-          className={cn(
-            "justify-start w-full text-left px-3 py-2",
-            item.disabled ? "opacity-50 cursor-not-allowed" : ""
-          )}
-          onClick={() => !item.disabled && onSelect(item.value)}
-          disabled={item.disabled}
-        >
-          <div className="flex items-center">
-            {item.icon && <div className="mr-2">{item.icon}</div>}
-            {item.title}
-          </div>
-        </Button>
-      ))}
-    </nav>
-  );
-};
-
-// Create simplified MaterialsForm component
-const MaterialsForm = ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Select Materials</h3>
-      <p className="text-sm text-muted-foreground">
-        Choose the materials for your roofing project.
-      </p>
-      <div className="space-y-4">
-        {/* Placeholder for materials selection form fields */}
-        <div className="h-40 rounded-md border border-dashed flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">Materials selection form would go here</p>
-        </div>
-      </div>
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onBack}>Back</Button>
-        <Button onClick={onNext}>Continue</Button>
-      </div>
-    </div>
-  );
-};
-
-// Create simplified LaborProfitForm component
-const LaborProfitForm = ({ onBack, onNext }: { onBack: () => void; onNext: () => void }) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Labor and Profit</h3>
-      <p className="text-sm text-muted-foreground">
-        Set labor rates and profit margins for this estimate.
-      </p>
-      <div className="space-y-4">
-        {/* Placeholder for labor and profit form fields */}
-        <div className="h-40 rounded-md border border-dashed flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">Labor and profit settings would go here</p>
-        </div>
-      </div>
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onBack}>Back</Button>
-        <Button onClick={onNext}>Continue</Button>
-      </div>
-    </div>
-  );
-};
-
-// Create simplified SummaryForm component
-const SummaryForm = ({ onBack }: { onBack: () => void }) => {
-  return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Estimate Summary</h3>
-      <p className="text-sm text-muted-foreground">
-        Review your complete estimate details.
-      </p>
-      <div className="space-y-4">
-        {/* Placeholder for summary details */}
-        <div className="h-40 rounded-md border border-dashed flex items-center justify-center">
-          <p className="text-sm text-muted-foreground">Estimate summary would be displayed here</p>
-        </div>
-      </div>
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onBack}>Back</Button>
-        <Button variant="default">Save Estimate</Button>
-      </div>
-    </div>
-  );
-};
-
-// Create simplified ManageFiles component
-const ManageFiles = () => {
-  return (
-    <div className="rounded-md border p-4">
-      <h3 className="text-lg font-medium mb-2">Recent Files</h3>
-      <p className="text-sm text-muted-foreground mb-4">
-        Your recently uploaded files will appear here.
-      </p>
-      <div className="h-40 rounded-md border border-dashed flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">No recent files</p>
-      </div>
-    </div>
-  );
-};
-
-export default function Estimates() {
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("upload");
-  const [measurements, setMeasurements] = useState<MeasurementValues | null>(null);
-  const [parsedPdfData, setParsedPdfData] = useState<ParsedMeasurements | null>(null);
-  const [hasPdfData, setHasPdfData] = useState(false);
-  const [pdfFileName, setPdfFileName] = useState<string | null>(null);
-  const [measurementsProcessed, setMeasurementsProcessed] = useState(false);
-
-  const sidebarNavItems = [
-    {
-      title: "Upload",
-      href: "#",
-      icon: <Upload className="h-4 w-4" />,
-      value: "upload",
-    },
-    {
-      title: "Measurements",
-      href: "#",
-      icon: <CalculatorIcon className="h-4 w-4" />,
-      value: "measurements",
-      disabled: !hasPdfData,
-    },
-    {
-      title: "Materials",
-      href: "#",
-      icon: <ClipboardListIcon className="h-4 w-4" />,
-      value: "materials",
-    },
-    {
-      title: "Labor & Profit",
-      href: "#",
-      icon: <HardHatIcon className="h-4 w-4" />,
-      value: "labor-profit",
-    },
-    {
-      title: "Summary",
-      href: "#",
-      icon: <ClipboardCheckIcon className="h-4 w-4" />,
-      value: "summary",
-    },
-  ];
-
-  const form = useForm<any>({
-    defaultValues: {},
+// Convert ParsedMeasurements to MeasurementValues format
+const convertToMeasurementValues = (parsedData: ParsedMeasurements): MeasurementValues => {
+  // Convert areasByPitch from Record<string, number> to AreaByPitch[] format
+  const areasByPitch = Object.entries(parsedData.areasByPitch || {}).map(([pitch, area]) => {
+    return {
+      pitch,
+      area,
+      percentage: parsedData.totalArea > 0 ? Math.round((area / parsedData.totalArea) * 100) : 0
+    };
   });
 
-  const onSubmit = (data: any) => {
-    console.log(data);
-    toast({
-      title: "You submitted the following values:",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    });
+  return {
+    totalArea: parsedData.totalArea || 0,
+    ridgeLength: parsedData.ridgeLength || 0,
+    hipLength: parsedData.hipLength || 0,
+    valleyLength: parsedData.valleyLength || 0,
+    eaveLength: parsedData.eaveLength || 0,
+    rakeLength: parsedData.rakeLength || 0,
+    stepFlashingLength: parsedData.stepFlashingLength || 0,
+    flashingLength: parsedData.flashingLength || 0, 
+    penetrationsArea: parsedData.penetrationsArea || 0,
+    roofPitch: parsedData.predominantPitch || "6:12",
+    areasByPitch: areasByPitch.length > 0 ? areasByPitch : [{ pitch: "6:12", area: 0, percentage: 100 }]
   };
+};
 
-  // Reset the entire workflow
-  const handleResetWorkflow = () => {
-    setParsedPdfData(null);
-    setHasPdfData(false);
-    setPdfFileName(null);
-    setMeasurements(null);
-    setActiveTab("upload");
-  };
+const Estimates = () => {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const measurementId = searchParams.get("measurementId");
 
-  // Store parsed PDF data and set state to indicate we have data
-  const handlePdfParsed = (data: ParsedMeasurements, fileName: string) => {
-    console.log("PDF successfully parsed:", data);
-    
-    // Debug the parsed data using our utility
-    debugPdfParsingResult(data, "handlePdfParsed");
-    
-    // Sanitize the measurements to ensure correct format
-    if (data && data.measurements) {
-      const sanitized = sanitizeMeasurements(data.measurements);
-      console.log("Sanitized measurements:", sanitized);
-      
-      // Store the sanitized data
-      setParsedPdfData({
-        ...data,
-        measurements: sanitized
-      });
-    } else {
-      setParsedPdfData(data);
-    }
-    
-    setHasPdfData(true);
-    setPdfFileName(fileName);
-    setMeasurementsProcessed(false);
-    
-    // Process the data for the measurement form
-    processParsedPdfData(data);
-  };
+  // Workflow state 
+  const [activeTab, setActiveTab] = useState("upload");
   
-  // Process the parsed PDF data into the format needed for the measurement form
-  const processParsedPdfData = (data: ParsedMeasurements) => {
-    if (!data || !data.measurements) {
-      console.warn("No valid measurement data found in the PDF");
-      return;
-    }
-    
-    console.log("CRITICAL: Processing parsed PDF data for measurements form:", data);
-    
-    // Get the measurements data and sanitize it
-    const rawMeasurements = data.measurements;
-    const sanitizedMeasurements = sanitizeMeasurements(rawMeasurements);
-    
-    // Process the areasByPitch data from the PDF to ensure it's in the correct format
-    const formattedAreasByPitch = Array.isArray(sanitizedMeasurements.areasByPitch) 
-      ? sanitizedMeasurements.areasByPitch 
-      : Object.entries(sanitizedMeasurements.areasByPitch).map(([pitch, area]) => {
-          const numericArea = typeof area === 'number' ? area : parseFloat(String(area)) || 0;
-          const totalArea = sanitizedMeasurements.totalArea || 0;
-          const percentage = totalArea > 0 ? (numericArea / totalArea) * 100 : 0;
-          
-          return {
-            pitch,
-            area: Math.round(numericArea * 100) / 100, // Round to 2 decimal places
-            percentage: Math.round(percentage * 10) / 10 // Round to 1 decimal place
-          };
-        }).sort((a, b) => b.area - a.area); // Sort by area (largest first)
-    
-    console.log("CRITICAL: Formatted areasByPitch:", formattedAreasByPitch);
-    
-    // IMPORTANT: If there are no formatted areas, create a default one
-    if (formattedAreasByPitch.length === 0) {
-      console.log("CRITICAL: No formatted areas, creating default one");
-      formattedAreasByPitch.push({
-        pitch: sanitizedMeasurements.predominantPitch || "6:12",
-        area: Math.round(sanitizedMeasurements.totalArea * 100) / 100,
-        percentage: 100
-      });
-    }
-
-    // Set state for measurement values with sanitized and formatted data
-    const measurementValues: MeasurementValues = {
-      totalArea: Math.round((sanitizedMeasurements.totalArea || 0) * 100) / 100,
-      ridgeLength: Math.round((sanitizedMeasurements.ridgeLength || 0) * 100) / 100,
-      hipLength: Math.round((sanitizedMeasurements.hipLength || 0) * 100) / 100,
-      valleyLength: Math.round((sanitizedMeasurements.valleyLength || 0) * 100) / 100,
-      rakeLength: Math.round((sanitizedMeasurements.rakeLength || 0) * 100) / 100,
-      eaveLength: Math.round((sanitizedMeasurements.eaveLength || 0) * 100) / 100,
-      roofPitch: sanitizedMeasurements.predominantPitch || "",
-      areasByPitch: formattedAreasByPitch,
-      stepFlashingLength: Math.round((sanitizedMeasurements.stepFlashingLength || 0) * 100) / 100,
-      flashingLength: Math.round((sanitizedMeasurements.flashingLength || 0) * 100) / 100,
-      penetrationsArea: Math.round((sanitizedMeasurements.penetrationsArea || 0) * 100) / 100,
-      // Add latitude, longitude, and property address
-      latitude: sanitizedMeasurements.latitude || "",
-      longitude: sanitizedMeasurements.longitude || "",
-      propertyAddress: sanitizedMeasurements.propertyAddress || ""
-    };
-    
-    // Log the final measurement values
-    console.log("CRITICAL: Final measurement values to be set in state:", measurementValues);
-    console.log("CRITICAL: areasByPitch in final state:", measurementValues.areasByPitch);
-    
-    // Force a clean state update by creating a completely new object
-    setMeasurements(null); // First clear the state
-    
-    // Then set it after a small delay to ensure the null update is processed
-    setTimeout(() => {
-      setMeasurements({...measurementValues});
-      
-      // Set flag to indicate measurements are processed
-      setMeasurementsProcessed(true);
+  // Store extracted PDF data
+  const [extractedPdfData, setExtractedPdfData] = useState<ParsedMeasurements | null>(null);
+  const [pdfFileName, setPdfFileName] = useState<string | null>(null);
   
-      // Save the measurementValues to localStorage for persistence
-      localStorage.setItem("measurementValues", JSON.stringify(measurementValues));
-      
-      console.log("CRITICAL: Measurements processed and ready for auto-navigation");
-      
-      // Set active tab immediately
-      setActiveTab("measurements");
-    }, 100);
-  };
-
-  // Effect to auto-navigate to measurements tab when data is ready
+  const [measurements, setMeasurements] = useState<MeasurementValues | null>(null);
+  const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
+  const [quantities, setQuantities] = useState<{[key: string]: number}>({});
+  const [laborRates, setLaborRates] = useState<LaborRates>({
+    tearOff: 55,
+    installation: 125,
+    cleanup: 35,
+    supervision: 45
+  });
+  const [profitMargin, setProfitMargin] = useState(25);
+  const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
+  
+  // Initialize measurements if we have extracted PDF data or a measurementId
   useEffect(() => {
-    if (measurementsProcessed && hasPdfData && parsedPdfData) {
-      // After measurements are processed, automatically navigate to measurements tab
-      console.log("CRITICAL: Auto-navigating to measurements tab with processed data");
-      console.log("CRITICAL: Measurements state before navigation:", measurements);
-      
-      // Force navigation to measurements tab
-      setActiveTab("measurements");
-      
-      // Additional backup: force navigation again after a short delay
-      setTimeout(() => {
-        console.log("CRITICAL: Secondary navigation to measurements tab");
-        setActiveTab("measurements");
-      }, 300);
+    // If we have extracted PDF data, convert it to MeasurementValues format
+    if (extractedPdfData) {
+      console.log("Setting initial measurements from extracted PDF data:", extractedPdfData);
+      setMeasurements(convertToMeasurementValues(extractedPdfData));
     }
-  }, [measurementsProcessed, hasPdfData, parsedPdfData]);
+    
+    // If we have a measurementId, fetch the data (implement this functionality)
+    if (measurementId) {
+      console.log("Fetching measurements for ID:", measurementId);
+      // TODO: Implement fetching data from storage
+    }
+  }, [extractedPdfData, measurementId]);
 
-  // Prepare data for the measurement form and switch to measurements tab
+  const handlePdfDataExtracted = (data: ParsedMeasurements, fileName: string) => {
+    console.log("PDF data extracted:", data);
+    setExtractedPdfData(data);
+    setPdfFileName(fileName);
+  };
+
   const handleGoToMeasurements = () => {
-    console.log("Navigating to measurements", { parsedPdfData, hasPdfData, measurements });
-    
-    if (!parsedPdfData) {
-      toast({
-        title: "Error",
-        description: "Please upload a PDF first",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // If we don't have measurements yet, process the PDF data now
-    if (!measurements && parsedPdfData) {
-      processParsedPdfData(parsedPdfData);
-    }
-    
-    // Navigate to measurements tab
     setActiveTab("measurements");
   };
 
-  // Handle tab changes separately from active tab state to preserve state when navigating
-  const handleTabChange = (value: string) => {
-    console.log(`Tab change requested: ${activeTab} -> ${value}`);
+  const handleGoToMaterials = () => {
+    setActiveTab("materials");
+  };
+
+  const handleMeasurementsSaved = (savedMeasurements: MeasurementValues) => {
+    setMeasurements(savedMeasurements);
+    handleGoToMaterials();
     
-    // Special case for navigating to measurements tab
-    if (value === "measurements") {
-      // If we have parsed PDF data but no measurements yet, convert the data
-      if (parsedPdfData && !measurements) {
-        handleGoToMeasurements();
-        return;
-      }
+    toast({
+      title: "Measurements saved",
+      description: "Now you can select materials for your estimate.",
+    });
+  };
+
+  const handleMaterialsSelected = (materials: {[key: string]: Material}, quantities: {[key: string]: number}) => {
+    setSelectedMaterials(materials);
+    setQuantities(quantities);
+    setActiveTab("labor-profit");
+    
+    toast({
+      title: "Materials selected",
+      description: "Now you can set labor rates and profit margin.",
+    });
+  };
+
+  const handleLaborProfitContinue = (laborRates: LaborRates, profitMargin: number) => {
+    setLaborRates(laborRates);
+    setProfitMargin(profitMargin);
+    setActiveTab("summary");
+    
+    toast({
+      title: "Labor rates & profit margin saved",
+      description: "Review your estimate summary.",
+    });
+  };
+
+  const handleFinalizeEstimate = () => {
+    setIsSubmittingFinal(true);
+    
+    // In a real implementation, we would save the complete estimate to the database
+    setTimeout(() => {
+      setIsSubmittingFinal(false);
       
-      // If measurements tab is disabled, don't navigate
-      if (!hasPdfData) {
-        console.log("Measurements tab is disabled, not navigating");
-        toast({
-          title: "Upload an EagleView PDF first",
-          description: "Please upload an EagleView PDF to access the measurements tab.",
-          variant: "default",
-        });
-        return;
-      }
-    }
+      toast({
+        title: "Estimate finalized",
+        description: "Your estimate has been saved successfully.",
+      });
+      
+      // Reset and go back to the beginning
+      handleStartFresh();
+    }, 1500);
+  };
+  
+  // Function to start fresh and clear all state
+  const handleStartFresh = () => {
+    setActiveTab("upload");
+    setExtractedPdfData(null);
+    setPdfFileName(null);
+    setMeasurements(null);
+    setSelectedMaterials({});
+    setQuantities({});
+    setLaborRates({
+      tearOff: 55,
+      installation: 125,
+      cleanup: 35,
+      supervision: 45
+    });
+    setProfitMargin(25);
     
-    // Allow jumping between tabs
-    setActiveTab(value);
+    // Clear any URL parameters
+    navigate("/estimates");
+    
+    toast({
+      title: "Started fresh",
+      description: "All estimate data has been cleared.",
+    });
+  };
+
+  // Default measurements for the materials tab if no measurements exist yet
+  const defaultMeasurements: MeasurementValues = {
+    totalArea: 3000,
+    ridgeLength: 80,
+    hipLength: 40,
+    valleyLength: 30,
+    eaveLength: 120,
+    rakeLength: 60,
+    stepFlashingLength: 20,
+    flashingLength: 30,
+    penetrationsArea: 20,
+    roofPitch: "6:12",
+    areasByPitch: [
+      { pitch: "6:12", area: 2400, percentage: 80 },
+      { pitch: "4:12", area: 600, percentage: 20 }
+    ]
   };
 
   return (
     <MainLayout>
-      <div className="hidden space-y-6 pb-16 md:block">
-        <div className="space-y-0.5">
-          <h2 className="text-2xl font-bold tracking-tight">Estimates</h2>
-          <p className="text-muted-foreground">
-            Create a new estimate by uploading measurements or entering them manually.
-          </p>
+      <div className="space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-4xl font-bold tracking-tight">Estimates</h1>
+            <p className="text-muted-foreground mt-1">
+              Create and manage roofing estimates for your customers
+            </p>
+          </div>
+          <Button className="flex items-center gap-2" onClick={handleStartFresh}>
+            <Plus className="h-4 w-4" />
+            <span>New Estimate</span>
+          </Button>
         </div>
-        <Separator className="my-6" />
-      </div>
 
-      <div className="flex flex-col space-y-8 lg:flex-row lg:space-x-8 lg:space-y-0">
-        <aside className="lg:w-1/5">
-          <SidebarNav items={sidebarNavItems} activeItem={activeTab} onSelect={handleTabChange} />
-        </aside>
-        <div className="flex-1 lg:max-w-4xl">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-              <Tabs
-                value={activeTab}
-                onValueChange={handleTabChange}
-                className="space-y-4"
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <div>
+              <CardTitle>Create New Estimate</CardTitle>
+              <CardDescription>
+                Follow the steps below to create a complete estimate
+              </CardDescription>
+            </div>
+            {(extractedPdfData || pdfFileName) && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleStartFresh}
+                className="flex items-center gap-1"
               >
-                <TabsList className="w-full">
-                  {sidebarNavItems.map((item) => (
-                    <TabsTrigger
-                      key={item.value}
-                      value={item.value}
-                      className={cn(
-                        "flex-1",
-                        item.disabled ? "cursor-not-allowed opacity-50" : ""
-                      )}
-                      disabled={item.disabled}
-                    >
-                      <div className="flex items-center justify-center space-x-2">
-                        {item.icon}
-                        <span>{item.title}</span>
-                      </div>
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                <ScrollArea className="h-full max-h-[calc(100vh-250px)] overflow-auto rounded-md border p-8">
-                  <TabsContent value="upload" className="space-y-4">
-                    <h3 className="text-lg font-medium">Upload Measurements</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Upload a PDF file containing the measurements for your estimate.
-                    </p>
-                    <p className="text-sm font-medium">Supported file types</p>
-                    <div className="flex gap-2">
-                      <div className="rounded bg-muted px-2 py-1 text-xs">PDF</div>
-                    </div>
-                    
-                    {hasPdfData && (
-                      <div className="my-4 rounded-md bg-green-50 p-4">
-                        <p className="text-sm font-medium text-green-800">
-                          Successfully processed: {pdfFileName}
-                        </p>
-                        <div className="mt-3 flex space-x-4">
-                          <Button
-                            type="button"
-                            variant="default"
-                            onClick={handleGoToMeasurements}
-                          >
-                            Continue to Measurements
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleResetWorkflow}
-                          >
-                            Start Fresh
-                          </Button>
-                        </div>
+                <RefreshCw className="h-4 w-4" />
+                Start Fresh
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="w-full grid grid-cols-5 mb-8">
+                <TabsTrigger value="upload">1. Upload EagleView</TabsTrigger>
+                <TabsTrigger value="measurements">2. Enter Measurements</TabsTrigger>
+                <TabsTrigger value="materials">3. Select Materials</TabsTrigger>
+                <TabsTrigger value="labor-profit">4. Labor & Profit</TabsTrigger>
+                <TabsTrigger value="summary">5. Summary</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="upload" className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
+                    {extractedPdfData && (
+                      <div className="mt-6 flex justify-end">
+                        <Button onClick={handleGoToMeasurements} className="flex items-center gap-2">
+                          Continue to Measurements
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
                       </div>
                     )}
-                    
-                    <PdfUploader onPdfParsed={handlePdfParsed} />
-                  </TabsContent>
-                  <TabsContent value="measurements" className="space-y-4">
-                    <h3 className="text-lg font-medium">Measurements</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Enter or edit the measurements for your estimate.
+                  </div>
+                  
+                  <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
+                    <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
+                    <p className="text-sm text-slate-600 mb-4">
+                      Follow these steps to create a complete estimate
                     </p>
-                    {/* Pass the processed measurements to the MeasurementForm */}
-                    <MeasurementForm 
-                      initialValues={measurements}
-                      onComplete={() => setActiveTab("materials")}
-                    />
-                  </TabsContent>
-                  <TabsContent value="materials" className="space-y-4">
-                    <MaterialsForm
-                      onBack={() => setActiveTab("measurements")}
-                      onNext={() => setActiveTab("labor-profit")}
-                    />
-                  </TabsContent>
-                  <TabsContent value="labor-profit" className="space-y-4">
-                    <LaborProfitForm
-                      onBack={() => setActiveTab("materials")}
-                      onNext={() => setActiveTab("summary")}
-                    />
-                  </TabsContent>
-                  <TabsContent value="summary" className="space-y-4">
-                    <SummaryForm
-                      onBack={() => setActiveTab("labor-profit")}
-                    />
-                  </TabsContent>
-                </ScrollArea>
-              </Tabs>
-            </form>
-          </Form>
-        </div>
-        <aside className="hidden lg:block lg:w-1/4">
-          <ManageFiles />
-        </aside>
+                    <ol className="space-y-2 text-sm">
+                      <li className="flex items-start gap-2">
+                        <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">1</span>
+                        <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
+                        <span>Review Measurements - Verify or enter the roof measurements</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
+                        <span>Select Materials - Choose roofing materials and options</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
+                        <span>Set Labor & Profit - Define labor rates and profit margin</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
+                        <span>Review Summary - Finalize and prepare for customer approval</span>
+                      </li>
+                    </ol>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="measurements">
+                <MeasurementForm 
+                  onMeasurementsSaved={handleMeasurementsSaved} 
+                  initialMeasurements={measurements || undefined}
+                  extractedFileName={pdfFileName || undefined}
+                  onBack={() => setActiveTab("upload")}
+                />
+              </TabsContent>
+              
+              <TabsContent value="materials">
+                <MaterialsSelectionTab 
+                  measurements={measurements || defaultMeasurements}
+                  onContinue={handleMaterialsSelected}
+                  onBack={() => setActiveTab("measurements")}
+                />
+              </TabsContent>
+              
+              <TabsContent value="labor-profit">
+                <LaborProfitTab 
+                  initialLaborRates={laborRates}
+                  initialProfitMargin={profitMargin}
+                  onContinue={handleLaborProfitContinue}
+                  onBack={() => setActiveTab("materials")}
+                />
+              </TabsContent>
+              
+              <TabsContent value="summary">
+                <EstimateSummaryTab 
+                  measurements={measurements || defaultMeasurements}
+                  materials={selectedMaterials}
+                  quantities={quantities}
+                  laborRates={laborRates}
+                  profitMargin={profitMargin}
+                  onFinalize={handleFinalizeEstimate}
+                  isSubmitting={isSubmittingFinal}
+                  onBack={() => setActiveTab("labor-profit")}
+                />
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
     </MainLayout>
   );
-} 
+};
+
+export default Estimates;

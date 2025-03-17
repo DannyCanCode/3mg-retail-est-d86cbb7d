@@ -6,255 +6,59 @@ import { RoofAreaTab } from "./measurement/RoofAreaTab";
 import { LengthMeasurementsTab } from "./measurement/LengthMeasurementsTab";
 import { ReviewTab } from "./measurement/ReviewTab";
 import { MeasurementValues, AreaByPitch } from "./measurement/types";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft } from "lucide-react";
 
 interface MeasurementFormProps {
-  initialValues?: MeasurementValues | null;
   onMeasurementsSaved?: (measurements: MeasurementValues) => void;
-  onComplete?: () => void;
+  initialMeasurements?: MeasurementValues;
+  extractedFileName?: string;
+  onBack?: () => void;
 }
 
-export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete }: MeasurementFormProps) {
+export function MeasurementForm({ 
+  onMeasurementsSaved, 
+  initialMeasurements,
+  extractedFileName,
+  onBack
+}: MeasurementFormProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("roof-area");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  // Debug initial values when component mounts
+  // Use initialMeasurements if provided, otherwise use default empty values
+  const [measurements, setMeasurements] = useState<MeasurementValues>(
+    initialMeasurements || {
+      totalArea: 0,
+      ridgeLength: 0,
+      hipLength: 0,
+      valleyLength: 0,
+      eaveLength: 0,
+      rakeLength: 0,
+      stepFlashingLength: 0,
+      flashingLength: 0,
+      penetrationsArea: 0,
+      roofPitch: "6:12",
+      areasByPitch: [{ pitch: "6:12", area: 0, percentage: 100 }]
+    }
+  );
+
+  // Update measurements if initialMeasurements changes (e.g., after PDF extraction)
   useEffect(() => {
-    console.log("CRITICAL: MeasurementForm: MOUNT with initialValues:", initialValues);
-    
-    // Alert for debugging - this will tell us if initialValues are being passed
-    if (initialValues) {
-      console.log("Has initial values on mount:", initialValues);
-      const areasByPitchCount = Array.isArray(initialValues.areasByPitch) 
-        ? initialValues.areasByPitch.length 
-        : Object.keys(initialValues.areasByPitch || {}).length;
-      
-      alert(`MeasurementForm mounting with data!\nTotal Area: ${initialValues.totalArea}\nAreas by pitch: ${areasByPitchCount}\nPredominant Pitch: ${initialValues.roofPitch}\nAreas by pitch data: ${JSON.stringify(initialValues.areasByPitch)}`);
-      
-      // Force an update of measurements state with the initial values immediately
-      const formattedValues = applyInitialValues(initialValues);
-      setMeasurements(formattedValues);
-    } else {
-      console.log("No initial values on mount");
+    if (initialMeasurements) {
+      console.log("Setting measurements from initialMeasurements:", initialMeasurements);
+      setMeasurements(initialMeasurements);
     }
-  }, []);
-  
-  const defaultMeasurements: MeasurementValues = {
-    totalArea: 0,
-    ridgeLength: 0,
-    hipLength: 0,
-    valleyLength: 0,
-    eaveLength: 0,
-    rakeLength: 0,
-    stepFlashingLength: 0,
-    flashingLength: 0,
-    penetrationsArea: 0,
-    roofPitch: "6:12",
-    areasByPitch: [{ pitch: "6:12", area: 0, percentage: 100 }]
-  };
-  
-  // Initialize measurements with initialValues or defaults
-  const [measurements, setMeasurements] = useState<MeasurementValues>(() => {
-    if (initialValues) {
-      console.log("CRITICAL: MeasurementForm: Initializing directly with initialValues:", initialValues);
-      
-      const formattedValues = applyInitialValues(initialValues);
-      
-      // Log the actual values we're using for initialization
-      console.log("CRITICAL: Using these values for initialization:", formattedValues);
-      
-      // Force values to string to ensure they're displayed
-      const stringifiedValues = {
-        ...formattedValues,
-        totalArea: Number(formattedValues.totalArea || 0),
-        ridgeLength: Number(formattedValues.ridgeLength || 0),
-        hipLength: Number(formattedValues.hipLength || 0),
-        valleyLength: Number(formattedValues.valleyLength || 0),
-        eaveLength: Number(formattedValues.eaveLength || 0),
-        rakeLength: Number(formattedValues.rakeLength || 0),
-        stepFlashingLength: Number(formattedValues.stepFlashingLength || 0),
-        flashingLength: Number(formattedValues.flashingLength || 0),
-        penetrationsArea: Number(formattedValues.penetrationsArea || 0)
-      };
-      
-      return stringifiedValues;
-    }
-    return defaultMeasurements;
-  });
-  
-  // Use initialValues when they change
-  useEffect(() => {
-    if (initialValues) {
-      console.log("CRITICAL: MeasurementForm: RECEIVED NEW initialValues:", initialValues);
-      
-      // Alert for debugging when initialValues change
-      const areasByPitchCount = Array.isArray(initialValues.areasByPitch) 
-        ? initialValues.areasByPitch.length 
-        : Object.keys(initialValues.areasByPitch || {}).length;
-      
-      alert(`MeasurementForm received new initialValues!\nTotal Area: ${initialValues.totalArea}\nAreas by pitch: ${areasByPitchCount}\nPredominant Pitch: ${initialValues.roofPitch}\nAreas by pitch data: ${JSON.stringify(initialValues.areasByPitch)}`);
-      
-      const formattedValues = applyInitialValues(initialValues);
-      setMeasurements(formattedValues);
-    }
-  }, [initialValues]);
-  
-  // Extract the logic to apply initial values to a separate function that returns formatted values
-  const applyInitialValues = (values: MeasurementValues): MeasurementValues => {
-    console.log("CRITICAL: Applying initial values:", values);
-    
-    // Debug the incoming areasByPitch data to see what format it's in
-    if (values.areasByPitch) {
-      if (Array.isArray(values.areasByPitch)) {
-        console.log("CRITICAL: Initial areasByPitch is an array:", values.areasByPitch);
-      } else {
-        console.log("CRITICAL: Initial areasByPitch is an object:", values.areasByPitch);
-        console.log("CRITICAL: Keys:", Object.keys(values.areasByPitch));
-        console.log("CRITICAL: Values:", Object.values(values.areasByPitch));
-      }
-    }
-    
-    // Ensure that areasByPitch is properly formatted
-    let formattedValues = { ...values };
-    
-    // If areasByPitch is empty, create a default one
-    if (!formattedValues.areasByPitch || 
-        (Array.isArray(formattedValues.areasByPitch) && formattedValues.areasByPitch.length === 0) ||
-        (!Array.isArray(formattedValues.areasByPitch) && Object.keys(formattedValues.areasByPitch).length === 0)) {
-      console.log("CRITICAL: Creating default areasByPitch");
-      formattedValues.areasByPitch = [{ 
-        pitch: formattedValues.roofPitch || "6:12", 
-        area: formattedValues.totalArea || 0, 
-        percentage: 100 
-      }];
-    }
-    
-    // Check if areasByPitch is an array of objects with pitch, area, percentage
-    // If not, convert it to the correct format
-    if (formattedValues.areasByPitch && !Array.isArray(formattedValues.areasByPitch)) {
-      console.log("CRITICAL: Converting areasByPitch from object to array format");
-      try {
-        const areasByPitchArray = Object.entries(formattedValues.areasByPitch)
-          .map(([pitch, area]) => {
-            console.log(`Converting pitch ${pitch} with area ${area}`);
-            return {
-              pitch: pitch,
-              area: Number(area) || 0,
-              percentage: 0 // Will calculate percentages later
-            };
-          });
-        
-        formattedValues.areasByPitch = areasByPitchArray;
-        console.log("CRITICAL: Converted areasByPitch to array:", areasByPitchArray);
-      } catch (error) {
-        console.error("CRITICAL: Error converting areasByPitch:", error);
-        // Fallback to default
-        formattedValues.areasByPitch = [{ 
-          pitch: formattedValues.roofPitch || "6:12", 
-          area: formattedValues.totalArea || 0, 
-          percentage: 100 
-        }];
-      }
-    }
-    
-    // Calculate percentages if they're not already set
-    const totalArea = formattedValues.totalArea || 
-      (Array.isArray(formattedValues.areasByPitch) ? 
-        formattedValues.areasByPitch.reduce((sum, p) => sum + Number(p.area), 0) : 0);
-    
-    console.log("CRITICAL: Total area for percentage calculation:", totalArea);
-    
-    if (totalArea > 0 && Array.isArray(formattedValues.areasByPitch)) {
-      formattedValues.areasByPitch = formattedValues.areasByPitch.map(p => {
-        const area = Number(p.area) || 0;
-        const percentage = p.percentage || Math.round((area / totalArea) * 100);
-        return { ...p, area, percentage };
-      });
-      console.log("CRITICAL: Updated percentages:", formattedValues.areasByPitch);
-    }
-    
-    // Ensure the values are the correct types (defensive programming)
-    const finalValues = {
-      ...formattedValues,
-      totalArea: Number(formattedValues.totalArea || 0),
-      ridgeLength: Number(formattedValues.ridgeLength || 0),
-      hipLength: Number(formattedValues.hipLength || 0),
-      valleyLength: Number(formattedValues.valleyLength || 0),
-      eaveLength: Number(formattedValues.eaveLength || 0),
-      rakeLength: Number(formattedValues.rakeLength || 0),
-      stepFlashingLength: Number(formattedValues.stepFlashingLength || 0),
-      flashingLength: Number(formattedValues.flashingLength || 0),
-      penetrationsArea: Number(formattedValues.penetrationsArea || 0),
-      areasByPitch: Array.isArray(formattedValues.areasByPitch) ? 
-        formattedValues.areasByPitch.map(area => ({
-          pitch: String(area.pitch || "6:12"),
-          area: Number(area.area || 0),
-          percentage: Number(area.percentage || 0)
-        })) : 
-        [{ pitch: "6:12", area: formattedValues.totalArea || 0, percentage: 100 }]
-    };
-    
-    console.log("CRITICAL: Final formatted values:", finalValues);
-    console.log("CRITICAL: Final areasByPitch:", finalValues.areasByPitch);
-    
-    // Verify that values are correct
-    console.log("CRITICAL: Verifying lengths:", {
-      ridgeLength: finalValues.ridgeLength,
-      hipLength: finalValues.hipLength,
-      valleyLength: finalValues.valleyLength,
-      rakeLength: finalValues.rakeLength,
-      eaveLength: finalValues.eaveLength,
-      stepFlashingLength: finalValues.stepFlashingLength,
-      flashingLength: finalValues.flashingLength
-    });
-    
-    return finalValues;
-  };
-  
-  // Debug output to track state changes
-  useEffect(() => {
-    console.log("CRITICAL: MeasurementForm: Current measurements state:", measurements);
-    console.log("CRITICAL: MeasurementForm: Current areasByPitch:", measurements.areasByPitch);
-    
-    // Debug numeric field values specifically to ensure they're numbers not strings
-    console.log("CRITICAL: MeasurementForm: Numeric field values type check:", {
-      totalArea: typeof measurements.totalArea,
-      ridgeLength: typeof measurements.ridgeLength,
-      hipLength: typeof measurements.hipLength,
-      valleyLength: typeof measurements.valleyLength, 
-      eaveLength: typeof measurements.eaveLength,
-      rakeLength: typeof measurements.rakeLength,
-      stepFlashingLength: typeof measurements.stepFlashingLength,
-      flashingLength: typeof measurements.flashingLength,
-      penetrationsArea: typeof measurements.penetrationsArea
-    });
-  }, [measurements]);
+  }, [initialMeasurements]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     const numValue = name !== "roofPitch" ? parseFloat(value) || 0 : value;
     
-    console.log(`Input change: ${name} = ${value}`);
-    
     setMeasurements((prev) => ({
       ...prev,
       [name]: numValue,
     }));
-    
-    // Update related values for certain fields
-    if (name === "totalArea" && parseFloat(value) > 0) {
-      // Recalculate percentages for areas by pitch
-      const totalArea = parseFloat(value);
-      const updatedAreas = measurements.areasByPitch.map(area => {
-        const percentage = Math.round((area.area / totalArea) * 100);
-        return { ...area, percentage };
-      });
-      
-      setMeasurements(prev => ({
-        ...prev,
-        areasByPitch: updatedAreas
-      }));
-    }
   };
 
   const handleAreaByPitchChange = (index: number, field: keyof AreaByPitch, value: string) => {
@@ -316,34 +120,22 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
     }
   };
 
-  const handleSave = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSubmitting(true);
     
     try {
-      // Calculate total area if needed
-      let totalArea = measurements.totalArea;
-      if (measurements.areasByPitch.length > 0 && totalArea === 0) {
-        totalArea = measurements.areasByPitch.reduce((sum, area) => sum + area.area, 0);
-        setMeasurements(prev => ({ ...prev, totalArea }));
-      }
+      // Convert areasByPitch for database storage
+      const areasPerPitch: Record<string, { area: number; percentage: number }> = {};
+      measurements.areasByPitch.forEach(({ pitch, area, percentage }) => {
+        areasPerPitch[pitch] = { area, percentage };
+      });
       
-      // Validate measurements
-      if (totalArea <= 0) {
-        toast({
-          title: "Validation Error",
-          description: "Total roof area must be greater than zero",
-          variant: "destructive",
-        });
-        setIsSubmitting(false);
-        return;
-      }
-      
-      // Map to the proper format for saving
-      const measurementsToSave = {
+      // Map and format the measurements for API submission
+      // This is a simplification - you may need more fields based on your API
+      const formattedMeasurements = {
         totalArea: measurements.totalArea,
         predominantPitch: measurements.roofPitch,
-        
-        // Length measurements
         ridgeLength: measurements.ridgeLength,
         hipLength: measurements.hipLength,
         valleyLength: measurements.valleyLength,
@@ -351,47 +143,26 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
         eaveLength: measurements.eaveLength,
         stepFlashingLength: measurements.stepFlashingLength,
         flashingLength: measurements.flashingLength,
-        dripEdgeLength: 0,
-        
-        // Count fields (not currently used/collected)
-        ridgeCount: 0,
-        hipCount: 0,
-        valleyCount: 0,
-        rakeCount: 0,
-        eaveCount: 0,
-        
-        // Penetrations
         penetrationsArea: measurements.penetrationsArea,
-        penetrationsPerimeter: 0, // Not currently used
-        
-        // Convert array to object for areasByPitch
-        areasByPitch: measurements.areasByPitch.reduce((obj, item) => {
-          obj[item.pitch] = item.area;
-          return obj;
-        }, {} as Record<string, number>),
+        areasPerPitch: areasPerPitch
       };
       
       // Save to database
-      await saveMeasurement("manual-entry", measurementsToSave);
+      await saveMeasurement(extractedFileName || "manual-entry", formattedMeasurements);
       
       toast({
-        title: "Measurements Saved",
-        description: "Your measurements have been saved successfully",
+        title: "Measurements saved",
+        description: "Roof measurements have been saved successfully.",
       });
       
-      // Call the callback if provided
+      // Call parent callback if provided
       if (onMeasurementsSaved) {
         onMeasurementsSaved(measurements);
-      }
-      
-      // If onComplete is provided, call it
-      if (onComplete) {
-        onComplete();
       }
     } catch (error) {
       console.error("Error saving measurements:", error);
       toast({
-        title: "Error",
+        title: "Save failed",
         description: "Failed to save measurements. Please try again.",
         variant: "destructive",
       });
@@ -409,53 +180,80 @@ export function MeasurementForm({ initialValues, onMeasurementsSaved, onComplete
   };
 
   const goToPreviousTab = () => {
-    if (activeTab === "length-measurements") {
-      setActiveTab("roof-area");
-    } else if (activeTab === "review") {
+    if (activeTab === "review") {
       setActiveTab("length-measurements");
+    } else if (activeTab === "length-measurements") {
+      setActiveTab("roof-area");
     }
   };
 
   return (
-    <form onSubmit={(e) => {
-      e.preventDefault();
-      handleSave();
-    }} className="space-y-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full grid grid-cols-3 mb-6">
-          <TabsTrigger value="roof-area">Roof Area</TabsTrigger>
-          <TabsTrigger value="length-measurements">Length Measurements</TabsTrigger>
-          <TabsTrigger value="review">Review & Save</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="roof-area">
-          <RoofAreaTab
-            measurements={measurements}
-            handleInputChange={handleInputChange}
-            handlePitchAreaChange={handleAreaByPitchChange}
-            addPitchArea={addPitchArea}
-            removePitchArea={removePitchArea}
-            goToNextTab={goToNextTab}
-          />
-        </TabsContent>
-        
-        <TabsContent value="length-measurements">
-          <LengthMeasurementsTab
-            measurements={measurements}
-            handleInputChange={handleInputChange}
-            goToPreviousTab={goToPreviousTab}
-            goToNextTab={goToNextTab}
-          />
-        </TabsContent>
-        
-        <TabsContent value="review">
-          <ReviewTab
-            measurements={measurements}
-            isSubmitting={isSubmitting}
-            goToPreviousTab={goToPreviousTab}
-          />
-        </TabsContent>
-      </Tabs>
-    </form>
+    <div className="space-y-6">
+      {/* Back button to return to PDF upload */}
+      {onBack && (
+        <div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onBack}
+            className="flex items-center gap-1 mb-4"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Back to Upload
+          </Button>
+        </div>
+      )}
+      
+      {/* Display a message if we're using extracted data */}
+      {extractedFileName && (
+        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 rounded">
+          <p className="text-sm text-blue-700 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+            </svg>
+            Using measurements extracted from <strong>{extractedFileName}</strong>. Please review and make any necessary adjustments.
+          </p>
+        </div>
+      )}
+      
+      <form onSubmit={handleSubmit}>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="w-full grid grid-cols-3">
+            <TabsTrigger value="roof-area">Roof Area</TabsTrigger>
+            <TabsTrigger value="length-measurements">Length Measurements</TabsTrigger>
+            <TabsTrigger value="review">Review & Save</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="roof-area">
+            <RoofAreaTab 
+              measurements={measurements}
+              handleInputChange={handleInputChange}
+              handleAreaByPitchChange={handleAreaByPitchChange}
+              addPitchArea={addPitchArea}
+              removePitchArea={removePitchArea}
+              goToNextTab={goToNextTab}
+            />
+          </TabsContent>
+          
+          <TabsContent value="length-measurements">
+            <LengthMeasurementsTab 
+              measurements={measurements}
+              handleInputChange={handleInputChange}
+              goToNextTab={goToNextTab}
+              goToPreviousTab={goToPreviousTab}
+            />
+          </TabsContent>
+          
+          <TabsContent value="review">
+            <ReviewTab 
+              measurements={measurements}
+              isSubmitting={isSubmitting}
+              onSubmit={handleSubmit}
+              goToPreviousTab={goToPreviousTab}
+            />
+          </TabsContent>
+        </Tabs>
+      </form>
+    </div>
   );
 }
