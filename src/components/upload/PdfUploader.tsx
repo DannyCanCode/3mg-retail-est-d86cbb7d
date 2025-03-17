@@ -7,6 +7,8 @@ import { ParsedMeasurements } from "@/api/measurements";
 import { toast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { FileUploadStatus } from "./hooks/useFileUpload";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { renderMeasurementValue } from "./pdf-utils";
 
 interface PdfUploaderProps {
   onDataExtracted?: (data: ParsedMeasurements, fileName: string) => void;
@@ -188,27 +190,187 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
       )}
 
       {status === "success" && parsedData && (
-        <div className="border-2 border-dashed rounded-lg p-8">
-          <div className="text-center mb-6">
-            <div className="mx-auto bg-green-100 rounded-full p-3 w-fit mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
+        <div className="space-y-6">
+          <div className="border-2 border-dashed rounded-lg p-8">
+            <div className="text-center mb-6">
+              <div className="mx-auto bg-green-100 rounded-full p-3 w-fit mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium">Successfully processed {file?.name || savedFileName}</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                We've successfully extracted the following measurements from your PDF
+              </p>
             </div>
-            <h3 className="text-lg font-medium">Successfully processed {file?.name || savedFileName}</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              We've successfully extracted the following measurements from your PDF
-            </p>
+            
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Extracted Measurements</CardTitle>
+                <CardDescription>
+                  These values will be used in your estimate
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                  {/* Area measurements */}
+                  <div className="flex justify-between col-span-2">
+                    <span className="text-sm">Total Area:</span>
+                    <span className="text-sm font-medium">{parsedData.totalArea} sq ft</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-sm">Predominant Pitch:</span>
+                    <span className="text-sm font-medium">{parsedData.predominantPitch}</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-sm">Penetrations Area:</span>
+                    <span className="text-sm font-medium">{parsedData.penetrationsArea} sq ft</span>
+                  </div>
+                  
+                  {parsedData.penetrationsPerimeter > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm">Penetrations Perimeter:</span>
+                      <span className="text-sm font-medium">{parsedData.penetrationsPerimeter} ft</span>
+                    </div>
+                  )}
+                  
+                  {/* Length measurements */}
+                  <div className="flex justify-between">
+                    <span className="text-sm">Ridge Length:</span>
+                    <span className="text-sm font-medium">{parsedData.ridgeLength} ft</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-sm">Hip Length:</span>
+                    <span className="text-sm font-medium">{parsedData.hipLength} ft</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-sm">Valley Length:</span>
+                    <span className="text-sm font-medium">{parsedData.valleyLength} ft</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-sm">Eave Length:</span>
+                    <span className="text-sm font-medium">{parsedData.eaveLength} ft</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-sm">Rake Length:</span>
+                    <span className="text-sm font-medium">{parsedData.rakeLength} ft</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-sm">Step Flashing Length:</span>
+                    <span className="text-sm font-medium">{parsedData.stepFlashingLength} ft</span>
+                  </div>
+                  
+                  <div className="flex justify-between">
+                    <span className="text-sm">Wall Flashing Length:</span>
+                    <span className="text-sm font-medium">{parsedData.flashingLength} ft</span>
+                  </div>
+                  
+                  {parsedData.dripEdgeLength > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm">Drip Edge Length:</span>
+                      <span className="text-sm font-medium">{parsedData.dripEdgeLength} ft</span>
+                    </div>
+                  )}
+                  
+                  {/* Count values */}
+                  {parsedData.ridgeCount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm">Ridge Count:</span>
+                      <span className="text-sm font-medium">{parsedData.ridgeCount}</span>
+                    </div>
+                  )}
+                  
+                  {parsedData.hipCount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm">Hip Count:</span>
+                      <span className="text-sm font-medium">{parsedData.hipCount}</span>
+                    </div>
+                  )}
+                  
+                  {parsedData.valleyCount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm">Valley Count:</span>
+                      <span className="text-sm font-medium">{parsedData.valleyCount}</span>
+                    </div>
+                  )}
+                  
+                  {parsedData.eaveCount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm">Eave Count:</span>
+                      <span className="text-sm font-medium">{parsedData.eaveCount}</span>
+                    </div>
+                  )}
+                  
+                  {parsedData.rakeCount > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-sm">Rake Count:</span>
+                      <span className="text-sm font-medium">{parsedData.rakeCount}</span>
+                    </div>
+                  )}
+                  
+                  {/* Property Location Information - only display if we have data */}
+                  {(parsedData.propertyAddress || parsedData.longitude || parsedData.latitude) && (
+                    <div className="col-span-2 mt-4 border-t pt-4">
+                      <h3 className="text-sm font-medium mb-3">Property Location</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-3">
+                        {parsedData.propertyAddress && (
+                          <div className="flex justify-between col-span-3 md:col-span-2">
+                            <span className="text-sm">Address:</span>
+                            <span className="text-sm font-medium ml-2">{parsedData.propertyAddress}</span>
+                          </div>
+                        )}
+                        {parsedData.longitude && (
+                          <div className="flex justify-between">
+                            <span className="text-sm">Longitude:</span>
+                            <span className="text-sm font-medium">{parsedData.longitude}</span>
+                          </div>
+                        )}
+                        {parsedData.latitude && (
+                          <div className="flex justify-between">
+                            <span className="text-sm">Latitude:</span>
+                            <span className="text-sm font-medium">{parsedData.latitude}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Areas by Pitch */}
+                {parsedData.areasByPitch && Object.keys(parsedData.areasByPitch).length > 0 && (
+                  <div className="mt-4 border-t pt-4">
+                    <h3 className="text-sm font-medium mb-3">Areas by Pitch</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                      {Object.entries(parsedData.areasByPitch).map(([pitch, area]) => (
+                        <div key={pitch} className="flex justify-between">
+                          <span className="text-sm">Pitch {pitch}:</span>
+                          <span className="text-sm font-medium">{area} sq ft</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <div className="flex flex-col md:flex-row gap-3">
+              <Button onClick={handleSaveToDatabase} className="w-full">
+                Save to Database
+              </Button>
+              <Button variant="outline" onClick={handleResetUpload} className="w-full">
+                Upload another file
+              </Button>
+            </div>
           </div>
           
-          <div className="space-y-4">
-            <Button onClick={handleSaveToDatabase} className="w-full">
-              Save to Database
-            </Button>
-            <Button variant="outline" onClick={handleResetUpload} className="w-full">
-              Upload another file
-            </Button>
-          </div>
+          {/* Buttons for Continue to Measurements or Start Fresh will be here in parent component */}
         </div>
       )}
 
