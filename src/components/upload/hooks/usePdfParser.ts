@@ -247,7 +247,7 @@ export function usePdfParser() {
       setProgress({
         page: numPages,
         totalPages: numPages,
-        status: "Analyzing extracted text for measurements..."
+        status: "Analyzing extracted text for measurements extraction..."
       });
       
       console.log("Full extracted text:", fullText);
@@ -675,6 +675,54 @@ export function usePdfParser() {
         // Extract the section with the pitch table
         const pitchTableText = areasPerPitchMatch[0];
         console.log("Pitch table text:", pitchTableText);
+
+        // NEW: Try to find the table with "Roof Pitch", "Area (sq ft)", and "% of Roof" rows
+        // This pattern matches typical EagleView table format
+        const eagleViewTableRegex = /Roof\s+Pitch(?:es)?.*?Area\s*\(sq\s*ft\).*?%\s*of\s*Roof/is;
+        const eagleViewTableMatch = fullText.match(eagleViewTableRegex);
+        
+        if (eagleViewTableMatch) {
+          console.log("Found EagleView pitch table format");
+          const tableContent = eagleViewTableMatch[0];
+          
+          // Extract all rows from the table that have a pitch, area, and percentage
+          const pitchRows = Array.from(tableContent.matchAll(/(\d+\/\d+)\s+(\d[\d,.]+)\s+(\d+(?:\.\d+)?%)/g));
+          console.log("Extracted pitch rows:", pitchRows);
+          
+          if (pitchRows.length > 0) {
+            for (const row of pitchRows) {
+              const [_, pitch, areaStr, percentStr] = row;
+              const area = parseFloat(areaStr.replace(/,/g, ''));
+              
+              if (!isNaN(area) && area > 10) {
+                measurements.areasByPitch[pitch] = area;
+                console.log(`Extracted from EagleView table: ${pitch} = ${area} sq ft (${percentStr})`);
+              }
+            }
+          }
+        }
+        
+        // If no pitch rows found with the specific pattern, try another format
+        if (Object.keys(measurements.areasByPitch).length === 0) {
+          // NEW: Try a different table pattern with a row-based approach
+          const tableLines = pitchTableText.split(/[\r\n]+/).filter(line => line.trim().length > 0);
+          console.log("Table lines:", tableLines);
+          
+          // Looking for lines that have three columns: pitch, area, percentage
+          // These often appear as: "4/12    1234.5    42.3%"
+          for (const line of tableLines) {
+            const rowMatch = line.match(/(\d+\/\d+)\s+([\d,.]+)\s+(\d+(?:\.\d+)?%)/);
+            if (rowMatch) {
+              const [_, pitch, areaStr, percentStr] = rowMatch;
+              const area = parseFloat(areaStr.replace(/,/g, ''));
+              
+              if (!isNaN(area) && area > 10) {
+                measurements.areasByPitch[pitch] = area;
+                console.log(`Extracted from table line: ${pitch} = ${area} sq ft (${percentStr})`);
+              }
+            }
+          }
+        }
         
         // Find all pitch values in the table - accept ANY format that appears in the "Roof Pitches" row
         // We want to exactly preserve what's in the EagleView report
@@ -1036,32 +1084,156 @@ export function usePdfParser() {
         }
       }
       
-      // If we still don't have any pitch areas, try one more targeted approach
+      // NEW: Look for the "Areas by Pitch" table that often appears in more recent EagleView reports
       if (Object.keys(measurements.areasByPitch).length === 0) {
-        console.log("Last attempt to find pitch areas using standard EagleView format");
+        console.log("Checking for modern EagleView 'Areas by Pitch' table");
         
-        // Look for the specific column pattern that appears in EagleView reports
-        const tableMatch = fullText.match(/(\d+\/\d+)\s+(\d+\.\d+|\d+,\d+|\d{3,})\s+(\d+\.\d+%|\d+%)/g);
+        // This pattern matches: "Pitch | Area (sq ft) | % of Total" style tables
+        const modernTableRegex = /(?:Pitch|Roof\s+Pitch)\s*(?:[|]|Area)/i;
+        const modernTableMatch = fullText.match(modernTableRegex);
         
-        if (tableMatch) {
-          console.log("Found potential table rows:", tableMatch);
+        if (modernTableMatch) {
+          console.log("Found modern table header format");
           
-          // Process each match which should be a row with pitch, area, and percentage
-          for (const row of tableMatch) {
-            const rowParts = row.trim().split(/\s+/);
-            if (rowParts.length >= 2) {
-              const pitch = rowParts[0];
-              // The area value should be the second part
-              const areaStr = rowParts[1].replace(',', '');
-              const area = parseFloat(areaStr);
+          // Find all instances of "x/12  1234.5  56.7%" patterns in the document
+          const pitchAreaPercentRegex = /(\d+\/\d+)\s+([\d,.]+)\s+(\d+(?:\.\d+)?%)/g;
+          const pitchAreaMatches = Array.from(fullText.matchAll(pitchAreaPercentRegex));
+          
+          if (pitchAreaMatches.length > 0) {
+            console.log("Found pitch-area-percent patterns:", pitchAreaMatches.length);
+            
+            for (const match of pitchAreaMatches) {
+              const [_, pitch, areaStr, percentStr] = match;
+              const area = parseFloat(areaStr.replace(/,/g, ''));
               
               if (!isNaN(area) && area > 10) {
                 measurements.areasByPitch[pitch] = area;
-                console.log(`Found area for pitch ${pitch} from table row: ${area} sq ft`);
+                console.log(`Found pitch ${pitch} with area ${area} sq ft (${percentStr})`);
               }
             }
           }
         }
+      }
+      
+      // Extract all possible pitch values from the document for additional searches
+      if (Object.keys(measurements.areasByPitch).length === 0) {
+        // Find all pitch values in the document (not just from the table we found earlier)
+        const allPitchesInDocument = Array.from(fullText.matchAll(/(\d+\/\d+)/g))
+          .map(m => m[1])
+          .filter((value, index, self) => self.indexOf(value) === index); // Get unique pitch values
+          
+        console.log("All potential pitch values found in document:", allPitchesInDocument);
+        
+        // Try to find areas for these pitches from the full text
+        if (allPitchesInDocument.length > 0) {
+          console.log("Trying to extract areas directly from full text for pitches:", allPitchesInDocument);
+          
+          for (const pitch of allPitchesInDocument) {
+            // Look for this pattern: pitch value followed by area and percentage
+            // e.g., "4/12    1234.5    56.7%"
+            const pitchAreaRegex = new RegExp(`${pitch.replace('/', '\\/')}\\s+([\\d,.]+)\\s+([\\d.]+%)`, 'i');
+            const pitchAreaMatch = fullText.match(pitchAreaRegex);
+            
+            if (pitchAreaMatch && pitchAreaMatch[1]) {
+              const area = parseFloat(pitchAreaMatch[1].replace(/,/g, ''));
+              if (!isNaN(area) && area > 10) {
+                measurements.areasByPitch[pitch] = area;
+                console.log(`Found area ${area} sq ft for pitch ${pitch} from direct text match`);
+              }
+            }
+          }
+          
+          // If still not found, try a broader regex that might find pitch/area pairs
+          if (Object.keys(measurements.areasByPitch).length === 0) {
+            // This pattern looks for any occurence of a pitch followed by a number that could be an area
+            const loosePatternRegex = /(\d+\/\d+).*?([\d,.]+)\s*(?:sq\s*ft|square\s*feet)/g;
+            const looseMatches = Array.from(fullText.matchAll(loosePatternRegex));
+            
+            for (const match of looseMatches) {
+              const [_, pitch, areaStr] = match;
+              const area = parseFloat(areaStr.replace(/,/g, ''));
+              
+              if (!isNaN(area) && area > 10 && allPitchesInDocument.includes(pitch)) {
+                measurements.areasByPitch[pitch] = area;
+                console.log(`Found area ${area} sq ft for pitch ${pitch} with loose pattern match`);
+              }
+            }
+          }
+        }
+      }
+      
+      // If we still don't have any pitch areas OR have only assigned to the predominant pitch but suspect more pitches exist,
+      // try another approach targeting the specific table format shown in the UI screenshot
+      if (Object.keys(measurements.areasByPitch).length <= 1) {
+        console.log("Attempting to extract from specific table format with Roof Pitch, Area, % of Roof columns");
+        
+        // Look for "Roof Pitch", "Area (sq ft)", "% of Roof" columns that appear in some reports
+        const specificTableFormat = /(?:Roof\s+Pitch|Pitch)\s*(?:\r?\n).*?(?:Area.*?sq\s*ft).*?(?:%\s*of\s*Roof)/is;
+        const specificTableMatch = fullText.match(specificTableFormat);
+        
+        if (specificTableMatch) {
+          console.log("Found specific table format with columns for Pitch, Area, %");
+          const tableText = specificTableMatch[0];
+          
+          // Extract rows with a pattern like: 5/12   454.6   15.9%
+          const rowPattern = /(\d+\/\d+)\s+([\d,.]+)\s+(\d+(?:\.\d+)?%)/g;
+          const rowMatches = Array.from(tableText.matchAll(rowPattern));
+          
+          if (rowMatches.length > 0) {
+            // If we're here, we found specific rows that match the expected format
+            // Clear existing pitch areas if we've only assigned to predominant pitch
+            if (Object.keys(measurements.areasByPitch).length === 1) {
+              console.log("Clearing single predominant pitch assignment to use multiple found pitches");
+              measurements.areasByPitch = {};
+            }
+            
+            for (const match of rowMatches) {
+              const [_, pitch, areaStr, percentStr] = match;
+              const area = parseFloat(areaStr.replace(/,/g, ''));
+              
+              if (!isNaN(area) && area > 10) {
+                measurements.areasByPitch[pitch] = area;
+                console.log(`Found pitch ${pitch} with area ${area} sq ft (${percentStr}) in specific table format`);
+              }
+            }
+          }
+        }
+      }
+      
+      // If we've extracted pitch areas but the sum is significantly different from the total area,
+      // scale the values to match the total area while preserving proportions
+      const extractedAreaSum = Object.values(measurements.areasByPitch)
+        .reduce((sum, area) => sum + (Number(area) || 0), 0);
+      
+      if (measurements.totalArea > 0 && 
+          Object.keys(measurements.areasByPitch).length > 1 &&
+          Math.abs(extractedAreaSum - measurements.totalArea) / measurements.totalArea > 0.1) {
+        
+        console.log(`Scaling extracted areas (sum: ${extractedAreaSum}) to match total area (${measurements.totalArea})`);
+        
+        // Calculate scaling factor
+        const scaleFactor = measurements.totalArea / extractedAreaSum;
+        
+        // Scale each area value
+        for (const pitch in measurements.areasByPitch) {
+          const originalArea = measurements.areasByPitch[pitch];
+          const scaledArea = originalArea * scaleFactor;
+          measurements.areasByPitch[pitch] = scaledArea;
+          console.log(`Scaled ${pitch} area from ${originalArea} to ${scaledArea} sq ft`);
+        }
+      }
+      
+      // If we still don't have pitch areas but have a predominant pitch and total area,
+      // assign all area to the predominant pitch as a last resort
+      if (Object.keys(measurements.areasByPitch).length === 0 && 
+          measurements.predominantPitch && 
+          measurements.totalArea > 0) {
+        // For predominant pitch, we need to convert from "x:y" format back to "x/y" to match EagleView
+        const pitchParts = measurements.predominantPitch.split(':');
+        const eagleViewPitchFormat = pitchParts.join('/');
+        
+        measurements.areasByPitch[eagleViewPitchFormat] = measurements.totalArea;
+        console.log(`Assigned total area to predominant pitch ${eagleViewPitchFormat}: ${measurements.totalArea} sq ft (last resort)`);
       }
       
       return measurements;
