@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen } from "lucide-react";
 import { MeasurementValues } from "../measurement/types";
 import { ROOFING_MATERIALS } from "./data";
 import { Material, MaterialCategory } from "./types";
@@ -132,6 +131,38 @@ export function MaterialsSelectionTab({
     setQuantities(newQuantities);
   };
   
+  // Apply material preset bundle
+  const applyPresetBundle = (preset: string) => {
+    // Clear existing selections
+    const newSelectedMaterials: {[key: string]: Material} = {};
+    const newQuantities: {[key: string]: number} = {};
+    
+    // Define preset material ids for each bundle
+    const presetMaterials: { [key: string]: string[] } = {
+      "GAF 1": ["gaf-timberline-hdz", "gaf-sa-r-hip-ridge", "gaf-pro-start-starter", "gaf-feltbuster", "gaf-weatherwatch"],
+      "GAF 2": ["gaf-royal-sovereign", "gaf-sa-r-hip-ridge", "gaf-pro-start-starter", "gaf-feltbuster"],
+      "OC 1": ["certainteed-landmark-pro", "certainteed-swiftstart-starter", "abc-pro-guard-20", "lead-boot-4inch"],
+      "OC 2": ["certainteed-landmark", "certainteed-swiftstart-starter", "abc-pro-guard-20"]
+    };
+    
+    // Find and add the materials in the preset
+    presetMaterials[preset].forEach(materialId => {
+      const material = ROOFING_MATERIALS.find(m => m.id === materialId);
+      if (material) {
+        newSelectedMaterials[materialId] = material;
+        newQuantities[materialId] = calculateMaterialQuantity(
+          material,
+          measurements,
+          wasteFactor / 100
+        );
+      }
+    });
+    
+    // Update state with new bundle
+    setSelectedMaterials(newSelectedMaterials);
+    setQuantities(newQuantities);
+  };
+  
   // Handle continue button click
   const handleContinue = () => {
     onContinue(selectedMaterials, quantities);
@@ -169,6 +200,25 @@ export function MaterialsSelectionTab({
               <span className="text-sm text-muted-foreground">
                 (Applied to all material calculations)
               </span>
+            </div>
+            
+            {/* Preset Material Bundles */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium mb-3">Preset Material Bundles</h3>
+              <div className="grid grid-cols-4 gap-3">
+                {["GAF 1", "GAF 2", "OC 1", "OC 2"].map((preset) => (
+                  <Button
+                    key={preset}
+                    variant="outline"
+                    className="h-auto py-3 flex flex-col items-center justify-center hover:bg-slate-50 hover:border-slate-300"
+                    onClick={() => applyPresetBundle(preset)}
+                  >
+                    <PackageOpen className="h-5 w-5 mb-1" />
+                    <span className="font-medium">{preset}</span>
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">Click a bundle to pre-select materials. You can still add or remove individual items.</p>
             </div>
             
             <Accordion type="multiple" defaultValue={[MaterialCategory.SHINGLES]} className="w-full">
