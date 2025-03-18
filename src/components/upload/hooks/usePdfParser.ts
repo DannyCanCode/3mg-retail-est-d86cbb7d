@@ -683,6 +683,46 @@ export function usePdfParser() {
         }
       }
       
+      // Try EagleView table format: "Roof Pitches" with columns of pitches
+      if (Object.keys(measurements.areasByPitch).length === 0) {
+        // Find table containing "Roof Pitches" or "Areas per Pitch"
+        const roofPitchSection = fullText.match(/(?:Roof\s+Pitches|Areas\s+per\s+Pitch)[\s\S]*?(?:Total|The\s+table\s+above)/i);
+        
+        if (roofPitchSection) {
+          console.log("Found Roof Pitches section in table format");
+          
+          // Extract pitch values - looking for patterns like 3/12, 4/12, etc.
+          const pitchValuesRegex = /(\d+\/\d+)/g;
+          const pitchValues = [];
+          let pitchMatch;
+          
+          while ((pitchMatch = pitchValuesRegex.exec(roofPitchSection[0])) !== null) {
+            const pitch = pitchMatch[1].replace("/", ":");
+            if (!pitchValues.includes(pitch)) {
+              pitchValues.push(pitch);
+            }
+          }
+          
+          console.log("Found pitch values in table:", pitchValues);
+          
+          // For each pitch, find the corresponding area
+          for (const pitch of pitchValues) {
+            // Convert pitch format for regex (3:12 to 3\/12)
+            const pitchFormatted = pitch.replace(":", "\\/");
+            
+            // Look for area after the pitch value
+            const areaRegex = new RegExp(`${pitchFormatted}[\\s\\S]*?(\\d+(?:[,.]\\d+)?)`, 'i');
+            const areaMatch = roofPitchSection[0].match(areaRegex);
+            
+            if (areaMatch && areaMatch[1]) {
+              const area = parseFloat(areaMatch[1].replace(",", ""));
+              measurements.areasByPitch[pitch] = area;
+              console.log(`Found area for pitch ${pitch} (table format): ${area} sq ft`);
+            }
+          }
+        }
+      }
+      
       // If we still don't have pitch areas but have a predominant pitch and total area,
       // assign all area to the predominant pitch
       if (Object.keys(measurements.areasByPitch).length === 0 && 
