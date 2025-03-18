@@ -29,6 +29,35 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
     measurements.rakeCount > 0 || 
     measurements.eaveCount > 0;
 
+  // Debug: Log pitch information for debugging
+  useEffect(() => {
+    console.log("Areas by Pitch data:", measurements.areasByPitch);
+    console.log("Number of pitches:", Object.keys(measurements.areasByPitch || {}).length);
+  }, [measurements.areasByPitch]);
+  
+  // Calculate total area for percentage calculations
+  const totalArea = measurements.totalArea || 
+    Object.values(measurements.areasByPitch || {}).reduce((sum, area) => sum + area, 0);
+  
+  // Format pitch areas as array for display
+  const pitchAreas = React.useMemo(() => {
+    if (!measurements.areasByPitch) return [];
+    
+    return Object.entries(measurements.areasByPitch)
+      .map(([pitch, area]) => ({
+        pitch,
+        displayPitch: pitch.replace(":", "/"),
+        area: typeof area === 'number' ? area : parseFloat(area),
+        percentage: totalArea > 0 ? (area / totalArea * 100) : 0
+      }))
+      .sort((a, b) => {
+        // Sort by pitch (numerically)
+        const pitchA = parseFloat(a.pitch.split(':')[0]);
+        const pitchB = parseFloat(b.pitch.split(':')[0]);
+        return pitchA - pitchB;
+      });
+  }, [measurements.areasByPitch, totalArea]);
+
   return (
     <div className={`w-full space-y-6 ${className}`}>
       {/* Main Area Summary */}
@@ -58,6 +87,59 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
           )}
         </div>
       </div>
+      
+      {/* Areas by Pitch - Enhanced Table View */}
+      {pitchAreas.length > 0 && (
+        <div>
+          <h3 className="text-lg font-medium mb-3">Areas by Pitch</h3>
+          <div className="border border-gray-200 rounded-md overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Roof Pitch
+                  </th>
+                  <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Area (sq ft)
+                  </th>
+                  <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    % of Roof
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {pitchAreas.map(({ pitch, displayPitch, area, percentage }) => (
+                  <tr key={pitch} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {displayPitch}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                      {formatMeasurement(area, 0)}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                      {formatMeasurement(percentage, 1)}%
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-gray-50">
+                  <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                    Total
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                    {formatMeasurement(totalArea, 0)}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                    100.0%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            The table above lists each pitch on this roof and the total area and percent of the roof with that pitch.
+          </p>
+        </div>
+      )}
       
       {/* Roof Features */}
       <div>
@@ -150,21 +232,6 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
                 <span className="text-sm font-medium">{measurements.eaveCount}</span>
               </div>
             )}
-          </div>
-        </div>
-      )}
-      
-      {/* Areas by Pitch */}
-      {measurements.areasByPitch && Object.keys(measurements.areasByPitch).length > 0 && (
-        <div>
-          <h3 className="text-lg font-medium mb-3">Areas by Pitch</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-            {Object.entries(measurements.areasByPitch).map(([pitch, area]) => (
-              <div key={pitch} className="flex justify-between">
-                <span className="text-sm">Pitch {pitch}:</span>
-                <span className="text-sm font-medium">{formatValue(area, "sq ft")}</span>
-              </div>
-            ))}
           </div>
         </div>
       )}
