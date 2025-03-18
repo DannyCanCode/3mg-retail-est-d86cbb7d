@@ -676,9 +676,39 @@ export function usePdfParser() {
         const pitchTableText = areasPerPitchMatch[0];
         console.log("Pitch table text:", pitchTableText);
         
-        // Find all pitch values in x/12 format
-        const pitchMatches = Array.from(pitchTableText.matchAll(/(\d+\/\d+)/g));
-        const pitchValues = pitchMatches.map(match => match[1]);
+        // Find all pitch values in the table - accept ANY format that appears in the "Roof Pitches" row
+        // We want to exactly preserve what's in the EagleView report
+        const roofPitchesRowMatch = pitchTableText.match(/Roof\s+Pitches[\s\S]*?(?:Area|%|The)/i);
+        let pitchValues = [];
+        
+        if (roofPitchesRowMatch) {
+          // Extract from the Roof Pitches row specifically
+          const roofPitchesRow = roofPitchesRowMatch[0];
+          console.log("Roof Pitches row:", roofPitchesRow);
+          
+          // Look for anything that could be a pitch value (numbers, slashes, etc.)
+          // This more generic pattern will capture things like "5/12", "24/2024", or any format
+          const pitchCandidates = Array.from(roofPitchesRow.matchAll(/(?:^|\s)([0-9]+(?:\/[0-9]+)?)(?:\s|$)/g));
+          
+          // Filter out likely non-pitch values and extract unique pitches
+          pitchValues = [...new Set(pitchCandidates
+            .map(match => match[1])
+            .filter(val => val && val.includes('/') && !val.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) // Filter out date-like patterns
+          )];
+          
+          if (pitchValues.length === 0) {
+            // If we don't find any with slashes, try a more general approach for the table
+            pitchValues = Array.from(pitchTableText.matchAll(/(\d+\/\d+|\d+\.\d+)/g))
+              .map(match => match[1])
+              .filter(val => val && !val.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)); // Filter out date-like patterns
+          }
+        } else {
+          // Fallback to original approach if we can't find the specific row
+          pitchValues = Array.from(pitchTableText.matchAll(/(\d+\/\d+|\d+\.\d+)/g))
+            .map(match => match[1])
+            .filter(val => val && !val.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)); // Filter out date-like patterns
+        }
+        
         console.log("Found pitch values:", pitchValues);
         
         // Look for area values in the same section (larger numbers, typically > 100)
@@ -698,7 +728,9 @@ export function usePdfParser() {
         if (pitchValues.length > 0 && likelyAreaValues.length >= pitchValues.length) {
           // Map pitches to areas based on position in table
           for (let i = 0; i < pitchValues.length; i++) {
-            const pitch = pitchValues[i].replace('/', ':');
+            // IMPORTANT: Store the pitch exactly as found in the document
+            // Do NOT convert to "x:y" format to preserve the original format
+            const pitch = pitchValues[i];
             const area = likelyAreaValues[i];
             
             if (!isNaN(area) && area > 0) {
@@ -726,7 +758,8 @@ export function usePdfParser() {
             
             if (areaRowNumbers.length >= pitchValues.length) {
               for (let i = 0; i < pitchValues.length; i++) {
-                const pitch = pitchValues[i].replace('/', ':');
+                // IMPORTANT: Store the pitch exactly as found in the document
+                const pitch = pitchValues[i];
                 const area = areaRowNumbers[i];
                 
                 if (!isNaN(area) && area > 0) {
@@ -748,7 +781,8 @@ export function usePdfParser() {
               const proximityMatch = pitchTableText.match(proximityPattern);
               
               if (proximityMatch && proximityMatch[1]) {
-                const pitch = pitchValue.replace('/', ':');
+                // IMPORTANT: Store the pitch exactly as found in the document
+                const pitch = pitchValue;
                 const area = parseFloat(proximityMatch[1].replace(/,/g, ''));
                 
                 if (!isNaN(area) && area > 10) { // Sanity check: area should be reasonable
@@ -768,19 +802,20 @@ export function usePdfParser() {
         // Try to directly match pitch and area using various formats
         const directPitchAreaPatterns = [
           // Format: 4/12 pitch: 3750.8 sq ft
-          /(\d+\/\d+)\s*pitch:?\s*(\d+(?:[,.]\d+)?)\s*(?:sq)?\s*(?:ft|feet)/gi,
+          /(\d+\/\d+|\d+\.\d+)\s*pitch:?\s*(\d+(?:[,.]\d+)?)\s*(?:sq)?\s*(?:ft|feet)/gi,
           
           // Format: Pitch 4/12: 3750.8
-          /pitch\s*(\d+\/\d+):?\s*(\d+(?:[,.]\d+)?)/gi,
+          /pitch\s*(\d+\/\d+|\d+\.\d+):?\s*(\d+(?:[,.]\d+)?)/gi,
           
           // Format in tables: 4/12 [spaces or tabs] 3750.8
-          /(\d+\/\d+)\s{2,}(\d+(?:[,.]\d+)?)/gi
+          /(\d+\/\d+|\d+\.\d+)\s{2,}(\d+(?:[,.]\d+)?)/gi
         ];
         
         for (const pattern of directPitchAreaPatterns) {
           let match;
           while ((match = pattern.exec(fullText)) !== null) {
-            const pitch = match[1].replace('/', ':');
+            // IMPORTANT: Store the pitch exactly as found in the document
+            const pitch = match[1];
             const area = parseFloat(match[2].replace(/,/g, ''));
             
             if (!isNaN(area) && area > 10) {
@@ -796,13 +831,16 @@ export function usePdfParser() {
         console.log("Trying structural pitch area extraction");
         
         // Look for all pitch patterns in the document
-        const allPitchMatches = Array.from(fullText.matchAll(/(\d+\/\d+)/g));
+        const allPitchMatches = Array.from(fullText.matchAll(/(\d+\/\d+|\d+\.\d+)/g));
         const allPitchValues = [...new Set(allPitchMatches.map(match => match[1]))]; // Unique pitches
         
         console.log("All unique pitch values in document:", allPitchValues);
         
         // For each pitch, try to find area values within a reasonable context
         for (const pitchValue of allPitchValues) {
+          // Skip date-like patterns (e.g., MM/DD/YYYY or DD/MM/YYYY)
+          if (pitchValue.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) continue;
+          
           const pitchContext = new RegExp(`((?:[\\s\\S]{0,100}${pitchValue.replace('/', '\\/')}[\\s\\S]{0,100}))`, 'g');
           const contextMatches = Array.from(fullText.matchAll(pitchContext));
           
@@ -817,7 +855,8 @@ export function usePdfParser() {
               const area = parseFloat(areaInContextMatch[1].replace(/,/g, ''));
               
               if (!isNaN(area) && area > 100) { // Reasonable area size
-                const pitch = pitchValue.replace('/', ':');
+                // IMPORTANT: Store the pitch exactly as found in the document
+                const pitch = pitchValue;
                 
                 // Only add if we haven't found this pitch yet
                 if (!measurements.areasByPitch[pitch]) {
@@ -835,8 +874,12 @@ export function usePdfParser() {
       if (Object.keys(measurements.areasByPitch).length === 0 && 
           measurements.predominantPitch && 
           measurements.totalArea > 0) {
-        measurements.areasByPitch[measurements.predominantPitch] = measurements.totalArea;
-        console.log(`Assigned total area to predominant pitch ${measurements.predominantPitch}: ${measurements.totalArea} sq ft`);
+        // For predominant pitch, we need to convert from "x:y" format back to "x/y" to match EagleView
+        const pitchParts = measurements.predominantPitch.split(':');
+        const eagleViewPitchFormat = pitchParts.join('/');
+        
+        measurements.areasByPitch[eagleViewPitchFormat] = measurements.totalArea;
+        console.log(`Assigned total area to predominant pitch ${eagleViewPitchFormat}: ${measurements.totalArea} sq ft`);
       }
       
       // If we couldn't extract some measurements, use fallback patterns from pdf-utils.ts
