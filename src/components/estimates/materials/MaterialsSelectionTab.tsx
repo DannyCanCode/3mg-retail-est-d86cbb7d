@@ -38,6 +38,11 @@ export function MaterialsSelectionTab({
   // Group materials by category
   const groupedMaterials = groupMaterialsByCategory(ROOFING_MATERIALS);
   
+  // Debug logging
+  useEffect(() => {
+    console.log("Rendering MaterialsSelectionTab with preset bundles");
+  }, []);
+  
   // Check if there are flat/low-slope areas on the roof
   useEffect(() => {
     const hasFlatRoofAreas = measurements.areasByPitch.some(
@@ -203,22 +208,22 @@ export function MaterialsSelectionTab({
             </div>
             
             {/* Preset Material Bundles */}
-            <div className="mb-6">
-              <h3 className="text-sm font-medium mb-3">Preset Material Bundles</h3>
+            <div className="mb-6 p-4 border-2 border-blue-300 rounded-lg bg-blue-50">
+              <h3 className="text-md font-bold mb-3 text-blue-800">Preset Material Bundles</h3>
               <div className="grid grid-cols-4 gap-3">
                 {["GAF 1", "GAF 2", "OC 1", "OC 2"].map((preset) => (
                   <Button
                     key={preset}
-                    variant="outline"
-                    className="h-auto py-3 flex flex-col items-center justify-center hover:bg-slate-50 hover:border-slate-300"
+                    variant="default"
+                    className="h-auto py-4 flex flex-col items-center justify-center bg-white border-2 border-blue-200 hover:bg-blue-100 hover:border-blue-400 text-blue-800"
                     onClick={() => applyPresetBundle(preset)}
                   >
-                    <PackageOpen className="h-5 w-5 mb-1" />
-                    <span className="font-medium">{preset}</span>
+                    <PackageOpen className="h-6 w-6 mb-1" />
+                    <span className="font-bold">{preset}</span>
                   </Button>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">Click a bundle to pre-select materials. You can still add or remove individual items.</p>
+              <p className="text-sm text-blue-700 mt-2 font-medium">Click a bundle to pre-select materials. You can still add or remove individual items.</p>
             </div>
             
             <Accordion type="multiple" defaultValue={[MaterialCategory.SHINGLES]} className="w-full">
