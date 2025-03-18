@@ -1,4 +1,3 @@
-
 import { Material, MaterialCategory } from "./types";
 
 export const ROOFING_MATERIALS: Material[] = [
@@ -37,53 +36,6 @@ export const ROOFING_MATERIALS: Material[] = [
       calculation: "(Eave Length + Rake Length) ÷ 120, rounded up",
     }
   },
-  {
-    id: "gaf-royal-sovereign",
-    name: "GAF Royal Sovereign",
-    category: MaterialCategory.SHINGLES,
-    price: 44.62,
-    unit: "Bundle",
-    approxPerSquare: 133.86,
-    coverageRule: {
-      description: "3 Bundles/Square (33.3 sq ft per bundle)",
-      calculation: "Total Area / 33.3 rounded up",
-    }
-  },
-  {
-    id: "certainteed-landmark-pro",
-    name: "CertainTeed Landmark Pro",
-    category: MaterialCategory.SHINGLES,
-    price: 52.93,
-    unit: "Bundle",
-    approxPerSquare: 158.79,
-    coverageRule: {
-      description: "3 Bundles/Square (33.3 sq ft per bundle)",
-      calculation: "Total Area / 33.3 rounded up",
-    }
-  },
-  {
-    id: "certainteed-landmark",
-    name: "CertainTeed Landmark",
-    category: MaterialCategory.SHINGLES,
-    price: 49.38,
-    unit: "Bundle",
-    approxPerSquare: 148.14,
-    coverageRule: {
-      description: "3 Bundles/Square (33.3 sq ft per bundle)",
-      calculation: "Total Area / 33.3 rounded up",
-    }
-  },
-  {
-    id: "certainteed-swiftstart-starter",
-    name: "CertainTeed SwiftStart Starter",
-    category: MaterialCategory.SHINGLES,
-    price: 41.30,
-    unit: "Bundle",
-    coverageRule: {
-      description: "116 LF/Bundle",
-      calculation: "(Eave Length + Rake Length) ÷ 116, rounded up",
-    }
-  },
   // UNDERLAYMENTS
   {
     id: "abc-pro-guard-20",
@@ -113,9 +65,9 @@ export const ROOFING_MATERIALS: Material[] = [
     id: "gaf-weatherwatch",
     name: "GAF Weatherwatch (Peel & Stick)",
     category: MaterialCategory.UNDERLAYMENTS,
-    price: 90.56,
+    price: 93.89,
     unit: "Roll",
-    approxPerSquare: 45.28,
+    approxPerSquare: 46.95,
     coverageRule: {
       description: "2 Squares/Roll (200 sq ft)",
       calculation: "Valley Length (ft) ÷ 3 × 0.167 + Eave Length (ft) ÷ 3 × 0.167",

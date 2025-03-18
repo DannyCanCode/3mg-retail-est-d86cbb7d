@@ -145,9 +145,9 @@ export function MaterialsSelectionTab({
     // Define preset material ids for each bundle
     const presetMaterials: { [key: string]: string[] } = {
       "GAF 1": ["gaf-timberline-hdz", "gaf-sa-r-hip-ridge", "gaf-pro-start-starter", "gaf-feltbuster", "gaf-weatherwatch"],
-      "GAF 2": ["gaf-royal-sovereign", "gaf-sa-r-hip-ridge", "gaf-pro-start-starter", "gaf-feltbuster"],
-      "OC 1": ["certainteed-landmark-pro", "certainteed-swiftstart-starter", "abc-pro-guard-20", "lead-boot-4inch"],
-      "OC 2": ["certainteed-landmark", "certainteed-swiftstart-starter", "abc-pro-guard-20"]
+      "GAF 2": ["gaf-timberline-hdz", "gaf-sa-r-hip-ridge", "gaf-pro-start-starter", "gaf-weatherwatch"],
+      "OC 1": ["gaf-timberline-hdz", "gaf-sa-r-hip-ridge", "abc-pro-guard-20", "lead-boot-4inch"],
+      "OC 2": ["gaf-timberline-hdz", "gaf-pro-start-starter", "abc-pro-guard-20", "gaf-feltbuster"]
     };
     
     // Find and add the materials in the preset
@@ -373,6 +373,12 @@ export function MaterialsSelectionTab({
                         <ChevronUp className="h-4 w-4" />
                       </Button>
                       <span className="text-sm">{material.unit}(s)</span>
+                      {/* Show square count for bundle-based materials */}
+                      {material.unit === "Bundle" && material.coverageRule.description.includes("Bundle") && (
+                        <span className="text-sm text-blue-600 ml-1">
+                          (~{Math.ceil((quantities[materialId] || 0) / 3)} squares)
+                        </span>
+                      )}
                     </div>
                     <div className="mt-2 flex justify-between text-sm">
                       <span>Subtotal:</span>
