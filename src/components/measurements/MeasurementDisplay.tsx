@@ -46,15 +46,28 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
     return Object.entries(measurements.areasByPitch)
       .map(([pitch, area]) => ({
         pitch,
-        displayPitch: pitch.replace(":", "/"),
+        // Don't modify the pitch format - display it exactly as is
+        // If it already contains a "/", preserve it; if it uses ":" format, convert to "/"
+        displayPitch: pitch.includes("/") ? pitch : pitch.replace(":", "/"),
         area: typeof area === 'number' ? area : parseFloat(area),
         percentage: totalArea > 0 ? (area / totalArea * 100) : 0
       }))
       .sort((a, b) => {
-        // Sort by pitch (numerically)
-        const pitchA = parseFloat(a.pitch.split(':')[0]);
-        const pitchB = parseFloat(b.pitch.split(':')[0]);
-        return pitchA - pitchB;
+        // Try to sort by pitch numerically, but fallback to string comparison for non-standard formats
+        try {
+          // For standard pitches like 4:12 or 4/12
+          const pitchA = parseFloat(a.pitch.split(/[:\/]/)[0]);
+          const pitchB = parseFloat(b.pitch.split(/[:\/]/)[0]);
+          // Check if both are valid numbers before comparison
+          if (!isNaN(pitchA) && !isNaN(pitchB)) {
+            return pitchA - pitchB;
+          }
+        } catch (e) {
+          // If parsing fails, fall back to string comparison
+          console.log("Failed to sort pitch numerically:", e);
+        }
+        // Fallback to preserving the original order
+        return 0;
       });
   }, [measurements.areasByPitch, totalArea]);
 
