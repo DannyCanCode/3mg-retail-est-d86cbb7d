@@ -686,64 +686,73 @@ export function usePdfParser() {
           const roofPitchesRow = roofPitchesRowMatch[0];
           console.log("Roof Pitches row:", roofPitchesRow);
           
-          // Look for anything that could be a pitch value (numbers, slashes, etc.)
-          // This more generic pattern will capture things like "5/12", "24/2024", or any format
-          const pitchCandidates = Array.from(roofPitchesRow.matchAll(/(?:^|\s)([0-9]+(?:\/[0-9]+)?)(?:\s|$)/g));
+          // IMPROVED: Be more strict about identifying actual pitch values
+          // Only consider values that are in x/12 format (standard roof pitches)
+          // or that appear in a table cell context
+          const pitchCandidates = Array.from(roofPitchesRow.matchAll(/(?:^|\s|\t|>)(\d+(?:\/\d+)?)(?:\s|$|\t|<)/g));
           
-          // Filter out likely non-pitch values and extract unique pitches
+          // Filter pitch values more aggressively to only include likely roof pitch formats
           pitchValues = [...new Set(pitchCandidates
             .map(match => match[1])
-            .filter(val => val && val.includes('/') && !val.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) // Filter out date-like patterns
+            .filter(val => {
+              // Valid pitch formats:
+              // 1. Standard x/12 format (most common) - like 4/12, 5/12, etc.
+              // 2. Fraction-like format with slash - must be a reasonable roof pitch
+              if (val && val.includes('/')) {
+                const parts = val.split('/');
+                
+                // Check if it's a standard roof pitch (x/12 format)
+                if (parts.length === 2 && parts[1] === '12') {
+                  return true;
+                }
+                
+                // Check if it's in the Roof Pitches row header specifically
+                // This is for formats like 0/12, 1/12, 4/12 that appear in the header
+                const isInHeader = roofPitchesRow.includes(`>${val}<`) || 
+                                  roofPitchesRow.includes(`\t${val}\t`) || 
+                                  roofPitchesRow.includes(` ${val} `);
+                
+                // Extra validation for non-standard formats - they must appear in correct context
+                return isInHeader || 
+                       // Is it a date-like pattern? If so, reject
+                       !val.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/);
+              }
+              return false;
+            })
           )];
           
+          // If we didn't find any standard pitches, look for table column headers
+          // which often contain the pitch values
           if (pitchValues.length === 0) {
-            // If we don't find any with slashes, try a more general approach for the table
-            pitchValues = Array.from(pitchTableText.matchAll(/(\d+\/\d+|\d+\.\d+)/g))
-              .map(match => match[1])
-              .filter(val => val && !val.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)); // Filter out date-like patterns
+            console.log("No standard pitches found, checking table column headers");
+            
+            // Look for pitch values in table headers or columns
+            // This will find values that appear in HTML-like table structures
+            const tableHeaderMatches = Array.from(pitchTableText.matchAll(/[<|]\s*(\d+\/\d+)\s*[>|]/g));
+            pitchValues = [...new Set(tableHeaderMatches.map(match => match[1]))];
+            
+            console.log("Found pitch values in table headers:", pitchValues);
           }
         } else {
           // Fallback to original approach if we can't find the specific row
-          pitchValues = Array.from(pitchTableText.matchAll(/(\d+\/\d+|\d+\.\d+)/g))
+          // But be more selective - only consider values that look like roof pitches
+          pitchValues = Array.from(pitchTableText.matchAll(/(\d+\/\d+)/g))
             .map(match => match[1])
-            .filter(val => val && !val.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)); // Filter out date-like patterns
+            .filter(val => {
+              // Most roof pitches are in x/12 format
+              const parts = val.split('/');
+              return parts.length === 2 && 
+                    (parts[1] === '12' || parseInt(parts[1]) <= 24) && // Reasonable denominator
+                    !val.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/); // Not a date
+            });
         }
         
-        console.log("Found pitch values:", pitchValues);
+        console.log("Found roof pitch values:", pitchValues);
         
-        // Look for area values in the same section (larger numbers, typically > 100)
-        // Different reports format these differently, so we need to be flexible
-        const areaMatches = Array.from(pitchTableText.matchAll(/(\d{1,3}(?:[,.]\d+)?)(?:\s*sq\s*ft|\s*%|\s*$)/g));
-        const possibleAreaValues = areaMatches
-          .map(match => parseFloat(match[1].replace(/,/g, '')))
-          .filter(num => num > 10); // Areas should be substantial
-          
-        console.log("Possible area values:", possibleAreaValues);
-        
-        // Now try to find larger numbers that are likely sq ft areas (not percentages)
-        const likelyAreaValues = possibleAreaValues.filter(num => num > 100);
-        console.log("Likely area values (>100):", likelyAreaValues);
-        
-        // Check if we have enough area values for all the pitches
-        if (pitchValues.length > 0 && likelyAreaValues.length >= pitchValues.length) {
-          // Map pitches to areas based on position in table
-          for (let i = 0; i < pitchValues.length; i++) {
-            // IMPORTANT: Store the pitch exactly as found in the document
-            // Do NOT convert to "x:y" format to preserve the original format
-            const pitch = pitchValues[i];
-            const area = likelyAreaValues[i];
-            
-            if (!isNaN(area) && area > 0) {
-              measurements.areasByPitch[pitch] = area;
-              console.log(`Mapped pitch ${pitch} to area ${area} sq ft from table`);
-            }
-          }
-        } else {
-          // If we don't have enough clear area values, we need to be more clever
-          // Look for rows or columns with area data
-          
-          // Check if there's a specific "Area (sq ft)" row
-          const areaRowMatch = pitchTableText.match(/Area\s*\(sq\s*ft\)[\s\S]*?(?:%|of\s*Roof|The\s+table|$)/i);
+        // If we have identified pitch values, now we need to find their corresponding areas
+        if (pitchValues.length > 0) {
+          // Look for an "Area (sq ft)" row which should contain the area values
+          const areaRowMatch = pitchTableText.match(/Area\s*\(sq\s*ft\)([\s\S]*?)(?:%|of\s*Roof|The\s+table|$)/i);
           
           if (areaRowMatch) {
             console.log("Found 'Area (sq ft)' row");
@@ -752,13 +761,14 @@ export function usePdfParser() {
             // Extract numbers from this row that are likely areas
             const areaRowNumbers = Array.from(areaRowText.matchAll(/(\d+(?:[,.]\d+)?)/g))
               .map(match => parseFloat(match[1].replace(/,/g, '')))
-              .filter(num => num > 10);
+              .filter(num => num > 10); // Areas should be substantial
               
             console.log("Area row numbers:", areaRowNumbers);
             
+            // Attempt to match areas with pitches in same order as they appear in the table
             if (areaRowNumbers.length >= pitchValues.length) {
+              // EagleView tables typically list areas directly under the corresponding pitch
               for (let i = 0; i < pitchValues.length; i++) {
-                // IMPORTANT: Store the pitch exactly as found in the document
                 const pitch = pitchValues[i];
                 const area = areaRowNumbers[i];
                 
@@ -767,104 +777,91 @@ export function usePdfParser() {
                   console.log(`Mapped pitch ${pitch} to area ${area} sq ft from area row`);
                 }
               }
+            } else {
+              console.log("Not enough area values found in Area row, trying alternative approach");
+              
+              // Try to find area values specifically associated with each pitch
+              for (const pitch of pitchValues) {
+                // For each pitch, try to find a more specific area association
+                // Look for patterns like "{pitch} [spaces or tabs] {area value}"
+                const pitchAreaPattern = new RegExp(`${pitch.replace('/', '\\/')}[\\s\\S]{0,30}?(\\d{2,}(?:[,.]\\d+)?)\\s*(?:sq\\s*ft|$)`, 'i');
+                const specificAreaMatch = fullText.match(pitchAreaPattern);
+                
+                if (specificAreaMatch && specificAreaMatch[1]) {
+                  const area = parseFloat(specificAreaMatch[1].replace(/,/g, ''));
+                  if (!isNaN(area) && area > 10) {
+                    measurements.areasByPitch[pitch] = area;
+                    console.log(`Found specific area ${area} sq ft for pitch ${pitch}`);
+                  }
+                }
+              }
             }
           } else {
-            // Try a proximity-based approach for each pitch
-            console.log("Using proximity search for pitch areas");
+            // If we can't find the Area row, try to locate the specific "Areas per Pitch" table
+            console.log("Trying to extract from Areas per Pitch table structure");
             
-            for (const pitchValue of pitchValues) {
-              const pitchNormalized = pitchValue.replace("/", "\\/"); // Escape for regex
+            // This looks for the standard EagleView table format with rows for pitches and areas
+            const areaTableMatch = fullText.match(/Areas\s+per\s+Pitch[\s\S]*?Roof\s+Pitches([\s\S]*?)Total/i);
+            
+            if (areaTableMatch) {
+              const areaTableSection = areaTableMatch[0];
+              console.log("Found Areas per Pitch table section");
               
-              // Look for numbers that appear after this pitch within a reasonable distance
-              // This could be in the same row or in a row below
-              const proximityPattern = new RegExp(`${pitchNormalized}[\\s\\S]{1,100}?(\\d{2,}(?:[,.]\\d+)?)\\s*(?:sq\\s*ft|$)`, 'i');
-              const proximityMatch = pitchTableText.match(proximityPattern);
-              
-              if (proximityMatch && proximityMatch[1]) {
-                // IMPORTANT: Store the pitch exactly as found in the document
-                const pitch = pitchValue;
-                const area = parseFloat(proximityMatch[1].replace(/,/g, ''));
+              // For each pitch, find the corresponding area in the table
+              for (const pitch of pitchValues) {
+                // Look for area values that appear after this pitch in the table
+                const pitchSectionPattern = new RegExp(`${pitch.replace('/', '\\/')}[\\s\\S]{0,100}?Area[\\s\\S]{0,50}?(\\d{2,}(?:[,.]\\d+))`, 'i');
+                const pitchSectionMatch = areaTableSection.match(pitchSectionPattern);
                 
-                if (!isNaN(area) && area > 10) { // Sanity check: area should be reasonable
-                  measurements.areasByPitch[pitch] = area;
-                  console.log(`Found area ${area} sq ft for pitch ${pitch} using proximity search`);
+                if (pitchSectionMatch && pitchSectionMatch[1]) {
+                  const area = parseFloat(pitchSectionMatch[1].replace(/,/g, ''));
+                  if (!isNaN(area) && area > 10) {
+                    measurements.areasByPitch[pitch] = area;
+                    console.log(`Found area ${area} sq ft for pitch ${pitch} in Areas per Pitch table`);
+                  }
                 }
               }
             }
           }
         }
-      }
-      
-      // If we didn't get any pitch areas from the table approach, try the more direct regex approaches
-      if (Object.keys(measurements.areasByPitch).length === 0) {
-        console.log("Table approach didn't find pitch areas, trying direct regex patterns");
         
-        // Try to directly match pitch and area using various formats
-        const directPitchAreaPatterns = [
-          // Format: 4/12 pitch: 3750.8 sq ft
-          /(\d+\/\d+|\d+\.\d+)\s*pitch:?\s*(\d+(?:[,.]\d+)?)\s*(?:sq)?\s*(?:ft|feet)/gi,
+        // If we still haven't found areas for all pitches, try a last direct approach
+        const missingPitches = pitchValues.filter(pitch => !measurements.areasByPitch[pitch]);
+        if (missingPitches.length > 0) {
+          console.log("Some pitches are missing areas, trying direct pattern matching");
           
-          // Format: Pitch 4/12: 3750.8
-          /pitch\s*(\d+\/\d+|\d+\.\d+):?\s*(\d+(?:[,.]\d+)?)/gi,
-          
-          // Format in tables: 4/12 [spaces or tabs] 3750.8
-          /(\d+\/\d+|\d+\.\d+)\s{2,}(\d+(?:[,.]\d+)?)/gi
-        ];
-        
-        for (const pattern of directPitchAreaPatterns) {
-          let match;
-          while ((match = pattern.exec(fullText)) !== null) {
-            // IMPORTANT: Store the pitch exactly as found in the document
-            const pitch = match[1];
-            const area = parseFloat(match[2].replace(/,/g, ''));
+          // Look for direct associations in the text
+          for (const pitch of missingPitches) {
+            // Expanded context search for better accuracy
+            const contextRange = 150; // Characters before and after
+            const pitchIndex = fullText.indexOf(pitch);
             
-            if (!isNaN(area) && area > 10) {
-              measurements.areasByPitch[pitch] = area;
-              console.log(`Found area for pitch ${pitch} using direct pattern: ${area} sq ft`);
-            }
-          }
-        }
-      }
-      
-      // As a final approach, try to extract pitch-area associations by examining the structure of the PDF text
-      if (Object.keys(measurements.areasByPitch).length === 0) {
-        console.log("Trying structural pitch area extraction");
-        
-        // Look for all pitch patterns in the document
-        const allPitchMatches = Array.from(fullText.matchAll(/(\d+\/\d+|\d+\.\d+)/g));
-        const allPitchValues = [...new Set(allPitchMatches.map(match => match[1]))]; // Unique pitches
-        
-        console.log("All unique pitch values in document:", allPitchValues);
-        
-        // For each pitch, try to find area values within a reasonable context
-        for (const pitchValue of allPitchValues) {
-          // Skip date-like patterns (e.g., MM/DD/YYYY or DD/MM/YYYY)
-          if (pitchValue.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}$/)) continue;
-          
-          const pitchContext = new RegExp(`((?:[\\s\\S]{0,100}${pitchValue.replace('/', '\\/')}[\\s\\S]{0,100}))`, 'g');
-          const contextMatches = Array.from(fullText.matchAll(pitchContext));
-          
-          // For each context where this pitch appears
-          for (const contextMatch of contextMatches) {
-            const context = contextMatch[1];
-            
-            // Look for numbers that might be areas (> 100 sq ft)
-            const areaInContextMatch = context.match(/(\d{3,}(?:[,.]\d+)?)(?:\s*sq\s*ft|$)/i);
-            
-            if (areaInContextMatch && areaInContextMatch[1]) {
-              const area = parseFloat(areaInContextMatch[1].replace(/,/g, ''));
+            if (pitchIndex !== -1) {
+              const startIndex = Math.max(0, pitchIndex - contextRange);
+              const endIndex = Math.min(fullText.length, pitchIndex + contextRange);
+              const context = fullText.substring(startIndex, endIndex);
               
-              if (!isNaN(area) && area > 100) { // Reasonable area size
-                // IMPORTANT: Store the pitch exactly as found in the document
-                const pitch = pitchValue;
-                
-                // Only add if we haven't found this pitch yet
-                if (!measurements.areasByPitch[pitch]) {
+              // Look for a number that could be an area value
+              const areaInContextMatch = context.match(/(\d{2,}(?:\.\d+)?)(?:\s*sq\s*ft|\s*square\s*feet)/i);
+              
+              if (areaInContextMatch && areaInContextMatch[1]) {
+                const area = parseFloat(areaInContextMatch[1].replace(/,/g, ''));
+                if (!isNaN(area) && area > 10) {
                   measurements.areasByPitch[pitch] = area;
-                  console.log(`Found area ${area} sq ft for pitch ${pitch} using context analysis`);
+                  console.log(`Found area ${area} sq ft for pitch ${pitch} using context search`);
                 }
               }
             }
+          }
+        }
+        
+        // Final validation: remove any pitch with unreasonable area values
+        for (const pitch in measurements.areasByPitch) {
+          const area = measurements.areasByPitch[pitch];
+          // Remove areas that are too small (likely not real areas) or suspiciously large
+          if (area < 10 || area > measurements.totalArea * 1.5) {
+            console.log(`Removing suspicious pitch-area mapping: ${pitch} -> ${area} sq ft`);
+            delete measurements.areasByPitch[pitch];
           }
         }
       }
@@ -905,6 +902,63 @@ export function usePdfParser() {
       
       // Clean up the URL
       URL.revokeObjectURL(fileURL);
+      
+      // Final validation - if we have extracted areas that don't reasonably add up to total area,
+      // there's likely an extraction error
+      const extractedTotalArea = Object.values(measurements.areasByPitch)
+        .reduce((sum, area) => sum + (Number(area) || 0), 0);
+      
+      // If the extracted total is very different from the reported total area, 
+      // we might have extracted incorrect values
+      if (measurements.totalArea > 0 && 
+          (extractedTotalArea < measurements.totalArea * 0.9 || 
+           extractedTotalArea > measurements.totalArea * 1.1)) {
+        console.log(`Warning: Extracted pitch areas (${extractedTotalArea}) don't match total area (${measurements.totalArea})`);
+        
+        // If the difference is too significant, reset and use predominant pitch only
+        if (extractedTotalArea < measurements.totalArea * 0.7 || 
+            extractedTotalArea > measurements.totalArea * 1.3) {
+          console.log("Significant mismatch in area totals - resetting to predominant pitch only");
+          
+          // Clear existing pitch areas
+          measurements.areasByPitch = {};
+          
+          // Use predominant pitch if available, or default to a common pitch
+          const pitchToUse = measurements.predominantPitch ? 
+            measurements.predominantPitch.replace(':', '/') : '4/12';
+          
+          measurements.areasByPitch[pitchToUse] = measurements.totalArea;
+          console.log(`Reset to single pitch: ${pitchToUse} = ${measurements.totalArea} sq ft`);
+        }
+      }
+      
+      // If we still don't have any pitch areas, try one more targeted approach
+      if (Object.keys(measurements.areasByPitch).length === 0) {
+        console.log("Last attempt to find pitch areas using standard EagleView format");
+        
+        // Look for the specific column pattern that appears in EagleView reports
+        const tableMatch = fullText.match(/(\d+\/\d+)\s+(\d+\.\d+|\d+,\d+|\d{3,})\s+(\d+\.\d+%|\d+%)/g);
+        
+        if (tableMatch) {
+          console.log("Found potential table rows:", tableMatch);
+          
+          // Process each match which should be a row with pitch, area, and percentage
+          for (const row of tableMatch) {
+            const rowParts = row.trim().split(/\s+/);
+            if (rowParts.length >= 2) {
+              const pitch = rowParts[0];
+              // The area value should be the second part
+              const areaStr = rowParts[1].replace(',', '');
+              const area = parseFloat(areaStr);
+              
+              if (!isNaN(area) && area > 10) {
+                measurements.areasByPitch[pitch] = area;
+                console.log(`Found area for pitch ${pitch} from table row: ${area} sq ft`);
+              }
+            }
+          }
+        }
+      }
       
       return measurements;
     } catch (error) {
