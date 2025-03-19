@@ -328,66 +328,73 @@ export function MaterialsSelectionTab({
               </div>
             ) : (
               <div className="space-y-4">
-                {Object.entries(selectedMaterials).map(([materialId, material]) => (
-                  <div key={materialId} className="border rounded-md p-3">
-                    <div className="flex justify-between items-start">
-                      <div>
+                {Object.entries(selectedMaterials).map(([materialId, material]) => {
+                  const quantity = quantities[materialId] || 0;
+                  const price = material.price;
+                  const total = quantity * price;
+                  
+                  // Calculate squares for shingles (bundles ÷ 3)
+                  let squareCount = null;
+                  if (material.category === MaterialCategory.SHINGLES && material.unit === "Bundle" && !material.id.includes("hip-ridge") && !material.id.includes("starter")) {
+                    squareCount = (quantity / 3).toFixed(1);
+                  }
+                  
+                  return (
+                    <div key={materialId} className="flex flex-col border-b pb-2 last:border-0">
+                      <div className="flex justify-between items-start">
                         <div className="font-medium">{material.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          {formatPrice(material.price)} per {material.unit}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeMaterial(materialId)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex justify-between items-center mt-1">
+                        <div className="text-sm">
+                          {formatPrice(price)} per {material.unit}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 w-7 p-0"
+                            onClick={() => updateQuantity(materialId, quantity - 1)}
+                            disabled={quantity <= 1}
+                          >
+                            <ChevronDown className="h-3 w-3" />
+                          </Button>
+                          <div className="w-12 text-center font-medium">
+                            {quantity}
+                            {squareCount && (
+                              <span className="text-xs text-muted-foreground ml-1">
+                                ({squareCount} sq)
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 w-7 p-0"
+                            onClick={() => updateQuantity(materialId, quantity + 1)}
+                          >
+                            <ChevronUp className="h-3 w-3" />
+                          </Button>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeMaterial(materialId)}
-                      >
-                        <Trash className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <div className="flex justify-between items-center mt-1">
+                        <div className="text-xs text-muted-foreground">
+                          {material.coverageRule.description}
+                        </div>
+                        <div className="text-sm font-medium">
+                          {formatPrice(total)}
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-2 flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => updateQuantity(materialId, (quantities[materialId] || 0) - 1)}
-                      >
-                        <ChevronDown className="h-4 w-4" />
-                      </Button>
-                      <Input
-                        value={quantities[materialId] || 0}
-                        onChange={(e) => {
-                          const value = parseInt(e.target.value);
-                          if (!isNaN(value)) {
-                            updateQuantity(materialId, value);
-                          }
-                        }}
-                        className="h-8 w-16 text-center"
-                      />
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => updateQuantity(materialId, (quantities[materialId] || 0) + 1)}
-                      >
-                        <ChevronUp className="h-4 w-4" />
-                      </Button>
-                      <span className="text-sm">{material.unit}(s)</span>
-                      {/* Show square count for bundle-based materials */}
-                      {material.unit === "Bundle" && material.coverageRule.description.includes("Bundle") && (
-                        <span className="text-sm text-blue-600 ml-1">
-                          (~{Math.ceil((quantities[materialId] || 0) / 3)} squares)
-                        </span>
-                      )}
-                    </div>
-                    <div className="mt-2 flex justify-between text-sm">
-                      <span>Subtotal:</span>
-                      <span className="font-medium">
-                        {formatPrice(calculateMaterialTotal(quantities[materialId] || 0, material.price))}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div className="flex justify-between font-medium text-lg pt-2 border-t">
                   <span>Total:</span>
                   <span>{formatPrice(calculateEstimateTotal())}</span>

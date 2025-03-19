@@ -27,10 +27,10 @@ These features are working correctly and should be preserved in all future updat
 - [ ] Fix display of Areas by Pitch in the measurement display component
 - [x] Ensure all extracted data from PDFs is visible in the UI
 - [x] Add better error handling for edge cases in PDF formats
-- [ ] Remove GAF Royal Sovereign from the material list
-- [ ] Remove all CertainTeed materials (Landmark Pro, Landmark, and SwiftStart Starter)
-- [ ] Update GAF WeatherWatch price to $93.89
-- [ ] Show square counts next to bundle counts (divide bundles by 3) while keeping bundle quantities the same
+- [x] Remove GAF Royal Sovereign from the material list
+- [x] Remove all CertainTeed materials (Landmark Pro, Landmark, and SwiftStart Starter)
+- [x] Update GAF WeatherWatch price to $93.89
+- [x] Show square counts next to bundle counts (divide bundles by 3) while keeping bundle quantities the same
 
 ### Material & Pricing System Enhancement
 

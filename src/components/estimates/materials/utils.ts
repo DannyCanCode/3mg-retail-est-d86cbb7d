@@ -1,4 +1,3 @@
-
 import { Material, MaterialCategory } from "./types";
 import { MeasurementValues } from "../measurement/types";
 
@@ -27,8 +26,6 @@ export function calculateMaterialQuantity(
         // Starter shingles
         if (material.id.includes("gaf-pro-start")) {
           return ceiling((measurements.eaveLength + measurements.rakeLength) / 120);
-        } else if (material.id.includes("certainteed-swiftstart")) {
-          return ceiling((measurements.eaveLength + measurements.rakeLength) / 116);
         } else if (material.id.includes("tamko-starter")) {
           return ceiling((measurements.eaveLength + measurements.rakeLength) / 105);
         } else if (material.id.includes("iko-leading-edge")) {

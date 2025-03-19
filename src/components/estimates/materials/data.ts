@@ -73,31 +73,6 @@ export const ROOFING_MATERIALS: Material[] = [
       calculation: "Valley Length (ft) ÷ 3 × 0.167 + Eave Length (ft) ÷ 3 × 0.167",
     }
   },
-  // LOW SLOPE MATERIALS
-  {
-    id: "certainteed-flintlastic-sa-plybase",
-    name: "CertainTeed Flintlastic SA Plybase",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 137.22,
-    unit: "Roll",
-    approxPerSquare: 68.61,
-    coverageRule: {
-      description: "2 Squares/Roll (200 sq ft)",
-      calculation: "Ceiling(Flat Roof Area ÷ 200)",
-    }
-  },
-  {
-    id: "certainteed-flintlastic-cap",
-    name: "CertainTeed Flintlastic CAP",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 131.67,
-    unit: "Roll",
-    approxPerSquare: 131.67,
-    coverageRule: {
-      description: "1 Square/Roll (100 sq ft)",
-      calculation: "Ceiling(Flat Roof Area ÷ 100)",
-    }
-  },
   // METAL
   {
     id: "drip-edge-26ga",
