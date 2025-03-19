@@ -15,6 +15,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import PackageSelector from "../packages/PackageSelector";
+import WarrantySelector from "../warranties/WarrantySelector";
+import LowSlopeOptions from "../lowslope/LowSlopeOptions";
 
 interface MaterialsSelectionTabProps {
   measurements: MeasurementValues;
@@ -36,6 +39,11 @@ export function MaterialsSelectionTab({
   const [showLowSlope, setShowLowSlope] = useState(false);
   // Special waste factor for GAF Timberline HDZ
   const [gafTimberlineWasteFactor, setGafTimberlineWasteFactor] = useState(12); // Minimum 12%
+  
+  // New state for GAF packages and warranty options
+  const [selectedPackage, setSelectedPackage] = useState<string>('gaf-1');
+  const [selectedWarranty, setSelectedWarranty] = useState<string>('silver-pledge');
+  const [includeIso, setIncludeIso] = useState<boolean>(false);
   
   // Group materials by category
   const groupedMaterials = groupMaterialsByCategory(ROOFING_MATERIALS);
@@ -61,13 +69,51 @@ export function MaterialsSelectionTab({
       setExpandedCategories([...expandedCategories, MaterialCategory.LOW_SLOPE]);
     }
   }, [measurements]);
+
+  // Update materials when package changes
+  useEffect(() => {
+    if (selectedPackage === 'gaf-1') {
+      applyPresetBundle("GAF 1");
+    } else if (selectedPackage === 'gaf-2') {
+      applyPresetBundle("GAF 2");
+    }
+  }, [selectedPackage]);
+  
+  // Reset warranty if needed when package changes
+  useEffect(() => {
+    // If Gold Pledge is selected but GAF 1 package is chosen, reset to Silver Pledge
+    if (selectedWarranty === 'gold-pledge' && selectedPackage === 'gaf-1') {
+      setSelectedWarranty('silver-pledge');
+    }
+  }, [selectedPackage]);
   
   // Calculate total with current selections
   const calculateEstimateTotal = () => {
-    return Object.entries(selectedMaterials).reduce((total, [materialId, material]) => {
+    let total = Object.entries(selectedMaterials).reduce((total, [materialId, material]) => {
       const quantity = quantities[materialId] || 0;
       return total + (quantity * material.price);
     }, 0);
+    
+    // Add low slope costs if applicable
+    if (showLowSlope) {
+      const lowSlopePitchArea = measurements.areasByPitch.find(
+        area => area.pitch === "2:12" || area.pitch === "2/12"
+      );
+      
+      if (lowSlopePitchArea) {
+        const lowSlopeArea = lowSlopePitchArea.area;
+        // $100/sq with 10% waste
+        const lowSlopeCost = (lowSlopeArea / 100) * 100 * 1.1;
+        total += lowSlopeCost;
+        
+        // Add ISO cost if selected
+        if (includeIso) {
+          total += (lowSlopeArea / 100) * 50; // $50/sq for ISO
+        }
+      }
+    }
+    
+    return total;
   };
   
   // Add material to selection
@@ -174,10 +220,10 @@ export function MaterialsSelectionTab({
     
     // Define preset material ids for each bundle
     const presetMaterials: { [key: string]: string[] } = {
-      "GAF 1": ["gaf-timberline-hdz", "gaf-sa-r-hip-ridge", "gaf-pro-start-starter", "gaf-feltbuster", "gaf-weatherwatch"],
-      "GAF 2": ["gaf-timberline-hdz", "gaf-sa-r-hip-ridge", "gaf-pro-start-starter", "gaf-weatherwatch"],
-      "OC 1": ["gaf-timberline-hdz", "gaf-sa-r-hip-ridge", "abc-pro-guard-20", "lead-boot-4inch"],
-      "OC 2": ["gaf-timberline-hdz", "gaf-pro-start-starter", "abc-pro-guard-20", "gaf-feltbuster"]
+      "GAF 1": ["gaf-timberline-hdz", "gaf-seal-a-ridge", "gaf-prostart-starter-shingle-strip", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield"],
+      "GAF 2": ["gaf-timberline-hdz", "gaf-seal-a-ridge", "gaf-prostart-starter-shingle-strip", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield", "gaf-cobra-ridge-vent"],
+      "OC 1": ["oc-oakridge", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "lead-boot-4inch"],
+      "OC 2": ["oc-duration", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "gaf-feltbuster-synthetic-underlayment"]
     };
     
     // Find and add the materials in the preset
@@ -230,6 +276,32 @@ export function MaterialsSelectionTab({
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Material selection panel */}
       <div className="lg:col-span-2">
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>GAF Package & Warranty Selection</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <PackageSelector 
+              selectedPackage={selectedPackage} 
+              onPackageSelect={setSelectedPackage} 
+            />
+            
+            <WarrantySelector 
+              selectedPackage={selectedPackage}
+              selectedWarranty={selectedWarranty}
+              onWarrantySelect={setSelectedWarranty}
+            />
+            
+            {showLowSlope && (
+              <LowSlopeOptions 
+                measurements={measurements}
+                includeIso={includeIso}
+                onIsoToggle={setIncludeIso}
+              />
+            )}
+          </CardContent>
+        </Card>
+        
         <Card>
           <CardHeader>
             <CardTitle>Select Materials</CardTitle>
@@ -248,53 +320,84 @@ export function MaterialsSelectionTab({
               />
               <span className="text-sm text-muted-foreground">%</span>
               <span className="text-sm text-muted-foreground">
-                (Applied to all material calculations)
+                (Applies to all materials except GAF Timberline HDZ)
               </span>
             </div>
             
-            {/* Special waste factor control for GAF Timberline HDZ */}
+            {/* GAF Timberline HDZ special waste factor */}
             {isGafTimberlineSelected && (
-              <div className="flex items-center space-x-4 pb-2 ml-4 pl-4 border-l-2 border-blue-200">
-                <Label htmlFor="gafTimberlineWasteFactor" className="text-blue-800 font-medium">
-                  GAF Timberline HDZ Waste:
-                </Label>
+              <div className="flex items-center space-x-4 pb-4 pt-2 border-t">
+                <Label htmlFor="gafWasteFactor">GAF Timberline HDZ Waste Factor:</Label>
                 <div className="flex space-x-2">
-                  {[12, 15, 20].map(factor => (
-                    <Button
-                      key={factor}
-                      type="button"
-                      size="sm"
-                      variant={gafTimberlineWasteFactor === factor ? "default" : "outline"}
-                      onClick={() => handleGafTimberlineWasteFactorChange(factor)}
-                      className={`${gafTimberlineWasteFactor === factor ? 'bg-blue-600' : ''}`}
-                    >
-                      {factor}%
-                    </Button>
-                  ))}
+                  <Button
+                    variant="outline"
+                    className={gafTimberlineWasteFactor === 12 ? "bg-blue-100" : ""}
+                    onClick={() => handleGafTimberlineWasteFactorChange(12)}
+                  >
+                    12%
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className={gafTimberlineWasteFactor === 15 ? "bg-blue-100" : ""}
+                    onClick={() => handleGafTimberlineWasteFactorChange(15)}
+                  >
+                    15%
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className={gafTimberlineWasteFactor === 20 ? "bg-blue-100" : ""}
+                    onClick={() => handleGafTimberlineWasteFactorChange(20)}
+                  >
+                    20%
+                  </Button>
                 </div>
-                <span className="text-sm text-blue-700">
-                  (Required minimum: 12%)
+                <span className="text-sm text-blue-600 font-medium">
+                  Current: {gafTimberlineWasteFactor}%
                 </span>
               </div>
             )}
             
-            {/* Preset Material Bundles */}
-            <div className="mb-6 p-4 border-2 border-blue-300 rounded-lg bg-blue-50">
-              <h3 className="text-md font-bold mb-3 text-blue-800">Preset Material Bundles</h3>
-              <div className="grid grid-cols-4 gap-3">
-                {["GAF 1", "GAF 2", "OC 1", "OC 2"].map((preset) => (
-                  <Button
-                    key={preset}
-                    variant="default"
-                    className="h-auto py-4 flex flex-col items-center justify-center bg-white border-2 border-blue-200 hover:bg-blue-100 hover:border-blue-400 text-blue-800"
-                    onClick={() => applyPresetBundle(preset)}
-                  >
-                    <PackageOpen className="h-6 w-6 mb-1" />
-                    <span className="font-bold">{preset}</span>
-                  </Button>
-                ))}
+            {/* Presets section */}
+            <div className="border-t pt-4 pb-2">
+              <h3 className="text-md font-medium mb-2">Material Presets</h3>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetBundle("GAF 1")}
+                  className="flex items-center"
+                >
+                  <PackageOpen className="h-4 w-4 mr-1" />
+                  GAF 1
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetBundle("GAF 2")}
+                  className="flex items-center"
+                >
+                  <PackageOpen className="h-4 w-4 mr-1" />
+                  GAF 2
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetBundle("OC 1")}
+                  className="flex items-center"
+                >
+                  <PackageOpen className="h-4 w-4 mr-1" />
+                  OC 1
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => applyPresetBundle("OC 2")}
+                  className="flex items-center"
+                >
+                  <PackageOpen className="h-4 w-4 mr-1" />
+                  OC 2
+                </Button>
               </div>
-              <p className="text-sm text-blue-700 mt-2 font-medium">Click a bundle to pre-select materials. You can still add or remove individual items.</p>
             </div>
             
             <Accordion type="multiple" defaultValue={[MaterialCategory.SHINGLES]} className="w-full">
