@@ -186,16 +186,25 @@ export function MaterialsSelectionTab({
       if (material) {
         newSelectedMaterials[materialId] = material;
         
-        // Use appropriate waste factor for each material
-        const effectiveWasteFactor = materialId === "gaf-timberline-hdz" ?
-          gafTimberlineWasteFactor / 100 :
-          wasteFactor / 100;
+        // Use special calculation for GAF Timberline HDZ to match Excel
+        if (materialId === "gaf-timberline-hdz") {
+          // Ensure minimum 12% waste factor for GAF Timberline HDZ
+          const actualWasteFactor = Math.max(gafTimberlineWasteFactor / 100, 0.12);
+          const totalArea = measurements.totalArea;
           
-        newQuantities[materialId] = calculateMaterialQuantity(
-          material,
-          measurements,
-          effectiveWasteFactor
-        );
+          // Calculate squares with waste using Excel formula
+          const squaresWithWaste = Math.round((totalArea * (1 + actualWasteFactor)) / 100 * 10) / 10;
+          
+          // Calculate bundles (3 per square)
+          newQuantities[materialId] = Math.max(3, Math.ceil(squaresWithWaste * 3));
+        } else {
+          // Regular calculation for other materials
+          newQuantities[materialId] = calculateMaterialQuantity(
+            material,
+            measurements,
+            wasteFactor / 100
+          );
+        }
       }
     });
     
@@ -400,9 +409,36 @@ export function MaterialsSelectionTab({
                   let isGafTimberline = false;
                   
                   if (material.category === MaterialCategory.SHINGLES && material.unit === "Bundle" && !material.id.includes("hip-ridge") && !material.id.includes("starter")) {
-                    const calculatedSquares = quantity / 3;
-                    squareCount = calculatedSquares > 0 ? calculatedSquares.toFixed(1) : "calculating...";
                     isGafTimberline = material.id === "gaf-timberline-hdz";
+                    
+                    // Calculate squares based on bundles
+                    if (isGafTimberline) {
+                      // For GAF Timberline HDZ, use the same formula as in Excel
+                      // Calculate total squares including waste
+                      const actualWasteFactor = Math.max(gafTimberlineWasteFactor / 100, 0.12);
+                      const totalArea = measurements.totalArea;
+                      
+                      // Excel formula logic:
+                      // 1. Calculate area with waste: totalArea * (1 + wasteFactor)
+                      // 2. Convert to squares: area / 100
+                      // 3. Round to 1 decimal place: Math.round(squares * 10) / 10
+                      const squaresWithWaste = Math.round((totalArea * (1 + actualWasteFactor)) / 100 * 10) / 10;
+                      
+                      // Display the calculated squares value
+                      squareCount = squaresWithWaste.toFixed(1);
+                      
+                      // Validate: Make sure the bundle quantity matches the squares calculation
+                      const expectedBundles = Math.max(3, Math.ceil(squaresWithWaste * 3));
+                      if (quantity !== expectedBundles) {
+                        // Update quantity to match the calculated square count
+                        // This ensures consistency between displayed squares and bundle count
+                        setTimeout(() => updateQuantity(materialId, expectedBundles), 0);
+                      }
+                    } else {
+                      // For regular shingles
+                      const calculatedSquares = quantity / 3;
+                      squareCount = calculatedSquares > 0 ? calculatedSquares.toFixed(1) : "calculating...";
+                    }
                   }
                   
                   return (
@@ -438,7 +474,9 @@ export function MaterialsSelectionTab({
                             </div>
                             {squareCount && (
                               <div className={`text-xs mt-0.5 ${isGafTimberline ? 'text-blue-600 font-medium' : 'text-muted-foreground'}`}>
-                                {typeof squareCount === 'string' ? squareCount : `${squareCount} squares`}
+                                {typeof squareCount === 'string' && squareCount === "calculating..." 
+                                  ? squareCount 
+                                  : `${squareCount} sq${isGafTimberline ? ' (12% waste)' : ''}`}
                               </div>
                             )}
                           </div>

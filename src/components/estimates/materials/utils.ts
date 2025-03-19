@@ -2,128 +2,115 @@ import { Material, MaterialCategory } from "./types";
 import { MeasurementValues } from "../measurement/types";
 
 export function calculateMaterialQuantity(
-  material: Material, 
+  material: Material,
   measurements: MeasurementValues,
-  wasteFactor: number = 0.1 // Default 10% waste
+  wasteFactor: number
 ): number {
-  // Add waste factor to total area for calculations
+  // Make sure we have a valid waste factor
   let actualWasteFactor = wasteFactor;
   
-  // For GAF Timberline HDZ, ensure minimum waste factor of 12%
-  if (material.id === "gaf-timberline-hdz" && actualWasteFactor < 0.12) {
-    actualWasteFactor = 0.12; // Set minimum 12% waste for GAF Timberline HDZ
+  // Special handling for GAF Timberline HDZ - minimum 12% waste
+  if (material.id === "gaf-timberline-hdz") {
+    actualWasteFactor = Math.max(wasteFactor, 0.12);
   }
   
-  // Calculate area with waste
-  let totalAreaWithWaste = measurements.totalArea * (1 + actualWasteFactor);
-  let totalSquares = totalAreaWithWaste / 100; // 1 square = 100 sq ft
+  // Calculate area with waste applied
+  const totalAreaWithWaste = measurements.totalArea * (1 + actualWasteFactor);
   
-  // Calculate flat/low-slope roof area
-  const flatRoofAreas = measurements.areasByPitch.filter(area => 
-    ["0:12", "1:12", "2:12"].includes(area.pitch)
-  );
-  const flatRoofArea = flatRoofAreas.reduce((sum, area) => sum + area.area, 0);
+  // Calculate squares (100 sq ft = 1 square)
+  let totalSquares = totalAreaWithWaste / 100;
   
-  // Function to calculate ceiling
-  const ceiling = (value: number) => Math.ceil(value);
-  
-  switch(material.category) {
-    case MaterialCategory.SHINGLES:
-      // Handle different types of shingle materials
-      if (material.id.includes("starter")) {
-        // Starter shingles
-        if (material.id.includes("gaf-pro-start")) {
-          return ceiling((measurements.eaveLength + measurements.rakeLength) / 120);
-        } else if (material.id.includes("tamko-starter")) {
-          return ceiling((measurements.eaveLength + measurements.rakeLength) / 105);
-        } else if (material.id.includes("iko-leading-edge")) {
-          return ceiling((measurements.eaveLength + measurements.rakeLength) / 123);
-        } else {
-          return ceiling((measurements.eaveLength + measurements.rakeLength) / 110); // Default
-        }
-      } else if (material.id.includes("hip-ridge") || material.id.includes("hip") && material.id.includes("ridge")) {
-        // Hip and ridge shingles
-        if (material.id.includes("gaf-sa-r")) {
-          return ceiling((measurements.ridgeLength + measurements.hipLength) / 25);
-        } else if (material.id.includes("owens-corning-proedge")) {
-          return ceiling((measurements.ridgeLength + measurements.hipLength) / 33);
-        } else if (material.id.includes("tamko")) {
-          return ceiling((measurements.ridgeLength + measurements.hipLength) / 33.3);
-        } else if (material.id.includes("iko")) {
-          return ceiling((measurements.ridgeLength + measurements.hipLength) / 33);
-        } else {
-          return ceiling((measurements.ridgeLength + measurements.hipLength) / 30); // Default
-        }
+  // For GAF Timberline HDZ, use Excel formula rounding
+  if (material.id === "gaf-timberline-hdz") {
+    totalSquares = Math.round(totalSquares * 10) / 10;
+  }
+
+  // Apply coverage rules based on material type and description
+  if (material.id === "gaf-timberline-hdz") {
+    // Special case for GAF Timberline HDZ
+    return Math.max(3, Math.ceil(totalSquares * 3));
+  } else if (material.category === MaterialCategory.SHINGLES) {
+    // Handle regular shingles
+    if (material.coverageRule.description.includes("Bundle")) {
+      if (material.coverageRule.description.includes("Hip & Ridge") || 
+          material.coverageRule.description.includes("Hip and Ridge")) {
+        // Hip and ridge shingles usually cover 25 LF per bundle
+        const ridgeHipLength = (measurements.ridgeLength || 0) + (measurements.hipLength || 0);
+        return Math.ceil(ridgeHipLength * (1 + actualWasteFactor) / 25);
+      } else if (material.coverageRule.description.includes("Starter")) {
+        // Starter shingles usually cover 120 LF per bundle for GAF
+        const eaveRakeLength = (measurements.eaveLength || 0) + (measurements.rakeLength || 0);
+        return Math.ceil(eaveRakeLength * (1 + actualWasteFactor) / 120);
       } else {
-        // Regular shingles - excluding flat/low-slope areas
-        const steepSlopeArea = totalAreaWithWaste - flatRoofArea;
-        
-        // Special handling for GAF Timberline HDZ
-        if (material.id === "gaf-timberline-hdz") {
-          // Minimum of 3 bundles per square (no partial squares allowed)
-          return Math.max(3, ceiling(steepSlopeArea / 33.3));
-        }
-        
-        return ceiling(steepSlopeArea / 33.3); // 3 bundles per square (33.3 sq ft per bundle)
+        // Default shingle bundle calculation (3 bundles per square)
+        return Math.ceil(totalSquares * 3);
       }
-      
-    case MaterialCategory.UNDERLAYMENTS:
-      if (material.id.includes("peel") || material.id.includes("stick")) {
-        // Peel and stick underlayment for valleys and eaves
-        const valleyArea = measurements.valleyLength * 3 * 0.167; // 3 feet wide valley × conversion factor
-        const eaveArea = measurements.eaveLength * 3 * 0.167; // 3 feet wide ice & water at eaves
-        const totalIceAndWaterArea = valleyArea + eaveArea;
-        return Math.max(ceiling(totalIceAndWaterArea / 200), 1); // Min 1 roll if there are valleys
-      } else {
-        // Synthetic underlayment
-        return ceiling(totalSquares / 10); // 10 squares per roll
-      }
-      
-    case MaterialCategory.LOW_SLOPE:
-      // Low slope materials are used only for flat/low-slope areas
-      if (material.id.includes("plybase") || material.id.includes("base")) {
-        return ceiling(flatRoofArea / 200); // 2 squares per roll
-      } else if (material.id.includes("cap")) {
-        return ceiling(flatRoofArea / 100); // 1 square per roll
-      } else {
-        return ceiling(flatRoofArea / 150); // Default 1.5 squares per roll
-      }
-      
-    case MaterialCategory.METAL:
-      if (material.id.includes("valley")) {
-        return ceiling(measurements.valleyLength / 55);
-      } else if (material.id.includes("drip-edge") || material.id.includes("drip")) {
-        return ceiling((measurements.eaveLength + measurements.rakeLength) / 10);
-      } else if (material.id.includes("l-flashing")) {
-        return ceiling(measurements.flashingLength / 10);
-      } else {
-        return 0; // Default case
-      }
-      
-    case MaterialCategory.VENTILATION:
-      if (material.id.includes("ridge-vent")) {
-        return ceiling(measurements.ridgeLength / 4);
-      } else if (material.id.includes("boot")) {
-        // Simplified - in real application would need count of penetrations by size
-        return 1; // Default to 1 per roof
-      } else {
-        return 0; // Default case
-      }
-      
-    case MaterialCategory.ACCESSORIES:
-      if (material.id.includes("cement") || material.id.includes("karnak")) {
-        return ceiling(totalSquares / 15);
-      } else if (material.id.includes("nail") || material.id.includes("cap")) {
-        return ceiling(totalSquares / 10);
-      } else if (material.id.includes("plywood")) {
-        return 0; // Would need damaged area estimate
-      } else {
-        return 0; // Default case
-      }
-      
-    default:
+    }
+  } else if (material.category === MaterialCategory.UNDERLAYMENTS) {
+    // Underlayment calculations
+    if (material.coverageRule.description.includes("Peel & Stick") || 
+        material.coverageRule.description.includes("Weatherwatch")) {
+      // Calculate ice & water shield for valleys and eaves
+      const valleyArea = (measurements.valleyLength || 0) * 3 * 0.167;
+      const eaveArea = (measurements.eaveLength || 0) * 3 * 0.167;
+      const totalIceWaterArea = (valleyArea + eaveArea) * (1 + actualWasteFactor);
+      return Math.max(Math.ceil(totalIceWaterArea / 200), 1);
+    } else {
+      // Regular synthetic underlayment (usually 10 squares per roll)
+      return Math.ceil(totalSquares / 10);
+    }
+  } else if (material.category === MaterialCategory.METAL) {
+    // Metal calculations
+    if (material.coverageRule.description.includes("Valley")) {
+      // Valley metal
+      return Math.ceil((measurements.valleyLength || 0) * (1 + actualWasteFactor) / 10);
+    } else if (material.coverageRule.description.includes("Drip Edge") || 
+               material.coverageRule.description.includes("Drip")) {
+      // Drip edge
+      const edgeLength = material.coverageRule.description.includes("Eave") ? 
+        (measurements.eaveLength || 0) : 
+        (measurements.eaveLength || 0) + (measurements.rakeLength || 0);
+      return Math.ceil(edgeLength * (1 + actualWasteFactor) / 10);
+    } else {
+      // Default metal
       return 0;
+    }
+  } else if (material.category === MaterialCategory.VENTILATION) {
+    // Ventilation calculations
+    if (material.coverageRule.description.includes("Ridge Vent")) {
+      return Math.ceil((measurements.ridgeLength || 0) * (1 + actualWasteFactor) / 4);
+    } else if (material.coverageRule.description.includes("Boot")) {
+      // Simplified - would need count of penetrations
+      return 1;
+    } else {
+      return 1;
+    }
+  } else if (material.category === MaterialCategory.LOW_SLOPE) {
+    // Calculate low slope area (0:12, 1:12, 2:12)
+    const lowSlopeArea = measurements.areasByPitch
+      .filter(area => {
+        const [rise] = area.pitch.split(':').map(Number);
+        return rise <= 2; // 2:12 or less
+      })
+      .reduce((total, area) => total + area.area, 0);
+      
+    if (lowSlopeArea <= 0) return 0;
+    
+    // Apply waste factor to low slope area
+    const lowSlopeWithWaste = lowSlopeArea * (1 + actualWasteFactor);
+    
+    // Different coverage for different low slope materials
+    if (material.coverageRule.description.includes("Base")) {
+      return Math.ceil(lowSlopeWithWaste / 200); // 2 squares per roll
+    } else if (material.coverageRule.description.includes("Cap")) {
+      return Math.ceil(lowSlopeWithWaste / 100); // 1 square per roll
+    } else {
+      return Math.ceil(lowSlopeWithWaste / 150); // Default
+    }
   }
+  
+  // Default fallback - shouldn't reach here in most cases
+  return 0;
 }
 
 export function calculateMaterialTotal(quantity: number, price: number): number {
