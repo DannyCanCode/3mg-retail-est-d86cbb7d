@@ -33,14 +33,24 @@ export function calculateMaterialQuantity(
     // Handle regular shingles
     if (material.coverageRule.description.includes("Bundle")) {
       if (material.coverageRule.description.includes("Hip & Ridge") || 
-          material.coverageRule.description.includes("Hip and Ridge")) {
-        // Hip and ridge shingles usually cover 25 LF per bundle
+          material.coverageRule.description.includes("Ridge") ||
+          material.id.includes("hip-ridge") || 
+          material.id.includes("seal-a-ridge")) {
+        // Hip and ridge shingles - extract LF per bundle from description
+        const lfPerBundle = extractCoverageValue(material.coverageRule.description);
         const ridgeHipLength = (measurements.ridgeLength || 0) + (measurements.hipLength || 0);
-        return Math.ceil(ridgeHipLength * (1 + actualWasteFactor) / 25);
-      } else if (material.coverageRule.description.includes("Starter")) {
-        // Starter shingles usually cover 120 LF per bundle for GAF
-        const eaveRakeLength = (measurements.eaveLength || 0) + (measurements.rakeLength || 0);
-        return Math.ceil(eaveRakeLength * (1 + actualWasteFactor) / 120);
+        return Math.ceil(ridgeHipLength * (1 + actualWasteFactor) / lfPerBundle);
+      } else if (material.coverageRule.description.includes("Starter") || 
+                material.id.includes("starter")) {
+        // Starter shingles - extract LF per bundle from description
+        const lfPerBundle = extractCoverageValue(material.coverageRule.description);
+        // If it's specifically eaves only
+        if (material.id === "gaf-prostart-starter-shingle-strip") {
+          return Math.ceil((measurements.eaveLength || 0) * (1 + actualWasteFactor) / lfPerBundle);
+        } else {
+          const eaveRakeLength = (measurements.eaveLength || 0) + (measurements.rakeLength || 0);
+          return Math.ceil(eaveRakeLength * (1 + actualWasteFactor) / lfPerBundle);
+        }
       } else {
         // Default shingle bundle calculation (3 bundles per square)
         return Math.ceil(totalSquares * 3);
@@ -48,7 +58,14 @@ export function calculateMaterialQuantity(
     }
   } else if (material.category === MaterialCategory.UNDERLAYMENTS) {
     // Underlayment calculations
-    if (material.coverageRule.description.includes("Peel & Stick") || 
+    if (material.id === "gaf-weatherwatch-ice-water-shield") {
+      // GAF WeatherWatch Ice & Water Shield - 1.5 squares per roll
+      return Math.ceil(totalSquares / 1.5);
+    } else if (material.id === "gaf-feltbuster-synthetic-underlayment" || 
+               material.id === "abc-pro-guard-20") {
+      // Use 4.5 squares per roll for these materials
+      return Math.ceil(totalSquares / 4.5);
+    } else if (material.coverageRule.description.includes("Peel & Stick") || 
         material.coverageRule.description.includes("Weatherwatch")) {
       // Calculate ice & water shield for valleys and eaves
       const valleyArea = (measurements.valleyLength || 0) * 3 * 0.167;
@@ -56,8 +73,9 @@ export function calculateMaterialQuantity(
       const totalIceWaterArea = (valleyArea + eaveArea) * (1 + actualWasteFactor);
       return Math.max(Math.ceil(totalIceWaterArea / 200), 1);
     } else {
-      // Regular synthetic underlayment (usually 10 squares per roll)
-      return Math.ceil(totalSquares / 10);
+      // Extract squares per roll from the description
+      const squaresPerRoll = extractCoverageValue(material.coverageRule.description);
+      return Math.ceil(totalSquares / squaresPerRoll);
     }
   } else if (material.category === MaterialCategory.METAL) {
     // Metal calculations
@@ -99,18 +117,35 @@ export function calculateMaterialQuantity(
     // Apply waste factor to low slope area
     const lowSlopeWithWaste = lowSlopeArea * (1 + actualWasteFactor);
     
-    // Different coverage for different low slope materials
-    if (material.coverageRule.description.includes("Base")) {
-      return Math.ceil(lowSlopeWithWaste / 200); // 2 squares per roll
+    if (material.id === "polyglass-elastoflex-sbs") {
+      return Math.ceil(lowSlopeWithWaste / 0.8); // 0.8 squares per roll
+    } else if (material.coverageRule.description.includes("Base")) {
+      return Math.ceil(lowSlopeWithWaste / 2); // 2 squares per roll (default)
     } else if (material.coverageRule.description.includes("Cap")) {
-      return Math.ceil(lowSlopeWithWaste / 100); // 1 square per roll
+      return Math.ceil(lowSlopeWithWaste / 1); // 1 square per roll (default)
     } else {
-      return Math.ceil(lowSlopeWithWaste / 150); // Default
+      return Math.ceil(lowSlopeWithWaste / 1.5); // Default 1.5 squares per roll
     }
   }
   
   // Default fallback - shouldn't reach here in most cases
   return 0;
+}
+
+// Helper function to extract numeric values from coverage descriptions
+function extractCoverageValue(description: string): number {
+  // Try to find a number followed by LF, Squares, etc.
+  const match = description.match(/(\d+(\.\d+)?)\s*(LF|Squares|Square)/i);
+  if (match && match[1]) {
+    return parseFloat(match[1]);
+  }
+  // Fallback to extracting just the first number
+  const numMatch = description.match(/(\d+(\.\d+)?)/);
+  if (numMatch && numMatch[1]) {
+    return parseFloat(numMatch[1]);
+  }
+  // Default fallback
+  return 10; // Reasonable default
 }
 
 export function calculateMaterialTotal(quantity: number, price: number): number {
