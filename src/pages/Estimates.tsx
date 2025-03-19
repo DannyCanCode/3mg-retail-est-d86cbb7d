@@ -269,8 +269,16 @@ const Estimates = () => {
     });
     setProfitMargin(25);
     
+    // Clear localStorage values too
+    setStoredPdfData(null);
+    setStoredMeasurements(null);
+    setStoredFileName("");
+    
     // Clear any URL parameters
     navigate("/estimates");
+    
+    // Force a page reload to ensure all components reset properly
+    window.location.reload();
     
     toast({
       title: "Started fresh",

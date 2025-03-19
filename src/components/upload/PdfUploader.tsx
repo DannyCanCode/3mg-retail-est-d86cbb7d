@@ -226,7 +226,15 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
           </CardContent>
           
           <CardFooter className="flex justify-between pt-4 pb-4 border-t bg-muted/20">
-            <Button variant="secondary" onClick={() => window.location.reload()}>
+            <Button variant="secondary" onClick={() => {
+              handleResetUpload();
+              // Notify parent component to clear the data
+              if (onDataExtracted) {
+                onDataExtracted(null as any, "");
+              }
+              // Force a component reset
+              setStatus("idle");
+            }}>
               <RotateCcw className="h-4 w-4 mr-2" /> Upload Another
             </Button>
             
