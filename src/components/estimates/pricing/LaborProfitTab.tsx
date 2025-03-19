@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +7,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 interface LaborProfitTabProps {
-  goToPreviousTab: () => void;
+  onBack: () => void;
   onContinue: (laborRates: LaborRates, profitMargin: number) => void;
   initialLaborRates?: LaborRates;
   initialProfitMargin?: number;
@@ -22,7 +21,7 @@ export interface LaborRates {
 }
 
 export function LaborProfitTab({
-  goToPreviousTab,
+  onBack,
   onContinue,
   initialLaborRates = {
     tearOff: 55,
@@ -142,7 +141,7 @@ export function LaborProfitTab({
         <Button 
           type="button" 
           variant="outline"
-          onClick={goToPreviousTab}
+          onClick={onBack}
           className="flex items-center gap-2"
         >
           <ChevronLeft className="h-4 w-4" />

@@ -18,13 +18,13 @@ import { Badge } from "@/components/ui/badge";
 
 interface MaterialsSelectionTabProps {
   measurements: MeasurementValues;
-  goToPreviousTab: () => void;
+  onBack: () => void;
   onContinue: (selectedMaterials: {[key: string]: Material}, quantities: {[key: string]: number}) => void;
 }
 
 export function MaterialsSelectionTab({
   measurements,
-  goToPreviousTab,
+  onBack,
   onContinue,
 }: MaterialsSelectionTabProps) {
   const [wasteFactor, setWasteFactor] = useState(10); // Default 10% waste
@@ -296,7 +296,7 @@ export function MaterialsSelectionTab({
             <Button 
               type="button" 
               variant="outline" 
-              onClick={goToPreviousTab}
+              onClick={onBack}
               className="flex items-center gap-2"
             >
               <ChevronLeft className="h-4 w-4" />

@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,22 +8,22 @@ import { LaborRates } from "./LaborProfitTab";
 
 interface EstimateSummaryTabProps {
   measurements: MeasurementValues;
-  selectedMaterials: {[key: string]: Material};
+  materials: {[key: string]: Material};
   quantities: {[key: string]: number};
   laborRates: LaborRates;
   profitMargin: number;
-  goToPreviousTab: () => void;
+  onBack: () => void;
   onFinalize: () => void;
   isSubmitting?: boolean;
 }
 
 export function EstimateSummaryTab({
   measurements,
-  selectedMaterials,
+  materials,
   quantities,
   laborRates,
   profitMargin,
-  goToPreviousTab,
+  onBack,
   onFinalize,
   isSubmitting = false
 }: EstimateSummaryTabProps) {
@@ -32,7 +31,7 @@ export function EstimateSummaryTab({
   const totalSquares = Math.round(measurements.totalArea / 100 * 10) / 10;
   
   // Calculate material costs
-  const materialCosts = Object.entries(selectedMaterials).map(([key, material]) => {
+  const materialCosts = Object.entries(materials).map(([key, material]) => {
     const quantity = quantities[key] || 0;
     const totalCost = material.price * quantity;
     return {
@@ -173,7 +172,7 @@ export function EstimateSummaryTab({
         <Button 
           type="button" 
           variant="outline"
-          onClick={goToPreviousTab}
+          onClick={onBack}
           className="flex items-center gap-2"
         >
           <ChevronLeft className="h-4 w-4" />

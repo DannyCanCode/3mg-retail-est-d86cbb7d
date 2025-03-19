@@ -17,14 +17,47 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 
 // Convert ParsedMeasurements to MeasurementValues format
 const convertToMeasurementValues = (parsedData: ParsedMeasurements): MeasurementValues => {
+  console.log("Converting PDF data to measurement values. Raw areasByPitch:", parsedData.areasByPitch);
+  
   // Convert areasByPitch from Record<string, number> to AreaByPitch[] format
-  const areasByPitch = Object.entries(parsedData.areasByPitch || {}).map(([pitch, area]) => {
-    return {
-      pitch,
-      area,
-      percentage: parsedData.totalArea > 0 ? Math.round((area / parsedData.totalArea) * 100) : 0
-    };
-  });
+  const areasByPitch = Object.entries(parsedData.areasByPitch || {})
+    .filter(([pitch, area]) => {
+      // Filter out any invalid entries (area must be a number > 0)
+      const numArea = typeof area === 'number' ? area : parseFloat(String(area));
+      return !isNaN(numArea) && numArea > 0;
+    })
+    .map(([pitch, area]) => {
+      const numArea = typeof area === 'number' ? area : parseFloat(String(area));
+      return {
+        pitch: pitch.includes(':') ? pitch : pitch.replace('/', ':'), // Normalize format for UI
+        area: numArea,
+        percentage: parsedData.totalArea > 0 ? Math.round((numArea / parsedData.totalArea) * 100) : 0
+      };
+    });
+
+  console.log("Converted areasByPitch to array format:", areasByPitch);
+
+  // Special case: If we have no areas, use the predominant pitch
+  let pitchAreas = areasByPitch;
+  if (areasByPitch.length === 0 && parsedData.totalArea > 0 && parsedData.predominantPitch) {
+    // Convert predominant pitch from "x:y" format to "x/y" if needed
+    const predominantPitch = parsedData.predominantPitch.includes(':') 
+      ? parsedData.predominantPitch 
+      : parsedData.predominantPitch.replace('/', ':');
+    
+    console.log("No areas by pitch found, using predominant pitch:", predominantPitch);
+    pitchAreas = [{
+      pitch: predominantPitch,
+      area: parsedData.totalArea,
+      percentage: 100
+    }];
+  }
+
+  // If we still have no pitch areas, use a default
+  if (pitchAreas.length === 0) {
+    console.log("Using default pitch (6:12) as fallback");
+    pitchAreas = [{ pitch: "6:12", area: parsedData.totalArea || 0, percentage: 100 }];
+  }
 
   return {
     totalArea: parsedData.totalArea || 0,
@@ -37,7 +70,7 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
     flashingLength: parsedData.flashingLength || 0, 
     penetrationsArea: parsedData.penetrationsArea || 0,
     roofPitch: parsedData.predominantPitch || "6:12",
-    areasByPitch: areasByPitch.length > 0 ? areasByPitch : [{ pitch: "6:12", area: 0, percentage: 100 }],
+    areasByPitch: pitchAreas,
     // Include property location information
     propertyAddress: parsedData.propertyAddress || undefined,
     latitude: parsedData.latitude || undefined,
