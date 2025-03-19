@@ -27,36 +27,14 @@ export const ROOFING_MATERIALS: Material[] = [
     }
   },
   {
-    id: "gaf-sa-r-hip-ridge",
-    name: "GAF S-A-R Hip & Ridge",
-    category: MaterialCategory.SHINGLES,
-    price: 67.22,
-    unit: "Bundle",
-    coverageRule: {
-      description: "25 LF/Bundle",
-      calculation: "(Ridge Length + Hip Length) ÷ 25, rounded up",
-    }
-  },
-  {
     id: "gaf-seal-a-ridge",
     name: "GAF Seal-A-Ridge (25')",
     category: MaterialCategory.SHINGLES,
     price: 67.22,
     unit: "Bundle",
     coverageRule: {
-      description: "25 LF/Bundle",
-      calculation: "Ridge Length ÷ 25, rounded up",
-    }
-  },
-  {
-    id: "gaf-pro-start-starter",
-    name: "GAF Pro-Start Starter",
-    category: MaterialCategory.SHINGLES,
-    price: 63.33,
-    unit: "Bundle",
-    coverageRule: {
-      description: "120 LF/Bundle",
-      calculation: "(Eave Length + Rake Length) ÷ 120, rounded up",
+      description: "20 LF/Bundle",
+      calculation: "(Ridge Length + Hip Length) ÷ 20, rounded up",
     }
   },
   {
@@ -66,8 +44,8 @@ export const ROOFING_MATERIALS: Material[] = [
     price: 63.33,
     unit: "Bundle",
     coverageRule: {
-      description: "120 LF/Bundle",
-      calculation: "(Eave Length + Rake Length) ÷ 120, rounded up",
+      description: "110 LF/Bundle",
+      calculation: "Eaves LF ÷ 110, rounded up",
     }
   },
   // Adding OC Shingles from Excel
@@ -124,34 +102,10 @@ export const ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.UNDERLAYMENTS,
     price: 83.33,
     unit: "Roll",
-    approxPerSquare: 8.33,
+    approxPerSquare: 18.52,
     coverageRule: {
-      description: "10 Squares/Roll (1,000 sq ft)",
-      calculation: "Ceiling(Total Squares ÷ 10)",
-    }
-  },
-  {
-    id: "gaf-feltbuster",
-    name: "GAF FeltBuster",
-    category: MaterialCategory.UNDERLAYMENTS,
-    price: 102.23,
-    unit: "Roll",
-    approxPerSquare: 10.22,
-    coverageRule: {
-      description: "10 Squares/Roll (1,000 sq ft)",
-      calculation: "Ceiling(Total Squares ÷ 10)",
-    }
-  },
-  {
-    id: "gaf-weatherwatch",
-    name: "GAF Weatherwatch (Peel & Stick)",
-    category: MaterialCategory.UNDERLAYMENTS,
-    price: 93.89,
-    unit: "Roll",
-    approxPerSquare: 46.95,
-    coverageRule: {
-      description: "2 Squares/Roll (200 sq ft)",
-      calculation: "Valley Length (ft) ÷ 3 × 0.167 + Eave Length (ft) ÷ 3 × 0.167",
+      description: "4.5 Squares/Roll (450 sq ft)",
+      calculation: "Total Roof Area ÷ 4.5, rounded up",
     }
   },
   {
@@ -162,8 +116,8 @@ export const ROOFING_MATERIALS: Material[] = [
     unit: "Roll",
     approxPerSquare: 46.95,
     coverageRule: {
-      description: "2 Squares/Roll (200 sq ft)",
-      calculation: "Valley Length (ft) ÷ 3 × 0.167 + Eave Length (ft) ÷ 3 × 0.167",
+      description: "1.5 Squares/Roll (150 sq ft)",
+      calculation: "Total Area ÷ 1.5, rounded up",
     }
   },
   {
@@ -172,10 +126,10 @@ export const ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.UNDERLAYMENTS,
     price: 102.23,
     unit: "Roll",
-    approxPerSquare: 10.22,
+    approxPerSquare: 22.72,
     coverageRule: {
-      description: "10 Squares/Roll (1,000 sq ft)",
-      calculation: "Ceiling(Total Roof Area ÷ 10)",
+      description: "4.5 Squares/Roll (450 sq ft)",
+      calculation: "Total Roof Area ÷ 4.5, rounded up",
     }
   },
   // Adding more underlayments from Excel
@@ -233,10 +187,10 @@ export const ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.UNDERLAYMENTS,
     price: 142.22,
     unit: "Roll",
-    approxPerSquare: 71.11,
+    approxPerSquare: 177.78,
     coverageRule: {
-      description: "2 Squares/Roll (200 sq ft)",
-      calculation: "Total Low Slope Area ÷ 2, rounded up",
+      description: "0.8 Squares/Roll (80 sq ft)",
+      calculation: "Total Low Slope Area ÷ 0.8, rounded up",
     }
   },
   {
@@ -371,18 +325,18 @@ export const ROOFING_MATERIALS: Material[] = [
     unit: "Piece",
     coverageRule: {
       description: "4'/Piece",
-      calculation: "Ridges ÷ 4, rounded up",
+      calculation: "Ridges LF ÷ 4, rounded up",
     }
   },
   {
-    id: "galvanized-off-ridge-vent",
+    id: "galvanized-steel-off-ridge-vent",
     name: "Galvanized Steel Off Ridge Vent (4') - w/ Diverter",
     category: MaterialCategory.VENTILATION,
     price: 87.09,
     unit: "Piece",
     coverageRule: {
       description: "4'/Piece",
-      calculation: "Count of roof sections needing off-ridge ventilation",
+      calculation: "Count needed based on ventilation requirements",
     }
   },
   {
