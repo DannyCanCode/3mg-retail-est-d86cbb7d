@@ -272,6 +272,103 @@ export function MaterialsSelectionTab({
     }).format(price);
   };
   
+  // Generate a human-readable explanation of the calculation for a material
+  const getCalculationExplanation = (material: Material, quantity: number): string => {
+    // Determine what type of material we're dealing with
+    if (material.category === MaterialCategory.SHINGLES) {
+      if (material.id === "gaf-timberline-hdz") {
+        const actualWasteFactor = Math.max(gafTimberlineWasteFactor / 100, 0.12);
+        const totalArea = Math.abs(measurements.totalArea);
+        const squaresWithWaste = Math.round((totalArea * (1 + actualWasteFactor)) / 100 * 10) / 10;
+        return `${totalArea.toFixed(1)} sq ft × (1 + ${(actualWasteFactor * 100).toFixed(0)}% waste) ÷ 100 = ${squaresWithWaste} squares × 3 = ${Math.ceil(squaresWithWaste * 3)} bundles`;
+      } 
+      
+      if (material.id.includes("ridge") || material.id.includes("hip")) {
+        const ridgeLength = measurements.ridgeLength || 0;
+        const hipLength = measurements.hipLength || 0;
+        const lfPerBundle = extractCoverageValue(material.coverageRule.description);
+        return `Ridge (${ridgeLength} LF) + Hip (${hipLength} LF) = ${ridgeLength + hipLength} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
+      }
+      
+      if (material.id.includes("starter")) {
+        if (material.id === "gaf-prostart-starter-shingle-strip") {
+          const eaveLength = measurements.eaveLength || 0;
+          const lfPerBundle = extractCoverageValue(material.coverageRule.description);
+          return `Eaves (${eaveLength} LF) ÷ ${lfPerBundle} = ${quantity} bundles`;  
+        } else {
+          const eaveLength = measurements.eaveLength || 0;
+          const rakeLength = measurements.rakeLength || 0;
+          const lfPerBundle = extractCoverageValue(material.coverageRule.description);
+          return `Eaves (${eaveLength} LF) + Rakes (${rakeLength} LF) = ${eaveLength + rakeLength} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
+        }
+      }
+      
+      // Default shingles
+      return `${Math.abs(measurements.totalArea).toFixed(1)} sq ft ÷ 100 = ${(Math.abs(measurements.totalArea)/100).toFixed(1)} squares × 3 = ${quantity} bundles`;
+    } 
+    
+    if (material.category === MaterialCategory.UNDERLAYMENTS) {
+      if (material.id === "gaf-weatherwatch-ice-water-shield") {
+        return `${Math.abs(measurements.totalArea).toFixed(1)} sq ft ÷ 100 = ${(Math.abs(measurements.totalArea)/100).toFixed(1)} squares ÷ 1.5 = ${quantity} rolls`;
+      }
+      
+      if (material.id === "gaf-feltbuster-synthetic-underlayment" || material.id === "abc-pro-guard-20") {
+        return `${Math.abs(measurements.totalArea).toFixed(1)} sq ft ÷ 100 = ${(Math.abs(measurements.totalArea)/100).toFixed(1)} squares ÷ 4.5 = ${quantity} rolls`;
+      }
+      
+      if (material.coverageRule.description.includes("Peel & Stick") || material.coverageRule.description.includes("Weatherwatch")) {
+        const valleyLength = measurements.valleyLength || 0;
+        const eaveLength = measurements.eaveLength || 0;
+        const valleyArea = valleyLength * 3 * 0.167;
+        const eaveArea = eaveLength * 3 * 0.167;
+        return `Valley (${valleyLength} LF × 3' × 0.167) + Eaves (${eaveLength} LF × 3' × 0.167) = ${(valleyArea + eaveArea).toFixed(1)} sq ft ÷ 200 = ${quantity} rolls`;
+      }
+      
+      // Regular underlayment
+      const squaresPerRoll = extractCoverageValue(material.coverageRule.description);
+      return `${Math.abs(measurements.totalArea).toFixed(1)} sq ft ÷ 100 = ${(Math.abs(measurements.totalArea)/100).toFixed(1)} squares ÷ ${squaresPerRoll} = ${quantity} rolls`;
+    }
+    
+    if (material.category === MaterialCategory.LOW_SLOPE) {
+      const lowSlopeArea = measurements.areasByPitch
+        .filter(area => {
+          const [rise] = area.pitch.split(':').map(Number);
+          return rise <= 2;
+        })
+        .reduce((total, area) => total + area.area, 0);
+      
+      if (material.id === "polyglass-elastoflex-sbs") {
+        return `Low slope area ${lowSlopeArea.toFixed(1)} sq ft ÷ 100 = ${(lowSlopeArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
+      }
+      
+      // Default low slope material
+      let squaresPerRoll = 1.5; // Default
+      if (material.coverageRule.description.includes("Base")) squaresPerRoll = 2;
+      if (material.coverageRule.description.includes("Cap")) squaresPerRoll = 1;
+      
+      return `Low slope area ${lowSlopeArea.toFixed(1)} sq ft ÷ 100 = ${(lowSlopeArea/100).toFixed(1)} squares ÷ ${squaresPerRoll} = ${quantity} rolls`;
+    }
+    
+    // Default explanation
+    return material.coverageRule.calculation;
+  };
+  
+  // Helper function to extract numeric values from coverage descriptions
+  const extractCoverageValue = (description: string): number => {
+    // Try to find a number followed by LF, Squares, etc.
+    const match = description.match(/(\d+(\.\d+)?)\s*(LF|Squares|Square)/i);
+    if (match && match[1]) {
+      return parseFloat(match[1]);
+    }
+    // Fallback to extracting just the first number
+    const numMatch = description.match(/(\d+(\.\d+)?)/);
+    if (numMatch && numMatch[1]) {
+      return parseFloat(numMatch[1]);
+    }
+    // Default fallback
+    return 10; // Reasonable default
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Material selection panel */}
@@ -544,6 +641,9 @@ export function MaterialsSelectionTab({
                     }
                   }
                   
+                  // Get the calculation explanation
+                  const calculationExplanation = getCalculationExplanation(material, quantity);
+                  
                   return (
                     <div key={materialId} className="flex flex-col border-b pb-2 last:border-0">
                       <div className="flex justify-between items-start">
@@ -601,6 +701,11 @@ export function MaterialsSelectionTab({
                         <div className="text-sm font-medium">
                           {formatPrice(total)}
                         </div>
+                      </div>
+                      {/* Add calculation explanation */}
+                      <div className="mt-1 text-xs text-blue-600 bg-blue-50 p-2 rounded-md">
+                        <span className="font-medium">Calculation: </span>
+                        {calculationExplanation}
                       </div>
                     </div>
                   );
