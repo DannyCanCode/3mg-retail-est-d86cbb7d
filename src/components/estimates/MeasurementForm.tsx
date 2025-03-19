@@ -120,55 +120,69 @@ export function MeasurementForm({
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    try {
-      // Convert areasByPitch for database storage
-      const areasPerPitch: Record<string, { area: number; percentage: number }> = {};
-      measurements.areasByPitch.forEach(({ pitch, area, percentage }) => {
-        areasPerPitch[pitch] = { area, percentage };
-      });
-      
-      // Map and format the measurements for API submission
-      // This is a simplification - you may need more fields based on your API
-      const formattedMeasurements = {
-        totalArea: measurements.totalArea,
-        predominantPitch: measurements.roofPitch,
-        ridgeLength: measurements.ridgeLength,
-        hipLength: measurements.hipLength,
-        valleyLength: measurements.valleyLength,
-        rakeLength: measurements.rakeLength,
-        eaveLength: measurements.eaveLength,
-        stepFlashingLength: measurements.stepFlashingLength,
-        flashingLength: measurements.flashingLength,
-        penetrationsArea: measurements.penetrationsArea,
-        areasPerPitch: areasPerPitch
-      };
-      
-      // Save to database
-      await saveMeasurement(extractedFileName || "manual-entry", formattedMeasurements);
-      
+    console.log("About to save measurements with the following areasByPitch:", measurements.areasByPitch);
+    
+    // Basic validation
+    if (measurements.totalArea <= 0) {
       toast({
-        title: "Measurements saved",
-        description: "Roof measurements have been saved successfully.",
+        title: "Invalid measurements",
+        description: "Total roof area must be greater than 0",
+        variant: "destructive"
       });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Recalculate areas by pitch percentages to ensure they add up to 100%
+    // This is important when manually editing values
+    if (measurements.areasByPitch.length > 0) {
+      const totalAreaSum = measurements.areasByPitch.reduce((sum, area) => sum + area.area, 0);
       
-      // Call parent callback if provided
+      // If there's a significant difference between totalArea and sum of areasByPitch,
+      // adjust the areas to match totalArea while preserving proportions
+      if (totalAreaSum > 0 && Math.abs(totalAreaSum - measurements.totalArea) > 1) {
+        console.log(`Areas by pitch sum (${totalAreaSum}) differs from total area (${measurements.totalArea}), adjusting...`);
+        
+        const scaleFactor = measurements.totalArea / totalAreaSum;
+        const adjustedAreas = measurements.areasByPitch.map(area => ({
+          ...area,
+          area: Math.round(area.area * scaleFactor),
+          percentage: Math.round((area.area / totalAreaSum) * 100)
+        }));
+        
+        // Make sure percentages sum to 100% by adjusting the largest area if needed
+        const percentageSum = adjustedAreas.reduce((sum, area) => sum + area.percentage, 0);
+        if (percentageSum !== 100) {
+          // Find the largest area to adjust
+          const largestAreaIndex = adjustedAreas
+            .map((area, index) => ({ area: area.area, index }))
+            .sort((a, b) => b.area - a.area)[0].index;
+            
+          adjustedAreas[largestAreaIndex].percentage += (100 - percentageSum);
+        }
+        
+        setMeasurements(prev => ({
+          ...prev,
+          areasByPitch: adjustedAreas
+        }));
+        
+        console.log("Adjusted areasByPitch:", adjustedAreas);
+      }
+    }
+    
+    setTimeout(() => {
+      // In a real implementation, save measurements to database
+      // For now, just pass to parent component
       if (onMeasurementsSaved) {
+        console.log("Saving measurements with areasByPitch:", measurements.areasByPitch);
         onMeasurementsSaved(measurements);
       }
-    } catch (error) {
-      console.error("Error saving measurements:", error);
-      toast({
-        title: "Save failed",
-        description: "Failed to save measurements. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
       setIsSubmitting(false);
-    }
+    }, 1000);
   };
 
   const goToNextTab = () => {

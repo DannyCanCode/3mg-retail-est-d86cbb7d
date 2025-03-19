@@ -9,12 +9,14 @@ interface ReviewTabProps {
   measurements: MeasurementValues;
   isSubmitting: boolean;
   goToPreviousTab: () => void;
+  onSubmit: (e: React.FormEvent) => void;
 }
 
 export function ReviewTab({
   measurements,
   isSubmitting,
   goToPreviousTab,
+  onSubmit,
 }: ReviewTabProps) {
   // Calculate totals
   const totalSquares = Math.round(measurements.totalArea / 100 * 10) / 10;
@@ -116,7 +118,8 @@ export function ReviewTab({
           Previous
         </Button>
         <Button 
-          type="submit" 
+          type="button" 
+          onClick={onSubmit}
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving..." : "Save Measurements"}
