@@ -15,7 +15,7 @@ export function calculateMaterialQuantity(
   }
   
   // Calculate area with waste applied
-  const totalAreaWithWaste = measurements.totalArea * (1 + actualWasteFactor);
+  const totalAreaWithWaste = Math.abs(measurements.totalArea) * (1 + actualWasteFactor);
   
   // Calculate squares (100 sq ft = 1 square)
   let totalSquares = totalAreaWithWaste / 100;

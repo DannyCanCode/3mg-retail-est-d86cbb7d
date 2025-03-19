@@ -190,7 +190,7 @@ export function MaterialsSelectionTab({
         if (materialId === "gaf-timberline-hdz") {
           // Ensure minimum 12% waste factor for GAF Timberline HDZ
           const actualWasteFactor = Math.max(gafTimberlineWasteFactor / 100, 0.12);
-          const totalArea = measurements.totalArea;
+          const totalArea = Math.abs(measurements.totalArea); // Ensure positive area
           
           // Calculate squares with waste using Excel formula
           const squaresWithWaste = Math.round((totalArea * (1 + actualWasteFactor)) / 100 * 10) / 10;
@@ -416,7 +416,7 @@ export function MaterialsSelectionTab({
                       // For GAF Timberline HDZ, use the same formula as in Excel
                       // Calculate total squares including waste
                       const actualWasteFactor = Math.max(gafTimberlineWasteFactor / 100, 0.12);
-                      const totalArea = measurements.totalArea;
+                      const totalArea = Math.abs(measurements.totalArea); // Ensure positive area
                       
                       // Excel formula logic:
                       // 1. Calculate area with waste: totalArea * (1 + wasteFactor)
@@ -424,7 +424,7 @@ export function MaterialsSelectionTab({
                       // 3. Round to 1 decimal place: Math.round(squares * 10) / 10
                       const squaresWithWaste = Math.round((totalArea * (1 + actualWasteFactor)) / 100 * 10) / 10;
                       
-                      // Display the calculated squares value
+                      // Display the calculated squares value - ensure it's positive
                       squareCount = squaresWithWaste.toFixed(1);
                       
                       // Validate: Make sure the bundle quantity matches the squares calculation
@@ -476,7 +476,7 @@ export function MaterialsSelectionTab({
                               <div className={`text-xs mt-0.5 ${isGafTimberline ? 'text-blue-600 font-medium' : 'text-muted-foreground'}`}>
                                 {typeof squareCount === 'string' && squareCount === "calculating..." 
                                   ? squareCount 
-                                  : `${squareCount} sq${isGafTimberline ? ' (12% waste)' : ''}`}
+                                  : `${Math.abs(parseFloat(squareCount))} sq${isGafTimberline ? ` (${gafTimberlineWasteFactor}% waste)` : ''}`}
                               </div>
                             )}
                           </div>
