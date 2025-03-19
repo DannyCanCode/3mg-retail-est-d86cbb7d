@@ -5,9 +5,33 @@ A web application for processing roof measurement PDFs and generating estimates.
 ## Features
 
 - PDF upload and processing
-- Automatic measurement extraction 
+- Automatic measurement extraction including area by pitch data
 - Save measurements to Supabase database
 - Create and manage roofing estimates
+- Intelligent material calculation with special rules for GAF Timberline HDZ
+- Support for multiple roof pitches and accurate waste factor calculation
+
+## Current Progress
+
+We've successfully implemented several key features:
+
+- ✅ PDF upload and processing for EagleView reports
+- ✅ Automatic extraction of roof measurements including areas by pitch
+- ✅ Special waste factor handling for GAF Timberline HDZ (minimum 12%)
+- ✅ Display of square counts alongside bundle quantities
+- ✅ Comprehensive material library with accurate pricing and coverage rules
+- ✅ Fixed the "Start Fresh" and "Upload Another" functionality
+
+## Upcoming Features
+
+We're currently working on:
+
+- **GAF Package Options** - Implementation of GAF 1 (basic) and GAF 2 (premium) packages
+- **Warranty Options** - Support for Silver Pledge and Gold Pledge warranty selections
+- **Low Slope Handling** - Special pricing and ISO requirements for 2/12 pitch areas
+- **Enhanced UI** - Improvements to the measurement display and material selection interface
+
+See the [Milestones document](./README-MILESTONES.md) for a detailed roadmap.
 
 ## Tech Stack
 
@@ -68,17 +92,34 @@ The application requires the following Supabase resources:
 ## Usage
 
 1. Upload an EagleView PDF file
-2. The system will process the PDF and extract measurements
+2. The system will process the PDF and extract measurements including areas by pitch
 3. View the extracted measurements
 4. Create an estimate based on the measurements
 5. Add pricing and materials to the estimate
 6. Generate the final estimate
+
+## Key Workflows
+
+### PDF Processing and Measurement Extraction
+
+1. Upload an EagleView PDF
+2. System parses and extracts all measurements
+3. Measurements are displayed with special handling for pitch areas
+4. Create estimate based on measurements
+
+### Material Selection and Pricing
+
+1. Select materials from comprehensive library
+2. System calculates quantities based on measurements and coverage rules
+3. Special handling applied for GAF Timberline HDZ and low slope areas
+4. Total cost calculated with appropriate waste factors
 
 ## Troubleshooting
 
 - **PDF Upload Issues**: Check Supabase storage bucket permissions
 - **Processing Errors**: Verify Edge Function deployment and logs
 - **Database Issues**: Check database structure matches the required schema
+- **Material Calculation Issues**: Verify the special rules in the utils.ts file
 
 ## License
 

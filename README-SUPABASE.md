@@ -16,6 +16,47 @@ The database includes the following tables:
 3. **estimates** - Stores estimate header information
 4. **estimate_items** - Stores line items for each estimate
 
+## Upcoming Database Extensions
+
+To support new features, we'll need to extend the database schema:
+
+1. **packages** - To store GAF package definitions (GAF 1 and GAF 2)
+2. **warranties** - To store warranty options (Silver Pledge and Gold Pledge)
+3. **package_materials** - To define which materials are included in each package
+4. **warranty_requirements** - To define material requirements for each warranty type
+
+### Example Schema for New Tables
+
+```sql
+CREATE TABLE packages (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE warranties (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT,
+  package_id INTEGER REFERENCES packages(id),
+  is_active BOOLEAN DEFAULT true
+);
+
+CREATE TABLE package_materials (
+  package_id INTEGER REFERENCES packages(id),
+  material_id TEXT REFERENCES materials(id),
+  is_required BOOLEAN DEFAULT false,
+  PRIMARY KEY (package_id, material_id)
+);
+
+CREATE TABLE warranty_requirements (
+  warranty_id INTEGER REFERENCES warranties(id),
+  material_id TEXT REFERENCES materials(id),
+  PRIMARY KEY (warranty_id, material_id)
+);
+```
+
 ## Edge Functions
 
 ### parse-eagleview-pdf
@@ -65,11 +106,65 @@ This Edge Function processes EagleView PDF reports to extract measurements.
     "turbineVentCount": 1,
     "pipeVentCount": 4,
     "penetrationsArea": 150,
-    "penetrationsPerimeter": 100
+    "penetrationsPerimeter": 100,
+    "areasByPitch": {
+      "3/12": 5.0,
+      "4/12": 19.6,
+      "6/12": 2096.8
+    }
   },
   "success": true,
   "processingTime": 2.5,
   "fileName": "example.pdf"
+}
+```
+
+## Planned Edge Functions
+
+### calculate-package-materials
+
+A new Edge Function that will calculate materials based on the selected GAF package and warranty options.
+
+#### Request Format (Planned)
+
+```json
+{
+  "measurementId": "123e4567-e89b-12d3-a456-426614174000",
+  "packageId": 1,
+  "warrantyId": 1,
+  "includeLowSlopeIso": true
+}
+```
+
+#### Response Format (Planned)
+
+```json
+{
+  "materials": [
+    {
+      "id": "gaf-timberline-hdz",
+      "quantity": 75,
+      "totalSquares": 25,
+      "price": 3139.50
+    },
+    {
+      "id": "gaf-cobra-ridge-vent",
+      "quantity": 30,
+      "price": 669.30
+    }
+  ],
+  "lowSlopeMaterials": [
+    {
+      "id": "modified-base-sheet",
+      "quantity": 1,
+      "price": 65.92
+    }
+  ],
+  "warrantyRequirements": {
+    "isMet": true,
+    "missingMaterials": []
+  },
+  "total": 3874.72
 }
 ```
 
@@ -110,4 +205,5 @@ If you encounter issues with the Edge Function:
 
 - The Edge Function uses public URLs for PDFs, but these URLs contain a unique ID that makes them difficult to guess
 - Consider implementing additional security measures for production use, such as signed URLs with expiration times
-- Ensure that sensitive data is not exposed in the PDF URLs or function responses 
+- Ensure that sensitive data is not exposed in the PDF URLs or function responses
+- For warranty and package related data, ensure proper access controls are in place 
