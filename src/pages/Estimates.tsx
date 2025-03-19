@@ -17,17 +17,32 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 
 // Convert ParsedMeasurements to MeasurementValues format
 const convertToMeasurementValues = (parsedData: ParsedMeasurements): MeasurementValues => {
-  console.log("Converting PDF data to measurement values. Raw areasByPitch:", parsedData.areasByPitch);
+  console.log("Converting PDF data to measurement values");
+  console.log("Raw areasByPitch data:", parsedData.areasByPitch);
+  console.log("Raw areasByPitch types:", Object.entries(parsedData.areasByPitch || {}).map(([k, v]) => `${k}: ${typeof v}`));
+  
+  // Ensure we have areas by pitch data and it's in the correct format
+  const pitchData = parsedData.areasByPitch || {};
+  console.log("Number of pitches found:", Object.keys(pitchData).length);
+  
+  // Force deep-copy to ensure we don't lose data due to object references
+  const areasByPitchData = JSON.parse(JSON.stringify(pitchData));
   
   // Convert areasByPitch from Record<string, number> to AreaByPitch[] format
-  const areasByPitch = Object.entries(parsedData.areasByPitch || {})
+  // This is CRITICAL for the UI to show multiple pitches
+  const areasByPitch = Object.entries(areasByPitchData)
     .filter(([pitch, area]) => {
       // Filter out any invalid entries (area must be a number > 0)
       const numArea = typeof area === 'number' ? area : parseFloat(String(area));
-      return !isNaN(numArea) && numArea > 0;
+      const valid = !isNaN(numArea) && numArea > 0;
+      if (!valid) {
+        console.log(`Filtering out invalid area for pitch ${pitch}: ${area}`);
+      }
+      return valid;
     })
     .map(([pitch, area]) => {
       const numArea = typeof area === 'number' ? area : parseFloat(String(area));
+      console.log(`Processing pitch ${pitch} with area ${numArea}`);
       return {
         pitch: pitch.includes(':') ? pitch : pitch.replace('/', ':'), // Normalize format for UI
         area: numArea,
@@ -58,6 +73,10 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
     console.log("Using default pitch (6:12) as fallback");
     pitchAreas = [{ pitch: "6:12", area: parsedData.totalArea || 0, percentage: 100 }];
   }
+  
+  // Final validation of the areas by pitch data
+  console.log("FINAL areasByPitch DATA:", pitchAreas);
+  console.log("Total number of pitches:", pitchAreas.length);
 
   return {
     totalArea: parsedData.totalArea || 0,
