@@ -34,9 +34,14 @@ export function MaterialsSelectionTab({
   const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
   const [quantities, setQuantities] = useState<{[key: string]: number}>({});
   const [showLowSlope, setShowLowSlope] = useState(false);
+  // Special waste factor for GAF Timberline HDZ
+  const [gafTimberlineWasteFactor, setGafTimberlineWasteFactor] = useState(12); // Minimum 12%
   
   // Group materials by category
   const groupedMaterials = groupMaterialsByCategory(ROOFING_MATERIALS);
+  
+  // Check if GAF Timberline HDZ is selected
+  const isGafTimberlineSelected = Boolean(selectedMaterials["gaf-timberline-hdz"]);
   
   // Debug logging
   useEffect(() => {
@@ -67,11 +72,16 @@ export function MaterialsSelectionTab({
   
   // Add material to selection
   const addMaterial = (material: Material) => {
+    // Use GAF Timberline specific waste factor if this is GAF Timberline HDZ
+    const effectiveWasteFactor = material.id === "gaf-timberline-hdz" ? 
+      gafTimberlineWasteFactor / 100 : 
+      wasteFactor / 100;
+    
     // Calculate suggested quantity based on measurements
     const suggestedQuantity = calculateMaterialQuantity(
       material, 
       measurements, 
-      wasteFactor / 100
+      effectiveWasteFactor
     );
     
     setSelectedMaterials({
@@ -126,6 +136,9 @@ export function MaterialsSelectionTab({
     // Recalculate all quantities with new waste factor
     const newQuantities = { ...quantities };
     Object.keys(selectedMaterials).forEach(materialId => {
+      // Skip GAF Timberline HDZ as it has its own waste factor
+      if (materialId === "gaf-timberline-hdz") return;
+      
       newQuantities[materialId] = calculateMaterialQuantity(
         selectedMaterials[materialId],
         measurements,
@@ -134,6 +147,23 @@ export function MaterialsSelectionTab({
     });
     
     setQuantities(newQuantities);
+  };
+  
+  // Handle GAF Timberline HDZ waste factor change
+  const handleGafTimberlineWasteFactorChange = (newWasteFactor: number) => {
+    setGafTimberlineWasteFactor(newWasteFactor);
+    
+    // Only update GAF Timberline HDZ if it's selected
+    if (selectedMaterials["gaf-timberline-hdz"]) {
+      const newQuantities = { ...quantities };
+      newQuantities["gaf-timberline-hdz"] = calculateMaterialQuantity(
+        selectedMaterials["gaf-timberline-hdz"],
+        measurements,
+        newWasteFactor / 100
+      );
+      
+      setQuantities(newQuantities);
+    }
   };
   
   // Apply material preset bundle
@@ -155,10 +185,16 @@ export function MaterialsSelectionTab({
       const material = ROOFING_MATERIALS.find(m => m.id === materialId);
       if (material) {
         newSelectedMaterials[materialId] = material;
+        
+        // Use appropriate waste factor for each material
+        const effectiveWasteFactor = materialId === "gaf-timberline-hdz" ?
+          gafTimberlineWasteFactor / 100 :
+          wasteFactor / 100;
+          
         newQuantities[materialId] = calculateMaterialQuantity(
           material,
           measurements,
-          wasteFactor / 100
+          effectiveWasteFactor
         );
       }
     });
@@ -206,6 +242,32 @@ export function MaterialsSelectionTab({
                 (Applied to all material calculations)
               </span>
             </div>
+            
+            {/* Special waste factor control for GAF Timberline HDZ */}
+            {isGafTimberlineSelected && (
+              <div className="flex items-center space-x-4 pb-2 ml-4 pl-4 border-l-2 border-blue-200">
+                <Label htmlFor="gafTimberlineWasteFactor" className="text-blue-800 font-medium">
+                  GAF Timberline HDZ Waste:
+                </Label>
+                <div className="flex space-x-2">
+                  {[12, 15, 20].map(factor => (
+                    <Button
+                      key={factor}
+                      type="button"
+                      size="sm"
+                      variant={gafTimberlineWasteFactor === factor ? "default" : "outline"}
+                      onClick={() => handleGafTimberlineWasteFactorChange(factor)}
+                      className={`${gafTimberlineWasteFactor === factor ? 'bg-blue-600' : ''}`}
+                    >
+                      {factor}%
+                    </Button>
+                  ))}
+                </div>
+                <span className="text-sm text-blue-700">
+                  (Required minimum: 12%)
+                </span>
+              </div>
+            )}
             
             {/* Preset Material Bundles */}
             <div className="mb-6 p-4 border-2 border-blue-300 rounded-lg bg-blue-50">
@@ -335,8 +397,12 @@ export function MaterialsSelectionTab({
                   
                   // Calculate squares for shingles (bundles ÷ 3)
                   let squareCount = null;
+                  let isGafTimberline = false;
+                  
                   if (material.category === MaterialCategory.SHINGLES && material.unit === "Bundle" && !material.id.includes("hip-ridge") && !material.id.includes("starter")) {
-                    squareCount = (quantity / 3).toFixed(1);
+                    const calculatedSquares = quantity / 3;
+                    squareCount = calculatedSquares > 0 ? calculatedSquares.toFixed(1) : "calculating...";
+                    isGafTimberline = material.id === "gaf-timberline-hdz";
                   }
                   
                   return (
@@ -366,12 +432,14 @@ export function MaterialsSelectionTab({
                           >
                             <ChevronDown className="h-3 w-3" />
                           </Button>
-                          <div className="w-12 text-center font-medium">
-                            {quantity}
+                          <div className="text-center">
+                            <div className="font-medium w-12">
+                              {quantity}
+                            </div>
                             {squareCount && (
-                              <span className="text-xs text-muted-foreground ml-1">
-                                ({squareCount} sq)
-                              </span>
+                              <div className={`text-xs mt-0.5 ${isGafTimberline ? 'text-blue-600 font-medium' : 'text-muted-foreground'}`}>
+                                {typeof squareCount === 'string' ? squareCount : `${squareCount} squares`}
+                              </div>
                             )}
                           </div>
                           <Button
@@ -387,6 +455,7 @@ export function MaterialsSelectionTab({
                       <div className="flex justify-between items-center mt-1">
                         <div className="text-xs text-muted-foreground">
                           {material.coverageRule.description}
+                          {isGafTimberline && ` (Min waste: ${gafTimberlineWasteFactor}%)`}
                         </div>
                         <div className="text-sm font-medium">
                           {formatPrice(total)}

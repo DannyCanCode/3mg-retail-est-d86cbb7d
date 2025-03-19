@@ -31,6 +31,7 @@ These features are working correctly and should be preserved in all future updat
 - [x] Remove all CertainTeed materials (Landmark Pro, Landmark, and SwiftStart Starter)
 - [x] Update GAF WeatherWatch price to $93.89
 - [x] Show square counts next to bundle counts (divide bundles by 3) while keeping bundle quantities the same
+- [x] Implement special waste factor options (12%, 15%, 20%) for GAF Timberline HDZ
 
 ### Material & Pricing System Enhancement
 

@@ -7,8 +7,16 @@ export function calculateMaterialQuantity(
   wasteFactor: number = 0.1 // Default 10% waste
 ): number {
   // Add waste factor to total area for calculations
-  const totalAreaWithWaste = measurements.totalArea * (1 + wasteFactor);
-  const totalSquares = totalAreaWithWaste / 100; // 1 square = 100 sq ft
+  let actualWasteFactor = wasteFactor;
+  
+  // For GAF Timberline HDZ, ensure minimum waste factor of 12%
+  if (material.id === "gaf-timberline-hdz" && actualWasteFactor < 0.12) {
+    actualWasteFactor = 0.12; // Set minimum 12% waste for GAF Timberline HDZ
+  }
+  
+  // Calculate area with waste
+  let totalAreaWithWaste = measurements.totalArea * (1 + actualWasteFactor);
+  let totalSquares = totalAreaWithWaste / 100; // 1 square = 100 sq ft
   
   // Calculate flat/low-slope roof area
   const flatRoofAreas = measurements.areasByPitch.filter(area => 
@@ -49,6 +57,13 @@ export function calculateMaterialQuantity(
       } else {
         // Regular shingles - excluding flat/low-slope areas
         const steepSlopeArea = totalAreaWithWaste - flatRoofArea;
+        
+        // Special handling for GAF Timberline HDZ
+        if (material.id === "gaf-timberline-hdz") {
+          // Minimum of 3 bundles per square (no partial squares allowed)
+          return Math.max(3, ceiling(steepSlopeArea / 33.3));
+        }
+        
         return ceiling(steepSlopeArea / 33.3); // 3 bundles per square (33.3 sq ft per bundle)
       }
       
