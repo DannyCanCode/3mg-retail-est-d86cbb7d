@@ -14,6 +14,7 @@ import { LaborProfitTab, LaborRates } from "@/components/estimates/pricing/Labor
 import { EstimateSummaryTab } from "@/components/estimates/pricing/EstimateSummaryTab";
 import { ParsedMeasurements } from "@/api/measurements";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 // Convert ParsedMeasurements to MeasurementValues format
 const convertToMeasurementValues = (parsedData: ParsedMeasurements): MeasurementValues => {
@@ -122,25 +123,77 @@ const Estimates = () => {
   const [profitMargin, setProfitMargin] = useState(25);
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
   
-  // Initialize measurements if we have extracted PDF data or a measurementId
+  // Add localStorage hooks to persist state across refreshes and tabs
+  const [storedPdfData, setStoredPdfData] = useLocalStorage<ParsedMeasurements | null>("estimateExtractedPdfData", null);
+  const [storedMeasurements, setStoredMeasurements] = useLocalStorage<MeasurementValues | null>("estimateMeasurements", null);
+  const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
+  
+  // Load persisted data on initial load
+  useEffect(() => {
+    if (storedPdfData && !extractedPdfData) {
+      setExtractedPdfData(storedPdfData);
+      console.log("Loaded PDF data from localStorage:", storedPdfData);
+    }
+    
+    if (storedMeasurements && !measurements) {
+      setMeasurements(storedMeasurements);
+      console.log("Loaded measurements from localStorage:", storedMeasurements);
+    }
+    
+    if (storedFileName && !pdfFileName) {
+      setPdfFileName(storedFileName);
+    }
+  }, []);
+
+  // Ensure measurements are properly set from extracted PDF data
   useEffect(() => {
     // If we have extracted PDF data, convert it to MeasurementValues format
     if (extractedPdfData) {
       console.log("Setting initial measurements from extracted PDF data:", extractedPdfData);
-      setMeasurements(convertToMeasurementValues(extractedPdfData));
+      const convertedMeasurements = convertToMeasurementValues(extractedPdfData);
+      setMeasurements(convertedMeasurements);
+      
+      // Store in localStorage
+      setStoredPdfData(extractedPdfData);
+      setStoredMeasurements(convertedMeasurements);
+      
+      // Debug measurements conversion
+      console.log("Converted measurements:", convertedMeasurements);
     }
     
-    // If we have a measurementId, fetch the data (implement this functionality)
+    // If we have a measurementId, fetch the data
     if (measurementId) {
       console.log("Fetching measurements for ID:", measurementId);
       // TODO: Implement fetching data from storage
     }
   }, [extractedPdfData, measurementId]);
 
+  // Save fileName changes to localStorage
+  useEffect(() => {
+    if (pdfFileName) {
+      setStoredFileName(pdfFileName);
+    }
+  }, [pdfFileName]);
+
   const handlePdfDataExtracted = (data: ParsedMeasurements, fileName: string) => {
     console.log("PDF data extracted:", data);
     setExtractedPdfData(data);
     setPdfFileName(fileName);
+    
+    // Store in localStorage
+    setStoredPdfData(data);
+    setStoredFileName(fileName);
+    
+    // Force immediate conversion to ensure measurements are available
+    const convertedMeasurements = convertToMeasurementValues(data);
+    setMeasurements(convertedMeasurements);
+    setStoredMeasurements(convertedMeasurements);
+    
+    // Inform the user data was extracted successfully
+    toast({
+      title: "Measurements extracted",
+      description: `Successfully parsed ${fileName} with ${data.totalArea || 0} sq ft of roof area.`,
+    });
   };
 
   const handleGoToMeasurements = () => {
@@ -196,12 +249,12 @@ const Estimates = () => {
       });
       
       // Reset and go back to the beginning
-      handleStartFresh();
+      handleClearEstimate();
     }, 1500);
   };
   
   // Function to start fresh and clear all state
-  const handleStartFresh = () => {
+  const handleClearEstimate = () => {
     setActiveTab("upload");
     setExtractedPdfData(null);
     setPdfFileName(null);
@@ -245,136 +298,235 @@ const Estimates = () => {
 
   return (
     <MainLayout>
-      <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">Estimates</h1>
-            <p className="text-muted-foreground mt-1">
-              Create and manage roofing estimates for your customers
-            </p>
-          </div>
-          <Button className="flex items-center gap-2" onClick={handleStartFresh}>
-            <Plus className="h-4 w-4" />
-            <span>New Estimate</span>
-          </Button>
-        </div>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <div>
-              <CardTitle>Create New Estimate</CardTitle>
-              <CardDescription>
-                Follow the steps below to create a complete estimate
-              </CardDescription>
-            </div>
-            {(extractedPdfData || pdfFileName) && (
+      <div className="container mx-auto p-4 max-w-7xl">
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold tracking-tight">Create New Estimate</h1>
+            <div className="flex gap-2">
               <Button 
                 variant="outline" 
-                size="sm" 
-                onClick={handleStartFresh}
-                className="flex items-center gap-1"
+                onClick={handleClearEstimate} 
+                className="flex items-center gap-2" 
+                title="Clear this estimate and start over"
               >
-                <RefreshCw className="h-4 w-4" />
-                Start Fresh
+                <RefreshCw className="h-4 w-4" /> Start Fresh
               </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="w-full grid grid-cols-5 mb-8">
-                <TabsTrigger value="upload">1. Upload EagleView</TabsTrigger>
-                <TabsTrigger value="measurements">2. Enter Measurements</TabsTrigger>
-                <TabsTrigger value="materials">3. Select Materials</TabsTrigger>
-                <TabsTrigger value="labor-profit">4. Labor & Profit</TabsTrigger>
-                <TabsTrigger value="summary">5. Summary</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="upload" className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
-                    {extractedPdfData && (
-                      <div className="mt-6 flex justify-end">
-                        <Button onClick={handleGoToMeasurements} className="flex items-center gap-2">
-                          Continue to Measurements
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
+            </div>
+          </div>
+          <p className="text-muted-foreground">Follow the steps below to create a complete estimate</p>
+          
+          <Card>
+            <CardContent className="p-6">
+              <Tabs 
+                value={activeTab} 
+                onValueChange={setActiveTab} 
+                className="w-full"
+                defaultValue="upload"
+              >
+                <TabsList className="grid grid-cols-5 mb-8">
+                  <TabsTrigger value="upload" disabled={false}>
+                    1. Upload EagleView
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="measurements" 
+                    disabled={!extractedPdfData && !measurements}
+                  >
+                    2. Enter Measurements
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="materials" 
+                    disabled={!measurements}
+                  >
+                    3. Select Materials
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="pricing" 
+                    disabled={!measurements || Object.keys(selectedMaterials).length === 0}
+                  >
+                    4. Labor & Profit
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="summary" 
+                    disabled={!measurements || Object.keys(selectedMaterials).length === 0}
+                  >
+                    5. Summary
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Debug measurements info */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="mb-4 p-2 bg-gray-100 text-xs border rounded">
+                    <details>
+                      <summary>Debug Info</summary>
+                      <div className="mt-2 overflow-auto">
+                        <p>Active Tab: {activeTab}</p>
+                        <p>PDF Filename: {pdfFileName}</p>
+                        <p>Extracted Data: {extractedPdfData ? '✅' : '❌'}</p>
+                        <p>Measurements: {measurements ? '✅' : '❌'}</p>
+                        <p>Materials Selected: {Object.keys(selectedMaterials).length}</p>
+                        {measurements && (
+                          <pre>{JSON.stringify(measurements, null, 2)}</pre>
+                        )}
                       </div>
-                    )}
+                    </details>
                   </div>
-                  
-                  <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
-                    <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
-                    <p className="text-sm text-slate-600 mb-4">
-                      Follow these steps to create a complete estimate
-                    </p>
-                    <ol className="space-y-2 text-sm">
-                      <li className="flex items-start gap-2">
-                        <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">1</span>
-                        <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
-                        <span>Review Measurements - Verify or enter the roof measurements</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
-                        <span>Select Materials - Choose roofing materials and options</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
-                        <span>Set Labor & Profit - Define labor rates and profit margin</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
-                        <span>Review Summary - Finalize and prepare for customer approval</span>
-                      </li>
-                    </ol>
+                )}
+
+                <TabsContent value="upload" className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
+                      
+                      {/* Display extracted measurements right after upload */}
+                      {extractedPdfData && (
+                        <div className="mt-6 bg-slate-50 p-4 rounded border border-slate-200">
+                          <h3 className="text-md font-medium mb-2">Extracted Measurements from {pdfFileName}</h3>
+                          <div className="text-sm space-y-1">
+                            <p><strong>Total Area:</strong> {extractedPdfData.totalArea || 0} sq ft</p>
+                            <p><strong>Predominant Pitch:</strong> {extractedPdfData.predominantPitch || 'Not detected'}</p>
+                            {extractedPdfData.ridgeLength > 0 && <p><strong>Ridge Length:</strong> {extractedPdfData.ridgeLength} ft</p>}
+                            {extractedPdfData.hipLength > 0 && <p><strong>Hip Length:</strong> {extractedPdfData.hipLength} ft</p>}
+                            {extractedPdfData.valleyLength > 0 && <p><strong>Valley Length:</strong> {extractedPdfData.valleyLength} ft</p>}
+                            {extractedPdfData.eaveLength > 0 && <p><strong>Eave Length:</strong> {extractedPdfData.eaveLength} ft</p>}
+                            {extractedPdfData.rakeLength > 0 && <p><strong>Rake Length:</strong> {extractedPdfData.rakeLength} ft</p>}
+                            {extractedPdfData.penetrationsArea > 0 && <p><strong>Penetrations Area:</strong> {extractedPdfData.penetrationsArea} sq ft</p>}
+                            
+                            {/* Show areas by pitch if available */}
+                            {Object.keys(extractedPdfData.areasByPitch || {}).length > 0 && (
+                              <div className="mt-2">
+                                <p className="font-medium">Areas by Pitch:</p>
+                                <ul className="list-disc list-inside pl-2">
+                                  {Object.entries(extractedPdfData.areasByPitch || {}).map(([pitch, area]) => (
+                                    <li key={pitch}>{pitch}: {typeof area === 'number' ? area : parseFloat(String(area))} sq ft</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {extractedPdfData && (
+                        <div className="mt-6 flex justify-end">
+                          <Button onClick={handleGoToMeasurements} className="flex items-center gap-2">
+                            Continue to Measurements
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
+                      <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
+                      <p className="text-sm text-slate-600 mb-4">
+                        Follow these steps to create a complete estimate
+                      </p>
+                      <ol className="space-y-2 text-sm">
+                        <li className="flex items-start gap-2">
+                          <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">1</span>
+                          <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
+                          <span>Review Measurements - Verify or enter the roof measurements</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
+                          <span>Select Materials - Choose roofing materials and options</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
+                          <span>Set Labor & Profit - Define labor rates and profit margin</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
+                          <span>Review Summary - Finalize and prepare for customer approval</span>
+                        </li>
+                      </ol>
+                    </div>
                   </div>
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="measurements">
-                <MeasurementForm 
-                  onMeasurementsSaved={handleMeasurementsSaved} 
-                  initialMeasurements={measurements || undefined}
-                  extractedFileName={pdfFileName || undefined}
-                  onBack={() => setActiveTab("upload")}
-                />
-              </TabsContent>
-              
-              <TabsContent value="materials">
-                <MaterialsSelectionTab 
-                  measurements={measurements || defaultMeasurements}
-                  onContinue={handleMaterialsSelected}
-                  onBack={() => setActiveTab("measurements")}
-                />
-              </TabsContent>
-              
-              <TabsContent value="labor-profit">
-                <LaborProfitTab 
-                  initialLaborRates={laborRates}
-                  initialProfitMargin={profitMargin}
-                  onContinue={handleLaborProfitContinue}
-                  onBack={() => setActiveTab("materials")}
-                />
-              </TabsContent>
-              
-              <TabsContent value="summary">
-                <EstimateSummaryTab 
-                  measurements={measurements || defaultMeasurements}
-                  materials={selectedMaterials}
-                  quantities={quantities}
-                  laborRates={laborRates}
-                  profitMargin={profitMargin}
-                  onFinalize={handleFinalizeEstimate}
-                  isSubmitting={isSubmittingFinal}
-                  onBack={() => setActiveTab("labor-profit")}
-                />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                </TabsContent>
+                
+                <TabsContent value="measurements">
+                  <MeasurementForm 
+                    onMeasurementsSaved={handleMeasurementsSaved} 
+                    initialMeasurements={measurements || undefined}
+                    extractedFileName={pdfFileName || undefined}
+                    onBack={() => setActiveTab("upload")}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="materials">
+                  <MaterialsSelectionTab 
+                    measurements={measurements || defaultMeasurements}
+                    onContinue={handleMaterialsSelected}
+                    onBack={() => setActiveTab("measurements")}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="pricing">
+                  <LaborProfitTab 
+                    initialLaborRates={laborRates}
+                    initialProfitMargin={profitMargin}
+                    onContinue={handleLaborProfitContinue}
+                    onBack={() => setActiveTab("materials")}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="summary">
+                  <EstimateSummaryTab 
+                    measurements={measurements || defaultMeasurements}
+                    materials={selectedMaterials}
+                    quantities={quantities}
+                    laborRates={laborRates}
+                    profitMargin={profitMargin}
+                    onFinalize={handleFinalizeEstimate}
+                    isSubmitting={isSubmittingFinal}
+                    onBack={() => setActiveTab("pricing")}
+                  />
+                </TabsContent>
+              </Tabs>
+
+              {/* Add Continue buttons at the bottom of each tab */}
+              <div className="flex justify-between mt-8">
+                {activeTab !== "upload" && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      const tabOrder = ["upload", "measurements", "materials", "pricing", "summary"];
+                      const currentIndex = tabOrder.indexOf(activeTab);
+                      if (currentIndex > 0) {
+                        setActiveTab(tabOrder[currentIndex - 1]);
+                      }
+                    }}
+                  >
+                    Back
+                  </Button>
+                )}
+                
+                {activeTab !== "summary" && (
+                  <Button 
+                    className="ml-auto"
+                    onClick={() => {
+                      const tabOrder = ["upload", "measurements", "materials", "pricing", "summary"];
+                      const currentIndex = tabOrder.indexOf(activeTab);
+                      if (currentIndex < tabOrder.length - 1) {
+                        setActiveTab(tabOrder[currentIndex + 1]);
+                      }
+                    }}
+                    disabled={
+                      (activeTab === "upload" && !extractedPdfData) ||
+                      (activeTab === "measurements" && !measurements) ||
+                      (activeTab === "materials" && Object.keys(selectedMaterials).length === 0)
+                    }
+                  >
+                    Continue
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </MainLayout>
   );
