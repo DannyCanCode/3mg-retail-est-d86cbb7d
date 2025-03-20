@@ -34,12 +34,14 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
   // This is CRITICAL for the UI to show multiple pitches
   const areasByPitch = Object.entries(areasByPitchData)
     .filter(([pitch, area]) => {
-      // Only filter out invalid entries (null, undefined, NaN)
-      // DO NOT filter out small areas - we want to keep all pitches regardless of size
+      // Only filter out entries that are completely invalid (undefined, null)
+      // Keep all pitches with ANY numeric value, even if very small
       const numArea = typeof area === 'number' ? area : parseFloat(String(area));
       const valid = !isNaN(numArea);
       if (!valid) {
         console.log(`Filtering out invalid area for pitch ${pitch}: ${area}`);
+      } else {
+        console.log(`Keeping pitch ${pitch} with area ${numArea} (valid numeric value)`);
       }
       return valid;
     })
@@ -78,7 +80,6 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
     pitchAreas = [{ pitch: "6:12", area: parsedData.totalArea || 0, percentage: 100 }];
   }
   
-  // Final validation of the areas by pitch data
   console.log("FINAL areasByPitch DATA:", pitchAreas);
   console.log("Total number of pitches:", pitchAreas.length);
 
@@ -120,8 +121,13 @@ const Estimates = () => {
   const [laborRates, setLaborRates] = useState<LaborRates>({
     tearOff: 55,
     installation: 125,
-    cleanup: 35,
-    supervision: 45
+    isHandload: false,
+    handloadRate: 15,
+    dumpsterLocation: "orlando",
+    dumpsterCount: 1,
+    dumpsterRate: 400,
+    pitchRates: {},
+    wastePercentage: 12
   });
   const [profitMargin, setProfitMargin] = useState(25);
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
@@ -267,8 +273,13 @@ const Estimates = () => {
     setLaborRates({
       tearOff: 55,
       installation: 125,
-      cleanup: 35,
-      supervision: 45
+      isHandload: false,
+      handloadRate: 15,
+      dumpsterLocation: "orlando",
+      dumpsterCount: 1,
+      dumpsterRate: 400,
+      pitchRates: {},
+      wastePercentage: 12
     });
     setProfitMargin(25);
     
@@ -477,10 +488,11 @@ const Estimates = () => {
                 
                 <TabsContent value="pricing">
                   <LaborProfitTab 
+                    onBack={() => setActiveTab("materials")}
+                    onContinue={handleLaborProfitContinue}
                     initialLaborRates={laborRates}
                     initialProfitMargin={profitMargin}
-                    onContinue={handleLaborProfitContinue}
-                    onBack={() => setActiveTab("materials")}
+                    measurements={measurements}
                   />
                 </TabsContent>
                 

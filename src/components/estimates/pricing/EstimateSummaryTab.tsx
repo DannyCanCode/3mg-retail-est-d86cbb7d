@@ -47,11 +47,43 @@ export function EstimateSummaryTab({
   
   // Calculate labor costs
   const laborCosts = [
-    { name: "Tear Off", rate: laborRates.tearOff, totalCost: laborRates.tearOff * totalSquares },
-    { name: "Installation", rate: laborRates.installation, totalCost: laborRates.installation * totalSquares },
-    { name: "Cleanup", rate: laborRates.cleanup, totalCost: laborRates.cleanup * totalSquares },
-    { name: "Supervision", rate: laborRates.supervision, totalCost: laborRates.supervision * totalSquares }
+    { name: "Tear Off", rate: laborRates.tearOff, totalCost: laborRates.tearOff * totalSquares * (1 + laborRates.wastePercentage/100) },
+    { name: "Installation", rate: laborRates.installation, totalCost: laborRates.installation * totalSquares * (1 + laborRates.wastePercentage/100) }
   ];
+  
+  // Add handload cost if enabled
+  if (laborRates.isHandload) {
+    laborCosts.push({
+      name: "Handload", 
+      rate: laborRates.handloadRate, 
+      totalCost: laborRates.handloadRate * totalSquares * (1 + laborRates.wastePercentage/100)
+    });
+  }
+  
+  // Add dumpster costs
+  laborCosts.push({
+    name: `Dumpsters (${laborRates.dumpsterCount})`, 
+    rate: laborRates.dumpsterRate, 
+    totalCost: laborRates.dumpsterRate * laborRates.dumpsterCount
+  });
+  
+  // Add pitch adjustments if applicable
+  const predominantPitch = measurements.roofPitch;
+  const pitchValue = parseInt(predominantPitch.split(':')[0]);
+  
+  if (pitchValue >= 8) {
+    // Calculate pitch-based rate
+    const basePitchValue = 8; // 8/12 is the base pitch
+    const baseRate = 90; // Base rate for 8/12
+    const increment = 5; // $5 increment per pitch level
+    const pitchRate = baseRate + (pitchValue - basePitchValue) * increment;
+    
+    laborCosts.push({
+      name: `Pitch Adjustment (${predominantPitch})`, 
+      rate: pitchRate, 
+      totalCost: pitchRate * totalSquares
+    });
+  }
   
   const totalLaborCost = laborCosts.reduce((sum, item) => sum + item.totalCost, 0);
   
