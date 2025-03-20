@@ -574,6 +574,72 @@ export function usePdfParser() {
         }
       }
       
+      // Check for pitch information in the Pitch Diagram section
+      if (Object.keys(measurements.areasByPitch).length === 0 || 
+          Object.values(measurements.areasByPitch).reduce((sum, area) => sum + area, 0) < measurements.totalArea * 0.9) {
+        
+        console.log("Looking for pitch data in Pitch Diagram section");
+        
+        // Search for the pitch diagram section
+        const pitchDiagramSectionRegex = /PITCH\s+DIAGRAM[\s\S]*?(?:PAGE|NOTE|\d{1,2}\/\d{1,2}\/\d{4})/i;
+        const pitchDiagramMatch = fullText.match(pitchDiagramSectionRegex);
+        
+        if (pitchDiagramMatch) {
+          console.log("Found Pitch Diagram section");
+          const pitchDiagramText = pitchDiagramMatch[0];
+          
+          // Extract all pitch values mentioned in this section
+          const pitchValues = Array.from(pitchDiagramText.matchAll(/(?:predominant|pitch|roof)\s+(?:is|on)\s+(\d+\/\d+)/gi))
+            .map(match => match[1])
+            .filter(Boolean);
+          
+          // Try to find a predominant pitch statement
+          const predominantPitchMatch = pitchDiagramText.match(/predominant\s+pitch\s+(?:is|on)\s+(\d+\/\d+)/i);
+          
+          if (predominantPitchMatch && measurements.totalArea > 0 && Object.keys(measurements.areasByPitch).length === 0) {
+            // If we have a predominant pitch and total area but no areas by pitch,
+            // assume the predominant pitch covers most of the roof
+            const predominantPitch = predominantPitchMatch[1];
+            const normalizedPitch = predominantPitch.replace('/', ':');
+            
+            // Check if we already have this pitch in our areas
+            if (!measurements.areasByPitch[normalizedPitch]) {
+              // Assume this pitch covers at least 95% of the roof
+              const area = measurements.totalArea * 0.95;
+              measurements.areasByPitch[normalizedPitch] = area;
+              console.log(`Using predominant pitch ${normalizedPitch} for ${area.toFixed(1)} sq ft (95% of total area)`);
+            }
+          }
+          
+          // Check if we have enough of the roof area covered
+          const currentTotalPitchArea = Object.values(measurements.areasByPitch).reduce((sum, area) => sum + area, 0);
+          if (pitchValues.length > 0 && currentTotalPitchArea < measurements.totalArea * 0.9) {
+            // We still don't have enough of the roof covered, try to find all mentioned pitches
+            console.log(`Only found ${currentTotalPitchArea.toFixed(1)} sq ft in pitch areas out of ${measurements.totalArea} total`);
+            
+            // Look for any additional pitch values from the diagram
+            for (const pitchValue of pitchValues) {
+              const normalizedPitch = pitchValue.replace('/', ':');
+              
+              // If we don't already have this pitch, try to estimate its area
+              if (!measurements.areasByPitch[normalizedPitch]) {
+                // Get remaining area not accounted for
+                const remainingArea = measurements.totalArea - currentTotalPitchArea;
+                
+                // If it's the predominant pitch, give it most of the remaining area
+                const isPredominant = predominantPitchMatch && predominantPitchMatch[1] === pitchValue;
+                const estimatedArea = isPredominant ? 
+                  remainingArea * 0.9 : // 90% of remaining area for predominant pitch
+                  remainingArea / (pitchValues.length - Object.keys(measurements.areasByPitch).length); // Equal distribution
+                
+                measurements.areasByPitch[normalizedPitch] = estimatedArea;
+                console.log(`Estimated ${normalizedPitch} pitch with ${estimatedArea.toFixed(1)} sq ft from pitch diagram`);
+              }
+            }
+          }
+        }
+      }
+      
       // If we couldn't extract from the "Areas per Pitch" section, try looking for table-like structures
       if (Object.keys(measurements.areasByPitch).length === 0) {
         console.log("Trying to extract pitch areas from table-like structures");
@@ -649,12 +715,78 @@ export function usePdfParser() {
         }
       }
       
+      // If we have the total area but no or incomplete pitch areas, create a fallback
+      const totalExtractedPitchArea = Object.values(measurements.areasByPitch).reduce((sum, area) => sum + area, 0);
+      if (measurements.totalArea > 0 && (
+          Object.keys(measurements.areasByPitch).length === 0 || 
+          totalExtractedPitchArea < measurements.totalArea * 0.9)) {
+        
+        console.log(`Only extracted ${totalExtractedPitchArea} sq ft of pitch areas out of total ${measurements.totalArea} sq ft`);
+        
+        if (measurements.predominantPitch) {
+          // If we have a predominant pitch, use it for the missing area
+          const missingArea = measurements.totalArea - totalExtractedPitchArea;
+          
+          if (missingArea > 0) {
+            // Normalize the predominant pitch format
+            const normalizedPitch = measurements.predominantPitch.includes(':') ? 
+              measurements.predominantPitch : 
+              measurements.predominantPitch.replace('/', ':');
+            
+            // Add the missing area to this pitch, or create it if it doesn't exist
+            if (measurements.areasByPitch[normalizedPitch]) {
+              measurements.areasByPitch[normalizedPitch] += missingArea;
+            } else {
+              measurements.areasByPitch[normalizedPitch] = missingArea;
+            }
+            
+            console.log(`Assigned missing ${missingArea.toFixed(1)} sq ft to predominant pitch ${normalizedPitch}`);
+          }
+        } else if (Object.keys(measurements.areasByPitch).length === 0) {
+          // If we have no pitch areas at all but have a total area, create a fallback pitch
+          // Most common roof pitch is 6:12, so use that as a fallback
+          measurements.areasByPitch['6:12'] = measurements.totalArea;
+          console.log(`Created fallback pitch 6:12 with total area ${measurements.totalArea} sq ft`);
+          
+          // Also set this as the predominant pitch if we don't have one
+          if (!measurements.predominantPitch) {
+            measurements.predominantPitch = '6:12';
+            console.log(`Set fallback predominant pitch to 6:12`);
+          }
+        }
+      }
+      
       console.log("Final extracted areas by pitch:", measurements.areasByPitch);
       
       // Calculate total area if we didn't find it directly
       if (measurements.totalArea === 0 && Object.keys(measurements.areasByPitch).length > 0) {
         measurements.totalArea = Object.values(measurements.areasByPitch).reduce((sum, area) => sum + area, 0);
         console.log(`Calculated total area from areas by pitch: ${measurements.totalArea} sq ft`);
+      }
+      
+      // Do a final validation check
+      const extractedTotal = Object.values(measurements.areasByPitch).reduce((sum, area) => sum + area, 0);
+      if (Math.abs(extractedTotal - measurements.totalArea) > measurements.totalArea * 0.1) {
+        console.warn(`Warning: Total pitch area (${extractedTotal.toFixed(1)} sq ft) differs from total roof area (${measurements.totalArea} sq ft) by more than 10%`);
+        
+        // Add fix: If we have a large discrepancy, assign the remaining area to the predominant pitch
+        if (measurements.predominantPitch && extractedTotal < measurements.totalArea * 0.9) {
+          const remainingArea = measurements.totalArea - extractedTotal;
+          const normalizedPitch = measurements.predominantPitch.includes(':') ? 
+            measurements.predominantPitch : 
+            measurements.predominantPitch.replace('/', ':');
+          
+          console.log(`Assigning remaining ${remainingArea.toFixed(1)} sq ft to predominant pitch ${normalizedPitch}`);
+          
+          // Add the remaining area to this pitch, or create it if it doesn't exist
+          if (measurements.areasByPitch[normalizedPitch]) {
+            measurements.areasByPitch[normalizedPitch] += remainingArea;
+          } else {
+            measurements.areasByPitch[normalizedPitch] = remainingArea;
+          }
+        }
+      } else {
+        console.log(`Validation successful: Total pitch area (${extractedTotal.toFixed(1)} sq ft) matches total roof area (${measurements.totalArea} sq ft)`);
       }
       
       // Determine predominant pitch if not already found

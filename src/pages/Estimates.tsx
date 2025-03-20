@@ -52,15 +52,26 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): Meas
       
       console.log(`Processing pitch ${pitch} with area ${numArea}`);
       
+      // Calculate percentage based on the total area
+      const percentage = parsedData.totalArea > 0 
+        ? (numArea / parsedData.totalArea) * 100 
+        : 0;
+      
       return {
         pitch: normalizedPitch,
         area: numArea,
-        percentage: parsedData.totalArea > 0 ? (numArea / parsedData.totalArea) * 100 : 0
+        percentage: Number(percentage.toFixed(1))  // Round to 1 decimal place
       };
     });
 
   console.log("FINAL areasByPitch DATA:", areasByPitch);
   console.log("Total number of pitches:", areasByPitch.length);
+  console.log("Total area used for percentage calculations:", parsedData.totalArea);
+  
+  // Log a validation summary
+  const totalExtractedArea = areasByPitch.reduce((sum, item) => sum + item.area, 0);
+  console.log(`Sum of areas by pitch: ${totalExtractedArea.toFixed(1)} sq ft`);
+  console.log(`Difference from total area: ${Math.abs(totalExtractedArea - parsedData.totalArea).toFixed(1)} sq ft (${((Math.abs(totalExtractedArea - parsedData.totalArea) / parsedData.totalArea) * 100).toFixed(1)}%)`);
 
   return {
     totalArea: parsedData.totalArea || 0,

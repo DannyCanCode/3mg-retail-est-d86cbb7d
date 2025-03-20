@@ -1,5 +1,5 @@
 import React from "react";
-import { MeasurementValues } from "./types";
+import { MeasurementValues } from "@/components/estimates/measurement/types";
 
 interface MeasurementSummaryProps {
   measurements: MeasurementValues;
@@ -8,23 +8,35 @@ interface MeasurementSummaryProps {
 export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurements }) => {
   // Display areas by pitch table
   const renderAreasByPitch = () => {
-    // Convert the areasByPitch object to an array for easier rendering
-    const pitchAreas = Object.entries(measurements.areasByPitch || {})
-      .map(([pitch, area]) => ({ 
-        pitch: pitch.replace(':', '/'),  // Convert from "5:12" format to "5/12" display format
-        area: typeof area === 'number' ? Math.round(area) : 0  // Ensure area is a number and round it
-      }))
-      .sort((a, b) => {
-        // Sort by pitch (numerically, not alphabetically)
-        const getPitchValue = (p: string) => {
-          const [numerator, denominator] = p.split('/').map(Number);
-          return numerator / denominator;
-        };
-        return getPitchValue(a.pitch) - getPitchValue(b.pitch);
-      });
+    // Ensure areasByPitch is an array (backward compatibility)
+    const pitchAreas = Array.isArray(measurements.areasByPitch) 
+      ? measurements.areasByPitch
+      : Object.entries(measurements.areasByPitch || {})
+          .map(([pitch, area]) => ({ 
+            pitch: pitch.replace(':', '/'),  // Convert from "5:12" format to "5/12" display format
+            area: typeof area === 'number' ? Math.round(area) : 0,  // Ensure area is a number and round it
+            percentage: 0  // Will be calculated below
+          }));
 
-    // Calculate total area from the areas by pitch to ensure consistency
-    const totalArea = pitchAreas.reduce((sum, item) => sum + item.area, 0);
+    // Sort pitches numerically
+    const sortedPitchAreas = [...pitchAreas].sort((a, b) => {
+      // Sort by pitch (numerically, not alphabetically)
+      const getPitchValue = (p: string) => {
+        const [numerator, denominator] = p.split(/[:/]/).map(Number);
+        return numerator / denominator;
+      };
+      return getPitchValue(a.pitch) - getPitchValue(b.pitch);
+    });
+
+    // Format pitch display for UI
+    const formattedPitchAreas = sortedPitchAreas.map(item => ({
+      ...item,
+      pitch: item.pitch.includes('/') ? item.pitch : item.pitch.replace(':', '/'),
+      area: Math.round(item.area)
+    }));
+    
+    // Use measurements.totalArea for consistency
+    const totalArea = measurements.totalArea;
     
     return (
       <div className="mt-8">
@@ -39,18 +51,18 @@ export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurem
               </tr>
             </thead>
             <tbody>
-              {pitchAreas.map((item, index) => (
+              {formattedPitchAreas.map((item, index) => (
                 <tr key={index} className="hover:bg-gray-50">
                   <td className="py-2 px-4 border">{item.pitch}</td>
                   <td className="py-2 px-4 border">{item.area.toLocaleString()}</td>
                   <td className="py-2 px-4 border">
-                    {totalArea > 0 ? ((item.area / totalArea) * 100).toFixed(1) : 0}%
+                    {item.percentage ? item.percentage.toFixed(1) : totalArea > 0 ? ((item.area / totalArea) * 100).toFixed(1) : 0}%
                   </td>
                 </tr>
               ))}
               <tr className="font-medium bg-gray-50">
                 <td className="py-2 px-4 border">Total</td>
-                <td className="py-2 px-4 border">{totalArea.toLocaleString()}</td>
+                <td className="py-2 px-4 border">{Math.round(totalArea).toLocaleString()}</td>
                 <td className="py-2 px-4 border">100.0%</td>
               </tr>
             </tbody>
@@ -75,7 +87,7 @@ export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurem
           </div>
           <div className="bg-white rounded-md p-4 shadow-sm">
             <h3 className="text-lg font-medium mb-2">Predominant Pitch</h3>
-            <p className="text-2xl font-bold">{(measurements.predominantPitch || "").replace(":", "/")}</p>
+            <p className="text-2xl font-bold">{(measurements.roofPitch || "").replace(":", "/")}</p>
           </div>
         </div>
 
@@ -105,10 +117,6 @@ export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurem
             <div className="bg-white p-3 rounded-md shadow-sm">
               <div className="text-sm text-gray-600">Eave</div>
               <div className="text-lg font-medium">{Math.round(measurements.eaveLength || 0)} ft</div>
-            </div>
-            <div className="bg-white p-3 rounded-md shadow-sm">
-              <div className="text-sm text-gray-600">Drip Edge</div>
-              <div className="text-lg font-medium">{Math.round(measurements.dripEdgeLength || 0)} ft</div>
             </div>
           </div>
         </div>
