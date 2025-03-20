@@ -214,9 +214,12 @@ const Estimates = () => {
   };
 
   const handleMaterialsSelected = (materials: {[key: string]: Material}, quantities: {[key: string]: number}) => {
+    console.log("handleMaterialsSelected called, setting materials:", Object.keys(materials).length);
     setSelectedMaterials(materials);
     setQuantities(quantities);
+    console.log("About to set activeTab to 'pricing'");
     setActiveTab("pricing");
+    console.log("activeTab should now be 'pricing'");
     
     toast({
       title: "Materials selected",
@@ -331,7 +334,11 @@ const Estimates = () => {
             <CardContent className="p-6">
               <Tabs 
                 value={activeTab} 
-                onValueChange={setActiveTab} 
+                onValueChange={(value) => {
+                  console.log(`Tab changing from ${activeTab} to ${value}`);
+                  setActiveTab(value);
+                  console.log(`Tab changed, activeTab is now ${value}`);
+                }} 
                 className="w-full"
                 defaultValue="upload"
               >
@@ -478,6 +485,7 @@ const Estimates = () => {
                 
                 <TabsContent value="pricing">
                   <LaborProfitTab 
+                    key={`labor-profit-${activeTab === 'pricing' ? 'active' : 'inactive'}`}
                     onBack={() => setActiveTab("materials")}
                     onContinue={handleLaborProfitContinue}
                     initialLaborRates={laborRates}

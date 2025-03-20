@@ -47,16 +47,19 @@ export function LaborProfitTab({
   initialProfitMargin = 25,
   measurements
 }: LaborProfitTabProps) {
+  console.log("LaborProfitTab rendering, received measurements:", measurements?.totalArea);
   const [laborRates, setLaborRates] = useState<LaborRates>(initialLaborRates);
   const [profitMargin, setProfitMargin] = useState(initialProfitMargin);
   
   // Calculate dumpster count based on total roof area
   useEffect(() => {
+    console.log("LaborProfitTab useEffect triggered, measurements:", measurements?.totalArea);
     if (measurements?.totalArea) {
       const totalSquares = measurements.totalArea / 100;
       const dumpsterCount = Math.max(1, Math.ceil(totalSquares / 20));
       const dumpsterRate = laborRates.dumpsterLocation === "orlando" ? 400 : 500;
       
+      console.log(`Calculating dumpsters: ${totalSquares} squares, dumpsterCount: ${dumpsterCount}`);
       setLaborRates(prev => ({
         ...prev,
         dumpsterCount,

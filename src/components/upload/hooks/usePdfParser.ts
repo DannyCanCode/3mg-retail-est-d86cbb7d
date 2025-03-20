@@ -677,23 +677,78 @@ export function usePdfParser() {
           const potentialAreaNumbers = allTableNumbers.filter(num => num > 10);
           console.log("All possible area values (>10) in the section:", potentialAreaNumbers);
           
-          // Improved final validation logic
-          if (areaValues.length > 0 && areaValues.length === pitchHeaders.length) {
-            // Map the pitches to areas
-            pitchHeaders.forEach((pitch, index) => {
-              // Clean up the pitch value - ensure it's in the correct format
-              let cleanPitch = pitch.trim();
+          // First check if we have area values in the PDF
+          const areaValuePattern = /(\d+(?:\.\d+)?)(?:\s*sq\s*ft)?/i;
+          const areaRowText = Object.values(pageContents).join(" ");
+          const potentialAreaValues = Array.from(areaRowText.matchAll(/(\d+(?:\.\d+)?)(?:\s*sq\s*ft)?/gi))
+            .map(m => parseFloat(m[1]))
+            .filter(n => !isNaN(n) && n > 0);
+
+          console.log("Found potential area values:", potentialAreaValues);
+
+          // If we have at least as many area values as pitch headers, try to use them
+          if (potentialAreaValues.length >= pitchHeaders.length) {
+            // Use the largest values first as they're more likely to be areas
+            const sortedAreaValues = [...potentialAreaValues].sort((a, b) => b - a).slice(0, pitchHeaders.length);
+            console.log("Using sorted area values:", sortedAreaValues);
+            
+            // Calculate total of these values
+            const totalExtracted = sortedAreaValues.reduce((sum, val) => sum + val, 0);
+            
+            // If the total is reasonably close to our expected total area, use these values
+            if (totalExtracted > measurements.totalArea * 0.7 && totalExtracted < measurements.totalArea * 1.3) {
+              console.log(`Using extracted area values (total ${totalExtracted.toFixed(1)} sq ft)`);
               
-              // Normalize to use colon instead of slash for the internal format
-              const normalizedPitch = cleanPitch.replace('/', ':');
+              // Scale values to match total area
+              const scaleFactor = measurements.totalArea / totalExtracted;
+              const adjustedAreas = sortedAreaValues.map(area => area * scaleFactor);
               
-              // Add the area for this pitch
-              measurements.areasByPitch[normalizedPitch] = areaValues[index];
-              console.log(`Mapped pitch ${normalizedPitch} to area ${areaValues[index]} sq ft`);
-            });
-          } else if (measurements.totalArea > 0 && pitchHeaders.length > 0) {
-            // Fallback: if we have pitches but couldn't match areas, distribute based on probability
-            console.log("Couldn't match areas to pitches. Using predominant pitch for distribution");
+              pitchHeaders.forEach((pitch, index) => {
+                const normalizedPitch = pitch.replace('/', ':');
+                const areaForPitch = index < adjustedAreas.length ? adjustedAreas[index] : 0;
+                measurements.areasByPitch[normalizedPitch] = areaForPitch;
+                console.log(`Assigned ${areaForPitch.toFixed(1)} sq ft to pitch ${normalizedPitch}`);
+              });
+            } else {
+              // Fallback with more dynamic distribution - don't hardcode 95%
+              console.log("Area values don't match total area, using dynamic distribution");
+              
+              // Use a more reasonable distribution - predominant pitch gets most but not hardcoded 95%
+              const predominantShare = Math.min(0.85, 1 - (0.05 * (pitchHeaders.length - 1)));
+              const predominantArea = measurements.totalArea * predominantShare;
+              const remainingArea = measurements.totalArea * (1 - predominantShare);
+              
+              // Find which pitch is likely the predominant one
+              let predominantPitchIndex = 0;
+              if (measurements.predominantPitch) {
+                const normPredominant = measurements.predominantPitch.replace(':', '/');
+                predominantPitchIndex = pitchHeaders.findIndex(p => p === normPredominant);
+                if (predominantPitchIndex < 0) predominantPitchIndex = 0;
+              }
+              
+              pitchHeaders.forEach((pitch, index) => {
+                const normalizedPitch = pitch.replace('/', ':');
+                
+                if (index === predominantPitchIndex) {
+                  measurements.areasByPitch[normalizedPitch] = predominantArea;
+                  console.log(`Assigned ${predominantArea.toFixed(1)} sq ft (${(predominantShare*100).toFixed(0)}%) to predominant pitch ${normalizedPitch}`);
+                } else {
+                  // Distribute remaining area equally among other pitches
+                  const otherPitchCount = pitchHeaders.length - 1;
+                  const areaPerPitch = otherPitchCount > 0 ? remainingArea / otherPitchCount : 0;
+                  measurements.areasByPitch[normalizedPitch] = areaPerPitch;
+                  console.log(`Assigned ${areaPerPitch.toFixed(1)} sq ft to secondary pitch ${normalizedPitch}`);
+                }
+              });
+            }
+          } else {
+            // Fallback with more dynamic distribution - don't hardcode 95%
+            console.log("Not enough area values found, using dynamic distribution");
+            
+            // Use a more reasonable distribution - predominant pitch gets most but not hardcoded 95%
+            const predominantShare = Math.min(0.85, 1 - (0.05 * (pitchHeaders.length - 1)));
+            const predominantArea = measurements.totalArea * predominantShare;
+            const remainingArea = measurements.totalArea * (1 - predominantShare);
             
             // Find which pitch is likely the predominant one
             let predominantPitchIndex = 0;
@@ -703,17 +758,12 @@ export function usePdfParser() {
               if (predominantPitchIndex < 0) predominantPitchIndex = 0;
             }
             
-            // Assign 95% of area to predominant pitch, distribute remaining 5% to others
-            const totalArea = measurements.totalArea;
-            const predominantArea = totalArea * 0.95;
-            const remainingArea = totalArea * 0.05;
-            
             pitchHeaders.forEach((pitch, index) => {
               const normalizedPitch = pitch.replace('/', ':');
               
               if (index === predominantPitchIndex) {
                 measurements.areasByPitch[normalizedPitch] = predominantArea;
-                console.log(`Assigned ${predominantArea.toFixed(1)} sq ft (95%) to predominant pitch ${normalizedPitch}`);
+                console.log(`Assigned ${predominantArea.toFixed(1)} sq ft (${(predominantShare*100).toFixed(0)}%) to predominant pitch ${normalizedPitch}`);
               } else {
                 // Distribute remaining area equally among other pitches
                 const otherPitchCount = pitchHeaders.length - 1;
@@ -759,10 +809,12 @@ export function usePdfParser() {
             
             // Check if we already have this pitch in our areas
             if (!measurements.areasByPitch[normalizedPitch]) {
-              // Assume this pitch covers at least 95% of the roof
-              const area = measurements.totalArea * 0.95;
+              // Use a more dynamic distribution - predominant gets most but not hardcoded 95%
+              const otherPitchCount = pitchValues.length - 1;
+              const predominantShare = Math.min(0.85, 1 - (0.05 * otherPitchCount));
+              const area = measurements.totalArea * predominantShare;
               measurements.areasByPitch[normalizedPitch] = area;
-              console.log(`Using predominant pitch ${normalizedPitch} for ${area.toFixed(1)} sq ft (95% of total area)`);
+              console.log(`Using predominant pitch ${normalizedPitch} for ${area.toFixed(1)} sq ft (${(predominantShare*100).toFixed(0)}% of total area)`);
             }
           }
           
