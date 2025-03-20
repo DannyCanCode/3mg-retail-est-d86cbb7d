@@ -21,6 +21,7 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
   console.log("Converting PDF data to measurement values");
   console.log("Raw areasByPitch data:", parsedData.areasByPitch);
   console.log("Raw areasByPitch types:", Object.entries(parsedData.areasByPitch || {}).map(([k, v]) => `${k}: ${typeof v}`));
+  console.log("IMPORTANT: Number of pitches in raw data:", Object.keys(parsedData.areasByPitch || {}).length);
   
   // Ensure we have areas by pitch data and it's in the correct format
   const pitchData = parsedData.areasByPitch || {};
@@ -53,6 +54,7 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
     });
 
   console.log("Converted areasByPitch to array format:", areasByPitch);
+  console.log("IMPORTANT: Number of pitches after conversion:", areasByPitch.length);
 
   // Special case: If we have no areas, use the predominant pitch
   let pitchAreas = areasByPitch;

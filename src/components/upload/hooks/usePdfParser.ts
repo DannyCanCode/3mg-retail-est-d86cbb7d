@@ -677,42 +677,89 @@ export function usePdfParser() {
         console.log("Pitch table text:", pitchTableText);
 
         // SPECIFIC EAGLEVIEW FORMAT: Try to match the exact format seen in most EagleView reports
-        // It typically has "Roof Pitches" in the first column and rows of pitches, areas and percentages
-        const eagleViewTablePattern = /Roof\s+Pitches.*?(\d+\/\d+).*?(\d+\/\d+).*?(\d+\/\d+).*?(\d+\/\d+)?.*?Area.*?\n.*?([\d,.]+).*?([\d,.]+).*?([\d,.]+).*?([\d,.]+)?.*?%\s+of\s+Roof.*?\n.*?([\d,.]+%).*?([\d,.]+%).*?([\d,.]+%).*?([\d,.]+%)?/is;
-        const eagleViewMatch = pitchTableText.match(eagleViewTablePattern);
-        
-        if (eagleViewMatch) {
-          console.log("Found EagleView specific table format with multiple pitches");
-          
-          // Extract pitches and areas (up to 4 pitches from the match)
-          const pitches = [
-            eagleViewMatch[1], 
-            eagleViewMatch[2], 
-            eagleViewMatch[3],
-            eagleViewMatch[4]
-          ].filter(Boolean); // Remove undefined values
-          
-          const areas = [
-            parseFloat(eagleViewMatch[5]?.replace(/,/g, '') || "0"),
-            parseFloat(eagleViewMatch[6]?.replace(/,/g, '') || "0"),
-            parseFloat(eagleViewMatch[7]?.replace(/,/g, '') || "0"),
-            parseFloat(eagleViewMatch[8]?.replace(/,/g, '') || "0")
-          ];
-          
-          console.log("Extracted pitches:", pitches);
-          console.log("Extracted areas:", areas);
-          
-          // Map pitches to areas
-          for (let i = 0; i < pitches.length; i++) {
-            if (pitches[i] && !isNaN(areas[i])) {
-              // Include ALL areas, even small ones!
-              measurements.areasByPitch[pitches[i]] = areas[i];
-              console.log(`Mapped pitch ${pitches[i]} to area ${areas[i]} sq ft`);
+        // This is a more relaxed pattern to capture the tabular format seen in EagleView reports
+        console.log("Attempting to extract exact EagleView table format first");
+
+        // First, try to detect all pitch values in the table
+        const pitchRow = pitchTableText.match(/Roof\s+Pitches.*?((?:\d+\/\d+\s*)+)/is);
+        let pitches = [];
+        if (pitchRow && pitchRow[1]) {
+          // Extract all pitch values from the pitch row
+          const pitchMatches = Array.from(pitchRow[1].matchAll(/(\d+\/\d+)/g));
+          pitches = pitchMatches.map(match => match[0]);
+          console.log("Found pitch values in table:", pitches);
+        }
+
+        // Look for the area row that follows the pitch row
+        if (pitches.length > 0) {
+          // Find the area row - it typically follows the pitch row and has numbers with decimals
+          const areaRowMatch = pitchTableText.match(/Area.*?\n(.*?)\n/is);
+          if (areaRowMatch && areaRowMatch[1]) {
+            const areaRowText = areaRowMatch[1];
+            console.log("Found area row:", areaRowText);
+            
+            // Extract all numeric values from the area row
+            const areaValues = [];
+            const areaMatches = Array.from(areaRowText.matchAll(/([\d,\.]+)/g));
+            for (const areaMatch of areaMatches) {
+              const areaValue = parseFloat(areaMatch[0].replace(/,/g, ''));
+              if (!isNaN(areaValue)) {
+                areaValues.push(areaValue);
+              }
+            }
+            
+            console.log("Extracted area values:", areaValues);
+            
+            // Map pitches to area values if we have the same number of each
+            if (areaValues.length >= pitches.length) {
+              for (let i = 0; i < pitches.length; i++) {
+                // Include ALL areas, regardless of size
+                measurements.areasByPitch[pitches[i]] = areaValues[i];
+                console.log(`Mapped pitch ${pitches[i]} to area ${areaValues[i]} sq ft (improved match)`);
+              }
             }
           }
         }
-        
-        // If no matches from the specific pattern, fall back to flexible row matching
+
+        // If the above approach didn't work or didn't find all pitches, try fallback methods
+        if (Object.keys(measurements.areasByPitch).length === 0) {
+          // Original EagleView pattern as fallback
+          const eagleViewTablePattern = /Roof\s+Pitches.*?(\d+\/\d+).*?(\d+\/\d+).*?(\d+\/\d+).*?(\d+\/\d+)?.*?Area.*?\n.*?([\d,.]+).*?([\d,.]+).*?([\d,.]+).*?([\d,.]+)?.*?%\s+of\s+Roof.*?\n.*?([\d,.]+%).*?([\d,.]+%).*?([\d,.]+%).*?([\d,.]+%)?/is;
+          const eagleViewMatch = pitchTableText.match(eagleViewTablePattern);
+          
+          if (eagleViewMatch) {
+            console.log("Found EagleView specific table format with multiple pitches");
+            
+            // Extract pitches and areas (up to 4 pitches from the match)
+            const pitches = [
+              eagleViewMatch[1], 
+              eagleViewMatch[2], 
+              eagleViewMatch[3],
+              eagleViewMatch[4]
+            ].filter(Boolean); // Remove undefined values
+            
+            const areas = [
+              parseFloat(eagleViewMatch[5]?.replace(/,/g, '') || "0"),
+              parseFloat(eagleViewMatch[6]?.replace(/,/g, '') || "0"),
+              parseFloat(eagleViewMatch[7]?.replace(/,/g, '') || "0"),
+              parseFloat(eagleViewMatch[8]?.replace(/,/g, '') || "0")
+            ];
+            
+            console.log("Extracted pitches:", pitches);
+            console.log("Extracted areas:", areas);
+            
+            // Map pitches to areas
+            for (let i = 0; i < pitches.length; i++) {
+              if (pitches[i] && !isNaN(areas[i])) {
+                // Include ALL areas, even small ones!
+                measurements.areasByPitch[pitches[i]] = areas[i];
+                console.log(`Mapped pitch ${pitches[i]} to area ${areas[i]} sq ft`);
+              }
+            }
+          }
+        }
+
+        // If still no pitch data, try flexible row matching
         if (Object.keys(measurements.areasByPitch).length === 0) {
           // Look for lines that follow the pattern: "x/12   123.4   56.7%"
           const rowPattern = /(\d+\/\d+)\s+([\d,.]+)\s+([\d,.]+%)/g;
@@ -873,7 +920,7 @@ export function usePdfParser() {
       }
       
       // If we still don't have pitch areas but have a predominant pitch and total area,
-      // assign all area to the predominant pitch
+      // assign all area to the predominant pitch as a last resort
       if (Object.keys(measurements.areasByPitch).length === 0 && 
           measurements.predominantPitch && 
           measurements.totalArea > 0) {
@@ -882,9 +929,13 @@ export function usePdfParser() {
         const eagleViewPitchFormat = pitchParts.join('/');
         
         measurements.areasByPitch[eagleViewPitchFormat] = measurements.totalArea;
-        console.log(`Assigned total area to predominant pitch ${eagleViewPitchFormat}: ${measurements.totalArea} sq ft`);
+        console.log(`Assigned total area to predominant pitch ${eagleViewPitchFormat}: ${measurements.totalArea} sq ft (last resort)`);
       }
       
+      // FINAL DEBUG: Log all extracted pitch areas before returning
+      console.log("FINAL EXTRACTED AREAS BY PITCH:", Object.entries(measurements.areasByPitch).map(([pitch, area]) => `${pitch}: ${area} sq ft`));
+      console.log("Total number of pitches extracted:", Object.keys(measurements.areasByPitch).length);
+
       // If we couldn't extract some measurements, use fallback patterns from pdf-utils.ts
       if (measurements.totalArea === 0) {
         // Try generic pattern
@@ -914,64 +965,20 @@ export function usePdfParser() {
       const extractedTotalArea = Object.values(measurements.areasByPitch)
         .reduce((sum, area) => sum + (Number(area) || 0), 0);
       
-      // If the extracted total is very different from the reported total area, 
-      // we might have extracted incorrect values
+      console.log(`Extracted total area from pitches: ${extractedTotalArea}, Report total area: ${measurements.totalArea}`);
+
+      // IMPORTANT: We want to preserve all pitch areas exactly as extracted
+      // DO NOT reset or override the extracted pitch areas even if they don't match total area
+      // Simply log a warning but keep all pitch areas intact
       if (measurements.totalArea > 0 && 
-          (extractedTotalArea < measurements.totalArea * 0.9 || 
-           extractedTotalArea > measurements.totalArea * 1.1)) {
-        console.log(`Warning: Extracted pitch areas (${extractedTotalArea}) don't match total area (${measurements.totalArea})`);
-        
-        // If the difference is too significant, reset and use predominant pitch only
-        if (extractedTotalArea < measurements.totalArea * 0.7 || 
-            extractedTotalArea > measurements.totalArea * 1.3) {
-          console.log("Significant mismatch in area totals - resetting to predominant pitch only");
-          
-          // Clear existing pitch areas
-          measurements.areasByPitch = {};
-          
-          // Use predominant pitch if available, or default to a common pitch
-          const pitchToUse = measurements.predominantPitch ? 
-            measurements.predominantPitch.replace(':', '/') : '4/12';
-          
-          measurements.areasByPitch[pitchToUse] = measurements.totalArea;
-          console.log(`Reset to single pitch: ${pitchToUse} = ${measurements.totalArea} sq ft`);
-        }
+          Math.abs(extractedTotalArea - measurements.totalArea) / measurements.totalArea > 0.1) {
+        console.log(`Warning: Extracted pitch areas (${extractedTotalArea}) don't match total area (${measurements.totalArea}) but keeping all pitch areas as extracted`);
       }
-      
-      // If we've extracted pitch areas but the sum is significantly different from the total area,
-      // scale the values to match the total area while preserving proportions
-      const extractedAreaSum = Object.values(measurements.areasByPitch)
-        .reduce((sum, area) => sum + (Number(area) || 0), 0);
-      
-      if (measurements.totalArea > 0 && 
-          Object.keys(measurements.areasByPitch).length > 1 &&
-          Math.abs(extractedAreaSum - measurements.totalArea) / measurements.totalArea > 0.1) {
-        
-        console.log(`Scaling extracted areas (sum: ${extractedAreaSum}) to match total area (${measurements.totalArea})`);
-        
-        // Calculate scaling factor
-        const scaleFactor = measurements.totalArea / extractedAreaSum;
-        
-        // Scale each area value
-        for (const pitch in measurements.areasByPitch) {
-          const originalArea = measurements.areasByPitch[pitch];
-          const scaledArea = originalArea * scaleFactor;
-          measurements.areasByPitch[pitch] = scaledArea;
-          console.log(`Scaled ${pitch} area from ${originalArea} to ${scaledArea} sq ft`);
-        }
-      }
-      
-      // If we still don't have pitch areas but have a predominant pitch and total area,
-      // assign all area to the predominant pitch as a last resort
-      if (Object.keys(measurements.areasByPitch).length === 0 && 
-          measurements.predominantPitch && 
-          measurements.totalArea > 0) {
-        // For predominant pitch, we need to convert from "x:y" format back to "x/y" to match EagleView
-        const pitchParts = measurements.predominantPitch.split(':');
-        const eagleViewPitchFormat = pitchParts.join('/');
-        
-        measurements.areasByPitch[eagleViewPitchFormat] = measurements.totalArea;
-        console.log(`Assigned total area to predominant pitch ${eagleViewPitchFormat}: ${measurements.totalArea} sq ft (last resort)`);
+
+      // Instead of resetting to a single pitch, adjust the total area if needed
+      if (extractedTotalArea > 0 && measurements.totalArea === 0) {
+        measurements.totalArea = extractedTotalArea;
+        console.log(`Setting total area to match sum of pitch areas: ${extractedTotalArea}`);
       }
       
       return measurements;
