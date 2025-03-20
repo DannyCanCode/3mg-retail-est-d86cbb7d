@@ -548,28 +548,169 @@ export function usePdfParser() {
         console.log("Found 'Areas per Pitch' section");
         const areasPerPitchSection = areasPerPitchMatch[0];
         
-        // More robust pattern to extract pitch and area values from a table-like structure
-        // This pattern looks for:
-        // 1. A pitch value (like 5/12, 7/12, etc.)
-        // 2. Followed by an area value (potentially with commas and decimal points)
-        // 3. Optionally followed by a percentage
-        const pitchAreaRegex = /(\d+\/\d+|flat)\s*[:\(\s]*([0-9,\.]+)(?:\s*sq\s*ft|\))?(?:\s*(?:\(|=|:|\s)\s*([0-9\.]+)\s*%)?/gi;
+        // First, try to detect if this is a horizontal table format (where pitches are column headers)
+        // Pattern to extract a row of pitch headers like "1/12 2/12 5/12"
+        // Try multiple patterns to capture different variations of the horizontal table format
+        let pitchHeaders: string[] = [];
+        let foundHorizontalTable = false;
         
-        let pitchMatch;
-        while ((pitchMatch = pitchAreaRegex.exec(areasPerPitchSection)) !== null) {
-          const pitch = pitchMatch[1];
-          // Clean up the area value - remove commas and ensure it's a valid number
-          const area = parseFloat(pitchMatch[2].replace(/,/g, ''));
+        // Try to find the column of pitch values - we'll try multiple patterns
+        const pitchHeaderPatterns = [
+          // Pattern 1: "Roof Pitches 1/12 2/12 5/12" (on one line)
+          /Roof\s+Pitches\s+((?:\d+\/\d+\s+)*\d+\/\d+)/i,
           
-          if (!isNaN(area)) {
-            // Convert to standard format (e.g., "7/12" instead of variations)
-            const normalizedPitch = pitch.toLowerCase() === 'flat' ? '0/12' : pitch;
+          // Pattern 2: Look for a line with just pitch values (after "Roof Pitches" appearing earlier)
+          /(?:Roof\s+Pitches.*?)(?:\n.*?)?\s*?^((?:\d+\/\d+\s+)*\d+\/\d+)/im,
+          
+          // Pattern 3: Just look for a line with multiple pitches in the expected format
+          /^\s*((?:\d+\/\d+\s+)+\d+\/\d+)\s*$/m
+        ];
+        
+        for (const pattern of pitchHeaderPatterns) {
+          const headerMatch = areasPerPitchSection.match(pattern);
+          if (headerMatch && headerMatch[1]) {
+            pitchHeaders = headerMatch[1].trim().split(/\s+/);
+            if (pitchHeaders.length > 0) {
+              console.log(`Detected ${pitchHeaders.length} pitch headers using pattern:`, pattern, pitchHeaders);
+              foundHorizontalTable = true;
+              break;
+            }
+          }
+        }
+        
+        // If we found pitch headers, look for the corresponding area values
+        if (foundHorizontalTable && pitchHeaders.length > 0) {          
+          // Look for the area row, with multiple patterns to handle different formats
+          const areaRowPatterns = [
+            // Pattern 1: Standard format with label and values on same line
+            /Area\s+\(?sq\s+ft\)?\s+((?:\d+[.,]?\d*\s+)*\d+[.,]?\d*)/i,
             
-            // Store with the correct format for the app (using a colon instead of slash if needed)
-            const pitchKey = normalizedPitch.replace('/', ':');
+            // Pattern 2: Values on the line after "Area (sq ft)"
+            /Area\s+\(?sq\s+ft\)?\s*\n\s*((?:\d+[.,]?\d*\s+)*\d+[.,]?\d*)/i,
             
-            measurements.areasByPitch[pitchKey] = area;
-            console.log(`Mapped pitch ${pitchKey} to area ${area} sq ft (from Areas per Pitch section)`);
+            // Pattern 3: Any line with numeric values that match the number of pitch headers
+            new RegExp(`\\b((?:\\d+[.,]?\\d*\\s+){${pitchHeaders.length-1}}\\d+[.,]?\\d*)\\b`, 'i')
+          ];
+          
+          let areaValues: number[] = [];
+          
+          for (const pattern of areaRowPatterns) {
+            const areaMatch = areasPerPitchSection.match(pattern);
+            if (areaMatch && areaMatch[1]) {
+              const candidateValues = areaMatch[1].trim().split(/\s+/)
+                .map(val => parseFloat(val.replace(/,/g, '')))
+                .filter(val => !isNaN(val));
+                
+              // Check if the number of values matches the number of pitch headers
+              if (candidateValues.length === pitchHeaders.length) {
+                areaValues = candidateValues;
+                console.log("Found area values matching pitch count:", areaValues);
+                break;
+              } else {
+                console.log("Area count doesn't match pitch count, trying next pattern");
+              }
+            }
+          }
+          
+          // If we found area values and they match the number of pitches, map them
+          if (areaValues.length > 0 && areaValues.length === pitchHeaders.length) {
+            // Try to also extract the percentage row for validation
+            const percentRowPatterns = [
+              // Pattern 1: Standard format with label and percentage values on same line
+              /%\s+of\s+Roof\s+((?:\d+[.,]?\d*\s*%\s+)*\d+[.,]?\d*\s*%)/i,
+              
+              // Pattern 2: Values on the line after "% of Roof"
+              /%\s+of\s+Roof\s*\n\s*((?:\d+[.,]?\d*\s*%\s+)*\d+[.,]?\d*\s*%)/i,
+              
+              // Pattern 3: Any line with percentage values matching the number of pitch headers
+              new RegExp(`\\b((?:\\d+[.,]?\\d*\\s*%\\s+){${pitchHeaders.length-1}}\\d+[.,]?\\d*\\s*%)\\b`, 'i')
+            ];
+            
+            let percentValues: number[] = [];
+            
+            for (const pattern of percentRowPatterns) {
+              const percentMatch = areasPerPitchSection.match(pattern);
+              if (percentMatch && percentMatch[1]) {
+                percentValues = percentMatch[1].trim().split(/\s+/)
+                  .map(val => parseFloat(val.replace(/[%,]/g, '')))
+                  .filter(val => !isNaN(val));
+                  
+                if (percentValues.length === pitchHeaders.length) {
+                  console.log("Found percentage values matching pitch count:", percentValues);
+                  break;
+                }
+              }
+            }
+            
+            // Map the pitches to areas, and log the percentages for validation if available
+            pitchHeaders.forEach((pitch, index) => {
+              // Clean up the pitch value - ensure it's in the correct format
+              let cleanPitch = pitch.trim();
+              
+              // Handle special cases like "flat" or numeric-only values
+              if (cleanPitch.toLowerCase() === 'flat') {
+                cleanPitch = '0/12';
+              } else if (/^\d+$/.test(cleanPitch)) {
+                // If it's just a number like "4", assume it's "4/12"
+                cleanPitch = `${cleanPitch}/12`;
+              } else if (!cleanPitch.includes('/') && !cleanPitch.includes(':')) {
+                // If it doesn't contain a slash or colon, it might be malformed
+                // Try to extract a number and assume it's x/12
+                const matchNum = cleanPitch.match(/(\d+)/);
+                if (matchNum) {
+                  cleanPitch = `${matchNum[1]}/12`;
+                }
+              }
+              
+              // Normalize to use colon instead of slash for the internal format
+              const normalizedPitch = cleanPitch.replace('/', ':');
+              
+              measurements.areasByPitch[normalizedPitch] = areaValues[index];
+              
+              if (percentValues.length === pitchHeaders.length) {
+                const calculatedPercent = measurements.totalArea > 0 
+                  ? (areaValues[index] / measurements.totalArea) * 100 
+                  : 0;
+                console.log(`Mapped pitch ${normalizedPitch} to area ${areaValues[index]} sq ft (${percentValues[index]}%, calculated: ${calculatedPercent.toFixed(1)}%)`);
+              } else {
+                console.log(`Mapped pitch ${normalizedPitch} to area ${areaValues[index]} sq ft (from horizontal table)`);
+              }
+            });
+            
+            // Successfully parsed horizontal table
+            console.log("Successfully parsed horizontal table format for areas by pitch");
+          } else {
+            console.warn("Could not find matching area values for pitches in horizontal table");
+            foundHorizontalTable = false;
+          }
+        }
+        
+        // If we couldn't parse the horizontal table format, fall back to the vertical format
+        if (!foundHorizontalTable) {
+          console.log("Falling back to vertical table pattern matching");
+          // More robust pattern to extract pitch and area values from a table-like structure
+          // This pattern looks for:
+          // 1. A pitch value (like 5/12, 7/12, etc.)
+          // 2. Followed by an area value (potentially with commas and decimal points)
+          // 3. Optionally followed by a percentage
+          const pitchAreaRegex = /(\d+\/\d+|flat)\s*[:\(\s]*([0-9,\.]+)(?:\s*sq\s*ft|\))?(?:\s*(?:\(|=|:|\s)\s*([0-9\.]+)\s*%)?/gi;
+          
+          let pitchMatch;
+          while ((pitchMatch = pitchAreaRegex.exec(areasPerPitchSection)) !== null) {
+            const pitch = pitchMatch[1];
+            // Clean up the area value - remove commas and ensure it's a valid number
+            const area = parseFloat(pitchMatch[2].replace(/,/g, ''));
+            
+            if (!isNaN(area)) {
+              // Convert to standard format (e.g., "7/12" instead of variations)
+              const normalizedPitch = pitch.toLowerCase() === 'flat' ? '0/12' : pitch;
+              
+              // Store with the correct format for the app (using a colon instead of slash if needed)
+              const pitchKey = normalizedPitch.replace('/', ':');
+              
+              measurements.areasByPitch[pitchKey] = area;
+              console.log(`Mapped pitch ${pitchKey} to area ${area} sq ft (from vertical table format)`);
+            }
           }
         }
       }
