@@ -72,7 +72,7 @@ export function convertAreasToArrayFormat(areasByPitch: Record<string, number> |
   // Convert to array format with calculated percentages
   const result = Object.entries(areasByPitch).map(([pitch, area]) => {
     const numericArea = Number(area) || 0;
-    const percentage = totalArea > 0 ? Math.round((numericArea / totalArea) * 100) : 0;
+    const percentage = totalArea > 0 ? (numericArea / totalArea) * 100 : 0;
     
     return {
       pitch,

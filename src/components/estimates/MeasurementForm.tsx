@@ -73,12 +73,12 @@ export function MeasurementForm({
       
       // If updating area, recalculate percentage based on total area
       if (field === 'area' && measurements.totalArea > 0) {
-        newAreas[index].percentage = Math.round((numValue / measurements.totalArea) * 100);
+        newAreas[index].percentage = (numValue / measurements.totalArea) * 100;
       }
       
       // If updating percentage, recalculate area based on total area
       if (field === 'percentage' && measurements.totalArea > 0) {
-        newAreas[index].area = Math.round((numValue / 100) * measurements.totalArea);
+        newAreas[index].area = (numValue / 100) * measurements.totalArea;
       }
     }
     
@@ -109,7 +109,7 @@ export function MeasurementForm({
       const totalAreaSum = newAreas.reduce((sum, area) => sum + area.area, 0);
       if (totalAreaSum > 0) {
         newAreas.forEach(area => {
-          area.percentage = Math.round((area.area / totalAreaSum) * 100);
+          area.percentage = (area.area / totalAreaSum) * 100;
         });
       }
       

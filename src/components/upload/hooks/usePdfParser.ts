@@ -700,7 +700,7 @@ export function usePdfParser() {
           
           // Assign each pitch to its corresponding area
           for (let i = 0; i < pitches.length; i++) {
-            if (!isNaN(areas[i]) && areas[i] > 10) {
+            if (!isNaN(areas[i]) && areas[i] > 0) {
               measurements.areasByPitch[pitches[i]] = areas[i];
               console.log(`Mapped pitch ${pitches[i]} to area ${areas[i]} sq ft`);
             }
@@ -733,7 +733,7 @@ export function usePdfParser() {
             
             // Assign each pitch to its corresponding area
             for (let i = 0; i < pitches.length; i++) {
-              if (!isNaN(areas[i]) && areas[i] > 10) {
+              if (!isNaN(areas[i]) && areas[i] > 0) {
                 measurements.areasByPitch[pitches[i]] = areas[i];
                 console.log(`Mapped pitch ${pitches[i]} to area ${areas[i]} sq ft from rows`);
               }
@@ -757,7 +757,7 @@ export function usePdfParser() {
               const area = parseFloat(match[2].replace(/,/g, ''));
               const percent = match[3];
               
-              if (!isNaN(area) && area > 10) {
+              if (!isNaN(area) && area > 0) {
                 measurements.areasByPitch[pitch] = area;
                 console.log(`Mapped pitch ${pitch} to area ${area} sq ft (${percent}) from individual row`);
               }
@@ -854,7 +854,7 @@ export function usePdfParser() {
               const [_, pitch, areaStr, percentStr] = match;
               const area = parseFloat(areaStr.replace(/,/g, ''));
               
-              if (!isNaN(area) && area > 10) {
+              if (!isNaN(area) && area > 0) {
                 measurements.areasByPitch[pitch] = area;
                 console.log(`Found pitch ${pitch} with area ${area} sq ft (${percentStr})`);
               }
@@ -884,7 +884,7 @@ export function usePdfParser() {
             
             if (pitchAreaMatch && pitchAreaMatch[1]) {
               const area = parseFloat(pitchAreaMatch[1].replace(/,/g, ''));
-              if (!isNaN(area) && area > 10) {
+              if (!isNaN(area) && area > 0 && allPitchesInDocument.includes(pitch)) {
                 measurements.areasByPitch[pitch] = area;
                 console.log(`Found area ${area} sq ft for pitch ${pitch} from direct text match`);
               }
@@ -901,7 +901,7 @@ export function usePdfParser() {
               const [_, pitch, areaStr] = match;
               const area = parseFloat(areaStr.replace(/,/g, ''));
               
-              if (!isNaN(area) && area > 10 && allPitchesInDocument.includes(pitch)) {
+              if (!isNaN(area) && area > 0 && allPitchesInDocument.includes(pitch)) {
                 measurements.areasByPitch[pitch] = area;
                 console.log(`Found area ${area} sq ft for pitch ${pitch} with loose pattern match`);
               }

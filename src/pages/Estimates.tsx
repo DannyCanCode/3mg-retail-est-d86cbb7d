@@ -47,7 +47,7 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
       return {
         pitch: pitch.includes(':') ? pitch : pitch.replace('/', ':'), // Normalize format for UI
         area: numArea,
-        percentage: parsedData.totalArea > 0 ? Math.round((numArea / parsedData.totalArea) * 100) : 0
+        percentage: parsedData.totalArea > 0 ? (numArea / parsedData.totalArea) * 100 : 0
       };
     });
 
