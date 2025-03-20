@@ -135,42 +135,9 @@ export function MeasurementForm({
       return;
     }
     
-    // Recalculate areas by pitch percentages to ensure they add up to 100%
-    // This is important when manually editing values
-    if (measurements.areasByPitch.length > 0) {
-      const totalAreaSum = measurements.areasByPitch.reduce((sum, area) => sum + area.area, 0);
-      
-      // If there's a significant difference between totalArea and sum of areasByPitch,
-      // adjust the areas to match totalArea while preserving proportions
-      if (totalAreaSum > 0 && Math.abs(totalAreaSum - measurements.totalArea) > 1) {
-        console.log(`Areas by pitch sum (${totalAreaSum}) differs from total area (${measurements.totalArea}), adjusting...`);
-        
-        const scaleFactor = measurements.totalArea / totalAreaSum;
-        const adjustedAreas = measurements.areasByPitch.map(area => ({
-          ...area,
-          area: Math.round(area.area * scaleFactor),
-          percentage: Math.round((area.area / totalAreaSum) * 100)
-        }));
-        
-        // Make sure percentages sum to 100% by adjusting the largest area if needed
-        const percentageSum = adjustedAreas.reduce((sum, area) => sum + area.percentage, 0);
-        if (percentageSum !== 100) {
-          // Find the largest area to adjust
-          const largestAreaIndex = adjustedAreas
-            .map((area, index) => ({ area: area.area, index }))
-            .sort((a, b) => b.area - a.area)[0].index;
-            
-          adjustedAreas[largestAreaIndex].percentage += (100 - percentageSum);
-        }
-        
-        setMeasurements(prev => ({
-          ...prev,
-          areasByPitch: adjustedAreas
-        }));
-        
-        console.log("Adjusted areasByPitch:", adjustedAreas);
-      }
-    }
+    // IMPORTANT: DO NOT modify or adjust the areas by pitch that came from the PDF
+    // This ensures we preserve all the exact pitch data from the original source
+    console.log("Saving measurements with original areasByPitch:", measurements.areasByPitch);
     
     setTimeout(() => {
       // In a real implementation, save measurements to database
