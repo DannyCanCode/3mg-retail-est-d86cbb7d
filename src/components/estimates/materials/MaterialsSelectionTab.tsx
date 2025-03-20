@@ -43,6 +43,7 @@ export function MaterialsSelectionTab({
   // New state for GAF packages and warranty options
   const [selectedPackage, setSelectedPackage] = useState<string>('gaf-1');
   const [selectedWarranty, setSelectedWarranty] = useState<string>('silver-pledge');
+  const [isPeelStickSelected, setIsPeelStickSelected] = useState<boolean>(false);
   const [includeIso, setIncludeIso] = useState<boolean>(false);
   const [peelStickPrice, setPeelStickPrice] = useState<string>("");
   
@@ -120,7 +121,7 @@ export function MaterialsSelectionTab({
     }
     
     // Add peel and stick system cost if selected
-    if (selectedWarranty === 'peel-stick-system' && peelStickPrice) {
+    if (isPeelStickSelected && peelStickPrice) {
       total += parseFloat(peelStickPrice);
     }
     
@@ -428,6 +429,8 @@ export function MaterialsSelectionTab({
               selectedWarranty={selectedWarranty}
               onWarrantySelect={setSelectedWarranty}
               onPeelStickPriceUpdate={handlePeelStickPriceUpdate}
+              isPeelStickSelected={isPeelStickSelected}
+              onPeelStickToggle={setIsPeelStickSelected}
             />
             
             {showLowSlope && (
