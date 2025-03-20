@@ -854,152 +854,129 @@ export function usePdfParser() {
       }
 
       if (foundPitchTable) {
-        // Extract just the table section - look for the table heading and ending
-        const tableStart = pitchTableText.indexOf(/Areas\s+(?:per|by)\s+Pitch/i.exec(pitchTableText)?.[0] || "");
-        if (tableStart > 0) {
-          // Look for the end of the table (often indicated by next section or "The table above lists...")
-          let tableEnd = pitchTableText.indexOf("The table above lists", tableStart);
-          if (tableEnd === -1) tableEnd = pitchTableText.length;
+        // Get the text items for this page with their coordinates
+        const textItems = pageTextItems[pageWithTable];
+        if (!textItems) {
+          console.log("No text items found for page with pitch table");
+          return measurements;
+        }
+
+        // Group items by their Y coordinate (rounded to handle slight variations)
+        const rowGroups: { [y: string]: Array<{str: string, x: number}> } = {};
+        textItems.forEach(item => {
+          const y = Math.round(item.transform[5]);
+          const x = item.transform[4];
+          const yKey = y.toString();
           
-          // Extract just the table portion
-          const tableSection = pitchTableText.substring(tableStart, tableEnd);
-          console.log("Extracted table section:", tableSection.substring(0, 200) + "...");
+          if (!rowGroups[yKey]) {
+            rowGroups[yKey] = [];
+          }
           
-          // Try to extract data using the coordinate-based table method first
-          const extractedTableData = extractPitchTableData(pageWithTable);
+          rowGroups[yKey].push({
+            str: item.str.trim(),
+            x: x
+          });
+        });
+
+        // Sort rows by Y coordinate (top to bottom)
+        const sortedRows = Object.entries(rowGroups)
+          .map(([y, items]) => ({
+            y: parseInt(y),
+            items: items.sort((a, b) => a.x - b.x) // Sort items within row by X coordinate
+          }))
+          .sort((a, b) => b.y - a.y);
+
+        // Find the row that contains "Roof Pitches" and "Area (sq ft)" and "% of Roof"
+        const headerRow = sortedRows.find(row => {
+          const rowText = row.items.map(i => i.str).join(' ');
+          return /Roof\s*Pitches/i.test(rowText) && 
+                 /Area.*sq.*ft/i.test(rowText) && 
+                 /[%\s]*of\s*Roof/i.test(rowText);
+        });
+
+        if (headerRow) {
+          console.log("Found pitch table header row");
           
-          if (extractedTableData && extractedTableData.pitches.length > 0) {
-            console.log("Successfully extracted pitch data using coordinate-based method");
-            const { pitches, areas, percentages } = extractedTableData;
+          // Get the X coordinates for each column from the header
+          const columnX = {
+            pitch: headerRow.items.find(i => /Roof\s*Pitches/i.test(i.str))?.x || 0,
+            area: headerRow.items.find(i => /Area.*sq.*ft/i.test(i.str))?.x || 0,
+            percent: headerRow.items.find(i => /[%\s]*of\s*Roof/i.test(i.str))?.x || 0
+          };
+
+          // Process rows after the header until we hit a row that doesn't match our expected format
+          let foundValidData = false;
+          let totalArea = 0;
+          const extractedPitches: {[pitch: string]: number} = {};
+
+          for (let i = sortedRows.indexOf(headerRow) + 1; i < sortedRows.length; i++) {
+            const row = sortedRows[i];
+            const rowItems = row.items;
             
-            // Calculate the total from the extracted areas to validate
-            const extractedTotal = areas.reduce((sum, area) => sum + area, 0);
-            
-            // Validate that our extracted total is reasonable compared to the reported total area
-            const totalAreaIsValid = !measurements.totalArea || 
-              (extractedTotal > 0 && Math.abs(extractedTotal - measurements.totalArea) / measurements.totalArea < 0.1);
-            
-            if (totalAreaIsValid) {
-              // Process each pitch
-              pitches.forEach((pitch, idx) => {
-                // Normalize the pitch format to X:12
-                const normalizedPitch = pitch.includes(':') ? pitch : pitch.replace('/', ':');
-                const area = areas[idx] || 0;
-                
-                if (area > 0) {
-                  measurements.areasByPitch[normalizedPitch] = area;
-                  console.log(`Assigned ${area} sq ft to pitch ${normalizedPitch}`);
-                }
-              });
-              
-              // If we successfully extracted pitches but didn't find a total area, use the sum
-              if (measurements.totalArea === 0 && extractedTotal > 0) {
-                measurements.totalArea = extractedTotal;
-                console.log(`Set total area from table sum: ${measurements.totalArea} sq ft`);
-              }
-            } else {
-              console.log(`WARNING: Extracted total area ${extractedTotal} differs significantly from reported total ${measurements.totalArea}`);
-              // Consider this extraction invalid - likely not the right table or values
-              measurements.areasByPitch = {};
-            }
-          } else {
-            console.log("Coordinate-based extraction failed, trying text pattern matching");
-            
-            // Try to find pitch, area pairs using patterns specific to the pitch table
-            const pitchAreaRows = tableSection.split('\n').filter(line => 
-              /^\s*\d+[\/:]\d+/.test(line) || // Starts with a pitch
-              /(?:Roof|Pitch).*\d+[\/:]\d+/.test(line) || // Has "Roof" or "Pitch" followed by a pitch
-              /\d+[\/:]\d+.*\d+\s*(?:sq\s*ft|%)/i.test(line) // Has pitch and either sq ft or %
+            // Skip empty rows or rows that don't look like data
+            if (rowItems.length < 2) continue;
+
+            // Look for items near our column X positions
+            const pitchItem = rowItems.find(item => 
+              Math.abs(item.x - columnX.pitch) < 50 && /^\d+[\/:]\d+$/.test(item.str)
             );
             
-            console.log(`Found ${pitchAreaRows.length} potential pitch/area rows`);
-            
-            if (pitchAreaRows.length > 0) {
-              // Extract pitch, area values
-              const extractedAreas: {[pitch: string]: number} = {};
-              let totalExtracted = 0;
+            const areaItem = rowItems.find(item => {
+              const num = parseFloat(item.str.replace(/,/g, ''));
+              return Math.abs(item.x - columnX.area) < 50 && !isNaN(num) && num > 0;
+            });
+
+            const percentItem = rowItems.find(item => {
+              const str = item.str.replace(/[%\s]/g, '');
+              const num = parseFloat(str);
+              return Math.abs(item.x - columnX.percent) < 50 && !isNaN(num) && num > 0 && num <= 100;
+            });
+
+            if (pitchItem && areaItem) {
+              const pitch = pitchItem.str;
+              const area = parseFloat(areaItem.str.replace(/,/g, ''));
+              const percent = percentItem ? parseFloat(percentItem.str.replace(/[%\s]/g, '')) : 0;
+
+              console.log(`Found pitch row: ${pitch} with area ${area} sq ft (${percent}%)`);
               
-              pitchAreaRows.forEach(row => {
-                // Find the pitch (X/12 or X:12 format)
-                const pitchMatch = row.match(/(\d+[\/:]\d+)/);
-                if (!pitchMatch) return;
-                
-                const pitch = pitchMatch[1];
-                const normalizedPitch = pitch.includes(':') ? pitch : pitch.replace('/', ':');
-                
-                // Look for area value - typically large numbers followed by sq ft
-                // Extract all numbers from the row
-                const numberMatches = row.match(/(\d+(?:[.,]\d+)?)/g);
-                if (!numberMatches || numberMatches.length < 2) return;
-                
-                // The pitch itself may be one of the numbers, so look for others
-                const numbers = numberMatches
-                  .map(n => parseFloat(n.replace(/,/g, '')))
-                  .filter(n => !isNaN(n) && n > 0);
-                
-                // The area is typically the largest number in the row
-                // (excluding pitch numbers and percentages < 100)
-                let areaValue = 0;
-                for (const num of numbers) {
-                  // Skip if this number is part of the pitch
-                  if (pitch.includes(num.toString())) continue;
-                  
-                  // Skip small percentages (we want the larger area value)
-                  if (num <= 100 && row.includes('%')) continue;
-                  
-                  // Take the largest number we find
-                  if (num > areaValue) areaValue = num;
-                }
-                
-                if (areaValue > 0) {
-                  extractedAreas[normalizedPitch] = areaValue;
-                  totalExtracted += areaValue;
-                  console.log(`Extracted pitch ${normalizedPitch} with area ${areaValue} sq ft`);
-                }
-              });
+              // Normalize pitch format to X:12
+              const normalizedPitch = pitch.includes(':') ? pitch : pitch.replace('/', ':');
+              extractedPitches[normalizedPitch] = area;
+              totalArea += area;
+              foundValidData = true;
+            } else if (foundValidData) {
+              // If we've found valid data before but this row doesn't match, we're probably past the table
+              break;
+            }
+          }
+
+          if (foundValidData) {
+            // Validate total area
+            const expectedTotal = measurements.totalArea || totalArea;
+            const areaIsValid = Math.abs(totalArea - expectedTotal) / expectedTotal < 0.1;
+
+            if (areaIsValid) {
+              measurements.areasByPitch = extractedPitches;
+              console.log("Successfully extracted pitch areas:", extractedPitches);
               
-              // Validate the total against the expected total area
-              const totalAreaIsValid = !measurements.totalArea || 
-                (totalExtracted > 0 && Math.abs(totalExtracted - measurements.totalArea) / measurements.totalArea < 0.1);
-              
-              if (totalAreaIsValid && Object.keys(extractedAreas).length > 0) {
-                // Look good, use these values
-                measurements.areasByPitch = extractedAreas;
-                
-                // If we didn't find a total area yet, use the sum
-                if (measurements.totalArea === 0 && totalExtracted > 0) {
-                  measurements.totalArea = totalExtracted;
-                  console.log(`Set total area from extracted sum: ${measurements.totalArea} sq ft`);
-                }
-              } else {
-                console.log(`WARNING: Extracted total ${totalExtracted} differs from reported total ${measurements.totalArea}`);
+              if (!measurements.totalArea) {
+                measurements.totalArea = totalArea;
+                console.log(`Set total area from sum: ${totalArea} sq ft`);
               }
+            } else {
+              console.log(`WARNING: Extracted total ${totalArea} differs significantly from expected ${expectedTotal}`);
             }
           }
         }
       }
       
-      // SPECIAL CASE: If we only found one pitch and the area matches the total area,
-      // this is likely a single-pitch roof (like in the screenshot)
-      const extractedPitchKeys = Object.keys(measurements.areasByPitch);
-      if (extractedPitchKeys.length === 1 && measurements.totalArea > 0) {
-        const singlePitch = extractedPitchKeys[0];
-        const singleArea = measurements.areasByPitch[singlePitch];
-        
-        // If the area is close to the total, set it exactly equal
-        if (Math.abs(singleArea - measurements.totalArea) / measurements.totalArea < 0.05) {
-          measurements.areasByPitch[singlePitch] = measurements.totalArea;
-          console.log(`Adjusted single pitch ${singlePitch} to exactly match total area: ${measurements.totalArea} sq ft`);
-        }
-      }
-      
-      // If we still didn't find any pitches but we have a predominant pitch and total area,
+      // If we still don't have any pitches but we have a predominant pitch and total area,
       // create an entry for the predominant pitch with 100% of the area
-      if (extractedPitchKeys.length === 0 && measurements.predominantPitch && measurements.totalArea > 0) {
+      if (Object.keys(measurements.areasByPitch).length === 0 && measurements.predominantPitch && measurements.totalArea > 0) {
         measurements.areasByPitch[measurements.predominantPitch] = measurements.totalArea;
         console.log(`Created entry for predominant pitch ${measurements.predominantPitch} with total area ${measurements.totalArea} sq ft`);
       }
-      
+
       // Set predominant pitch if needed (largest area)
       if (!measurements.predominantPitch && Object.keys(measurements.areasByPitch).length > 0) {
         let maxArea = 0;
