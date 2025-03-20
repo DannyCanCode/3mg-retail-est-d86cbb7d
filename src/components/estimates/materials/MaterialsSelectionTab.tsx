@@ -44,6 +44,7 @@ export function MaterialsSelectionTab({
   const [selectedPackage, setSelectedPackage] = useState<string>('gaf-1');
   const [selectedWarranty, setSelectedWarranty] = useState<string>('silver-pledge');
   const [includeIso, setIncludeIso] = useState<boolean>(false);
+  const [peelStickPrice, setPeelStickPrice] = useState<string>("");
   
   // Group materials by category
   const groupedMaterials = groupMaterialsByCategory(ROOFING_MATERIALS);
@@ -87,6 +88,11 @@ export function MaterialsSelectionTab({
     }
   }, [selectedPackage]);
   
+  // Handle peel and stick price updates from warranty selector
+  const handlePeelStickPriceUpdate = (price: string) => {
+    setPeelStickPrice(price);
+  };
+  
   // Calculate total with current selections
   const calculateEstimateTotal = () => {
     let total = Object.entries(selectedMaterials).reduce((total, [materialId, material]) => {
@@ -111,6 +117,11 @@ export function MaterialsSelectionTab({
           total += (lowSlopeArea / 100) * 50; // $50/sq for ISO
         }
       }
+    }
+    
+    // Add peel and stick system cost if selected
+    if (selectedWarranty === 'peel-stick-system' && peelStickPrice) {
+      total += parseFloat(peelStickPrice);
     }
     
     return total;
@@ -220,8 +231,8 @@ export function MaterialsSelectionTab({
     
     // Define preset material ids for each bundle
     const presetMaterials: { [key: string]: string[] } = {
-      "GAF 1": ["gaf-timberline-hdz", "gaf-seal-a-ridge", "gaf-prostart-starter-shingle-strip", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield"],
-      "GAF 2": ["gaf-timberline-hdz", "gaf-seal-a-ridge", "gaf-prostart-starter-shingle-strip", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield", "gaf-cobra-ridge-vent"],
+      "GAF 1": ["gaf-prostart-starter-shingle-strip", "gaf-timberline-hdz", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "abc-pro-guard-20"],
+      "GAF 2": ["gaf-timberline-hdz", "gaf-seal-a-ridge", "gaf-prostart-starter-shingle-strip", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield"],
       "OC 1": ["oc-oakridge", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "lead-boot-4inch"],
       "OC 2": ["oc-duration", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "gaf-feltbuster-synthetic-underlayment"]
     };
@@ -243,6 +254,13 @@ export function MaterialsSelectionTab({
           
           // Calculate bundles (3 per square)
           newQuantities[materialId] = Math.max(3, Math.ceil(squaresWithWaste * 3));
+        } else if (materialId === "gaf-weatherwatch-ice-water-shield" && preset === "GAF 2") {
+          // For GAF 2, WeatherWatch is only used in valleys
+          const valleyLength = measurements.valleyLength || 0;
+          // Calculate required rolls based on valley length (approx 3 feet wide coverage)
+          const valleyAreaSqFt = Math.max(valleyLength * 3, 0);
+          // Each roll covers approx 150 sq ft
+          newQuantities[materialId] = Math.max(1, Math.ceil(valleyAreaSqFt / 150));
         } else {
           // Regular calculation for other materials
           newQuantities[materialId] = calculateMaterialQuantity(
@@ -391,6 +409,7 @@ export function MaterialsSelectionTab({
               selectedPackage={selectedPackage}
               selectedWarranty={selectedWarranty}
               onWarrantySelect={setSelectedWarranty}
+              onPeelStickPriceUpdate={handlePeelStickPriceUpdate}
             />
             
             {showLowSlope && (

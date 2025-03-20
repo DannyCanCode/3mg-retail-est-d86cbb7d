@@ -18,11 +18,11 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           <h4 className="font-medium">GAF 1 - Basic Package</h4>
           <p className="text-sm text-gray-600 mt-1">Standard GAF materials for quality installation</p>
           <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
-            <li>GAF Timberline HDZ Shingles</li>
-            <li>GAF Starter Strips</li>
-            <li>GAF Seal-A-Ridge</li>
-            <li>GAF WeatherWatch</li>
-            <li>GAF FeltBuster</li>
+            <li>GAF ProStart Starter Shingle Strip (120')</li>
+            <li>GAF Timberline HDZ</li>
+            <li>GAF Seal-A-Ridge (25')</li>
+            <li>GAF WeatherWatch Ice & Water Shield</li>
+            <li>ABC Pro Guard 20 (Rhino)</li>
           </ul>
           <p className="text-sm font-medium mt-2">Silver Pledge Warranty Eligible</p>
         </div>
@@ -32,11 +32,13 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           onClick={() => onPackageSelect('gaf-2')}
         >
           <h4 className="font-medium">GAF 2 - Premium Package</h4>
-          <p className="text-sm text-gray-600 mt-1">Premium GAF materials with enhanced ventilation</p>
+          <p className="text-sm text-gray-600 mt-1">Premium GAF materials with enhanced protection</p>
           <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
-            <li>All GAF 1 materials plus:</li>
-            <li>GAF Cobra Ridge Vent</li>
-            <li>Enhanced Accessories</li>
+            <li>GAF Timberline HDZ</li>
+            <li>GAF Seal-A-Ridge (25')</li>
+            <li>GAF ProStart Starter Shingle Strip (120')</li>
+            <li>GAF FeltBuster Synthetic Underlayment (10 sq)</li>
+            <li>GAF WeatherWatch Ice & Water Shield (valleys only)</li>
           </ul>
           <p className="text-sm font-medium mt-2 text-green-600">Gold Pledge Warranty Eligible</p>
         </div>
