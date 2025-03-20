@@ -216,7 +216,7 @@ const Estimates = () => {
   const handleMaterialsSelected = (materials: {[key: string]: Material}, quantities: {[key: string]: number}) => {
     setSelectedMaterials(materials);
     setQuantities(quantities);
-    setActiveTab("labor-profit");
+    setActiveTab("pricing");
     
     toast({
       title: "Materials selected",
