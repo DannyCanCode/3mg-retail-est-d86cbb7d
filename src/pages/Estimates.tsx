@@ -33,9 +33,10 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
   // This is CRITICAL for the UI to show multiple pitches
   const areasByPitch = Object.entries(areasByPitchData)
     .filter(([pitch, area]) => {
-      // Filter out any invalid entries (area must be a number > 0)
+      // Only filter out invalid entries (null, undefined, NaN)
+      // DO NOT filter out small areas - we want to keep all pitches regardless of size
       const numArea = typeof area === 'number' ? area : parseFloat(String(area));
-      const valid = !isNaN(numArea) && numArea > 0;
+      const valid = !isNaN(numArea);
       if (!valid) {
         console.log(`Filtering out invalid area for pitch ${pitch}: ${area}`);
       }
