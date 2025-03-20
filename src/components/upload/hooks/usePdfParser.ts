@@ -607,6 +607,7 @@ export function usePdfParser() {
         // Look for "Areas by Pitch" or similar header
         const tableHeaderIdx = sortedRows.findIndex(row => 
           /areas\s+by\s+pitch/i.test(row.text) || 
+          /areas\s+per\s+pitch/i.test(row.text) ||
           /roof\s+pitch\s+table/i.test(row.text)
         );
         
@@ -664,9 +665,21 @@ export function usePdfParser() {
           let areaValue = 0;
           let percentValue = 0;
           
+          // Enhanced debugging for row content
+          console.log(`Processing row: "${row.text}" with ${row.items.length} items`);
+          
           for (const item of row.items) {
             // Only process non-empty items
             if (!item.str.trim()) continue;
+            
+            // More detailed logging of each item
+            console.log(`  Item: "${item.str}" at x=${item.x}, closest to: ${
+              Math.abs(item.x - pitchColX) < Math.abs(item.x - areaColX) && 
+              Math.abs(item.x - pitchColX) < Math.abs(item.x - percentColX) ? 
+              "PITCH" : 
+              Math.abs(item.x - areaColX) < Math.abs(item.x - percentColX) ? 
+              "AREA" : "PERCENT"
+            }`);
             
             // Check which column this item is closest to
             const distToPitchCol = Math.abs(item.x - pitchColX);
@@ -693,10 +706,12 @@ export function usePdfParser() {
                 areaValue = parsed;
               }
             } else if (minDist === distToPercentCol && percentColX >= 0) {
-              // Parse percentage, removing % sign
-              const parsed = parseFloat(item.str.replace(/[%\s]/g, ''));
+              // Parse percentage, removing % sign and any white space
+              const percentStr = item.str.replace(/[%\s]/g, '');
+              const parsed = parseFloat(percentStr);
               if (!isNaN(parsed)) {
                 percentValue = parsed;
+                console.log(`    Parsed percent value: ${percentValue}% from "${item.str}"`);
               }
             }
           }
@@ -751,6 +766,12 @@ export function usePdfParser() {
       if (extractedTableData && extractedTableData.pitches.length > 0) {
         const { pitches, areas, percentages } = extractedTableData;
         
+        // Log the extracted data for debugging
+        console.log("EXTRACTED PITCH TABLE DATA:");
+        pitches.forEach((pitch, idx) => {
+          console.log(`  ${pitch}: ${areas[idx]} sq ft (${percentages[idx]}%)`);
+        });
+        
         // Calculate total area from areas in the table
         const tableTotalArea = areas.reduce((sum, area) => sum + area, 0);
         console.log(`Table total area: ${tableTotalArea} sq ft`);
@@ -759,17 +780,13 @@ export function usePdfParser() {
         const totalPercentage = percentages.reduce((sum, pct) => sum + pct, 0);
         console.log(`Total percentage from table: ${totalPercentage}%`);
         
-        // If total percentage is close to 100%, we have a valid table
-        const isValidPercentage = totalPercentage >= 95 && totalPercentage <= 105;
-        console.log(`Percentage validation: ${isValidPercentage ? 'PASSED' : 'FAILED'}`);
-        
         // If we don't already have a total area, use the table total
         if (measurements.totalArea === 0) {
           measurements.totalArea = tableTotalArea;
           console.log(`Setting total area from table: ${tableTotalArea} sq ft`);
         }
         
-        // Assign areas to pitches
+        // Directly use the extracted values - don't try to recalculate percentages
         pitches.forEach((pitch, idx) => {
           // Normalize pitch format (using colon for the app)
           const normalizedPitch = pitch.includes(':') ? pitch : pitch.replace('/', ':');
@@ -790,6 +807,9 @@ export function usePdfParser() {
         });
         
         console.log("Successfully processed pitch table data");
+        
+        // Important: Skip all fallback mechanisms if we successfully extracted the table
+        return measurements;
       } else {
         console.log("No valid pitch table found using coordinate-based detection, falling back to other methods");
       
@@ -1226,9 +1246,18 @@ export function usePdfParser() {
           const scaleFactor = measurements.totalArea / extractedTotal;
           console.log(`Scaling all pitch areas by factor ${scaleFactor.toFixed(3)} to match total area`);
           
+          // Rather than uniformly scaling, preserve relative proportions
+          const areaPercentages: { [pitch: string]: number } = {};
+          
+          // Calculate original percentages
           for (const [pitch, area] of Object.entries(measurements.areasByPitch)) {
-            measurements.areasByPitch[pitch] = area * scaleFactor;
-            console.log(`Scaled ${pitch} area to ${measurements.areasByPitch[pitch].toFixed(1)} sq ft`);
+            areaPercentages[pitch] = (area / extractedTotal) * 100;
+          }
+          
+          // Apply percentages to total area
+          for (const [pitch, percentage] of Object.entries(areaPercentages)) {
+            measurements.areasByPitch[pitch] = (percentage / 100) * measurements.totalArea;
+            console.log(`Scaled ${pitch} area to ${measurements.areasByPitch[pitch].toFixed(1)} sq ft (${percentage.toFixed(1)}%)`);
           }
         } else if (measurements.predominantPitch && measurements.totalArea > 0) {
           // Add fix: If we have a large discrepancy, assign the remaining area to the predominant pitch
