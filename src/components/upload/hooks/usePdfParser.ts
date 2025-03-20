@@ -588,8 +588,14 @@ export function usePdfParser() {
             // Pattern 2: Values on the line after "Area (sq ft)"
             /Area\s+\(?sq\s+ft\)?\s*\n\s*((?:\d+[.,]?\d*\s+)*\d+[.,]?\d*)/i,
             
-            // Pattern 3: Any line with numeric values that match the number of pitch headers
-            new RegExp(`\\b((?:\\d+[.,]?\\d*\\s+){${pitchHeaders.length-1}}\\d+[.,]?\\d*)\\b`, 'i')
+            // Pattern 3: More precise pattern to find area values in the row after "Area (sq ft)"
+            /Area\s+\(?sq\s+ft\)?\s*[\r\n][\s\r\n]*([0-9.,]+(?:\s+[0-9.,]+)*)/i,
+            
+            // Pattern 4: Even more precise pattern for finding areas, searching for numbers positioned under pitch values
+            new RegExp(`Area\\s+\\(?sq\\s+ft\\)?.*?\\n.*?(${pitchHeaders.map(() => '\\s*[0-9.,]+').join('')})`, 'i'),
+            
+            // Pattern 5: Look for lines with just numeric values that could be area values
+            /^\s*([0-9.,]+(?:\s+[0-9.,]+)*)\s*$/m
           ];
           
           let areaValues: number[] = [];
@@ -597,52 +603,150 @@ export function usePdfParser() {
           for (const pattern of areaRowPatterns) {
             const areaMatch = areasPerPitchSection.match(pattern);
             if (areaMatch && areaMatch[1]) {
-              const candidateValues = areaMatch[1].trim().split(/\s+/)
+              // Clean up the matched string - remove extra whitespace, split by whitespace
+              const cleanMatch = areaMatch[1].trim().replace(/\s+/g, ' ');
+              console.log("Possible area values raw match:", cleanMatch);
+              
+              const candidateValues = cleanMatch.split(/\s+/)
                 .map(val => parseFloat(val.replace(/,/g, '')))
-                .filter(val => !isNaN(val));
+                .filter(val => !isNaN(val) && val > 0); // Only include positive, non-zero values
+                
+              console.log("Candidate area values:", candidateValues);
                 
               // Check if the number of values matches the number of pitch headers
               if (candidateValues.length === pitchHeaders.length) {
                 areaValues = candidateValues;
                 console.log("Found area values matching pitch count:", areaValues);
                 break;
-              } else {
+              } else if (candidateValues.length > 0) {
                 console.log("Area count doesn't match pitch count, trying next pattern");
+                console.log(`Found ${candidateValues.length} areas but have ${pitchHeaders.length} pitches`);
               }
             }
           }
           
-          // If we found area values and they match the number of pitches, map them
-          if (areaValues.length > 0 && areaValues.length === pitchHeaders.length) {
-            // Try to also extract the percentage row for validation
-            const percentRowPatterns = [
-              // Pattern 1: Standard format with label and percentage values on same line
-              /%\s+of\s+Roof\s+((?:\d+[.,]?\d*\s*%\s+)*\d+[.,]?\d*\s*%)/i,
-              
-              // Pattern 2: Values on the line after "% of Roof"
-              /%\s+of\s+Roof\s*\n\s*((?:\d+[.,]?\d*\s*%\s+)*\d+[.,]?\d*\s*%)/i,
-              
-              // Pattern 3: Any line with percentage values matching the number of pitch headers
-              new RegExp(`\\b((?:\\d+[.,]?\\d*\\s*%\\s+){${pitchHeaders.length-1}}\\d+[.,]?\\d*\\s*%)\\b`, 'i')
-            ];
+          // If we couldn't match the exact number of areas to pitches, do a more thorough search
+          if (areaValues.length === 0 || areaValues.length !== pitchHeaders.length) {
+            console.log("Standard patterns failed. Attempting more thorough search for area values...");
             
-            let percentValues: number[] = [];
+            // Look for lines with just numbers that might be area values
+            const numberLines = areasPerPitchSection.split('\n')
+              .map(line => line.trim())
+              .filter(line => /^[0-9., ]+$/.test(line))
+              .map(line => line.split(/\s+/).map(val => parseFloat(val.replace(/,/g, ''))).filter(val => !isNaN(val) && val > 0));
             
-            for (const pattern of percentRowPatterns) {
-              const percentMatch = areasPerPitchSection.match(pattern);
-              if (percentMatch && percentMatch[1]) {
-                percentValues = percentMatch[1].trim().split(/\s+/)
-                  .map(val => parseFloat(val.replace(/[%,]/g, '')))
-                  .filter(val => !isNaN(val));
-                  
-                if (percentValues.length === pitchHeaders.length) {
-                  console.log("Found percentage values matching pitch count:", percentValues);
-                  break;
-                }
+            console.log("Found number-only lines:", numberLines);
+            
+            // Find a line with the same number of values as pitch headers
+            for (const line of numberLines) {
+              if (line.length === pitchHeaders.length) {
+                areaValues = line;
+                console.log("Found matching area values from standalone line:", areaValues);
+                break;
               }
             }
             
-            // Map the pitches to areas, and log the percentages for validation if available
+            // If still no match, try to find area values from specific patterns near "sq ft" text
+            if (areaValues.length === 0 || areaValues.length !== pitchHeaders.length) {
+              const areaTextMatches = Array.from(areasPerPitchSection.matchAll(/([0-9.,]+)\s*(?:sq\s*ft|square\s*feet)/gi));
+              console.log("Found specific area text matches:", areaTextMatches.map(m => m[1]));
+              
+              if (areaTextMatches.length === pitchHeaders.length) {
+                areaValues = areaTextMatches.map(m => parseFloat(m[1].replace(/,/g, '')));
+                console.log("Extracted area values from specific area mentions:", areaValues);
+              }
+            }
+          }
+          
+          // Try to also extract the percentage row for validation
+          const percentRowPatterns = [
+            // Pattern 1: Standard format with label and percentage values on same line
+            /%\s+of\s+Roof\s+((?:\d+[.,]?\d*\s*%\s+)*\d+[.,]?\d*\s*%)/i,
+            
+            // Pattern 2: Values on the line after "% of Roof"
+            /%\s+of\s+Roof\s*\n\s*((?:\d+[.,]?\d*\s*%\s+)*\d+[.,]?\d*\s*%)/i,
+            
+            // Pattern 3: More precise pattern for finding percentages
+            /%\s+of\s+Roof.*?[\r\n][\s\r\n]*([0-9.,]+%(?:\s+[0-9.,]+%)*)/i,
+            
+            // Pattern 4: Look for lines with just percentage values
+            /^\s*([0-9.,]+%(?:\s+[0-9.,]+%)*)\s*$/m
+          ];
+          
+          let percentValues: number[] = [];
+          
+          for (const pattern of percentRowPatterns) {
+            const percentMatch = areasPerPitchSection.match(pattern);
+            if (percentMatch && percentMatch[1]) {
+              // Clean up the matched string
+              const cleanMatch = percentMatch[1].trim().replace(/\s+/g, ' ');
+              console.log("Possible percentage values raw match:", cleanMatch);
+              
+              // Extract numeric values from percentages (remove % symbols)
+              percentValues = cleanMatch.split(/\s+/)
+                .map(val => parseFloat(val.replace(/[%,]/g, '')))
+                .filter(val => !isNaN(val) && val >= 0 && val <= 100); // Only include valid percentage values
+                
+              console.log("Candidate percentage values:", percentValues);
+                
+              if (percentValues.length === pitchHeaders.length) {
+                console.log("Found percentage values matching pitch count:", percentValues);
+                break;
+              }
+            }
+          }
+          
+          // If we couldn't find percentages with standard patterns, look for percentage values in lines
+          if (percentValues.length === 0 || percentValues.length !== pitchHeaders.length) {
+            // Look for lines with just percentage values
+            const percentLines = areasPerPitchSection.split('\n')
+              .map(line => line.trim())
+              .filter(line => /^[0-9., %]+$/.test(line) && line.includes('%'))
+              .map(line => {
+                // Extract all percentage values from the line
+                const matches = Array.from(line.matchAll(/([0-9.,]+)\s*%/g));
+                return matches.map(m => parseFloat(m[1].replace(/,/g, '')));
+              })
+              .filter(percentages => percentages.length > 0);
+            
+            console.log("Found percentage-only lines:", percentLines);
+            
+            // Find a line with the same number of values as pitch headers
+            for (const line of percentLines) {
+              if (line.length === pitchHeaders.length) {
+                percentValues = line;
+                console.log("Found matching percentage values from standalone line:", percentValues);
+                break;
+              }
+            }
+          }
+          
+          // Final validation: make sure areaValues look reasonable
+          if (areaValues.length > 0 && measurements.totalArea > 0) {
+            // Calculate sum of areas to validate against total area
+            const sumAreas = areaValues.reduce((sum, area) => sum + area, 0);
+            
+            // If the sum of areas is dramatically different from total area (more than 20% off),
+            // something might be wrong with our extraction
+            if (Math.abs(sumAreas - measurements.totalArea) / measurements.totalArea > 0.2) {
+              console.warn(`Warning: Sum of extracted areas (${sumAreas.toFixed(1)}) differs significantly from total area (${measurements.totalArea})`);
+              
+              // If we have percentage values, we can use them to recalculate areas
+              if (percentValues.length === pitchHeaders.length) {
+                console.log("Attempting to recalculate areas using percentage values");
+                
+                // Recalculate areas using percentages and total area
+                areaValues = percentValues.map(percent => (percent / 100) * measurements.totalArea);
+                
+                console.log("Recalculated areas using percentages:", areaValues);
+              }
+            } else {
+              console.log(`Validation: Sum of areas (${sumAreas.toFixed(1)}) is close to total area (${measurements.totalArea})`);
+            }
+          }
+          
+          // Map the pitches to areas, and log the percentages for validation if available
+          if (areaValues.length > 0 && areaValues.length === pitchHeaders.length) {
             pitchHeaders.forEach((pitch, index) => {
               // Clean up the pitch value - ensure it's in the correct format
               let cleanPitch = pitch.trim();
