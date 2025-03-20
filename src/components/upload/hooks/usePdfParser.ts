@@ -676,90 +676,47 @@ export function usePdfParser() {
         const pitchTableText = areasPerPitchMatch[0];
         console.log("Pitch table text:", pitchTableText);
 
-        // DIRECT METHOD: Try a very explicit pattern for the fixed 3-column table format
-        // Format we're looking for:
-        // Roof Pitches Area (sq ft) % of Roof
-        // 1/12 2/12 5/12
-        // 454.6 521.0 1888.5
-        // 15.9% 18.2% 65.9%
-        const tablePattern = /Roof\s+Pitches\s+Area\s*\(sq\s+ft\)\s+%\s+of\s+Roof\s+([\d\/]+)\s+([\d\/]+)\s+([\d\/]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)\s+([\d.]+%)\s+([\d.]+%)\s+([\d.]+%)/is;
-        const tableMatch = pitchTableText.match(tablePattern);
-        
-        if (tableMatch) {
-          console.log("Found exact 3-column table format with all data");
-          // We have 3 pitches, 3 areas, and 3 percentages
-          const pitches = [tableMatch[1], tableMatch[2], tableMatch[3]];
-          const areas = [
-            parseFloat(tableMatch[4].replace(/,/g, '')),
-            parseFloat(tableMatch[5].replace(/,/g, '')),
-            parseFloat(tableMatch[6].replace(/,/g, ''))
-          ];
+        // Instead of looking for a fixed 3-column format, use a more robust approach
+        // that can handle any number of pitches by using regex matches for individual rows
+
+        // Look for lines that follow the pattern: "x/12   123.4   56.7%"
+        const rowPattern = /(\d+\/\d+)\s+([\d,.]+)\s+([\d,.]+%)/g;
+        const rowMatches = Array.from(pitchTableText.matchAll(rowPattern));
+
+        if (rowMatches.length > 0) {
+          console.log(`Found ${rowMatches.length} individual pitch-area-percent rows`);
           
-          console.log("Extracted pitches:", pitches);
-          console.log("Extracted areas:", areas);
-          
-          // Assign each pitch to its corresponding area
-          for (let i = 0; i < pitches.length; i++) {
-            if (!isNaN(areas[i]) && areas[i] > 0) {
-              measurements.areasByPitch[pitches[i]] = areas[i];
-              console.log(`Mapped pitch ${pitches[i]} to area ${areas[i]} sq ft`);
+          for (const match of rowMatches) {
+            const pitch = match[1];
+            const area = parseFloat(match[2].replace(/,/g, ''));
+            const percent = match[3];
+            
+            if (!isNaN(area) && area > 0) {
+              measurements.areasByPitch[pitch] = area;
+              console.log(`Mapped pitch ${pitch} to area ${area} sq ft (${percent}) from individual row`);
             }
           }
         }
-        
-        // SPECIFIC ROW MATCH METHOD: If the first approach fails, try looking for specific row patterns
+
+        // If the direct row pattern didn't work, try looking for separate rows
         if (Object.keys(measurements.areasByPitch).length === 0) {
-          console.log("Trying direct row pattern matches...");
+          console.log("Trying to extract pitches and areas from separate rows...");
           
-          // First, look for a row of pitches
-          const pitchRowMatch = pitchTableText.match(/(?:Roof\s+Pitches|Pitch).*?\s+([\d\/]+)\s+([\d\/]+)\s+([\d\/]+)/is);
-          // Then look for a row of areas
-          const areaRowMatch = pitchTableText.match(/(?:Area\s*\(sq\s+ft\)|Area).*?\s+([\d.,]+)\s+([\d.,]+)\s+([\d.,]+)/is);
-          // Then look for a row of percentages
-          const percentRowMatch = pitchTableText.match(/(?:%\s+of\s+Roof|%).*?\s+([\d.]+%)\s+([\d.]+%)\s+([\d.]+%)/is);
+          // Look for any pitch/number combinations in the table area
+          const pitchAreaPattern = /(\d+\/\d+)[\s\n]*?([0-9,.]+)/g;
+          const pitchAreaMatches = Array.from(pitchTableText.matchAll(pitchAreaPattern));
           
-          if (pitchRowMatch && areaRowMatch) {
-            console.log("Found separate rows for pitches and areas");
+          if (pitchAreaMatches.length > 0) {
+            console.log(`Found ${pitchAreaMatches.length} potential pitch-area pairs`);
             
-            const pitches = [pitchRowMatch[1], pitchRowMatch[2], pitchRowMatch[3]];
-            const areas = [
-              parseFloat(areaRowMatch[1].replace(/,/g, '')),
-              parseFloat(areaRowMatch[2].replace(/,/g, '')),
-              parseFloat(areaRowMatch[3].replace(/,/g, ''))
-            ];
-            
-            console.log("Extracted pitches from row:", pitches);
-            console.log("Extracted areas from row:", areas);
-            
-            // Assign each pitch to its corresponding area
-            for (let i = 0; i < pitches.length; i++) {
-              if (!isNaN(areas[i]) && areas[i] > 0) {
-                measurements.areasByPitch[pitches[i]] = areas[i];
-                console.log(`Mapped pitch ${pitches[i]} to area ${areas[i]} sq ft from rows`);
-              }
-            }
-          }
-        }
-        
-        // INDIVIDUAL ROW MATCHES: Try to find individual pitch-area-percent rows
-        if (Object.keys(measurements.areasByPitch).length === 0) {
-          console.log("Trying individual pitch-area-percent rows...");
-          
-          // Look for lines that follow the pattern: "x/12   123.4   56.7%"
-          const rowPattern = /(\d+\/\d+)\s+([\d,.]+)\s+([\d,.]+%)/g;
-          const rowMatches = Array.from(pitchTableText.matchAll(rowPattern));
-          
-          if (rowMatches.length > 0) {
-            console.log(`Found ${rowMatches.length} individual pitch-area-percent rows`);
-            
-            for (const match of rowMatches) {
+            for (const match of pitchAreaMatches) {
               const pitch = match[1];
               const area = parseFloat(match[2].replace(/,/g, ''));
-              const percent = match[3];
               
-              if (!isNaN(area) && area > 0) {
+              // Only add if it's a reasonable area value
+              if (!isNaN(area) && area > 0 && area < 100000) {
                 measurements.areasByPitch[pitch] = area;
-                console.log(`Mapped pitch ${pitch} to area ${area} sq ft (${percent}) from individual row`);
+                console.log(`Found pitch ${pitch} with area ${area} sq ft`);
               }
             }
           }
@@ -843,9 +800,16 @@ export function usePdfParser() {
         if (modernTableMatch) {
           console.log("Found modern table header format");
           
-          // Find all instances of "x/12  1234.5  56.7%" patterns in the document
-          const pitchAreaPercentRegex = /(\d+\/\d+)\s+([\d,.]+)\s+(\d+(?:\.\d+)?%)/g;
-          const pitchAreaMatches = Array.from(fullText.matchAll(pitchAreaPercentRegex));
+          // Get text chunk around the matched pattern for better context
+          const matchPosition = modernTableMatch.index || 0;
+          const startPos = Math.max(0, matchPosition - 100);
+          const endPos = Math.min(fullText.length, matchPosition + 2000); // Get more text after the header
+          const tableContext = fullText.substring(startPos, endPos);
+          
+          // Enhanced pattern to find all pitches - matches pattern like "4/12" or "4:12" followed by area and percentage
+          // Use a more flexible regex that can handle different spacing and formats
+          const pitchAreaPercentRegex = /(\d+[:\/]\d+)\s+([\d,.]+)(?:\s*sq\s*ft)?(?:\s+|[\s\n]+)(\d+(?:\.\d+)?%)?/g;
+          const pitchAreaMatches = Array.from(tableContext.matchAll(pitchAreaPercentRegex));
           
           if (pitchAreaMatches.length > 0) {
             console.log("Found pitch-area-percent patterns:", pitchAreaMatches.length);
@@ -855,8 +819,31 @@ export function usePdfParser() {
               const area = parseFloat(areaStr.replace(/,/g, ''));
               
               if (!isNaN(area) && area > 0) {
-                measurements.areasByPitch[pitch] = area;
-                console.log(`Found pitch ${pitch} with area ${area} sq ft (${percentStr})`);
+                // Normalize pitch format if needed
+                const normalizedPitch = pitch.includes('/') ? pitch : pitch.replace(':', '/');
+                measurements.areasByPitch[normalizedPitch] = area;
+                console.log(`Found pitch ${normalizedPitch} with area ${area} sq ft ${percentStr || ''}`);
+              }
+            }
+          }
+          
+          // If we still didn't find any pitches, try an even more flexible approach
+          if (Object.keys(measurements.areasByPitch).length === 0) {
+            // Try to find any pattern of X/12 followed by a number within reasonable distance
+            const veryLoosePattern = /(\d+\/12)[\s\S]{1,50}?([\d,.]+)/g;
+            const looseMatches = Array.from(tableContext.matchAll(veryLoosePattern));
+            
+            if (looseMatches.length > 0) {
+              console.log("Found loose pitch-area matches:", looseMatches.length);
+              
+              for (const match of looseMatches) {
+                const [_, pitch, areaStr] = match;
+                const area = parseFloat(areaStr.replace(/,/g, ''));
+                
+                if (!isNaN(area) && area > 0 && area < 100000) {
+                  measurements.areasByPitch[pitch] = area;
+                  console.log(`Found pitch ${pitch} with area ${area} sq ft using flexible pattern`);
+                }
               }
             }
           }

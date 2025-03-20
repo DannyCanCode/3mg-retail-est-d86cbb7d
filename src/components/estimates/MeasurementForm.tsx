@@ -89,15 +89,13 @@ export function MeasurementForm({
   };
 
   const addPitchArea = () => {
-    if (measurements.areasByPitch.length < 4) {
-      setMeasurements(prev => ({
-        ...prev,
-        areasByPitch: [
-          ...prev.areasByPitch,
-          { pitch: "4:12", area: 0, percentage: 0 }
-        ]
-      }));
-    }
+    setMeasurements(prev => ({
+      ...prev,
+      areasByPitch: [
+        ...prev.areasByPitch,
+        { pitch: "4:12", area: 0, percentage: 0 }
+      ]
+    }));
   };
 
   const removePitchArea = (index: number) => {
