@@ -34,25 +34,26 @@ CREATE TABLE IF NOT EXISTS warranty_requirements (
 INSERT INTO packages (name, description, is_active)
 VALUES 
 ('GAF 1', 'Basic GAF package with standard materials', true),
-('GAF 2', 'Premium GAF package with premium materials and enhanced protection', true);
+('GAF 2', 'Premium GAF package including Cobra ventilation and enhanced accessories', true);
 
 -- Insert package materials for GAF 1 (Basic)
 INSERT INTO package_materials (package_id, material_id, is_required)
 VALUES
-(1, 'gaf-prostart-starter-shingle-strip', true),
 (1, 'gaf-timberline-hdz', true),
+(1, 'gaf-prostart-starter-shingle-strip', true),
 (1, 'gaf-seal-a-ridge', true),
 (1, 'gaf-weatherwatch-ice-water-shield', true),
-(1, 'abc-pro-guard-20', true);
+(1, 'gaf-feltbuster-synthetic-underlayment', true);
 
 -- Insert package materials for GAF 2 (Premium)
 INSERT INTO package_materials (package_id, material_id, is_required)
 VALUES
 (2, 'gaf-timberline-hdz', true),
-(2, 'gaf-seal-a-ridge', true),
 (2, 'gaf-prostart-starter-shingle-strip', true),
+(2, 'gaf-seal-a-ridge', true),
+(2, 'gaf-weatherwatch-ice-water-shield', true),
 (2, 'gaf-feltbuster-synthetic-underlayment', true),
-(2, 'gaf-weatherwatch-ice-water-shield', true);
+(2, 'gaf-cobra-ridge-vent', true);
 
 -- Insert warranty definitions
 INSERT INTO warranties (name, description, package_id, is_active)
@@ -75,4 +76,5 @@ VALUES
 (2, 'gaf-prostart-starter-shingle-strip'),
 (2, 'gaf-seal-a-ridge'),
 (2, 'gaf-weatherwatch-ice-water-shield'),
-(2, 'gaf-feltbuster-synthetic-underlayment'); 
+(2, 'gaf-feltbuster-synthetic-underlayment'),
+(2, 'gaf-cobra-ridge-vent'); 

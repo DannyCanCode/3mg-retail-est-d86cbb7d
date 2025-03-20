@@ -231,8 +231,8 @@ export function MaterialsSelectionTab({
     
     // Define preset material ids for each bundle
     const presetMaterials: { [key: string]: string[] } = {
-      "GAF 1": ["gaf-prostart-starter-shingle-strip", "gaf-timberline-hdz", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "abc-pro-guard-20"],
-      "GAF 2": ["gaf-timberline-hdz", "gaf-seal-a-ridge", "gaf-prostart-starter-shingle-strip", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield"],
+      "GAF 1": ["gaf-timberline-hdz", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "gaf-feltbuster-synthetic-underlayment"],
+      "GAF 2": ["gaf-timberline-hdz", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "gaf-feltbuster-synthetic-underlayment", "gaf-cobra-ridge-vent"],
       "OC 1": ["oc-oakridge", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "lead-boot-4inch"],
       "OC 2": ["oc-duration", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "gaf-feltbuster-synthetic-underlayment"]
     };
@@ -255,12 +255,12 @@ export function MaterialsSelectionTab({
           // Calculate bundles (3 per square)
           newQuantities[materialId] = Math.max(3, Math.ceil(squaresWithWaste * 3));
         } else if (materialId === "gaf-weatherwatch-ice-water-shield" && preset === "GAF 2") {
-          // For GAF 2, WeatherWatch is only used in valleys
-          const valleyLength = measurements.valleyLength || 0;
-          // Calculate required rolls based on valley length (approx 3 feet wide coverage)
-          const valleyAreaSqFt = Math.max(valleyLength * 3, 0);
-          // Each roll covers approx 150 sq ft
-          newQuantities[materialId] = Math.max(1, Math.ceil(valleyAreaSqFt / 150));
+          // For GAF 2, WeatherWatch is used the same as in GAF 1 (full coverage)
+          newQuantities[materialId] = calculateMaterialQuantity(
+            material,
+            measurements,
+            wasteFactor / 100
+          );
         } else {
           // Regular calculation for other materials
           newQuantities[materialId] = calculateMaterialQuantity(
