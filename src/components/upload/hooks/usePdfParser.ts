@@ -563,8 +563,25 @@ export function usePdfParser() {
           /(?:Roof\s+Pitches.*?)(?:\n.*?)?\s*?^((?:\d+\/\d+\s+)*\d+\/\d+)/im,
           
           // Pattern 3: Just look for a line with multiple pitches in the expected format
-          /^\s*((?:\d+\/\d+\s+)+\d+\/\d+)\s*$/m
+          /^\s*((?:\d+\/\d+\s+)+\d+\/\d+)\s*$/m,
+          
+          // Pattern 4: Explicitly extract from table cells - look for individual pitches in a row
+          /Roof\s+Pitches[^\n]*\n[^\n]*?((?:\d+\/\d+)[^\n]*?)(?:\n|$)/i
         ];
+        
+        // Look for all pitch values in table cells (for handling table rows)
+        const allTablePitches = Array.from(areasPerPitchSection.matchAll(/(\d+\/\d+)/g)).map(m => m[1]);
+        console.log("Found all pitch values in section:", allTablePitches);
+        
+        // If we find multiple pitch values in the section but the regular patterns don't work,
+        // we can try to use them directly
+        let foundSpecificPitches = false;
+        if (allTablePitches.length > 0 && allTablePitches.length <= 5) { // Reasonable limit for number of pitches
+          console.log("Using directly extracted pitch values");
+          pitchHeaders = [...new Set(allTablePitches)]; // Remove duplicates
+          foundHorizontalTable = true;
+          foundSpecificPitches = true;
+        }
         
         for (const pattern of pitchHeaderPatterns) {
           const headerMatch = areasPerPitchSection.match(pattern);
@@ -580,6 +597,39 @@ export function usePdfParser() {
         
         // If we found pitch headers, look for the corresponding area values
         if (foundHorizontalTable && pitchHeaders.length > 0) {          
+          // Declare areaValues at the beginning of the block
+          let areaValues: number[] = [];
+          
+          // If we're using directly extracted pitches, try to directly extract area values as well
+          if (foundSpecificPitches) {
+            // Look for all numbers followed by "sq ft" or that have decimal points (likely areas)
+            const allPossibleAreas = Array.from(
+              areasPerPitchSection.matchAll(/(\d+[.,]\d+)(?:\s*sq\s*ft|\s*square\s*feet)?/g)
+            ).map(m => parseFloat(m[1].replace(/,/g, '')));
+            
+            console.log("Found all possible area values:", allPossibleAreas);
+            
+            // Filter for reasonable area values (not too small, not too large)
+            const reasonableAreas = allPossibleAreas.filter(area => area > 10 && area < 10000);
+            
+            if (reasonableAreas.length === pitchHeaders.length) {
+              console.log("Found exactly matching area values for the extracted pitches:", reasonableAreas);
+              areaValues = reasonableAreas;
+            }
+          }
+          
+          // Check if we have specific text patterns like "270.5 sq ft" and "1499.3 sq ft" that match our example
+          const specificAreaMatches = Array.from(
+            areasPerPitchSection.matchAll(/(\d+[.,]\d+)\s*sq\s*ft/gi)
+          ).map(m => parseFloat(m[1].replace(/,/g, '')));
+          
+          console.log("Found specific 'X sq ft' matches:", specificAreaMatches);
+          
+          if (specificAreaMatches.length === pitchHeaders.length) {
+            console.log("Using areas explicitly labeled with 'sq ft'");
+            areaValues = specificAreaMatches;
+          }
+          
           // Look for the area row, with multiple patterns to handle different formats
           const areaRowPatterns = [
             // Pattern 1: Standard format with label and values on same line
@@ -595,65 +645,36 @@ export function usePdfParser() {
             new RegExp(`Area\\s+\\(?sq\\s+ft\\)?.*?\\n.*?(${pitchHeaders.map(() => '\\s*[0-9.,]+').join('')})`, 'i'),
             
             // Pattern 5: Look for lines with just numeric values that could be area values
-            /^\s*([0-9.,]+(?:\s+[0-9.,]+)*)\s*$/m
+            /^\s*([0-9.,]+(?:\s+[0-9.,]+)*)\s*$/m,
+            
+            // Pattern 6: Direct table cell extraction for areas
+            /Area\s+\(sq\s+ft\)[^\n]*\n[^\n]*?((?:[0-9.,]+)[^\n]*?)(?:\n|$)/i
           ];
           
-          let areaValues: number[] = [];
-          
-          for (const pattern of areaRowPatterns) {
-            const areaMatch = areasPerPitchSection.match(pattern);
-            if (areaMatch && areaMatch[1]) {
-              // Clean up the matched string - remove extra whitespace, split by whitespace
-              const cleanMatch = areaMatch[1].trim().replace(/\s+/g, ' ');
-              console.log("Possible area values raw match:", cleanMatch);
-              
-              const candidateValues = cleanMatch.split(/\s+/)
-                .map(val => parseFloat(val.replace(/,/g, '')))
-                .filter(val => !isNaN(val) && val > 0); // Only include positive, non-zero values
-                
-              console.log("Candidate area values:", candidateValues);
-                
-              // Check if the number of values matches the number of pitch headers
-              if (candidateValues.length === pitchHeaders.length) {
-                areaValues = candidateValues;
-                console.log("Found area values matching pitch count:", areaValues);
-                break;
-              } else if (candidateValues.length > 0) {
-                console.log("Area count doesn't match pitch count, trying next pattern");
-                console.log(`Found ${candidateValues.length} areas but have ${pitchHeaders.length} pitches`);
-              }
-            }
-          }
-          
-          // If we couldn't match the exact number of areas to pitches, do a more thorough search
+          // Only try the traditional row patterns if we haven't found areas yet
           if (areaValues.length === 0 || areaValues.length !== pitchHeaders.length) {
-            console.log("Standard patterns failed. Attempting more thorough search for area values...");
-            
-            // Look for lines with just numbers that might be area values
-            const numberLines = areasPerPitchSection.split('\n')
-              .map(line => line.trim())
-              .filter(line => /^[0-9., ]+$/.test(line))
-              .map(line => line.split(/\s+/).map(val => parseFloat(val.replace(/,/g, ''))).filter(val => !isNaN(val) && val > 0));
-            
-            console.log("Found number-only lines:", numberLines);
-            
-            // Find a line with the same number of values as pitch headers
-            for (const line of numberLines) {
-              if (line.length === pitchHeaders.length) {
-                areaValues = line;
-                console.log("Found matching area values from standalone line:", areaValues);
-                break;
-              }
-            }
-            
-            // If still no match, try to find area values from specific patterns near "sq ft" text
-            if (areaValues.length === 0 || areaValues.length !== pitchHeaders.length) {
-              const areaTextMatches = Array.from(areasPerPitchSection.matchAll(/([0-9.,]+)\s*(?:sq\s*ft|square\s*feet)/gi));
-              console.log("Found specific area text matches:", areaTextMatches.map(m => m[1]));
-              
-              if (areaTextMatches.length === pitchHeaders.length) {
-                areaValues = areaTextMatches.map(m => parseFloat(m[1].replace(/,/g, '')));
-                console.log("Extracted area values from specific area mentions:", areaValues);
+            for (const pattern of areaRowPatterns) {
+              const areaMatch = areasPerPitchSection.match(pattern);
+              if (areaMatch && areaMatch[1]) {
+                // Clean up the matched string - remove extra whitespace, split by whitespace
+                const cleanMatch = areaMatch[1].trim().replace(/\s+/g, ' ');
+                console.log("Possible area values raw match:", cleanMatch);
+                
+                const candidateValues = cleanMatch.split(/\s+/)
+                  .map(val => parseFloat(val.replace(/,/g, '')))
+                  .filter(val => !isNaN(val) && val > 0); // Only include positive, non-zero values
+                
+                console.log("Candidate area values:", candidateValues);
+                
+                // Check if the number of values matches the number of pitch headers
+                if (candidateValues.length === pitchHeaders.length) {
+                  areaValues = candidateValues;
+                  console.log("Found area values matching pitch count:", areaValues);
+                  break;
+                } else if (candidateValues.length > 0) {
+                  console.log("Area count doesn't match pitch count, trying next pattern");
+                  console.log(`Found ${candidateValues.length} areas but have ${pitchHeaders.length} pitches`);
+                }
               }
             }
           }
