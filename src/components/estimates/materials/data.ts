@@ -199,10 +199,10 @@ export const ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.UNDERLAYMENTS,
     price: 132.22,
     unit: "Roll",
-    approxPerSquare: 132.22,
+    approxPerSquare: 165.28,
     coverageRule: {
-      description: "1 Square/Roll (100 sq ft)",
-      calculation: "Total Low Slope Area ÷ 1, rounded up",
+      description: "0.8 Square/Roll (80 sq ft)",
+      calculation: "Total Low Slope Area ÷ 0.8, rounded up",
     }
   },
   // METAL

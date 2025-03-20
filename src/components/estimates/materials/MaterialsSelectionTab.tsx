@@ -341,6 +341,10 @@ export function MaterialsSelectionTab({
         return `Low slope area ${lowSlopeArea.toFixed(1)} sq ft ÷ 100 = ${(lowSlopeArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
       }
       
+      if (material.id === "polyglass-polyflex-app") {
+        return `Low slope area ${lowSlopeArea.toFixed(1)} sq ft ÷ 100 = ${(lowSlopeArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls (1.25 rolls per square)`;
+      }
+      
       // Default low slope material
       let squaresPerRoll = 1.5; // Default
       if (material.coverageRule.description.includes("Base")) squaresPerRoll = 2;

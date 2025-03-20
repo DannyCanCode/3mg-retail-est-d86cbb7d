@@ -119,6 +119,8 @@ export function calculateMaterialQuantity(
     
     if (material.id === "polyglass-elastoflex-sbs") {
       return Math.ceil(lowSlopeWithWaste / 0.8); // 0.8 squares per roll
+    } else if (material.id === "polyglass-polyflex-app") {
+      return Math.ceil(lowSlopeWithWaste / 0.8); // 0.8 squares per roll (1.25 rolls per square)
     } else if (material.coverageRule.description.includes("Base")) {
       return Math.ceil(lowSlopeWithWaste / 2); // 2 squares per roll (default)
     } else if (material.coverageRule.description.includes("Cap")) {
