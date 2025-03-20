@@ -17,8 +17,27 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 // Convert ParsedMeasurements to MeasurementValues format
-const convertToMeasurementValues = (parsedData: ParsedMeasurements): MeasurementValues => {
+const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): MeasurementValues => {
   console.log("Converting PDF data to measurement values");
+  
+  // Handle null/undefined data safely
+  if (!parsedData) {
+    console.warn("Warning: parsedData is null or undefined, returning default measurement values");
+    return {
+      totalArea: 0,
+      roofPitch: "",
+      ridgeLength: 0,
+      hipLength: 0,
+      valleyLength: 0,
+      rakeLength: 0,
+      eaveLength: 0,
+      stepFlashingLength: 0,
+      flashingLength: 0,
+      penetrationsArea: 0,
+      areasByPitch: [] // The type system expects an array of AreaByPitch objects
+    };
+  }
+  
   console.log("Raw areasByPitch data:", parsedData.areasByPitch);
   
   // CRITICAL FIX: Don't modify or transform the original pitch data at all
