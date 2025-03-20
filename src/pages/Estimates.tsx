@@ -20,68 +20,28 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 const convertToMeasurementValues = (parsedData: ParsedMeasurements): MeasurementValues => {
   console.log("Converting PDF data to measurement values");
   console.log("Raw areasByPitch data:", parsedData.areasByPitch);
-  console.log("Raw areasByPitch types:", Object.entries(parsedData.areasByPitch || {}).map(([k, v]) => `${k}: ${typeof v}`));
-  console.log("IMPORTANT: Number of pitches in raw data:", Object.keys(parsedData.areasByPitch || {}).length);
   
-  // Ensure we have areas by pitch data and it's in the correct format
-  const pitchData = parsedData.areasByPitch || {};
-  console.log("Number of pitches found:", Object.keys(pitchData).length);
-  
-  // Force deep-copy to ensure we don't lose data due to object references
-  const areasByPitchData = JSON.parse(JSON.stringify(pitchData));
-  
-  // Convert areasByPitch from Record<string, number> to AreaByPitch[] format
-  // This is CRITICAL for the UI to show multiple pitches
-  const areasByPitch = Object.entries(areasByPitchData)
-    .filter(([pitch, area]) => {
-      // Only filter out entries that are completely invalid (undefined, null)
-      // Keep all pitches with ANY numeric value, even if very small
-      const numArea = typeof area === 'number' ? area : parseFloat(String(area));
-      const valid = !isNaN(numArea);
-      if (!valid) {
-        console.log(`Filtering out invalid area for pitch ${pitch}: ${area}`);
-      } else {
-        console.log(`Keeping pitch ${pitch} with area ${numArea} (valid numeric value)`);
-      }
-      return valid;
-    })
+  // CRITICAL FIX: Don't modify or transform the original pitch data at all
+  // Just convert it directly to the required format without filtering
+  const areasByPitch = Object.entries(parsedData.areasByPitch || {})
     .map(([pitch, area]) => {
+      // Ensure numeric value for area
       const numArea = typeof area === 'number' ? area : parseFloat(String(area));
+      
+      // Don't normalize pitch format - keep it exactly as extracted
+      const normalizedPitch = pitch.includes(':') ? pitch : pitch.replace('/', ':');
+      
       console.log(`Processing pitch ${pitch} with area ${numArea}`);
+      
       return {
-        pitch: pitch.includes(':') ? pitch : pitch.replace('/', ':'), // Normalize format for UI
+        pitch: normalizedPitch,
         area: numArea,
         percentage: parsedData.totalArea > 0 ? (numArea / parsedData.totalArea) * 100 : 0
       };
     });
 
-  console.log("Converted areasByPitch to array format:", areasByPitch);
-  console.log("IMPORTANT: Number of pitches after conversion:", areasByPitch.length);
-
-  // Special case: If we have no areas, use the predominant pitch
-  let pitchAreas = areasByPitch;
-  if (areasByPitch.length === 0 && parsedData.totalArea > 0 && parsedData.predominantPitch) {
-    // Convert predominant pitch from "x:y" format to "x/y" if needed
-    const predominantPitch = parsedData.predominantPitch.includes(':') 
-      ? parsedData.predominantPitch 
-      : parsedData.predominantPitch.replace('/', ':');
-    
-    console.log("No areas by pitch found, using predominant pitch:", predominantPitch);
-    pitchAreas = [{
-      pitch: predominantPitch,
-      area: parsedData.totalArea,
-      percentage: 100
-    }];
-  }
-
-  // If we still have no pitch areas, use a default
-  if (pitchAreas.length === 0) {
-    console.log("Using default pitch (6:12) as fallback");
-    pitchAreas = [{ pitch: "6:12", area: parsedData.totalArea || 0, percentage: 100 }];
-  }
-  
-  console.log("FINAL areasByPitch DATA:", pitchAreas);
-  console.log("Total number of pitches:", pitchAreas.length);
+  console.log("FINAL areasByPitch DATA:", areasByPitch);
+  console.log("Total number of pitches:", areasByPitch.length);
 
   return {
     totalArea: parsedData.totalArea || 0,
@@ -94,7 +54,7 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements): Measurement
     flashingLength: parsedData.flashingLength || 0, 
     penetrationsArea: parsedData.penetrationsArea || 0,
     roofPitch: parsedData.predominantPitch || "6:12",
-    areasByPitch: pitchAreas,
+    areasByPitch: areasByPitch,
     // Include property location information
     propertyAddress: parsedData.propertyAddress || undefined,
     latitude: parsedData.latitude || undefined,
