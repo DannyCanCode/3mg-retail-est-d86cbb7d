@@ -231,8 +231,8 @@ export function MaterialsSelectionTab({
     
     // Define preset material ids for each bundle
     const presetMaterials: { [key: string]: string[] } = {
-      "GAF 1": ["gaf-timberline-hdz", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "gaf-feltbuster-synthetic-underlayment"],
-      "GAF 2": ["gaf-timberline-hdz", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "gaf-feltbuster-synthetic-underlayment", "gaf-cobra-ridge-vent"],
+      "GAF 1": ["gaf-timberline-hdz", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "abc-pro-guard-20"],
+      "GAF 2": ["gaf-timberline-hdz", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield"],
       "OC 1": ["oc-oakridge", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "lead-boot-4inch"],
       "OC 2": ["oc-duration", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "gaf-feltbuster-synthetic-underlayment"]
     };
@@ -243,8 +243,33 @@ export function MaterialsSelectionTab({
       if (material) {
         newSelectedMaterials[materialId] = material;
         
-        // Use special calculation for GAF Timberline HDZ to match Excel
-        if (materialId === "gaf-timberline-hdz") {
+        // Special handling for GAF 2 package WeatherWatch (valleys only)
+        if (materialId === "gaf-weatherwatch-ice-water-shield" && preset === "GAF 2") {
+          // Calculate quantity for valleys only
+          const valleyLength = measurements.valleyLength || 0;
+          if (valleyLength > 0) {
+            // Each valley is about 3' wide and we need 1 roll per 2 squares
+            const valleyArea = valleyLength * 3; // 3 feet wide
+            const squaresNeeded = valleyArea / 100; // Convert to squares
+            const rollsNeeded = Math.ceil(squaresNeeded / 1.5); // 1.5 squares per roll
+            
+            // Modify the material name to indicate valleys only
+            const valleyOnlyMaterial = { ...material };
+            valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
+            newSelectedMaterials[materialId] = valleyOnlyMaterial;
+            
+            newQuantities[materialId] = rollsNeeded;
+          } else {
+            // If no valleys, set a minimum of 1 roll
+            newQuantities[materialId] = 1;
+            
+            // Modify the material name to indicate valleys only
+            const valleyOnlyMaterial = { ...material };
+            valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
+            newSelectedMaterials[materialId] = valleyOnlyMaterial;
+          }
+        } else if (materialId === "gaf-timberline-hdz") {
+          // Use special calculation for GAF Timberline HDZ to match Excel
           // Ensure minimum 12% waste factor for GAF Timberline HDZ
           const actualWasteFactor = Math.max(gafTimberlineWasteFactor / 100, 0.12);
           const totalArea = Math.abs(measurements.totalArea); // Ensure positive area
@@ -254,13 +279,6 @@ export function MaterialsSelectionTab({
           
           // Calculate bundles (3 per square)
           newQuantities[materialId] = Math.max(3, Math.ceil(squaresWithWaste * 3));
-        } else if (materialId === "gaf-weatherwatch-ice-water-shield" && preset === "GAF 2") {
-          // For GAF 2, WeatherWatch is used the same as in GAF 1 (full coverage)
-          newQuantities[materialId] = calculateMaterialQuantity(
-            material,
-            measurements,
-            wasteFactor / 100
-          );
         } else {
           // Regular calculation for other materials
           newQuantities[materialId] = calculateMaterialQuantity(
