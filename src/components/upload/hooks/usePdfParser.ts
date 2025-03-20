@@ -541,7 +541,7 @@ export function usePdfParser() {
       measurements.areasByPitch = {};
       
       // First, try to look for "Areas per Pitch" or "Roof Pitches" sections in the document
-      const areasPerPitchRegex = /(?:Areas\s+per\s+Pitch|Roof\s+Pitches)[\s\S]*?(?:Total|The\s+table\s+above|Structure\s+Complexity)/i;
+      const areasPerPitchRegex = /(?:Areas\s+per\s+Pitch|Roof\s+Pitches)[\s\S]*?(?:Total|The\s+table\s+above|Structure\s+Complexity|All\s+Structures)/i;
       const areasPerPitchMatch = fullText.match(areasPerPitchRegex);
       
       if (areasPerPitchMatch) {
@@ -554,6 +554,17 @@ export function usePdfParser() {
         let pitchHeaders: string[] = [];
         let foundHorizontalTable = false;
         
+        // Look for all pitch values in table cells (for handling table rows)
+        const allTablePitches = Array.from(areasPerPitchSection.matchAll(/(\d+\/\d+)/g)).map(m => m[1]);
+        console.log("Found all pitch values in section:", allTablePitches);
+
+        // Extract rows of the table - look for rows containing both pitch values and numbers
+        const tableRows = areasPerPitchSection.split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0 && /\d+\/\d+/.test(line) || /Area\s+\(sq\s+ft\)/.test(line) || /\%\s+of\s+Roof/.test(line));
+
+        console.log("Extracted table rows:", tableRows);
+
         // Try to find the column of pitch values - we'll try multiple patterns
         const pitchHeaderPatterns = [
           // Pattern 1: "Roof Pitches 1/12 2/12 5/12" (on one line)
@@ -568,15 +579,11 @@ export function usePdfParser() {
           // Pattern 4: Explicitly extract from table cells - look for individual pitches in a row
           /Roof\s+Pitches[^\n]*\n[^\n]*?((?:\d+\/\d+)[^\n]*?)(?:\n|$)/i
         ];
-        
-        // Look for all pitch values in table cells (for handling table rows)
-        const allTablePitches = Array.from(areasPerPitchSection.matchAll(/(\d+\/\d+)/g)).map(m => m[1]);
-        console.log("Found all pitch values in section:", allTablePitches);
-        
+
         // If we find multiple pitch values in the section but the regular patterns don't work,
         // we can try to use them directly
         let foundSpecificPitches = false;
-        if (allTablePitches.length > 0 && allTablePitches.length <= 5) { // Reasonable limit for number of pitches
+        if (allTablePitches.length > 0 && allTablePitches.length <= 8) { // Reasonable limit for number of pitches
           console.log("Using directly extracted pitch values");
           pitchHeaders = [...new Set(allTablePitches)]; // Remove duplicates
           foundHorizontalTable = true;
@@ -600,8 +607,99 @@ export function usePdfParser() {
           // Declare areaValues at the beginning of the block
           let areaValues: number[] = [];
           
+          // Look for all numbers that could be area values
+          const allTableNumbers = Array.from(
+            areasPerPitchSection.matchAll(/(\d+(?:[.,]\d+)?)/g)
+          ).map(m => parseFloat(m[1].replace(/,/g, '')));
+          
+          console.log("All possible numeric values in the section:", allTableNumbers);
+          
           // If we're using directly extracted pitches, try to directly extract area values as well
           if (foundSpecificPitches) {
+            // Look specifically for rows that might contain areas
+            const areaRows = tableRows.filter(row => 
+              /Area\s+\(sq\s+ft\)/.test(row) || 
+              (row.includes('Area') && row.includes('sq') && row.includes('ft'))
+            );
+            
+            console.log("Possible area rows:", areaRows);
+            
+            // Special handling for tables with "Roof Pitches", "Area (sq ft)", and "% of Roof" rows
+            // This is a common format in many EagleView reports
+            const roofPitchRowIndex = tableRows.findIndex(row => /Roof\s+Pitches/.test(row));
+            const areaRowIndex = tableRows.findIndex(row => 
+              /Area\s+\(sq\s+ft\)/.test(row) || 
+              (row.includes('Area') && row.includes('sq') && row.includes('ft'))
+            );
+            const percentRowIndex = tableRows.findIndex(row => /\%\s+of\s+Roof/.test(row));
+            
+            // Check if we have all three rows in order - this indicates we have a proper table
+            if (roofPitchRowIndex >= 0 && areaRowIndex > roofPitchRowIndex && percentRowIndex > areaRowIndex) {
+              console.log("Found complete table with pitches, areas, and percentages");
+              
+              // Get the pitch values from the headers across columns in the roof pitch row
+              const pitchesInTableHeader = Array.from(tableRows[roofPitchRowIndex].matchAll(/(\d+\/\d+)/g))
+                .map(m => m[1]);
+              
+              if (pitchesInTableHeader.length > 0) {
+                console.log("Extracted pitch headers from table:", pitchesInTableHeader);
+                pitchHeaders = pitchesInTableHeader;
+                foundHorizontalTable = true;
+                
+                // Now extract the area values from the Area row - these should line up with the pitches
+                const areaRow = tableRows[areaRowIndex];
+                const areasInRow = Array.from(areaRow.matchAll(/(\d+[.,]?\d*)/g))
+                  .map(m => parseFloat(m[1].replace(/,/g, '')));
+                
+                // We need to filter out values that might be part of labeling (like "Area (sq ft)")
+                // Look for values that appear after the label
+                const labelMatch = areaRow.match(/Area\s+\(sq\s+ft\)/i);
+                let realAreas: number[] = [];
+                
+                if (labelMatch) {
+                  // Everything after the label might be area values
+                  const startPos = labelMatch.index + labelMatch[0].length;
+                  const restOfRow = areaRow.substring(startPos);
+                  
+                  realAreas = Array.from(restOfRow.matchAll(/(\d+[.,]?\d*)/g))
+                    .map(m => parseFloat(m[1].replace(/,/g, '')));
+                } else {
+                  // Try to filter out small numbers that might be part of the labeling
+                  realAreas = areasInRow.filter(n => n > 1);
+                }
+                
+                console.log("Areas extracted from area row:", realAreas);
+                
+                // If we don't get enough area values, try the next row
+                if (realAreas.length === 0 || realAreas.length < pitchHeaders.length) {
+                  console.log("Not enough area values in area row, reading actual area values from the next row");
+                  
+                  if (areaRowIndex + 1 < tableRows.length) {
+                    const nextRow = tableRows[areaRowIndex + 1];
+                    const nextRowAreas = Array.from(nextRow.matchAll(/(\d+[.,]?\d*)/g))
+                      .map(m => parseFloat(m[1].replace(/,/g, '')));
+                    
+                    console.log("Found potential area values in next row:", nextRowAreas);
+                    
+                    if (nextRowAreas.length >= pitchHeaders.length) {
+                      // Use the first N values that match the number of pitches
+                      realAreas = nextRowAreas.slice(0, pitchHeaders.length);
+                      console.log("Using area values from next row:", realAreas);
+                    }
+                  }
+                }
+                
+                // If we have the right number of areas, use them
+                if (realAreas.length === pitchHeaders.length) {
+                  areaValues = realAreas;
+                  console.log("Found matching area values from table rows:", areaValues);
+                }
+              }
+            }
+          }
+          
+          // If we still don't have areas, try other approaches
+          if (areaValues.length === 0 || areaValues.length !== pitchHeaders.length) {
             // Look for all numbers followed by "sq ft" or that have decimal points (likely areas)
             const allPossibleAreas = Array.from(
               areasPerPitchSection.matchAll(/(\d+[.,]\d+)(?:\s*sq\s*ft|\s*square\s*feet)?/g)
@@ -610,24 +708,28 @@ export function usePdfParser() {
             console.log("Found all possible area values:", allPossibleAreas);
             
             // Filter for reasonable area values (not too small, not too large)
-            const reasonableAreas = allPossibleAreas.filter(area => area > 10 && area < 10000);
+            const reasonableAreas = allPossibleAreas.filter(area => area > 1 && area < 10000);
             
-            if (reasonableAreas.length === pitchHeaders.length) {
-              console.log("Found exactly matching area values for the extracted pitches:", reasonableAreas);
-              areaValues = reasonableAreas;
+            if (reasonableAreas.length >= pitchHeaders.length) {
+              // Try to match areas that would make sense for roof pitches
+              // (often these are larger values in the same row as the pitch values)
+              console.log("Looking for reasonable area values that match pitch count:", reasonableAreas);
+              
+              // If we have exactly the right number, use them
+              if (reasonableAreas.length === pitchHeaders.length) {
+                areaValues = reasonableAreas;
+                console.log("Found exactly matching area values for the extracted pitches:", areaValues);
+              } else {
+                // Try to pick the most likely area values (usually larger numbers)
+                const sortedAreas = [...reasonableAreas].sort((a, b) => b - a);
+                const likelyAreas = sortedAreas.slice(0, pitchHeaders.length);
+                
+                if (likelyAreas.length === pitchHeaders.length) {
+                  console.log("Using most likely area values based on size:", likelyAreas);
+                  areaValues = likelyAreas;
+                }
+              }
             }
-          }
-          
-          // Check if we have specific text patterns like "270.5 sq ft" and "1499.3 sq ft" that match our example
-          const specificAreaMatches = Array.from(
-            areasPerPitchSection.matchAll(/(\d+[.,]\d+)\s*sq\s*ft/gi)
-          ).map(m => parseFloat(m[1].replace(/,/g, '')));
-          
-          console.log("Found specific 'X sq ft' matches:", specificAreaMatches);
-          
-          if (specificAreaMatches.length === pitchHeaders.length) {
-            console.log("Using areas explicitly labeled with 'sq ft'");
-            areaValues = specificAreaMatches;
           }
           
           // Look for the area row, with multiple patterns to handle different formats
@@ -1073,6 +1175,90 @@ export function usePdfParser() {
             predominantPitch : 
             predominantPitch.replace('/', ':');
           console.log(`Determined predominant pitch from areas: ${measurements.predominantPitch}`);
+        }
+      }
+      
+      // AFTER PITCH AREA EXTRACTION IS COMPLETE
+      // Add code to extract property address, latitude, and longitude
+      console.log("Extracting property information...");
+
+      // Look for property address
+      const addressPatterns = [
+        // Pattern 1: Common format in report headers
+        /(\d+[^,\n]+,\s*[^,\n]+,\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?)/i,
+        
+        // Pattern 2: Look for a property address label
+        /Property\s+Address:?\s*([^\n]+)/i,
+        
+        // Pattern 3: Look for address in header/title section
+        /(?:Report|Property|Location)[\s:]*([^,\n]+,[^,\n]+,[^,\n]+)/i
+      ];
+
+      for (const pattern of addressPatterns) {
+        const addressMatch = fullText.match(pattern);
+        if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
+          measurements.propertyAddress = addressMatch[1].trim();
+          console.log(`Found property address: ${measurements.propertyAddress}`);
+          break;
+        }
+      }
+
+      // Look for latitude
+      const latitudePatterns = [
+        /Latitude:?\s*([-+]?\d+\.?\d*)/i,
+        /Lat(?:itude)?:?\s*([-+]?\d+\.?\d*)/i,
+        /Coordinates:?\s*([-+]?\d+\.?\d*)[,\s]+([-+]?\d+\.?\d*)/i // Format: Coordinates: LAT, LONG
+      ];
+
+      for (const pattern of latitudePatterns) {
+        const latMatch = fullText.match(pattern);
+        if (latMatch && latMatch[1] && !isNaN(parseFloat(latMatch[1]))) {
+          measurements.latitude = latMatch[1].trim();
+          console.log(`Found latitude: ${measurements.latitude}`);
+          break;
+        }
+      }
+
+      // Look for longitude
+      const longitudePatterns = [
+        /Longitude:?\s*([-+]?\d+\.?\d*)/i,
+        /Long(?:itude)?:?\s*([-+]?\d+\.?\d*)/i,
+        /Coordinates:?\s*([-+]?\d+\.?\d*)[,\s]+([-+]?\d+\.?\d*)/i // Format: Coordinates: LAT, LONG
+      ];
+
+      for (const pattern of longitudePatterns) {
+        const longMatch = fullText.match(pattern);
+        if (longMatch) {
+          // If this is the coordinates pattern (with 2 groups), use the second group
+          if (longMatch[2] && !isNaN(parseFloat(longMatch[2]))) {
+            measurements.longitude = longMatch[2].trim();
+            console.log(`Found longitude: ${measurements.longitude}`);
+            break;
+          }
+          // Otherwise use the first group
+          else if (longMatch[1] && !isNaN(parseFloat(longMatch[1]))) {
+            measurements.longitude = longMatch[1].trim();
+            console.log(`Found longitude: ${measurements.longitude}`);
+            break;
+          }
+        }
+      }
+
+      // In EagleView reports, sometimes the address is in the header of each page
+      // Look for consistent text at the top of pages
+      if (!measurements.propertyAddress || measurements.propertyAddress.length < 5) {
+        const pageHeaderPattern = /(?:Report|Premium\s+Report)[^\n]*\n[^\n]*?(\d+[^,\n]+,\s*[^,\n]+,\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?)/i;
+        
+        // Try to find the pattern in the first few pages
+        for (let i = 1; i <= Math.min(3, numPages); i++) {
+          if (pageContents[i]) {
+            const headerMatch = pageContents[i].match(pageHeaderPattern);
+            if (headerMatch && headerMatch[1] && headerMatch[1].trim().length > 5) {
+              measurements.propertyAddress = headerMatch[1].trim();
+              console.log(`Found property address from page ${i} header: ${measurements.propertyAddress}`);
+              break;
+            }
+          }
         }
       }
       
