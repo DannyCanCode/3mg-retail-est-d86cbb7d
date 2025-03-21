@@ -564,18 +564,18 @@ export function usePdfParser() {
         if (!textItems || textItems.length === 0) return null;
         
         // Debug log: Show all text items with their coordinates
-        console.log(`Page ${pageNum} raw text items:`, textItems.map(item => ({
+        console.log(`Page ${pageNum} text items for pitch table:`, textItems.map(item => ({
           text: item.str,
           x: item.transform[4],
           y: item.transform[5]
         })));
         
-        // Group text items by their Y-coordinate (rounding to 2 decimal places)
+        // Group text items by their Y-coordinate (rounding to nearest integer to handle slight variations)
         const rowGroups: { [y: string]: Array<{str: string, x: number, y: number}> } = {};
         
         textItems.forEach(item => {
-          const x = item.transform[4];
-          const y = Math.round(item.transform[5] * 100) / 100;
+          const x = Math.round(item.transform[4]);
+          const y = Math.round(item.transform[5]);
           const yKey = y.toString();
           
           if (!rowGroups[yKey]) {
@@ -588,9 +588,6 @@ export function usePdfParser() {
             y
           });
         });
-        
-        // Debug log: Show grouped rows
-        console.log(`Page ${pageNum} grouped rows:`, rowGroups);
         
         // Sort each row by X coordinate
         Object.values(rowGroups).forEach(row => {
@@ -607,149 +604,74 @@ export function usePdfParser() {
           .sort((a, b) => b.y - a.y);
         
         // Debug log: Show sorted rows
-        console.log(`Page ${pageNum} sorted rows:`, sortedRows.map(row => ({
+        console.log("Sorted rows for pitch table:", sortedRows.map(row => ({
           y: row.y,
-          text: row.text,
-          items: row.items.map(i => `${i.str} (${i.x}, ${i.y})`)
+          text: row.text
         })));
         
-        // Look for table indicators - specifically for EagleView's format
-        const tableStartIndicators = [
-          /Areas\s*per\s*Pitch/i,
-          /Areas\s*by\s*Pitch/i,
-          /Pitch\s*Areas/i
-        ];
-        
+        // Look for table start
         let tableStartIdx = -1;
         for (let i = 0; i < sortedRows.length; i++) {
-          if (tableStartIndicators.some(pattern => pattern.test(sortedRows[i].text))) {
+          if (/Areas\s*(?:per|by)\s*Pitch/i.test(sortedRows[i].text)) {
             tableStartIdx = i;
-            console.log("Found pitch table header:", sortedRows[i].text);
+            console.log("Found pitch table start at row", i, "with text:", sortedRows[i].text);
             break;
           }
         }
         
         if (tableStartIdx === -1) return null;
         
-        // Look for the "Roof Pitches" row which typically follows
-        let headerRow = null;
-        let headerX = { pitch: 0, area: 0, percentage: 0 };
-        
-        for (let i = tableStartIdx; i < Math.min(tableStartIdx + 5, sortedRows.length); i++) {
-          const row = sortedRows[i];
-          
-          // Look for "Roof Pitches" row first
-          if (/Roof\s*Pitches/i.test(row.text)) {
-            // The next row should contain the column headers
-            const nextRow = sortedRows[i + 1];
-            if (nextRow) {
-              const hasArea = nextRow.items.some(item => /Area.*\(sq\s*ft\)/i.test(item.str));
-              const hasPercentage = nextRow.items.some(item => /%\s*of\s*Roof/i.test(item.str));
-              
-              if (hasArea || hasPercentage) {
-                headerRow = nextRow;
-                // Store X coordinates for each column
-                nextRow.items.forEach(item => {
-                  if (/Roof\s*Pitches/i.test(item.str)) headerX.pitch = item.x;
-                  if (/Area/i.test(item.str)) headerX.area = item.x;
-                  if (/%/i.test(item.str)) headerX.percentage = item.x;
-                });
-                console.log("Found column headers at row", i + 1);
-                break;
-              }
-            }
-          }
-        }
-        
-        if (!headerRow) {
-          // Try alternative header detection if "Roof Pitches" row not found
-          for (let i = tableStartIdx; i < Math.min(tableStartIdx + 5, sortedRows.length); i++) {
-            const row = sortedRows[i];
-            const items = row.items;
-            
-            // Check if this row looks like a header row
-            const hasPitch = items.some(item => /^\d+\/\d+$/.test(item.str));
-            const hasArea = items.some(item => /^\d+(?:\.\d+)?$/.test(item.str));
-            const hasPercentage = items.some(item => /^\d+(?:\.\d+)?%$/.test(item.str));
-            
-            if (hasPitch && (hasArea || hasPercentage)) {
-              headerRow = row;
-              // Store X coordinates based on the first data row
-              items.forEach(item => {
-                if (/^\d+\/\d+$/.test(item.str)) headerX.pitch = item.x;
-                if (/^\d+(?:\.\d+)?$/.test(item.str)) headerX.area = item.x;
-                if (/^\d+(?:\.\d+)?%$/.test(item.str)) headerX.percentage = item.x;
-              });
-              console.log("Found data row with pitch values at row", i);
-              break;
-            }
-          }
-        }
-        
-        if (!headerRow) return null;
-        
-        // Process rows after the header
-        let rowIndex = sortedRows.indexOf(headerRow) + 1;
-        let foundValidData = false;
-        
+        // Process rows after table start
         const pitches: string[] = [];
         const areas: number[] = [];
         const percentages: number[] = [];
+        let foundValidData = false;
         
-        while (rowIndex < sortedRows.length) {
-          const row = sortedRows[rowIndex];
+        // Start from the row after the header
+        for (let i = tableStartIdx + 1; i < sortedRows.length; i++) {
+          const row = sortedRows[i];
           const rowText = row.text.trim();
           
-          // Stop if we hit a divider, empty row, or explanatory text
-          if (!rowText || /^[-_=]+$/.test(rowText) || /table\s+above\s+lists/i.test(rowText)) {
+          // Stop if we hit explanatory text or empty row
+          if (!rowText || /table\s+above\s+lists/i.test(rowText)) {
             break;
           }
           
-          // Group items by their closest column based on X coordinate
-          const pitchItems = row.items.filter(item => 
-            Math.abs(item.x - headerX.pitch) < Math.abs(item.x - headerX.area) && 
-            Math.abs(item.x - headerX.pitch) < Math.abs(item.x - headerX.percentage)
-          );
+          // Look for pitch/area/percentage pattern in the row
+          const rowItems = row.items;
+          console.log("Processing row items:", rowItems);
           
-          const areaItems = row.items.filter(item => 
-            Math.abs(item.x - headerX.area) < Math.abs(item.x - headerX.pitch) && 
-            Math.abs(item.x - headerX.area) < Math.abs(item.x - headerX.percentage)
-          );
+          // Find pitch (looking for X/12 format)
+          const pitchItem = rowItems.find(item => /^\d+\/12$/.test(item.str.trim()));
+          if (!pitchItem) continue;
           
-          const percentageItems = row.items.filter(item => 
-            Math.abs(item.x - headerX.percentage) < Math.abs(item.x - headerX.pitch) && 
-            Math.abs(item.x - headerX.percentage) < Math.abs(item.x - headerX.area)
-          );
+          // Convert pitch to x:12 format
+          const pitch = pitchItem.str.trim().replace('/', ':');
           
-          // Extract pitch (looking for X/Y format)
-          const pitchText = pitchItems.map(i => i.str).join(' ');
-          const pitchMatch = pitchText.match(/(\d+)\/(\d+)/);
+          // Find area (looking for number potentially with commas)
+          const areaItem = rowItems.find(item => /^[\d,]+$/.test(item.str.trim()));
+          if (!areaItem) continue;
           
-          if (pitchMatch) {
-            // Convert to x:y format
-            const [_, numerator, denominator] = pitchMatch;
-            const pitch = `${numerator}:${denominator}`;
-            
-            // Extract area and percentage
-            const areaText = areaItems.map(i => i.str).join('');
-            const percentageText = percentageItems.map(i => i.str).join('').replace('%', '');
-            
-            const area = parseFloat(areaText.replace(/,/g, ''));
-            const percentage = parseFloat(percentageText);
-            
-            if (!isNaN(area) && area > 0) {
-              pitches.push(pitch);
-              areas.push(area);
-              percentages.push(percentage);
-              foundValidData = true;
-              console.log(`Found valid pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
-            }
+          // Parse area, removing commas
+          const area = parseFloat(areaItem.str.trim().replace(/,/g, ''));
+          if (isNaN(area)) continue;
+          
+          // Find percentage (looking for number potentially with decimal)
+          const percentageItem = rowItems.find(item => /^[\d.]+%?$/.test(item.str.trim()));
+          let percentage = 0;
+          if (percentageItem) {
+            percentage = parseFloat(percentageItem.str.trim().replace('%', ''));
           }
           
-          rowIndex++;
+          if (!isNaN(area) && area > 0) {
+            pitches.push(pitch);
+            areas.push(area);
+            percentages.push(percentage || 0);
+            foundValidData = true;
+            console.log(`Found valid pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
+          }
         }
         
-        // Only return data if we found valid entries
         if (foundValidData) {
           console.log("Successfully extracted pitch table data:", {
             pitches,
@@ -783,32 +705,39 @@ export function usePdfParser() {
         // Reset areasByPitch to ensure we start fresh
         measurements.areasByPitch = {};
         
+        // Calculate total area from the extracted areas
+        const totalExtractedArea = areas.reduce((sum, area) => sum + area, 0);
+        
         // Store each pitch area with its percentage
         pitches.forEach((pitch, idx) => {
           const area = areas[idx];
-          const percentage = percentages[idx];
+          // If no percentages were found, calculate them based on total area
+          const percentage = percentages[idx] || (area / totalExtractedArea * 100);
           
           if (area > 0) {
             measurements.areasByPitch[pitch] = {
               area,
               percentage
             };
+            console.log(`Storing pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
           }
         });
         
-        // Set predominant pitch to the one with largest area
-        let maxArea = 0;
-        let predominantPitch = '';
+        // Validate total matches
+        const sumAreas = Object.values(measurements.areasByPitch)
+          .reduce((sum, data) => sum + (typeof data === 'object' ? data.area : 0), 0);
         
-        Object.entries(measurements.areasByPitch).forEach(([pitch, data]) => {
-          if (data.area > maxArea) {
-            maxArea = data.area;
-            predominantPitch = pitch;
-          }
-        });
+        console.log(`Total area from pitch table: ${sumAreas} sq ft`);
+        console.log(`Total area from measurements: ${measurements.totalArea} sq ft`);
         
-        if (predominantPitch) {
-          measurements.predominantPitch = predominantPitch;
+        // If totals don't match within 1%, adjust percentages
+        if (Math.abs(sumAreas - measurements.totalArea) / measurements.totalArea > 0.01) {
+          console.log("Adjusting percentages based on total area");
+          Object.entries(measurements.areasByPitch).forEach(([pitch, data]) => {
+            if (typeof data === 'object') {
+              data.percentage = (data.area / measurements.totalArea) * 100;
+            }
+          });
         }
       } else if (measurements.predominantPitch && measurements.totalArea > 0) {
         // If no pitch table found but we have predominant pitch and total area,
