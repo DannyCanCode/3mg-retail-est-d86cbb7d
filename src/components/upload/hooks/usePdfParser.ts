@@ -563,15 +563,9 @@ export function usePdfParser() {
         const textItems = pageTextItems[pageNum];
         if (!textItems || textItems.length === 0) return null;
         
-        // Define empty arrays to hold our extracted data
-        let pitches: string[] = [];
-        let areas: number[] = [];
-        let percentages: number[] = [];
-        
         // Group text items by their Y-coordinate (rounding to 2 decimal places)
         const rowGroups: { [y: string]: Array<{str: string, x: number, y: number}> } = {};
         
-        // First pass: group by Y coordinate and store X coordinate
         textItems.forEach(item => {
           const x = item.transform[4];
           const y = Math.round(item.transform[5] * 100) / 100;
@@ -602,47 +596,57 @@ export function usePdfParser() {
           }))
           .sort((a, b) => b.y - a.y);
         
-        // Look for table indicators
+        // Look for table indicators - specifically for EagleView's format
         const tableStartIndicators = [
           /Areas\s+(?:per|by)\s+Pitch/i,
-          /Roof\s+Pitches/i,
-          /Pitch\s+Diagram/i
+          /Pitch\s+Areas/i,
+          /Roof\s+Areas\s+by\s+Pitch/i
         ];
         
         let tableStartIdx = -1;
         for (let i = 0; i < sortedRows.length; i++) {
           if (tableStartIndicators.some(pattern => pattern.test(sortedRows[i].text))) {
             tableStartIdx = i;
+            console.log("Found pitch table header:", sortedRows[i].text);
             break;
           }
         }
         
-        if (tableStartIdx === -1) {
-          console.log("No pitch table indicators found on page", pageNum);
-          return null;
-        }
+        if (tableStartIdx === -1) return null;
         
         // Look for column headers within the next few rows
         let headerRow = null;
+        let headerX = { pitch: 0, area: 0, percentage: 0 };
+        
         for (let i = tableStartIdx; i < Math.min(tableStartIdx + 5, sortedRows.length); i++) {
           const row = sortedRows[i];
-          // Look for any combination of these header patterns
-          if (row.items.some(item => /(?:ROOF\s+)?PITCH/i.test(item.str)) &&
-              row.items.some(item => /AREA|SQ\s*FT/i.test(item.str)) &&
-              row.items.some(item => /%|PERCENT/i.test(item.str))) {
+          // Look for column headers in EagleView's typical format
+          const hasPitch = row.items.some(item => /(?:ROOF\s+)?PITCH(?:ES)?/i.test(item.str));
+          const hasArea = row.items.some(item => /AREA.*(?:SQ.*FT|SF)/i.test(item.str));
+          const hasPercentage = row.items.some(item => /%.*(?:OF\s+)?ROOF/i.test(item.str));
+          
+          if (hasPitch && hasArea && hasPercentage) {
             headerRow = row;
+            // Store X coordinates for each column
+            row.items.forEach(item => {
+              if (/PITCH/i.test(item.str)) headerX.pitch = item.x;
+              if (/AREA/i.test(item.str)) headerX.area = item.x;
+              if (/%/i.test(item.str)) headerX.percentage = item.x;
+            });
+            console.log("Found column headers at row", i);
             break;
           }
         }
         
-        if (!headerRow) {
-          console.log("No column headers found near table start");
-          return null;
-        }
+        if (!headerRow) return null;
         
         // Process rows after the header
-        let currentRow = headerRow;
         let rowIndex = sortedRows.indexOf(headerRow) + 1;
+        let foundValidData = false;
+        
+        const pitches: string[] = [];
+        const areas: number[] = [];
+        const percentages: number[] = [];
         
         while (rowIndex < sortedRows.length) {
           const row = sortedRows[rowIndex];
@@ -653,22 +657,46 @@ export function usePdfParser() {
             break;
           }
           
+          // Group items by their closest column based on X coordinate
+          const pitchItems = row.items.filter(item => 
+            Math.abs(item.x - headerX.pitch) < Math.abs(item.x - headerX.area) && 
+            Math.abs(item.x - headerX.pitch) < Math.abs(item.x - headerX.percentage)
+          );
+          
+          const areaItems = row.items.filter(item => 
+            Math.abs(item.x - headerX.area) < Math.abs(item.x - headerX.pitch) && 
+            Math.abs(item.x - headerX.area) < Math.abs(item.x - headerX.percentage)
+          );
+          
+          const percentageItems = row.items.filter(item => 
+            Math.abs(item.x - headerX.percentage) < Math.abs(item.x - headerX.pitch) && 
+            Math.abs(item.x - headerX.percentage) < Math.abs(item.x - headerX.area)
+          );
+          
           // Extract pitch (looking for X/Y or X:Y format)
-          const pitchMatch = rowText.match(/(\d+[\/:]\d+)/);
+          const pitchText = pitchItems.map(i => i.str).join(' ');
+          const pitchMatch = pitchText.match(/(\d+[\/:]\d+)/);
+          
           if (pitchMatch) {
             const pitch = pitchMatch[1].includes(':') ? pitchMatch[1] : pitchMatch[1].replace('/', ':');
             
-            // Look for numbers that could be area or percentage
-            const numbers = rowText.match(/(\d+(?:,\d{3})*(?:\.\d+)?)/g);
-            if (numbers && numbers.length >= 1) {
-              const area = parseFloat(numbers[0].replace(/,/g, ''));
-              const percentage = numbers.length > 1 ? parseFloat(numbers[1]) : 0;
+            // Extract area and percentage
+            const areaText = areaItems.map(i => i.str).join(' ');
+            const percentageText = percentageItems.map(i => i.str).join(' ');
+            
+            const areaMatch = areaText.match(/(\d+(?:,\d{3})*(?:\.\d+)?)/);
+            const percentageMatch = percentageText.match(/(\d+(?:\.\d+)?)/);
+            
+            if (areaMatch) {
+              const area = parseFloat(areaMatch[1].replace(/,/g, ''));
+              const percentage = percentageMatch ? parseFloat(percentageMatch[1]) : 0;
               
               if (!isNaN(area) && area > 0) {
                 pitches.push(pitch);
                 areas.push(area);
                 percentages.push(percentage);
-                console.log(`Found pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
+                foundValidData = true;
+                console.log(`Found valid pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
               }
             }
           }
@@ -676,24 +704,21 @@ export function usePdfParser() {
           rowIndex++;
         }
         
-        // Validate extracted data
-        if (pitches.length > 0) {
+        // Only return data if we found valid entries
+        if (foundValidData) {
           const totalArea = areas.reduce((sum, area) => sum + area, 0);
           if (totalArea > 0) {
             // Recalculate percentages for consistency
-            percentages = areas.map(area => (area / totalArea) * 100);
-          }
-          
-          const totalPercentage = percentages.reduce((sum, p) => sum + p, 0);
-          if (Math.abs(totalPercentage - 100) <= 1) {
+            const newPercentages = areas.map(area => (area / totalArea) * 100);
+            
             console.log("Successfully extracted pitch table:", {
               pitches,
               areas,
-              percentages,
-              totalArea,
-              totalPercentage
+              percentages: newPercentages,
+              totalArea
             });
-            return { pitches, areas, percentages };
+            
+            return { pitches, areas, percentages: newPercentages };
           }
         }
         
@@ -714,120 +739,47 @@ export function usePdfParser() {
         }
       }
       
-      // If we found valid data, use it directly
+      // If we found valid data from coordinate-based extraction, use it
       if (extractedTableData && extractedTableData.pitches.length > 0) {
         const { pitches, areas, percentages } = extractedTableData;
-        console.log("EXTRACTED PITCH TABLE DATA:", extractedTableData);
         
         // Reset areasByPitch to ensure we start fresh
         measurements.areasByPitch = {};
         
         // Store each pitch area with its percentage
         pitches.forEach((pitch, idx) => {
-          const area = areas[idx] || 0;
-          const percentage = percentages[idx] || 0;
+          const area = areas[idx];
+          const percentage = percentages[idx];
           
           if (area > 0) {
-            // Store with original format and percentage
             measurements.areasByPitch[pitch] = {
-              area: area,
-              percentage: percentage
+              area,
+              percentage
             };
-            console.log(`Assigned ${area} sq ft (${percentage}%) to pitch ${pitch}`);
           }
         });
-        
-        // Validate total area matches sum of pitch areas
-        const extractedTotal = Object.values(measurements.areasByPitch)
-          .reduce((sum, data) => sum + data.area, 0);
-        
-        if (Math.abs(extractedTotal - measurements.totalArea) > 1) {
-          console.log(`WARNING: Total area (${measurements.totalArea}) differs from sum of pitch areas (${extractedTotal})`);
-          // Trust the pitch areas more than the total
-          measurements.totalArea = extractedTotal;
-        }
         
         // Set predominant pitch to the one with largest area
         let maxArea = 0;
         let predominantPitch = '';
-        for (const [pitch, data] of Object.entries(measurements.areasByPitch)) {
-          const areaValue = data.area;
-          if (areaValue > maxArea) {
-            maxArea = areaValue;
+        
+        Object.entries(measurements.areasByPitch).forEach(([pitch, data]) => {
+          if (data.area > maxArea) {
+            maxArea = data.area;
             predominantPitch = pitch;
           }
-        }
+        });
         
         if (predominantPitch) {
           measurements.predominantPitch = predominantPitch;
-          console.log(`Set predominant pitch to ${predominantPitch} with area ${maxArea} sq ft`);
         }
-        
-        return measurements;
-      }
-      
-      // SUPER SIMPLE FALLBACK: Use a basic regex to find any pitch and number combinations
-      if (Object.keys(measurements.areasByPitch).length === 0) {
-        console.log("Using super simple regex to find any pitch/area combinations");
-        
-        // Use an extremely simple regex to find any X/Y format followed by numbers
-        const simplePitchRegex = /(\d+[\/:]\d+)(?:[^\d]*?)(\d+(?:[.,]\d+)?)/g;
-        let match;
-        let totalArea = 0;
-        
-        const allText = Object.values(pageContents).join(" ");
-        while ((match = simplePitchRegex.exec(allText)) !== null) {
-          const pitch = match[1];
-          const possibleArea = parseFloat(match[2].replace(/,/g, ''));
-          
-          // Only use if area seems reasonable (not tiny or enormous)
-          if (!isNaN(possibleArea) && possibleArea > 0) {
-            const normalizedPitch = pitch.includes(':') ? pitch : pitch.replace('/', ':');
-            totalArea += possibleArea;
-            measurements.areasByPitch[normalizedPitch] = {
-              area: possibleArea,
-              percentage: 0 // Will be calculated below
-            };
-            console.log(`Basic regex found: Pitch ${normalizedPitch} with area ${possibleArea} sq ft`);
-          }
-        }
-        
-        // Calculate percentages based on total area
-        if (totalArea > 0) {
-          for (const [pitch, data] of Object.entries(measurements.areasByPitch)) {
-            data.percentage = (data.area / totalArea) * 100;
-          }
-        }
-      }
-      
-      // Calculate total area if needed
-      if (measurements.totalArea === 0 && Object.keys(measurements.areasByPitch).length > 0) {
-        measurements.totalArea = Object.values(measurements.areasByPitch)
-          .reduce((sum, data) => sum + data.area, 0);
-        console.log(`Calculated total area from pitch areas: ${measurements.totalArea} sq ft`);
-      }
-      
-      // Set predominant pitch if needed
-      if (!measurements.predominantPitch && Object.keys(measurements.areasByPitch).length > 0) {
-        let maxArea = 0;
-        for (const [pitch, data] of Object.entries(measurements.areasByPitch)) {
-          const areaValue = data.area;
-          if (areaValue > maxArea) {
-            maxArea = areaValue;
-            measurements.predominantPitch = pitch;
-          }
-        }
-        console.log(`Predominant pitch is ${measurements.predominantPitch} with ${maxArea} sq ft`);
-      }
-      
-      // If we still don't have any pitches but we have a predominant pitch and total area,
-      // create an entry for the predominant pitch with 100% of the area
-      if (Object.keys(measurements.areasByPitch).length === 0 && measurements.predominantPitch && measurements.totalArea > 0) {
+      } else if (measurements.predominantPitch && measurements.totalArea > 0) {
+        // If no pitch table found but we have predominant pitch and total area,
+        // create a single entry
         measurements.areasByPitch[measurements.predominantPitch] = {
           area: measurements.totalArea,
           percentage: 100
         };
-        console.log(`Created entry for predominant pitch ${measurements.predominantPitch} with total area ${measurements.totalArea} sq ft`);
       }
       
       // AFTER PITCH AREA EXTRACTION IS COMPLETE
@@ -920,47 +872,18 @@ export function usePdfParser() {
         }
       }
       
-      // Post-processing: Special handling for unusual pitch formats
-      // 1. Check for date-like pitches (9:2021)
-      const pitchKeys = Object.keys(measurements.areasByPitch);
-      for (const key of pitchKeys) {
-        if (/\d+[:\/]\d{4}/.test(key)) {
-          console.log(`Found date-like pitch: ${key}`);
-          // We'll keep it as-is - our simplified extraction should handle this correctly
-        }
-      }
-      
-      // 2. Verify we've got a good predominant pitch - essential for calculations
-      if (Object.keys(measurements.areasByPitch).length > 0) {
-        let maxArea = 0;
-        for (const [pitch, data] of Object.entries(measurements.areasByPitch)) {
-          const areaValue = data.area;
-          if (areaValue > maxArea) {
-            maxArea = areaValue;
-            measurements.predominantPitch = pitch;
-          }
-        }
-        console.log(`Predominant pitch is ${measurements.predominantPitch} with ${maxArea} sq ft`);
-      }
-      
-      // Clean up
-      URL.revokeObjectURL(fileURL);
-      
       return measurements;
     } catch (error) {
       console.error("Error parsing PDF client-side:", error);
-      throw error;
+      return null;
     }
   };
 
   return {
     parsedData,
-    setParsedData,
-    parsePdf,
     processingMode,
     processingProgress,
-    fileUrl
+    fileUrl,
+    parsePdf
   };
 }
-
-
