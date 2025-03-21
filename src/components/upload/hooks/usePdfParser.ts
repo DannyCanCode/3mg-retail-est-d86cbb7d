@@ -628,30 +628,51 @@ export function usePdfParser() {
         // Look for the three rows we need after the table header
         for (let i = tableStartIdx + 1; i < Math.min(tableStartIdx + 10, sortedRows.length); i++) {
           const rowText = sortedRows[i].text.trim();
+          const rowItems = sortedRows[i].items;
+          
+          console.log("Processing row:", rowText);
           
           // Extract pitches from the "Roof Pitches" row
           if (/Roof\s*Pitches/.test(rowText)) {
-            const pitchMatches = rowText.match(/\d+\/12/g);
-            if (pitchMatches) {
-              pitches.push(...pitchMatches);
-              console.log("Found pitches:", pitchMatches);
+            // Get all items that match the pitch pattern
+            const pitchItems = rowItems.filter(item => /^\d+\/\d+$/.test(item.str.trim()));
+            if (pitchItems.length > 0) {
+              pitchItems.forEach(item => {
+                const pitch = item.str.trim();
+                if (pitch) {
+                  pitches.push(pitch);
+                }
+              });
+              console.log("Found pitches:", pitches);
             }
           }
           
           // Extract areas from the "Area (sq ft)" row
           if (/Area.*sq.*ft/.test(rowText)) {
-            const areaMatches = rowText.match(/\d+\.?\d*/g);
-            if (areaMatches) {
-              areas.push(...areaMatches.map(a => parseFloat(a)));
+            // Get all items that are numbers
+            const areaItems = rowItems.filter(item => /^[\d,.]+$/.test(item.str.trim()));
+            if (areaItems.length > 0) {
+              areaItems.forEach(item => {
+                const area = parseFloat(item.str.replace(/,/g, ''));
+                if (!isNaN(area)) {
+                  areas.push(area);
+                }
+              });
               console.log("Found areas:", areas);
             }
           }
           
           // Extract percentages from the "% of Roof" row
           if (/%\s*of\s*Roof/.test(rowText)) {
-            const percentageMatches = rowText.match(/\d+\.?\d*(?=%)/g);
-            if (percentageMatches) {
-              percentages.push(...percentageMatches.map(p => parseFloat(p)));
+            // Get all items that are percentages
+            const percentageItems = rowItems.filter(item => /^[\d.]+%?$/.test(item.str.trim()));
+            if (percentageItems.length > 0) {
+              percentageItems.forEach(item => {
+                const percentage = parseFloat(item.str.replace('%', ''));
+                if (!isNaN(percentage)) {
+                  percentages.push(percentage);
+                }
+              });
               console.log("Found percentages:", percentages);
             }
           }
