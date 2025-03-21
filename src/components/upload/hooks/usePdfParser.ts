@@ -568,13 +568,13 @@ export function usePdfParser() {
         let areas: number[] = [];
         let percentages: number[] = [];
         
-        // Group text items by their Y-coordinate (rounding to account for slight variations)
+        // Group text items by their Y-coordinate (rounding to 2 decimal places)
         const rowGroups: { [y: string]: Array<{str: string, x: number, y: number}> } = {};
         
         // First pass: group by Y coordinate and store X coordinate
         textItems.forEach(item => {
           const x = item.transform[4];
-          const y = Math.round(item.transform[5] * 100) / 100; // Round to 2 decimal places
+          const y = Math.round(item.transform[5] * 100) / 100;
           const yKey = y.toString();
           
           if (!rowGroups[yKey]) {
@@ -597,94 +597,99 @@ export function usePdfParser() {
         const sortedRows = Object.entries(rowGroups)
           .map(([y, items]) => ({
             y: parseFloat(y),
-            text: items.map(i => i.str).join(' ').trim(),
-            items
+            items,
+            text: items.map(i => i.str).join(' ').trim()
           }))
           .sort((a, b) => b.y - a.y);
         
-        // Look specifically for "Areas per Pitch" or "Areas by Pitch" header
-        const tableHeaderIdx = sortedRows.findIndex(row => 
-          /Areas\s+(?:per|by)\s+Pitch/i.test(row.text)
-        );
+        // Look for table indicators
+        const tableStartIndicators = [
+          /Areas\s+(?:per|by)\s+Pitch/i,
+          /Roof\s+Pitches/i,
+          /Pitch\s+Diagram/i
+        ];
         
-        if (tableHeaderIdx === -1) {
-          console.log("Couldn't find 'Areas per/by Pitch' header");
-          return null;
-        }
-        
-        console.log("Found 'Areas per/by Pitch' header");
-        
-        // Look for the column headers (Roof Pitches, Area, % of Roof)
-        const columnHeaderIdx = sortedRows.findIndex((row, idx) => 
-          idx > tableHeaderIdx && 
-          idx < tableHeaderIdx + 5 && // Look within next few rows
-          /Roof\s+Pitches/i.test(row.text) &&
-          /Area.*sq\s*ft/i.test(row.text) &&
-          /%\s*of\s*Roof/i.test(row.text)
-        );
-        
-        if (columnHeaderIdx === -1) {
-          console.log("Couldn't find column headers");
-          return null;
-        }
-        
-        console.log("Found column headers");
-        
-        // Process data rows after the column headers
-        let totalArea = 0;
-        for (let i = columnHeaderIdx + 1; i < sortedRows.length; i++) {
-          const row = sortedRows[i];
-          const rowText = row.text.trim();
-          
-          // Stop if we hit a divider or empty row
-          if (rowText.length === 0 || /^[-_=]+$/.test(rowText)) break;
-          
-          // Skip total row
-          if (/^total/i.test(rowText)) continue;
-          
-          console.log("Processing row:", rowText);
-          
-          // Extract pitch (looking for X/12 format)
-          const pitchMatch = rowText.match(/(\d+[\/:]\d+)/i);
-          if (!pitchMatch) continue;
-          
-          // Normalize pitch format to X:12
-          const pitch = pitchMatch[1].includes(':') ? pitchMatch[1] : pitchMatch[1].replace('/', ':');
-          
-          // Extract area (looking for decimal number)
-          const areaMatch = rowText.match(/(\d+(?:,\d{3})*(?:\.\d+)?)/g);
-          if (!areaMatch || areaMatch.length < 2) continue;
-          
-          // Parse area, handling commas in numbers
-          const area = parseFloat(areaMatch[0].replace(/,/g, ''));
-          
-          // Extract percentage (should be between 0-100)
-          const percentMatch = rowText.match(/(\d+(?:\.\d+)?)\s*%/);
-          const percentage = percentMatch ? parseFloat(percentMatch[1]) : 0;
-          
-          if (!isNaN(area) && area > 0) {
-            pitches.push(pitch);
-            areas.push(area);
-            percentages.push(percentage);
-            totalArea += area;
-            console.log(`Extracted: Pitch ${pitch}, Area ${area}, Percentage ${percentage}%`);
+        let tableStartIdx = -1;
+        for (let i = 0; i < sortedRows.length; i++) {
+          if (tableStartIndicators.some(pattern => pattern.test(sortedRows[i].text))) {
+            tableStartIdx = i;
+            break;
           }
         }
         
-        // Validate the extracted data
+        if (tableStartIdx === -1) {
+          console.log("No pitch table indicators found on page", pageNum);
+          return null;
+        }
+        
+        // Look for column headers within the next few rows
+        let headerRow = null;
+        for (let i = tableStartIdx; i < Math.min(tableStartIdx + 5, sortedRows.length); i++) {
+          const row = sortedRows[i];
+          // Look for any combination of these header patterns
+          if (row.items.some(item => /(?:ROOF\s+)?PITCH/i.test(item.str)) &&
+              row.items.some(item => /AREA|SQ\s*FT/i.test(item.str)) &&
+              row.items.some(item => /%|PERCENT/i.test(item.str))) {
+            headerRow = row;
+            break;
+          }
+        }
+        
+        if (!headerRow) {
+          console.log("No column headers found near table start");
+          return null;
+        }
+        
+        // Process rows after the header
+        let currentRow = headerRow;
+        let rowIndex = sortedRows.indexOf(headerRow) + 1;
+        
+        while (rowIndex < sortedRows.length) {
+          const row = sortedRows[rowIndex];
+          const rowText = row.text.trim();
+          
+          // Stop if we hit a divider, empty row, or total row
+          if (!rowText || /^[-_=]+$/.test(rowText) || /^total/i.test(rowText)) {
+            break;
+          }
+          
+          // Extract pitch (looking for X/Y or X:Y format)
+          const pitchMatch = rowText.match(/(\d+[\/:]\d+)/);
+          if (pitchMatch) {
+            const pitch = pitchMatch[1].includes(':') ? pitchMatch[1] : pitchMatch[1].replace('/', ':');
+            
+            // Look for numbers that could be area or percentage
+            const numbers = rowText.match(/(\d+(?:,\d{3})*(?:\.\d+)?)/g);
+            if (numbers && numbers.length >= 1) {
+              const area = parseFloat(numbers[0].replace(/,/g, ''));
+              const percentage = numbers.length > 1 ? parseFloat(numbers[1]) : 0;
+              
+              if (!isNaN(area) && area > 0) {
+                pitches.push(pitch);
+                areas.push(area);
+                percentages.push(percentage);
+                console.log(`Found pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
+              }
+            }
+          }
+          
+          rowIndex++;
+        }
+        
+        // Validate extracted data
         if (pitches.length > 0) {
-          // Recalculate percentages based on total area for consistency
+          const totalArea = areas.reduce((sum, area) => sum + area, 0);
           if (totalArea > 0) {
+            // Recalculate percentages for consistency
             percentages = areas.map(area => (area / totalArea) * 100);
           }
           
           const totalPercentage = percentages.reduce((sum, p) => sum + p, 0);
-          
-          // Check if the totals make sense (allow 1% tolerance)
           if (Math.abs(totalPercentage - 100) <= 1) {
-            console.log("Successfully extracted pitch table data:", {
+            console.log("Successfully extracted pitch table:", {
               pitches,
               areas,
+              percentages,
               totalArea,
               totalPercentage
             });
