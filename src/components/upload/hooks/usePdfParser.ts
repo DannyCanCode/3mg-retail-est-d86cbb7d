@@ -566,13 +566,6 @@ export function usePdfParser() {
         const textItems = pageTextItems[pageNum];
         if (!textItems || textItems.length === 0) return null;
         
-        // Debug log: Show all text items with their coordinates
-        console.log(`Page ${pageNum} text items for pitch table:`, textItems.map(item => ({
-          text: item.str,
-          x: item.transform[4],
-          y: item.transform[5]
-        })));
-        
         // Group text items by their Y-coordinate (rounding to nearest integer to handle slight variations)
         const rowGroups: { [y: string]: Array<{str: string, x: number, y: number}> } = {};
         
@@ -606,9 +599,6 @@ export function usePdfParser() {
           }))
           .sort((b, a) => a.y - b.y);
         
-        // Debug log: Show sorted rows
-        console.log("Sorted rows for pitch table:", sortedRows);
-        
         // Look for table start
         let tableStartIdx = -1;
         for (let i = 0; i < sortedRows.length; i++) {
@@ -625,21 +615,18 @@ export function usePdfParser() {
         const areas: number[] = [];
         const percentages: number[] = [];
         
-        // Look for the three rows we need after the table header
+        // Process each row after the header
         for (let i = tableStartIdx + 1; i < Math.min(tableStartIdx + 10, sortedRows.length); i++) {
-          const rowText = sortedRows[i].text.trim();
-          const rowItems = sortedRows[i].items;
-          
+          const row = sortedRows[i];
+          const rowText = row.text.trim();
           console.log("Processing row:", rowText);
           
-          // Extract pitches from the "Roof Pitches" row
-          if (/Roof\s*Pitches/.test(rowText)) {
-            // Get all items that match the pitch pattern
-            const pitchItems = rowItems.filter(item => /^\d+\/\d+$/.test(item.str.trim()));
-            if (pitchItems.length > 0) {
-              pitchItems.forEach(item => {
-                const pitch = item.str.trim();
-                if (pitch) {
+          // Extract pitches (looking for x/12 format)
+          if (/\d+\/12/.test(rowText)) {
+            const pitchMatches = rowText.match(/\d+\/12/g);
+            if (pitchMatches) {
+              pitchMatches.forEach(pitch => {
+                if (!pitches.includes(pitch)) {
                   pitches.push(pitch);
                 }
               });
@@ -647,30 +634,28 @@ export function usePdfParser() {
             }
           }
           
-          // Extract areas from the "Area (sq ft)" row
-          if (/Area.*sq.*ft/.test(rowText)) {
-            // Get all items that are numbers
-            const areaItems = rowItems.filter(item => /^[\d,.]+$/.test(item.str.trim()));
-            if (areaItems.length > 0) {
-              areaItems.forEach(item => {
-                const area = parseFloat(item.str.replace(/,/g, ''));
-                if (!isNaN(area)) {
-                  areas.push(area);
+          // Extract areas (looking for decimal numbers)
+          if (/\d+\.\d+/.test(rowText)) {
+            const areaMatches = rowText.match(/\d+(?:,\d+)*(?:\.\d+)?/g);
+            if (areaMatches) {
+              areaMatches.forEach(area => {
+                const parsedArea = parseFloat(area.replace(/,/g, ''));
+                if (!isNaN(parsedArea) && !areas.includes(parsedArea)) {
+                  areas.push(parsedArea);
                 }
               });
               console.log("Found areas:", areas);
             }
           }
           
-          // Extract percentages from the "% of Roof" row
-          if (/%\s*of\s*Roof/.test(rowText)) {
-            // Get all items that are percentages
-            const percentageItems = rowItems.filter(item => /^[\d.]+%?$/.test(item.str.trim()));
-            if (percentageItems.length > 0) {
-              percentageItems.forEach(item => {
-                const percentage = parseFloat(item.str.replace('%', ''));
-                if (!isNaN(percentage)) {
-                  percentages.push(percentage);
+          // Extract percentages (looking for numbers with % symbol)
+          if (/%/.test(rowText)) {
+            const percentageMatches = rowText.match(/\d+(?:\.\d+)?%/g);
+            if (percentageMatches) {
+              percentageMatches.forEach(percentage => {
+                const parsedPercentage = parseFloat(percentage.replace('%', ''));
+                if (!isNaN(parsedPercentage) && !percentages.includes(parsedPercentage)) {
+                  percentages.push(parsedPercentage);
                 }
               });
               console.log("Found percentages:", percentages);
@@ -716,11 +701,10 @@ export function usePdfParser() {
         
         // Store each pitch area with its percentage
         pitches.forEach((pitch, idx) => {
-          const area = areas[idx];
-          const percentage = percentages[idx];
-          
           // Convert pitch from x/12 to x:12 format
           const normalizedPitch = pitch.replace('/', ':');
+          const area = areas[idx];
+          const percentage = percentages[idx];
           
           if (!isNaN(area) && area > 0) {
             measurements.areasByPitch[normalizedPitch] = {
@@ -731,8 +715,8 @@ export function usePdfParser() {
           }
         });
         
-        // Set roofPitch for UI compatibility
-        measurements.roofPitch = measurements.predominantPitch;
+        // Set roofPitch for UI compatibility (use predominant pitch if available)
+        measurements.roofPitch = measurements.predominantPitch || pitches[0].replace('/', ':');
         
         // Validate total matches
         const sumAreas = Object.values(measurements.areasByPitch)
