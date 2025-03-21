@@ -563,6 +563,13 @@ export function usePdfParser() {
         const textItems = pageTextItems[pageNum];
         if (!textItems || textItems.length === 0) return null;
         
+        // Debug log: Show all text items with their coordinates
+        console.log(`Page ${pageNum} raw text items:`, textItems.map(item => ({
+          text: item.str,
+          x: item.transform[4],
+          y: item.transform[5]
+        })));
+        
         // Group text items by their Y-coordinate (rounding to 2 decimal places)
         const rowGroups: { [y: string]: Array<{str: string, x: number, y: number}> } = {};
         
@@ -582,6 +589,9 @@ export function usePdfParser() {
           });
         });
         
+        // Debug log: Show grouped rows
+        console.log(`Page ${pageNum} grouped rows:`, rowGroups);
+        
         // Sort each row by X coordinate
         Object.values(rowGroups).forEach(row => {
           row.sort((a, b) => a.x - b.x);
@@ -595,6 +605,13 @@ export function usePdfParser() {
             text: items.map(i => i.str).join(' ').trim()
           }))
           .sort((a, b) => b.y - a.y);
+        
+        // Debug log: Show sorted rows
+        console.log(`Page ${pageNum} sorted rows:`, sortedRows.map(row => ({
+          y: row.y,
+          text: row.text,
+          items: row.items.map(i => `${i.str} (${i.x}, ${i.y})`)
+        })));
         
         // Look for table indicators - specifically for EagleView's format
         const tableStartIndicators = [
