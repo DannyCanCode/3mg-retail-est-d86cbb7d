@@ -629,7 +629,7 @@ export function usePdfParser() {
               const hasArea = nextRow.items.some(item => /Area.*\(sq\s*ft\)/i.test(item.str));
               const hasPercentage = nextRow.items.some(item => /%\s*of\s*Roof/i.test(item.str));
               
-              if (hasArea && hasPercentage) {
+              if (hasArea || hasPercentage) {
                 headerRow = nextRow;
                 // Store X coordinates for each column
                 nextRow.items.forEach(item => {
@@ -640,6 +640,31 @@ export function usePdfParser() {
                 console.log("Found column headers at row", i + 1);
                 break;
               }
+            }
+          }
+        }
+        
+        if (!headerRow) {
+          // Try alternative header detection if "Roof Pitches" row not found
+          for (let i = tableStartIdx; i < Math.min(tableStartIdx + 5, sortedRows.length); i++) {
+            const row = sortedRows[i];
+            const items = row.items;
+            
+            // Check if this row looks like a header row
+            const hasPitch = items.some(item => /^\d+\/\d+$/.test(item.str));
+            const hasArea = items.some(item => /^\d+(?:\.\d+)?$/.test(item.str));
+            const hasPercentage = items.some(item => /^\d+(?:\.\d+)?%$/.test(item.str));
+            
+            if (hasPitch && (hasArea || hasPercentage)) {
+              headerRow = row;
+              // Store X coordinates based on the first data row
+              items.forEach(item => {
+                if (/^\d+\/\d+$/.test(item.str)) headerX.pitch = item.x;
+                if (/^\d+(?:\.\d+)?$/.test(item.str)) headerX.area = item.x;
+                if (/^\d+(?:\.\d+)?%$/.test(item.str)) headerX.percentage = item.x;
+              });
+              console.log("Found data row with pitch values at row", i);
+              break;
             }
           }
         }
@@ -681,31 +706,26 @@ export function usePdfParser() {
           
           // Extract pitch (looking for X/Y format)
           const pitchText = pitchItems.map(i => i.str).join(' ');
-          const pitchMatch = pitchText.match(/(\d+\/\d+)/);
+          const pitchMatch = pitchText.match(/(\d+)\/(\d+)/);
           
           if (pitchMatch) {
             // Convert to x:y format
-            const [numerator, denominator] = pitchMatch[1].split('/');
+            const [_, numerator, denominator] = pitchMatch;
             const pitch = `${numerator}:${denominator}`;
             
             // Extract area and percentage
-            const areaText = areaItems.map(i => i.str).join(' ');
-            const percentageText = percentageItems.map(i => i.str).join(' ');
+            const areaText = areaItems.map(i => i.str).join('');
+            const percentageText = percentageItems.map(i => i.str).join('').replace('%', '');
             
-            const areaMatch = areaText.match(/(\d+(?:,\d{3})*(?:\.\d+)?)/);
-            const percentageMatch = percentageText.match(/(\d+(?:\.\d+)?)/);
+            const area = parseFloat(areaText.replace(/,/g, ''));
+            const percentage = parseFloat(percentageText);
             
-            if (areaMatch) {
-              const area = parseFloat(areaMatch[1].replace(/,/g, ''));
-              const percentage = percentageMatch ? parseFloat(percentageMatch[1]) : 0;
-              
-              if (!isNaN(area) && area > 0) {
-                pitches.push(pitch);
-                areas.push(area);
-                percentages.push(percentage);
-                foundValidData = true;
-                console.log(`Found valid pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
-              }
+            if (!isNaN(area) && area > 0) {
+              pitches.push(pitch);
+              areas.push(area);
+              percentages.push(percentage);
+              foundValidData = true;
+              console.log(`Found valid pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
             }
           }
           
@@ -714,20 +734,12 @@ export function usePdfParser() {
         
         // Only return data if we found valid entries
         if (foundValidData) {
-          const totalArea = areas.reduce((sum, area) => sum + area, 0);
-          if (totalArea > 0) {
-            // Recalculate percentages for consistency
-            const newPercentages = areas.map(area => (area / totalArea) * 100);
-            
-            console.log("Successfully extracted pitch table:", {
-              pitches,
-              areas,
-              percentages: newPercentages,
-              totalArea
-            });
-            
-            return { pitches, areas, percentages: newPercentages };
-          }
+          console.log("Successfully extracted pitch table data:", {
+            pitches,
+            areas,
+            percentages
+          });
+          return { pitches, areas, percentages };
         }
         
         return null;
