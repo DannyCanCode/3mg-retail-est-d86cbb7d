@@ -706,7 +706,8 @@ export function usePdfParser() {
           const area = areas[idx];
           const percentage = percentages[idx];
           
-          if (!isNaN(area) && area > 0) {
+          // Only store if we have valid area and percentage
+          if (!isNaN(area) && !isNaN(percentage) && area > 0) {
             measurements.areasByPitch[normalizedPitch] = {
               area: area,
               percentage: percentage
@@ -716,7 +717,18 @@ export function usePdfParser() {
         });
         
         // Set roofPitch for UI compatibility (use predominant pitch if available)
-        measurements.roofPitch = measurements.predominantPitch || pitches[0].replace('/', ':');
+        // Find the pitch with the highest percentage to use as predominant pitch
+        let maxPercentage = 0;
+        let predominantPitch = '';
+        Object.entries(measurements.areasByPitch).forEach(([pitch, data]) => {
+          if (data.percentage > maxPercentage) {
+            maxPercentage = data.percentage;
+            predominantPitch = pitch;
+          }
+        });
+        
+        measurements.predominantPitch = predominantPitch;
+        measurements.roofPitch = predominantPitch;
         
         // Validate total matches
         const sumAreas = Object.values(measurements.areasByPitch)
@@ -724,6 +736,7 @@ export function usePdfParser() {
         
         console.log(`Total area from pitch table: ${sumAreas} sq ft`);
         console.log(`Total area from measurements: ${measurements.totalArea} sq ft`);
+        console.log('Final areasByPitch:', measurements.areasByPitch);
         
         // If totals don't match within 1%, log warning
         if (Math.abs(sumAreas - measurements.totalArea) / measurements.totalArea > 0.01) {
