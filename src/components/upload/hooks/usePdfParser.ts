@@ -598,9 +598,9 @@ export function usePdfParser() {
         
         // Look for table indicators - specifically for EagleView's format
         const tableStartIndicators = [
-          /Areas\s+(?:per|by)\s+Pitch/i,
-          /Pitch\s+Areas/i,
-          /Roof\s+Areas\s+by\s+Pitch/i
+          /Areas\s*per\s*Pitch/i,
+          /Areas\s*by\s*Pitch/i,
+          /Pitch\s*Areas/i
         ];
         
         let tableStartIdx = -1;
@@ -614,27 +614,33 @@ export function usePdfParser() {
         
         if (tableStartIdx === -1) return null;
         
-        // Look for column headers within the next few rows
+        // Look for the "Roof Pitches" row which typically follows
         let headerRow = null;
         let headerX = { pitch: 0, area: 0, percentage: 0 };
         
         for (let i = tableStartIdx; i < Math.min(tableStartIdx + 5, sortedRows.length); i++) {
           const row = sortedRows[i];
-          // Look for column headers in EagleView's typical format
-          const hasPitch = row.items.some(item => /(?:ROOF\s+)?PITCH(?:ES)?/i.test(item.str));
-          const hasArea = row.items.some(item => /AREA.*(?:SQ.*FT|SF)/i.test(item.str));
-          const hasPercentage = row.items.some(item => /%.*(?:OF\s+)?ROOF/i.test(item.str));
           
-          if (hasPitch && hasArea && hasPercentage) {
-            headerRow = row;
-            // Store X coordinates for each column
-            row.items.forEach(item => {
-              if (/PITCH/i.test(item.str)) headerX.pitch = item.x;
-              if (/AREA/i.test(item.str)) headerX.area = item.x;
-              if (/%/i.test(item.str)) headerX.percentage = item.x;
-            });
-            console.log("Found column headers at row", i);
-            break;
+          // Look for "Roof Pitches" row first
+          if (/Roof\s*Pitches/i.test(row.text)) {
+            // The next row should contain the column headers
+            const nextRow = sortedRows[i + 1];
+            if (nextRow) {
+              const hasArea = nextRow.items.some(item => /Area.*\(sq\s*ft\)/i.test(item.str));
+              const hasPercentage = nextRow.items.some(item => /%\s*of\s*Roof/i.test(item.str));
+              
+              if (hasArea && hasPercentage) {
+                headerRow = nextRow;
+                // Store X coordinates for each column
+                nextRow.items.forEach(item => {
+                  if (/Roof\s*Pitches/i.test(item.str)) headerX.pitch = item.x;
+                  if (/Area/i.test(item.str)) headerX.area = item.x;
+                  if (/%/i.test(item.str)) headerX.percentage = item.x;
+                });
+                console.log("Found column headers at row", i + 1);
+                break;
+              }
+            }
           }
         }
         
@@ -652,8 +658,8 @@ export function usePdfParser() {
           const row = sortedRows[rowIndex];
           const rowText = row.text.trim();
           
-          // Stop if we hit a divider, empty row, or total row
-          if (!rowText || /^[-_=]+$/.test(rowText) || /^total/i.test(rowText)) {
+          // Stop if we hit a divider, empty row, or explanatory text
+          if (!rowText || /^[-_=]+$/.test(rowText) || /table\s+above\s+lists/i.test(rowText)) {
             break;
           }
           
@@ -673,12 +679,14 @@ export function usePdfParser() {
             Math.abs(item.x - headerX.percentage) < Math.abs(item.x - headerX.area)
           );
           
-          // Extract pitch (looking for X/Y or X:Y format)
+          // Extract pitch (looking for X/Y format)
           const pitchText = pitchItems.map(i => i.str).join(' ');
-          const pitchMatch = pitchText.match(/(\d+[\/:]\d+)/);
+          const pitchMatch = pitchText.match(/(\d+\/\d+)/);
           
           if (pitchMatch) {
-            const pitch = pitchMatch[1].includes(':') ? pitchMatch[1] : pitchMatch[1].replace('/', ':');
+            // Convert to x:y format
+            const [numerator, denominator] = pitchMatch[1].split('/');
+            const pitch = `${numerator}:${denominator}`;
             
             // Extract area and percentage
             const areaText = areaItems.map(i => i.str).join(' ');
