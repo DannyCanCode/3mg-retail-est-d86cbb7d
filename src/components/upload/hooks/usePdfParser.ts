@@ -644,34 +644,51 @@ export function usePdfParser() {
           const rowItems = row.items;
           console.log("Processing row items:", rowItems);
           
-          // Find pitch (looking for X/12 format)
-          const pitchItem = rowItems.find(item => /^\d+\/12$/.test(item.str.trim()));
-          if (!pitchItem) continue;
-          
-          // Convert pitch to x:12 format
-          const pitch = pitchItem.str.trim().replace('/', ':');
-          
-          // Find area (looking for number potentially with commas)
-          const areaItem = rowItems.find(item => /^[\d,]+$/.test(item.str.trim()));
-          if (!areaItem) continue;
-          
-          // Parse area, removing commas
-          const area = parseFloat(areaItem.str.trim().replace(/,/g, ''));
-          if (isNaN(area)) continue;
-          
-          // Find percentage (looking for number potentially with decimal)
-          const percentageItem = rowItems.find(item => /^[\d.]+%?$/.test(item.str.trim()));
-          let percentage = 0;
-          if (percentageItem) {
-            percentage = parseFloat(percentageItem.str.trim().replace('%', ''));
+          // First try to find the row with all pitches
+          if (/Roof\s*Pitches/i.test(rowText)) {
+            // Extract all pitches from this row
+            const pitchValues = rowItems
+              .map(item => item.str.trim())
+              .filter(str => /^\d+\/12$/.test(str));
+            
+            if (pitchValues.length > 0) {
+              pitchValues.forEach(pitch => {
+                pitches.push(pitch.replace('/', ':'));
+              });
+              console.log("Found pitches:", pitches);
+              continue;
+            }
           }
           
-          if (!isNaN(area) && area > 0) {
-            pitches.push(pitch);
-            areas.push(area);
-            percentages.push(percentage || 0);
-            foundValidData = true;
-            console.log(`Found valid pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
+          // Then look for the area values row
+          if (/Area.*sq.*ft/i.test(rowText) || rowItems.some(item => /^[\d,.]+$/.test(item.str.trim()))) {
+            // Extract all area values from this row
+            const areaValues = rowItems
+              .map(item => item.str.trim())
+              .filter(str => /^[\d,.]+$/.test(str))
+              .map(str => parseFloat(str.replace(/,/g, '')));
+            
+            if (areaValues.length > 0 && areaValues.length === pitches.length) {
+              areas.push(...areaValues);
+              console.log("Found areas:", areas);
+              continue;
+            }
+          }
+          
+          // Finally look for the percentage row
+          if (/%/.test(rowText)) {
+            // Extract all percentage values from this row
+            const percentageValues = rowItems
+              .map(item => item.str.trim())
+              .filter(str => /^[\d.]+%?$/.test(str))
+              .map(str => parseFloat(str.replace('%', '')));
+            
+            if (percentageValues.length > 0 && percentageValues.length === pitches.length) {
+              percentages.push(...percentageValues);
+              console.log("Found percentages:", percentages);
+              foundValidData = true;
+              break;
+            }
           }
         }
         
@@ -718,10 +735,8 @@ export function usePdfParser() {
           const percentage = percentages[idx] || (area / totalExtractedArea * 100);
           
           if (area > 0) {
-            measurements.areasByPitch[pitch] = {
-              area,
-              percentage
-            };
+            // Store as a simple number since that's what the UI expects
+            measurements.areasByPitch[pitch] = area;
             console.log(`Storing pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
           }
         });
@@ -731,7 +746,7 @@ export function usePdfParser() {
         
         // Validate total matches
         const sumAreas = Object.values(measurements.areasByPitch)
-          .reduce((sum, data) => sum + data.area, 0);
+          .reduce((sum, area) => sum + (typeof area === 'number' ? area : 0), 0);
         
         console.log(`Total area from pitch table: ${sumAreas} sq ft`);
         console.log(`Total area from measurements: ${measurements.totalArea} sq ft`);
