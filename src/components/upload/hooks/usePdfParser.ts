@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ParsedMeasurements } from "@/api/measurements";
+import { ParsedMeasurements, PitchArea } from "@/api/measurements";
 import { validatePdfFile } from "../pdf-utils";
 import { FileUploadStatus } from "./useFileUpload";
 import { ProcessingMode } from "./pdf-constants";
@@ -14,6 +14,9 @@ import { toast } from "@/hooks/use-toast";
 // Import PDF.js for client-side parsing
 import * as pdfjs from 'pdfjs-dist';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
+// Add type imports
+import { MeasurementValues } from "@/components/measurement/types";
+import { convertAreasToArrayFormat } from "./debug-utils";
 
 // Set up the PDF.js worker
 const pdfjsVersion = '3.11.174'; // Match this with your installed version
@@ -723,21 +726,19 @@ export function usePdfParser() {
           }
         });
         
+        // Set roofPitch for UI compatibility
+        measurements.roofPitch = measurements.predominantPitch;
+        
         // Validate total matches
         const sumAreas = Object.values(measurements.areasByPitch)
-          .reduce((sum, data) => sum + (typeof data === 'object' ? data.area : 0), 0);
+          .reduce((sum, data) => sum + data.area, 0);
         
         console.log(`Total area from pitch table: ${sumAreas} sq ft`);
         console.log(`Total area from measurements: ${measurements.totalArea} sq ft`);
         
-        // If totals don't match within 1%, adjust percentages
+        // If totals don't match within 1%, log warning
         if (Math.abs(sumAreas - measurements.totalArea) / measurements.totalArea > 0.01) {
-          console.log("Adjusting percentages based on total area");
-          Object.entries(measurements.areasByPitch).forEach(([pitch, data]) => {
-            if (typeof data === 'object') {
-              data.percentage = (data.area / measurements.totalArea) * 100;
-            }
-          });
+          console.warn("Total area from pitch table doesn't match total area");
         }
       } else if (measurements.predominantPitch && measurements.totalArea > 0) {
         // If no pitch table found but we have predominant pitch and total area,
@@ -746,6 +747,7 @@ export function usePdfParser() {
           area: measurements.totalArea,
           percentage: 100
         };
+        measurements.roofPitch = measurements.predominantPitch;
       }
       
       // AFTER PITCH AREA EXTRACTION IS COMPLETE
