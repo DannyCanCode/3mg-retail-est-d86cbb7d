@@ -735,8 +735,11 @@ export function usePdfParser() {
           const percentage = percentages[idx] || (area / totalExtractedArea * 100);
           
           if (area > 0) {
-            // Store as a simple number since that's what the UI expects
-            measurements.areasByPitch[pitch] = area;
+            // Store as an object with area and percentage as expected by the UI
+            measurements.areasByPitch[pitch] = {
+              area: area,
+              percentage: percentage
+            };
             console.log(`Storing pitch data: ${pitch} - ${area} sq ft - ${percentage}%`);
           }
         });
@@ -746,7 +749,7 @@ export function usePdfParser() {
         
         // Validate total matches
         const sumAreas = Object.values(measurements.areasByPitch)
-          .reduce((sum, area) => sum + (typeof area === 'number' ? area : 0), 0);
+          .reduce((sum, data) => sum + (typeof data === 'object' ? data.area : 0), 0);
         
         console.log(`Total area from pitch table: ${sumAreas} sq ft`);
         console.log(`Total area from measurements: ${measurements.totalArea} sq ft`);
