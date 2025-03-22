@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ParsedMeasurements, PitchArea } from "@/api/measurements";
+import { MeasurementValues } from "@/components/measurement/types";
 import { validatePdfFile } from "../pdf-utils";
 import { FileUploadStatus } from "./useFileUpload";
 import { ProcessingMode } from "./pdf-constants";
@@ -15,12 +16,18 @@ import { toast } from "@/hooks/use-toast";
 import * as pdfjs from 'pdfjs-dist';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 // Add type imports
-import { MeasurementValues } from "@/components/measurement/types";
 import { convertAreasToArrayFormat } from "./debug-utils";
 
 // Set up the PDF.js worker
 const pdfjsVersion = '3.11.174'; // Match this with your installed version
 GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`;
+
+// Add TextItem interface at the top of the file
+interface TextItem {
+  text: string;
+  x: number;
+  y: number;
+}
 
 export function usePdfParser() {
   const [parsedData, setParsedData] = useState<ParsedMeasurements | null>(null);
@@ -70,7 +77,7 @@ export function usePdfParser() {
       
       try {
         // Parse the PDF client-side using PDF.js
-        const measurements = await parsePdfClientSide(file, setProcessingProgress);
+        const { measurements, parsedMeasurements } = await parsePdfClientSide(file, setProcessingProgress);
         
         if (!measurements) {
           throw new Error("Failed to extract measurements from PDF");
@@ -79,7 +86,7 @@ export function usePdfParser() {
         console.log("Client-side parsed measurements:", measurements);
         
         // Store the parsed measurements
-        setParsedData(measurements);
+        setParsedData(parsedMeasurements);
         setStatus("success");
         
         // If we have Supabase configured, we can still upload the file for storage
@@ -99,7 +106,7 @@ export function usePdfParser() {
           }
         }
         
-        return measurements;
+        return { measurements, parsedMeasurements };
       } catch (clientSideError) {
         console.warn("Client-side PDF parsing failed, falling back to Supabase:", clientSideError);
         
@@ -182,7 +189,7 @@ export function usePdfParser() {
       totalPages: number;
       status: string;
     } | null>>
-  ): Promise<ParsedMeasurements | null> => {
+  ): Promise<{ measurements: MeasurementValues, parsedMeasurements: ParsedMeasurements }> => {
     try {
       // Create a URL to the PDF file
       const fileURL = URL.createObjectURL(file);
@@ -197,8 +204,8 @@ export function usePdfParser() {
       const loadingTask = pdfjs.getDocument(fileURL);
       const pdf = await loadingTask.promise;
       
-      // Create a measurements object
-      const measurements: ParsedMeasurements = {
+      // Initialize measurements objects
+      const parsedMeasurements: ParsedMeasurements = {
         totalArea: 0,
         predominantPitch: "",
         ridgeLength: 0,
@@ -217,10 +224,15 @@ export function usePdfParser() {
         penetrationsPerimeter: 0,
         dripEdgeLength: 0,
         areasByPitch: {},
-        // Initialize new property fields
+        areasPerPitch: {},
         longitude: "",
         latitude: "",
         propertyAddress: ""
+      };
+      
+      const measurements: MeasurementValues = {
+        ...parsedMeasurements,
+        areasByPitch: {}  // This will store numbers instead of PitchArea objects
       };
       
       // Extract text from all pages
@@ -312,11 +324,11 @@ export function usePdfParser() {
       for (const pattern of ridgePatterns) {
         const ridgeMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (ridgeMatch && ridgeMatch[1]) {
-          measurements.ridgeLength = parseFloat(ridgeMatch[1].replace(/,/g, ''));
+          parsedMeasurements.ridgeLength = parseFloat(ridgeMatch[1].replace(/,/g, ''));
           if (ridgeMatch[2]) {
-            measurements.ridgeCount = parseInt(ridgeMatch[2], 10);
+            parsedMeasurements.ridgeCount = parseInt(ridgeMatch[2], 10);
           }
-          console.log(`Found ridge length: ${measurements.ridgeLength} ft`);
+          console.log(`Found ridge length: ${parsedMeasurements.ridgeLength} ft`);
           foundRidge = true;
           break;
         }
@@ -335,11 +347,11 @@ export function usePdfParser() {
       for (const pattern of hipPatterns) {
         const hipMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (hipMatch && hipMatch[1]) {
-          measurements.hipLength = parseFloat(hipMatch[1].replace(/,/g, ''));
+          parsedMeasurements.hipLength = parseFloat(hipMatch[1].replace(/,/g, ''));
           if (hipMatch[2]) {
-            measurements.hipCount = parseInt(hipMatch[2], 10);
+            parsedMeasurements.hipCount = parseInt(hipMatch[2], 10);
           }
-          console.log(`Found hip length: ${measurements.hipLength} ft`);
+          console.log(`Found hip length: ${parsedMeasurements.hipLength} ft`);
           foundHip = true;
           break;
         }
@@ -358,11 +370,11 @@ export function usePdfParser() {
       for (const pattern of valleyPatterns) {
         const valleyMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (valleyMatch && valleyMatch[1]) {
-          measurements.valleyLength = parseFloat(valleyMatch[1].replace(/,/g, ''));
+          parsedMeasurements.valleyLength = parseFloat(valleyMatch[1].replace(/,/g, ''));
           if (valleyMatch[2]) {
-            measurements.valleyCount = parseInt(valleyMatch[2], 10);
+            parsedMeasurements.valleyCount = parseInt(valleyMatch[2], 10);
           }
-          console.log(`Found valley length: ${measurements.valleyLength} ft`);
+          console.log(`Found valley length: ${parsedMeasurements.valleyLength} ft`);
           foundValley = true;
           break;
         }
@@ -381,11 +393,11 @@ export function usePdfParser() {
       for (const pattern of rakePatterns) {
         const rakeMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (rakeMatch && rakeMatch[1]) {
-          measurements.rakeLength = parseFloat(rakeMatch[1].replace(/,/g, ''));
+          parsedMeasurements.rakeLength = parseFloat(rakeMatch[1].replace(/,/g, ''));
           if (rakeMatch[2]) {
-            measurements.rakeCount = parseInt(rakeMatch[2], 10);
+            parsedMeasurements.rakeCount = parseInt(rakeMatch[2], 10);
           }
-          console.log(`Found rake length: ${measurements.rakeLength} ft`);
+          console.log(`Found rake length: ${parsedMeasurements.rakeLength} ft`);
           foundRake = true;
           break;
         }
@@ -405,11 +417,11 @@ export function usePdfParser() {
       for (const pattern of eavePatterns) {
         const eaveMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (eaveMatch && eaveMatch[1]) {
-          measurements.eaveLength = parseFloat(eaveMatch[1].replace(/,/g, ''));
+          parsedMeasurements.eaveLength = parseFloat(eaveMatch[1].replace(/,/g, ''));
           if (eaveMatch[2]) {
-            measurements.eaveCount = parseInt(eaveMatch[2], 10);
+            parsedMeasurements.eaveCount = parseInt(eaveMatch[2], 10);
           }
-          console.log(`Found eave length: ${measurements.eaveLength} ft`);
+          console.log(`Found eave length: ${parsedMeasurements.eaveLength} ft`);
           foundEave = true;
           break;
         }
@@ -426,8 +438,8 @@ export function usePdfParser() {
       for (const pattern of dripEdgePatterns) {
         const dripEdgeMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (dripEdgeMatch && dripEdgeMatch[1]) {
-          measurements.dripEdgeLength = parseFloat(dripEdgeMatch[1].replace(/,/g, ''));
-          console.log(`Found drip edge length: ${measurements.dripEdgeLength} ft`);
+          parsedMeasurements.dripEdgeLength = parseFloat(dripEdgeMatch[1].replace(/,/g, ''));
+          console.log(`Found drip edge length: ${parsedMeasurements.dripEdgeLength} ft`);
           foundDripEdge = true;
           break;
         }
@@ -445,8 +457,8 @@ export function usePdfParser() {
       for (const pattern of flashingPatterns) {
         const flashingMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (flashingMatch && flashingMatch[1]) {
-          measurements.flashingLength = parseFloat(flashingMatch[1].replace(/,/g, ''));
-          console.log(`Found flashing length: ${measurements.flashingLength} ft`);
+          parsedMeasurements.flashingLength = parseFloat(flashingMatch[1].replace(/,/g, ''));
+          console.log(`Found flashing length: ${parsedMeasurements.flashingLength} ft`);
           foundFlashing = true;
           break;
         }
@@ -463,8 +475,8 @@ export function usePdfParser() {
       for (const pattern of stepFlashingPatterns) {
         const stepFlashingMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (stepFlashingMatch && stepFlashingMatch[1]) {
-          measurements.stepFlashingLength = parseFloat(stepFlashingMatch[1].replace(/,/g, ''));
-          console.log(`Found step flashing length: ${measurements.stepFlashingLength} ft`);
+          parsedMeasurements.stepFlashingLength = parseFloat(stepFlashingMatch[1].replace(/,/g, ''));
+          console.log(`Found step flashing length: ${parsedMeasurements.stepFlashingLength} ft`);
           foundStepFlashing = true;
           break;
         }
@@ -481,8 +493,8 @@ export function usePdfParser() {
       for (const pattern of penetrationsAreaPatterns) {
         const penetrationsAreaMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (penetrationsAreaMatch && penetrationsAreaMatch[1]) {
-          measurements.penetrationsArea = parseFloat(penetrationsAreaMatch[1].replace(/,/g, ''));
-          console.log(`Found penetrations area: ${measurements.penetrationsArea} sq ft`);
+          parsedMeasurements.penetrationsArea = parseFloat(penetrationsAreaMatch[1].replace(/,/g, ''));
+          console.log(`Found penetrations area: ${parsedMeasurements.penetrationsArea} sq ft`);
           foundPenetrationsArea = true;
           break;
         }
@@ -499,8 +511,8 @@ export function usePdfParser() {
       for (const pattern of penetrationsPerimeterPatterns) {
         const penetrationsPerimeterMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (penetrationsPerimeterMatch && penetrationsPerimeterMatch[1]) {
-          measurements.penetrationsPerimeter = parseFloat(penetrationsPerimeterMatch[1].replace(/,/g, ''));
-          console.log(`Found penetrations perimeter: ${measurements.penetrationsPerimeter} ft`);
+          parsedMeasurements.penetrationsPerimeter = parseFloat(penetrationsPerimeterMatch[1].replace(/,/g, ''));
+          console.log(`Found penetrations perimeter: ${parsedMeasurements.penetrationsPerimeter} ft`);
           foundPenetrationsPerimeter = true;
           break;
         }
@@ -518,8 +530,8 @@ export function usePdfParser() {
       for (const pattern of totalAreaPatterns) {
         const totalAreaMatch = primaryText.match(pattern) || fullText.match(pattern);
         if (totalAreaMatch && totalAreaMatch[1]) {
-          measurements.totalArea = parseFloat(totalAreaMatch[1].replace(/,/g, ''));
-          console.log(`Found total area: ${measurements.totalArea} sq ft`);
+          parsedMeasurements.totalArea = parseFloat(totalAreaMatch[1].replace(/,/g, ''));
+          console.log(`Found total area: ${parsedMeasurements.totalArea} sq ft`);
           foundTotalArea = true;
           break;
         }
@@ -540,8 +552,8 @@ export function usePdfParser() {
         if (predominantPitchMatch && predominantPitchMatch[1]) {
           // Normalize to x:12 format
           const [numerator, denominator] = predominantPitchMatch[1].split('/');
-          measurements.predominantPitch = `${numerator}:${denominator}`;
-          console.log(`Found predominant pitch: ${measurements.predominantPitch}`);
+          parsedMeasurements.predominantPitch = `${numerator}:${denominator}`;
+          console.log(`Found predominant pitch: ${parsedMeasurements.predominantPitch}`);
           foundPredominantPitch = true;
           break;
         }
@@ -551,7 +563,7 @@ export function usePdfParser() {
       console.log("Extracting areas by pitch...");
       
       // Initialize empty object to store areas by pitch
-      measurements.areasByPitch = {};
+      parsedMeasurements.areasByPitch = {};
       
       // Define the pitch validation function for use throughout this parsing logic
       function isValidPitch(pitch: string): boolean {
@@ -562,118 +574,77 @@ export function usePdfParser() {
       
       // Define a function for coordinate-based table detection and extraction
       // This will use the raw text items with their positions to reconstruct the table structure
-      function extractPitchTableData(pageNum: number): {pitches: string[], areas: number[], percentages: number[]} | null {
-        const textItems = pageTextItems[pageNum];
-        if (!textItems || textItems.length === 0) return null;
-        
-        // Group text items by their Y-coordinate (rounding to nearest integer to handle slight variations)
-        const rowGroups: { [y: string]: Array<{str: string, x: number, y: number}> } = {};
+      function extractPitchTableData(textItems: TextItem[]): { pitches: string[], areas: number[], percentages: number[] } {
+        // Group items by Y coordinate (with some tolerance for slight variations)
+        const yTolerance = 2;
+        const itemsByY: { [key: number]: TextItem[] } = {};
         
         textItems.forEach(item => {
-          const x = Math.round(item.transform[4]);
-          const y = Math.round(item.transform[5]);
-          const yKey = y.toString();
-          
-          if (!rowGroups[yKey]) {
-            rowGroups[yKey] = [];
+          const y = Math.round(item.y / yTolerance) * yTolerance;
+          if (!itemsByY[y]) {
+            itemsByY[y] = [];
           }
-          
-          rowGroups[yKey].push({
-            str: item.str.trim(),
-            x,
-            y
-          });
+          itemsByY[y].push(item);
         });
-        
+
         // Sort each row by X coordinate
-        Object.values(rowGroups).forEach(row => {
+        Object.values(itemsByY).forEach(row => {
           row.sort((a, b) => a.x - b.x);
         });
-        
-        // Convert rowGroups to array and sort by Y coordinate (top to bottom)
-        const sortedRows = Object.entries(rowGroups)
-          .map(([y, items]) => ({
-            y: parseFloat(y),
-            items,
-            text: items.map(i => i.str).join(' ').trim()
-          }))
-          .sort((b, a) => a.y - b.y);
-        
-        // Look for table start
-        let tableStartIdx = -1;
-        for (let i = 0; i < sortedRows.length; i++) {
-          if (/Areas\s*(?:per|by)\s*Pitch/i.test(sortedRows[i].text)) {
-            tableStartIdx = i;
-            console.log("Found pitch table start at row", i, "with text:", sortedRows[i].text);
-            break;
-          }
-        }
-        
-        if (tableStartIdx === -1) return null;
-        
+
+        // Convert to sorted rows
+        const sortedRows = Object.entries(itemsByY)
+          .sort(([y1], [y2]) => Number(y1) - Number(y2))
+          .map(([_, items]) => items);
+
+        console.log('Sorted rows:', sortedRows);
+
+        // Find rows containing area and percentage data
+        const areaRows = sortedRows.filter(row => {
+          const rowText = row.map(item => item.text).join(' ');
+          return /\d+(?:\.\d+)?\s*(?:sq\s*ft|%)/i.test(rowText);
+        });
+
+        // Extract data from rows
         const pitches: string[] = [];
         const areas: number[] = [];
         const percentages: number[] = [];
-        
-        // Process each row after the header
-        for (let i = tableStartIdx + 1; i < Math.min(tableStartIdx + 10, sortedRows.length); i++) {
-          const row = sortedRows[i];
-          const rowText = row.text.trim();
-          console.log("Processing row:", rowText);
+
+        areaRows.forEach(row => {
+          const rowText = row.map(item => item.text).join(' ');
           
-          // Extract pitches (looking for x/12 format)
-          if (/\d+\/12/.test(rowText)) {
-            const pitchMatches = rowText.match(/\d+\/12/g);
-            if (pitchMatches) {
-              pitchMatches.forEach(pitch => {
-                if (!pitches.includes(pitch)) {
-                  pitches.push(pitch);
-                }
-              });
-              console.log("Found pitches:", pitches);
+          // Skip total row and empty rows
+          if (rowText.toLowerCase().includes('total') || !rowText.trim()) {
+            return;
+          }
+
+          // Extract pitch (format: x/12)
+          const pitchMatch = rowText.match(/(\d+)\/12/);
+          
+          // Extract area (looking for numbers, possibly with commas)
+          const areaMatch = rowText.match(/(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:sq\s*ft)?/);
+          
+          // Extract percentage (looking for numbers followed by %)
+          const percentageMatch = rowText.match(/(\d+(?:\.\d+)?)\s*%/);
+
+          if (pitchMatch && areaMatch && percentageMatch) {
+            const pitch = pitchMatch[1];
+            const area = parseFloat(areaMatch[1].replace(/,/g, ''));
+            const percentage = parseFloat(percentageMatch[1]);
+
+            if (!isNaN(area) && !isNaN(percentage)) {
+              pitches.push(pitch);
+              areas.push(area);
+              percentages.push(percentage);
             }
           }
-          
-          // Extract areas (looking for decimal numbers)
-          if (/\d+\.\d+/.test(rowText)) {
-            const areaMatches = rowText.match(/\d+(?:,\d+)*(?:\.\d+)?/g);
-            if (areaMatches) {
-              areaMatches.forEach(area => {
-                const parsedArea = parseFloat(area.replace(/,/g, ''));
-                if (!isNaN(parsedArea) && !areas.includes(parsedArea)) {
-                  areas.push(parsedArea);
-                }
-              });
-              console.log("Found areas:", areas);
-            }
-          }
-          
-          // Extract percentages (looking for numbers with % symbol)
-          if (/%/.test(rowText)) {
-            const percentageMatches = rowText.match(/\d+(?:\.\d+)?%/g);
-            if (percentageMatches) {
-              percentageMatches.forEach(percentage => {
-                const parsedPercentage = parseFloat(percentage.replace('%', ''));
-                if (!isNaN(parsedPercentage) && !percentages.includes(parsedPercentage)) {
-                  percentages.push(parsedPercentage);
-                }
-              });
-              console.log("Found percentages:", percentages);
-            }
-          }
-        }
-        
-        // Verify we have matching data
-        if (pitches.length > 0 && pitches.length === areas.length && pitches.length === percentages.length) {
-          console.log("Successfully extracted pitch table data:", {
-            pitches,
-            areas,
-            percentages
-          });
-          return { pitches, areas, percentages };
-        }
-        
-        return null;
+        });
+
+        console.log('Extracted pitches:', pitches);
+        console.log('Extracted areas:', areas);
+        console.log('Extracted percentages:', percentages);
+
+        return { pitches, areas, percentages };
       }
       
       // Try the coordinate-based table extraction first
@@ -683,7 +654,11 @@ export function usePdfParser() {
       // Try to extract the pitch table from each page
       for (let i = 1; i <= numPages; i++) {
         console.log(`Trying to extract pitch table from page ${i}`);
-        extractedTableData = extractPitchTableData(i);
+        extractedTableData = extractPitchTableData(pageTextItems[i].map(item => ({
+          text: item.str.trim(),
+          x: Math.round(item.transform[4]),
+          y: Math.round(item.transform[5])
+        })));
         if (extractedTableData && extractedTableData.pitches.length > 0) {
           console.log(`Successfully extracted pitch table from page ${i}`);
           break;
@@ -695,61 +670,55 @@ export function usePdfParser() {
         const { pitches, areas, percentages } = extractedTableData;
         
         console.log("Extracted pitch table data:", { pitches, areas, percentages });
+        console.log("Total number of pitches:", pitches.length);
         
-        // Reset areasByPitch to ensure we start fresh
+        // Reset areasByPitch to ensure fresh data
+        parsedMeasurements.areasByPitch = {};
         measurements.areasByPitch = {};
         
-        // Store each pitch area with its percentage
-        pitches.forEach((pitch, idx) => {
-          // Convert pitch from x/12 to x:12 format
-          const normalizedPitch = pitch.replace('/', ':');
-          const area = areas[idx];
-          const percentage = percentages[idx];
+        // Store pitch areas in both formats
+        pitches.forEach((pitch, index) => {
+          const area = areas[index];
+          const percentage = percentages[index];
+          const pitchKey = `${pitch}:12`;
           
-          // Only store if we have valid area and percentage
-          if (!isNaN(area) && !isNaN(percentage) && area > 0) {
-            measurements.areasByPitch[normalizedPitch] = {
-              area: area,
-              percentage: percentage
+          if (!isNaN(area) && !isNaN(percentage)) {
+            // Store as PitchArea for ParsedMeasurements
+            parsedMeasurements.areasByPitch[pitchKey] = {
+              area,
+              percentage
             };
-            console.log(`Storing pitch data: ${normalizedPitch} - ${area} sq ft - ${percentage}%`);
+            
+            // Store as number for MeasurementValues
+            measurements.areasByPitch[pitchKey] = area;
           }
         });
         
-        // Set roofPitch for UI compatibility (use predominant pitch if available)
-        // Find the pitch with the highest percentage to use as predominant pitch
-        let maxPercentage = 0;
-        let predominantPitch = '';
-        Object.entries(measurements.areasByPitch).forEach(([pitch, data]) => {
-          if (data.percentage > maxPercentage) {
-            maxPercentage = data.percentage;
-            predominantPitch = pitch;
-          }
-        });
-        
-        measurements.predominantPitch = predominantPitch;
-        measurements.roofPitch = predominantPitch;
-        
-        // Validate total matches
-        const sumAreas = Object.values(measurements.areasByPitch)
-          .reduce((sum, data) => sum + data.area, 0);
-        
-        console.log(`Total area from pitch table: ${sumAreas} sq ft`);
-        console.log(`Total area from measurements: ${measurements.totalArea} sq ft`);
-        console.log('Final areasByPitch:', measurements.areasByPitch);
-        
-        // If totals don't match within 1%, log warning
-        if (Math.abs(sumAreas - measurements.totalArea) / measurements.totalArea > 0.01) {
-          console.warn(`Total area from pitch table (${sumAreas}) doesn't match total area (${measurements.totalArea})`);
+        // Set predominant pitch for UI compatibility
+        if (pitches.length > 0) {
+          const maxAreaIndex = areas.indexOf(Math.max(...areas));
+          const predominantPitch = `${pitches[maxAreaIndex]}:12`;
+          measurements.roofPitch = predominantPitch;
+          measurements.predominantPitch = predominantPitch;
+          parsedMeasurements.predominantPitch = predominantPitch;
         }
-      } else if (measurements.predominantPitch && measurements.totalArea > 0) {
+        
+        // Validate total area using measurements.areasByPitch
+        const totalFromPitches = Object.values(measurements.areasByPitch)
+          .reduce((sum, area) => sum + area, 0);
+
+        if (Math.abs(totalFromPitches - parsedMeasurements.totalArea) > parsedMeasurements.totalArea * 0.01) {
+          console.warn(`Total area mismatch: ${totalFromPitches} from pitches vs ${parsedMeasurements.totalArea} from measurements`);
+        }
+      } else if (parsedMeasurements.predominantPitch && parsedMeasurements.totalArea > 0) {
         // If no pitch table found but we have predominant pitch and total area,
         // create a single entry
-        measurements.areasByPitch[measurements.predominantPitch] = {
-          area: measurements.totalArea,
+        parsedMeasurements.areasByPitch[parsedMeasurements.predominantPitch] = {
+          area: parsedMeasurements.totalArea,
           percentage: 100
         };
-        measurements.roofPitch = measurements.predominantPitch;
+        measurements.areasByPitch[parsedMeasurements.predominantPitch] = parsedMeasurements.totalArea;
+        measurements.roofPitch = parsedMeasurements.predominantPitch;
       }
       
       // AFTER PITCH AREA EXTRACTION IS COMPLETE
@@ -779,8 +748,8 @@ export function usePdfParser() {
       for (const pattern of addressPatterns) {
         const addressMatch = fullText.match(pattern);
         if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
-          measurements.propertyAddress = addressMatch[1].trim();
-          console.log(`Found property address: ${measurements.propertyAddress}`);
+          parsedMeasurements.propertyAddress = addressMatch[1].trim();
+          console.log(`Found property address: ${parsedMeasurements.propertyAddress}`);
           foundAddress = true;
           break;
         }
@@ -794,8 +763,8 @@ export function usePdfParser() {
             for (const pattern of addressPatterns) {
               const addressMatch = pageContents[i].match(pattern);
               if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
-                measurements.propertyAddress = addressMatch[1].trim();
-                console.log(`Found property address in page ${i}: ${measurements.propertyAddress}`);
+                parsedMeasurements.propertyAddress = addressMatch[1].trim();
+                console.log(`Found property address in page ${i}: ${parsedMeasurements.propertyAddress}`);
                 foundAddress = true;
                 break;
               }
@@ -822,8 +791,8 @@ export function usePdfParser() {
         if (latMatch && latMatch[1]) {
           const latValue = parseFloat(latMatch[1]);
           if (!isNaN(latValue) && latValue >= -90 && latValue <= 90) {
-            measurements.latitude = latMatch[1];
-            console.log(`Found latitude: ${measurements.latitude}`);
+            parsedMeasurements.latitude = latMatch[1];
+            console.log(`Found latitude: ${parsedMeasurements.latitude}`);
             break;
           }
         }
@@ -835,14 +804,14 @@ export function usePdfParser() {
         if (longMatch && longMatch[1]) {
           const longValue = parseFloat(longMatch[1]);
           if (!isNaN(longValue) && longValue >= -180 && longValue <= 180) {
-            measurements.longitude = longMatch[1];
-            console.log(`Found longitude: ${measurements.longitude}`);
+            parsedMeasurements.longitude = longMatch[1];
+            console.log(`Found longitude: ${parsedMeasurements.longitude}`);
             break;
           }
         }
       }
       
-      return measurements;
+      return { measurements, parsedMeasurements };
     } catch (error) {
       console.error("Error parsing PDF client-side:", error);
       return null;
