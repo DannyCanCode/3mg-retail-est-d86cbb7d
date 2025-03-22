@@ -594,7 +594,7 @@ export function usePdfParser() {
 
         // Convert to sorted rows
         const sortedRows = Object.entries(itemsByY)
-          .sort(([y1], [y2]) => Number(y2) - Number(y1))  // Sort in descending order to process from top to bottom
+          .sort(([y1], [y2]) => Number(y2) - Number(y1))
           .map(([_, items]) => items);
 
         console.log('Processing sorted rows for pitch data extraction...');
@@ -603,13 +603,14 @@ export function usePdfParser() {
         const areas: number[] = [];
         const percentages: number[] = [];
 
+        // Process each row for pitch data
         sortedRows.forEach(row => {
           const rowText = row.map(item => item.text).join(' ');
           console.log('Processing row:', rowText);
 
           // Skip header rows and total rows
           if (rowText.toLowerCase().includes('total') || 
-              rowText.toLowerCase().includes('pitch') || 
+              rowText.toLowerCase().includes('roof pitch') || 
               !rowText.trim()) {
             return;
           }
@@ -617,7 +618,7 @@ export function usePdfParser() {
           // Extract pitch (looking for x/12 or x:12 format)
           const pitchMatch = rowText.match(/(\d+)(?:\/|:)12/);
           
-          // Extract area (looking for numbers with optional commas and sq ft)
+          // Extract area (looking for numbers with optional commas and decimal)
           const areaMatch = rowText.match(/(\d{1,3}(?:,\d{3})*(?:\.\d+)?)\s*(?:sq\s*ft)?/);
           
           // Extract percentage (looking for numbers with % symbol)
@@ -637,13 +638,6 @@ export function usePdfParser() {
               percentages.push(percentage);
             }
           }
-        });
-
-        console.log('Final extracted data:', {
-          pitches,
-          areas,
-          percentages,
-          totalPitches: pitches.length
         });
 
         return { pitches, areas, percentages };
@@ -697,16 +691,6 @@ export function usePdfParser() {
           }
         });
         
-        // Calculate and validate total area
-        const calculatedTotal = Object.values(measurements.areasByPitch)
-          .reduce((sum, area) => sum + area, 0);
-        
-        console.log("Areas validation:", {
-          calculatedTotal,
-          storedTotal: parsedMeasurements.totalArea,
-          difference: Math.abs(calculatedTotal - parsedMeasurements.totalArea)
-        });
-        
         // Set predominant pitch for UI compatibility
         if (pitches.length > 0) {
           const maxAreaIndex = areas.indexOf(Math.max(...areas));
@@ -718,13 +702,26 @@ export function usePdfParser() {
       } else if (parsedMeasurements.predominantPitch && parsedMeasurements.totalArea > 0) {
         // If no pitch table found but we have predominant pitch and total area,
         // create a single entry
-        parsedMeasurements.areasByPitch[parsedMeasurements.predominantPitch] = {
+        const pitch = parsedMeasurements.predominantPitch;
+        
+        // Store in ParsedMeasurements format
+        parsedMeasurements.areasByPitch[pitch] = {
           area: parsedMeasurements.totalArea,
           percentage: 100
         };
-        measurements.areasByPitch[parsedMeasurements.predominantPitch] = parsedMeasurements.totalArea;
-        measurements.roofPitch = parsedMeasurements.predominantPitch;
+        
+        // Store in MeasurementValues format
+        measurements.areasByPitch[pitch] = parsedMeasurements.totalArea;
+        measurements.roofPitch = pitch;
       }
+      
+      // Validate the data
+      console.log("Final measurements data:", {
+        parsedMeasurements: parsedMeasurements.areasByPitch,
+        measurements: measurements.areasByPitch,
+        totalArea: parsedMeasurements.totalArea,
+        predominantPitch: measurements.roofPitch
+      });
       
       // AFTER PITCH AREA EXTRACTION IS COMPLETE
       // Add code to extract property address, latitude, and longitude

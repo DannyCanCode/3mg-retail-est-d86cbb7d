@@ -1,81 +1,65 @@
 import React from "react";
-import { MeasurementValues } from "@/components/estimates/measurement/types";
+import { MeasurementValues } from "@/components/measurement/types";
 
 interface MeasurementSummaryProps {
   measurements: MeasurementValues;
 }
 
 export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurements }) => {
-  // Display areas by pitch table
   const renderAreasByPitch = () => {
-    // Ensure areasByPitch is an array (backward compatibility)
-    const pitchAreas = Array.isArray(measurements.areasByPitch) 
-      ? measurements.areasByPitch
-      : Object.entries(measurements.areasByPitch || {})
-          .map(([pitch, area]) => ({ 
-            pitch: pitch.replace(':', '/'),  // Convert from "5:12" format to "5/12" display format
-            area: typeof area === 'number' ? Math.round(area) : 0,  // Ensure area is a number and round it
-            percentage: 0  // Will be calculated below
-          }));
+    // Convert areasByPitch object to array format
+    const pitchAreas = Object.entries(measurements.areasByPitch || {})
+      .map(([pitch, area]) => {
+        const [numerator] = pitch.split(':');
+        return {
+          pitch: `${numerator}/12`,
+          area: typeof area === 'number' ? area : 0,
+          percentage: ((area / measurements.totalArea) * 100) || 0
+        };
+      });
 
-    // Sort pitches numerically
+    // Sort pitches numerically by the numerator
     const sortedPitchAreas = [...pitchAreas].sort((a, b) => {
-      // Sort by pitch (numerically, not alphabetically)
-      const getPitchValue = (p: string) => {
-        const [numerator, denominator] = p.split(/[:/]/).map(Number);
-        return numerator / denominator;
-      };
+      const getPitchValue = (p: string) => parseInt(p.split('/')[0]);
       return getPitchValue(a.pitch) - getPitchValue(b.pitch);
     });
 
-    // Format pitch display for UI
-    const formattedPitchAreas = sortedPitchAreas.map(item => ({
-      ...item,
-      pitch: item.pitch.includes('/') ? item.pitch : item.pitch.replace(':', '/'),
-      area: Math.round(item.area)
-    }));
-    
-    // Use measurements.totalArea for consistency
-    const totalArea = measurements.totalArea;
-    
     return (
       <div className="mt-8">
-        <h3 className="text-lg font-medium mb-2">Areas by Pitch</h3>
+        <h3 className="text-lg font-medium mb-2">Areas per Pitch</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white border">
             <thead className="bg-gray-100">
               <tr>
-                <th className="py-2 px-4 border text-left">ROOF PITCH</th>
-                <th className="py-2 px-4 border text-left">AREA (SQ FT)</th>
-                <th className="py-2 px-4 border text-left">% OF ROOF</th>
+                <th className="py-2 px-4 border text-left">Roof Pitches</th>
+                {sortedPitchAreas.map((item, index) => (
+                  <th key={index} className="py-2 px-4 border text-center">{item.pitch}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {formattedPitchAreas.map((item, index) => (
-                <tr key={index} className="hover:bg-gray-50">
-                  <td className="py-2 px-4 border">{item.pitch}</td>
-                  <td className="py-2 px-4 border">{item.area.toLocaleString()}</td>
-                  <td className="py-2 px-4 border">
-                    {item.percentage ? item.percentage.toFixed(1) : totalArea > 0 ? ((item.area / totalArea) * 100).toFixed(1) : 0}%
-                  </td>
-                </tr>
-              ))}
-              <tr className="font-medium bg-gray-50">
-                <td className="py-2 px-4 border">Total</td>
-                <td className="py-2 px-4 border">{Math.round(totalArea).toLocaleString()}</td>
-                <td className="py-2 px-4 border">100.0%</td>
+              <tr>
+                <td className="py-2 px-4 border">Area (sq ft)</td>
+                {sortedPitchAreas.map((item, index) => (
+                  <td key={index} className="py-2 px-4 border text-center">{item.area.toFixed(1)}</td>
+                ))}
+              </tr>
+              <tr>
+                <td className="py-2 px-4 border">% of Roof</td>
+                {sortedPitchAreas.map((item, index) => (
+                  <td key={index} className="py-2 px-4 border text-center">{item.percentage.toFixed(1)}%</td>
+                ))}
               </tr>
             </tbody>
           </table>
         </div>
         <p className="text-sm text-gray-600 mt-2">
-          The table above lists each pitch on this roof and the total area and percent of the roof with that pitch.
+          The table above lists each pitch on this roof and the total area and percent (both rounded) of the roof with that pitch.
         </p>
       </div>
     );
   };
 
-  // Render the whole measurement summary
   return (
     <div className="space-y-6">
       <div className="mt-6">
