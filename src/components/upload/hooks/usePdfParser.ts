@@ -605,9 +605,9 @@ export function usePdfParser() {
 
         // Find the Areas per Pitch section
         let inPitchSection = false;
-        let pitchRow: TextItem[] = [];
-        let areaRow: TextItem[] = [];
-        let percentageRow: TextItem[] = [];
+        let foundPitchRow = false;
+        let foundAreaRow = false;
+        let foundPercentageRow = false;
 
         for (const row of sortedRows) {
           const rowText = row.map(item => item.text).join(' ').trim();
@@ -620,45 +620,39 @@ export function usePdfParser() {
 
           if (!inPitchSection) continue;
 
-          if (rowText.includes('Roof Pitches')) {
-            pitchRow = row;
-          } else if (rowText.includes('Area (sq ft)')) {
-            areaRow = row;
-          } else if (rowText.includes('% of Roof')) {
-            percentageRow = row;
-          }
-        }
-
-        // Extract pitch data from the found rows
-        if (pitchRow.length > 0 && areaRow.length > 0 && percentageRow.length > 0) {
-          // Process pitch row to get pitch values
-          for (const item of pitchRow) {
-            const pitchMatch = item.text.trim().match(/(\d+)\/12/);
-            if (pitchMatch) {
-              pitches.push(pitchMatch[1]);
+          // Look for pitch row (contains multiple x/12 format numbers)
+          if (!foundPitchRow && rowText.includes('/12')) {
+            const pitchMatches = rowText.match(/\d+\/12/g);
+            if (pitchMatches) {
+              pitches.push(...pitchMatches.map(p => p.split('/')[0]));
+              foundPitchRow = true;
             }
+            continue;
           }
 
-          // Process area row to get area values
-          for (const item of areaRow) {
-            const areaMatch = item.text.trim().match(/(\d+(?:\.\d+)?)/);
-            if (areaMatch) {
-              const area = parseFloat(areaMatch[1]);
-              if (!isNaN(area)) {
-                areas.push(area);
-              }
+          // Look for area row (contains "Area (sq ft)" and numbers)
+          if (foundPitchRow && !foundAreaRow && rowText.includes('Area (sq ft)')) {
+            const areaMatches = rowText.match(/(\d+\.?\d*)/g);
+            if (areaMatches) {
+              areas.push(...areaMatches.map(a => parseFloat(a)));
+              foundAreaRow = true;
             }
+            continue;
           }
 
-          // Process percentage row to get percentage values
-          for (const item of percentageRow) {
-            const percentageMatch = item.text.trim().match(/(\d+(?:\.\d+)?)/);
-            if (percentageMatch) {
-              const percentage = parseFloat(percentageMatch[1]);
-              if (!isNaN(percentage)) {
-                percentages.push(percentage);
-              }
+          // Look for percentage row (contains "%" and numbers)
+          if (foundAreaRow && !foundPercentageRow && rowText.includes('%')) {
+            const percentageMatches = rowText.match(/(\d+\.?\d*)%/g);
+            if (percentageMatches) {
+              percentages.push(...percentageMatches.map(p => parseFloat(p)));
+              foundPercentageRow = true;
             }
+            continue;
+          }
+
+          // If we've found all rows, break
+          if (foundPitchRow && foundAreaRow && foundPercentageRow) {
+            break;
           }
         }
 
@@ -696,21 +690,23 @@ export function usePdfParser() {
         
         // Store each pitch's data
         pitches.forEach((pitch, index) => {
-          const area = areas[index];
-          const percentage = percentages[index];
-          const pitchKey = `${pitch}:12`;
-          
-          if (!isNaN(area) && !isNaN(percentage)) {
-            console.log(`Storing pitch data for ${pitchKey}:`, { area, percentage });
+          if (index < areas.length && index < percentages.length) {
+            const area = areas[index];
+            const percentage = percentages[index];
+            const pitchKey = `${pitch}:12`;
             
-            // Store in ParsedMeasurements format
-            parsedMeasurements.areasByPitch[pitchKey] = {
-              area: area,
-              percentage: percentage
-            };
-            
-            // Store in MeasurementValues format
-            measurements.areasByPitch[pitchKey] = area;
+            if (!isNaN(area) && !isNaN(percentage)) {
+              console.log(`Storing pitch data for ${pitchKey}:`, { area, percentage });
+              
+              // Store in ParsedMeasurements format
+              parsedMeasurements.areasByPitch[pitchKey] = {
+                area: area,
+                percentage: percentage
+              };
+              
+              // Store in MeasurementValues format
+              measurements.areasByPitch[pitchKey] = area;
+            }
           }
         });
         
