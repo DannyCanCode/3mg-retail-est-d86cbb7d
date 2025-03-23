@@ -11,12 +11,14 @@ export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurem
     const pitchAreas = Object.entries(measurements.areasByPitch || {})
       .map(([pitch, area]) => {
         const [numerator] = pitch.split(':');
+        const percentage = ((area / measurements.totalArea) * 100);
         return {
           pitch: `${numerator}/12`,
           area: typeof area === 'number' ? area : 0,
-          percentage: ((area / measurements.totalArea) * 100) || 0
+          percentage: !isNaN(percentage) ? percentage : 0
         };
-      });
+      })
+      .filter(item => item.area > 0); // Only include pitches with area > 0
 
     // Sort pitches numerically by the numerator
     const sortedPitchAreas = [...pitchAreas].sort((a, b) => {
@@ -24,37 +26,44 @@ export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurem
       return getPitchValue(a.pitch) - getPitchValue(b.pitch);
     });
 
+    // Calculate total area for verification
+    const totalArea = sortedPitchAreas.reduce((sum, item) => sum + item.area, 0);
+    console.log('Areas by Pitch - Total Area Check:', {
+      sumOfAreas: totalArea,
+      totalArea: measurements.totalArea,
+      difference: Math.abs(totalArea - measurements.totalArea)
+    });
+
     return (
       <div className="mt-8">
-        <h3 className="text-lg font-medium mb-2">Areas per Pitch</h3>
+        <h3 className="text-lg font-medium mb-2">Areas by Pitch</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full bg-white border">
             <thead className="bg-gray-100">
               <tr>
-                <th className="py-2 px-4 border text-left">Roof Pitches</th>
-                {sortedPitchAreas.map((item, index) => (
-                  <th key={index} className="py-2 px-4 border text-center">{item.pitch}</th>
-                ))}
+                <th className="py-2 px-4 border text-left">ROOF PITCH</th>
+                <th className="py-2 px-4 border text-center">AREA (SQ FT)</th>
+                <th className="py-2 px-4 border text-center">% OF ROOF</th>
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td className="py-2 px-4 border">Area (sq ft)</td>
-                {sortedPitchAreas.map((item, index) => (
-                  <td key={index} className="py-2 px-4 border text-center">{item.area.toFixed(1)}</td>
-                ))}
-              </tr>
-              <tr>
-                <td className="py-2 px-4 border">% of Roof</td>
-                {sortedPitchAreas.map((item, index) => (
-                  <td key={index} className="py-2 px-4 border text-center">{item.percentage.toFixed(1)}%</td>
-                ))}
+              {sortedPitchAreas.map((item, index) => (
+                <tr key={index}>
+                  <td className="py-2 px-4 border">{item.pitch}</td>
+                  <td className="py-2 px-4 border text-center">{item.area.toFixed(1)}</td>
+                  <td className="py-2 px-4 border text-center">{item.percentage.toFixed(1)}%</td>
+                </tr>
+              ))}
+              <tr className="bg-gray-50 font-medium">
+                <td className="py-2 px-4 border">Total</td>
+                <td className="py-2 px-4 border text-center">{measurements.totalArea.toFixed(1)}</td>
+                <td className="py-2 px-4 border text-center">100.0%</td>
               </tr>
             </tbody>
           </table>
         </div>
         <p className="text-sm text-gray-600 mt-2">
-          The table above lists each pitch on this roof and the total area and percent (both rounded) of the roof with that pitch.
+          The table above lists each pitch on this roof and the total area and percent of the roof with that pitch.
         </p>
       </div>
     );
