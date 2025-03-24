@@ -223,7 +223,7 @@ export function usePdfParser() {
         valleyCount: 0,
         rakeCount: 0,
         eaveCount: 0,
-        areasByPitch: {},
+        areasByPitch: [],
         propertyAddress: "",
         latitude: "",
         longitude: ""
@@ -692,9 +692,9 @@ export function usePdfParser() {
           percentages
         });
         
-        // Initialize areasByPitch as an empty object if it doesn't exist
-        measurements.areasByPitch = {};
-        parsedMeasurements.areasByPitch = {};
+        // Initialize areasByPitch as an array
+        measurements.areasByPitch = [];
+        parsedMeasurements.areasByPitch = [];
         
         // Store each pitch's data
         pitches.forEach((pitch, index) => {
@@ -703,24 +703,18 @@ export function usePdfParser() {
             const percentage = percentages[index];
             const pitchKey = `${pitch}:12`;
             
-            // Store as PitchArea object
-            measurements.areasByPitch[pitchKey] = {
+            // Create PitchArea object
+            const pitchArea = {
+              pitch: pitchKey,
               area: area,
               percentage: percentage
             };
             
-            // Also store in parsedMeasurements
-            parsedMeasurements.areasByPitch[pitchKey] = {
-              area: area,
-              percentage: percentage
-            };
+            // Store in both measurements and parsedMeasurements
+            measurements.areasByPitch.push(pitchArea);
+            parsedMeasurements.areasByPitch.push(pitchArea);
             
-            console.log(`Storing pitch data - ${pitchKey}:`, {
-              area,
-              percentage,
-              measurementsObj: measurements.areasByPitch[pitchKey],
-              parsedObj: parsedMeasurements.areasByPitch[pitchKey]
-            });
+            console.log(`Storing pitch data - ${pitchKey}:`, pitchArea);
           }
         });
         
@@ -746,17 +740,16 @@ export function usePdfParser() {
         // create a single entry
         const pitch = parsedMeasurements.predominantPitch;
         
-        // Store in ParsedMeasurements format
-        parsedMeasurements.areasByPitch[pitch] = {
+        // Create PitchArea object
+        const pitchArea = {
+          pitch: pitch,
           area: parsedMeasurements.totalArea,
           percentage: 100
         };
         
-        // Store in measurements format (also as PitchArea)
-        measurements.areasByPitch[pitch] = {
-          area: parsedMeasurements.totalArea,
-          percentage: 100
-        };
+        // Store in both measurements and parsedMeasurements
+        measurements.areasByPitch = [pitchArea];
+        parsedMeasurements.areasByPitch = [pitchArea];
         measurements.roofPitch = pitch;
       }
       
