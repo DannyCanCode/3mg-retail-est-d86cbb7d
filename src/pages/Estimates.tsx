@@ -107,8 +107,7 @@ const Estimates = () => {
   const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
   const [quantities, setQuantities] = useState<{[key: string]: number}>({});
   const [laborRates, setLaborRates] = useState<LaborRates>({
-    tearOff: 55,
-    installation: 125,
+    laborRate: 85,
     isHandload: false,
     handloadRate: 15,
     dumpsterLocation: "orlando",
@@ -245,6 +244,27 @@ const Estimates = () => {
   };
 
   const handleLaborProfitContinue = (laborRates: LaborRates, profitMargin: number) => {
+    // Validate that we have proper laborRates and measurements before going to summary
+    if (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)) {
+      console.error("Missing valid labor rates, cannot continue to summary", laborRates);
+      toast({
+        title: "Error",
+        description: "Missing labor rate information. Please set valid labor rates.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!measurements) {
+      console.error("Missing measurements, cannot continue to summary");
+      toast({
+        title: "Error",
+        description: "Missing measurement information. Please go back and set valid measurements.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setLaborRates(laborRates);
     setProfitMargin(profitMargin);
     setActiveTab("summary");
@@ -281,8 +301,7 @@ const Estimates = () => {
     setSelectedMaterials({});
     setQuantities({});
     setLaborRates({
-      tearOff: 55,
-      installation: 125,
+      laborRate: 85,
       isHandload: false,
       handloadRate: 15,
       dumpsterLocation: "orlando",

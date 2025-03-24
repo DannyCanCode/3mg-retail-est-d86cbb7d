@@ -48,26 +48,35 @@ export function LaborProfitTab({
   measurements
 }: LaborProfitTabProps) {
   console.log("LaborProfitTab rendering, received measurements:", measurements?.totalArea);
+  console.log("Received initialLaborRates:", JSON.stringify(initialLaborRates, null, 2));
   
-  // Normalize initialLaborRates for backward compatibility
-  const normalizedInitialRates = { ...initialLaborRates };
+  // Create a safe initial LaborRates object with all required properties and fallbacks
+  const safeInitialRates: LaborRates = {
+    // Ensure all required fields have default values
+    laborRate: 85,
+    tearOff: 0,
+    installation: 0,
+    isHandload: false,
+    handloadRate: 15,
+    dumpsterLocation: "orlando",
+    dumpsterCount: 1,
+    dumpsterRate: 400,
+    pitchRates: {},
+    wastePercentage: 12,
+    // Override with any values from initialLaborRates that exist
+    ...initialLaborRates
+  };
   
-  // If we have old format data (tearOff and installation) but no laborRate
-  if (!normalizedInitialRates.laborRate && (normalizedInitialRates.tearOff || normalizedInitialRates.installation)) {
-    const tearOff = normalizedInitialRates.tearOff || 0;
-    const installation = normalizedInitialRates.installation || 0;
-    normalizedInitialRates.laborRate = tearOff + installation;
-    console.log(`Converted old labor rates (tearOff: ${tearOff}, installation: ${installation}) to combined rate: ${normalizedInitialRates.laborRate}`);
+  console.log("Using safeInitialRates:", JSON.stringify(safeInitialRates, null, 2));
+  
+  // Normalize for backward compatibility (only if needed)
+  if (!safeInitialRates.laborRate && (safeInitialRates.tearOff || safeInitialRates.installation)) {
+    safeInitialRates.laborRate = (safeInitialRates.tearOff || 0) + (safeInitialRates.installation || 0);
+    console.log(`Converted old labor rates to combined rate: ${safeInitialRates.laborRate}`);
   }
   
-  // Ensure laborRate has a default value
-  if (!normalizedInitialRates.laborRate) {
-    normalizedInitialRates.laborRate = 85; // Default value
-    console.log("Using default laborRate: 85");
-  }
-  
-  const [laborRates, setLaborRates] = useState<LaborRates>(normalizedInitialRates);
-  const [profitMargin, setProfitMargin] = useState(initialProfitMargin);
+  const [laborRates, setLaborRates] = useState<LaborRates>(safeInitialRates);
+  const [profitMargin, setProfitMargin] = useState(initialProfitMargin || 25);
   
   // Calculate dumpster count based on total roof area
   useEffect(() => {
@@ -92,18 +101,46 @@ export function LaborProfitTab({
       numValue = parseFloat(value) || 0;
     }
     
-    setLaborRates(prev => ({
-      ...prev,
-      [field]: numValue
-    }));
+    setLaborRates(prev => {
+      // Make sure prev is not undefined
+      const safePrev = prev || {
+        laborRate: 85,
+        isHandload: false,
+        handloadRate: 15,
+        dumpsterLocation: "orlando",
+        dumpsterCount: 1,
+        dumpsterRate: 400,
+        pitchRates: {},
+        wastePercentage: 12
+      };
+      
+      return {
+        ...safePrev,
+        [field]: numValue
+      };
+    });
     
-    // Update dumpster rate when location changes
+    // Update dumpster rate when location changes with safety check
     if (field === "dumpsterLocation") {
       const newRate = value === "orlando" ? 400 : 500;
-      setLaborRates(prev => ({
-        ...prev,
-        dumpsterRate: newRate
-      }));
+      setLaborRates(prev => {
+        // Make sure prev is not undefined
+        const safePrev = prev || {
+          laborRate: 85,
+          isHandload: false,
+          handloadRate: 15,
+          dumpsterLocation: "orlando",
+          dumpsterCount: 1,
+          dumpsterRate: 400,
+          pitchRates: {},
+          wastePercentage: 12
+        };
+        
+        return {
+          ...safePrev,
+          dumpsterRate: newRate
+        };
+      });
     }
   };
   
@@ -151,22 +188,35 @@ export function LaborProfitTab({
   });
   
   // Calculate the rate for each pitch level
-  const getPitchRate = (pitch: string) => {
-    const pitchValue = parseInt(pitch.split(/[:\/]/)[0]);
-    
-    // Different rate logic based on pitch range
-    if (pitchValue >= 8) {
-      // 8/12-18/12 has increasing rates
-      const basePitchValue = 8; // 8/12 is the base pitch
-      const baseRate = 90; // Base rate for 8/12
-      const increment = 5; // $5 increment per pitch level
-      return baseRate + (pitchValue - basePitchValue) * increment;
-    } else if (pitchValue <= 2) {
-      // 0/12-2/12 (low slope) has special rates
-      return 75; // Just an example rate for low-slope
-    } else {
-      // 3/12-7/12 has the standard $85 rate
-      return 85;
+  const getPitchRate = (pitch: string = "6:12") => {
+    try {
+      // Handle potential undefined or malformed input
+      if (!pitch) {
+        console.log("getPitchRate received undefined/empty pitch, using default");
+        return 85; // Default rate for standard pitch
+      }
+      
+      // Make sure we have a valid string to parse
+      const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
+      console.log(`Calculating rate for pitch ${pitch}, numeric value: ${pitchValue}`);
+      
+      // Different rate logic based on pitch range
+      if (pitchValue >= 8) {
+        // 8/12-18/12 has increasing rates
+        const basePitchValue = 8; // 8/12 is the base pitch
+        const baseRate = 90; // Base rate for 8/12
+        const increment = 5; // $5 increment per pitch level
+        return baseRate + (pitchValue - basePitchValue) * increment;
+      } else if (pitchValue <= 2) {
+        // 0/12-2/12 (low slope) has special rates
+        return 75; // Just an example rate for low-slope
+      } else {
+        // 3/12-7/12 has the standard $85 rate
+        return 85;
+      }
+    } catch (e) {
+      console.error("Error in getPitchRate:", e);
+      return 85; // Default fallback
     }
   };
   
@@ -253,7 +303,7 @@ export function LaborProfitTab({
                 <Input
                   id="dumpsterCount"
                   type="number"
-                  value={laborRates.dumpsterCount}
+                  value={(laborRates.dumpsterCount || 1).toString()}
                   readOnly
                   className="bg-muted"
                 />
@@ -263,7 +313,7 @@ export function LaborProfitTab({
                 <Input
                   id="dumpsterTotal"
                   type="text"
-                  value={`$${(laborRates.dumpsterCount * laborRates.dumpsterRate).toFixed(2)}`}
+                  value={`$${((laborRates.dumpsterCount || 1) * (laborRates.dumpsterRate || 400)).toFixed(2)}`}
                   readOnly
                   className="bg-muted"
                 />
@@ -281,7 +331,7 @@ export function LaborProfitTab({
             <div className="flex items-center space-x-4">
               <Switch
                 id="handload"
-                checked={laborRates.isHandload}
+                checked={!!laborRates.isHandload}
                 onCheckedChange={(checked) => handleLaborRateChange("isHandload", checked)}
               />
               <Label htmlFor="handload">
@@ -289,22 +339,22 @@ export function LaborProfitTab({
               </Label>
             </div>
             
-            {laborRates.isHandload && (
+            {!!laborRates.isHandload && (
               <>
                 <div className="space-y-2">
                   <Label htmlFor="handloadRate">Handload Rate ($/square)</Label>
                   <Input
                     id="handloadRate"
                     type="number"
-                    value={laborRates.handloadRate.toString()}
+                    value={(laborRates.handloadRate || 15).toString()}
                     onChange={(e) => handleLaborRateChange("handloadRate", e.target.value)}
                     min="0"
                     step="0.01"
                   />
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Handload cost with {laborRates.wastePercentage}% waste: 
-                  ${(totalSquares * (1 + laborRates.wastePercentage/100) * laborRates.handloadRate).toFixed(2)}
+                  Handload cost with {laborRates.wastePercentage || 12}% waste: 
+                  ${(totalSquares * (1 + (laborRates.wastePercentage || 12)/100) * (laborRates.handloadRate || 15)).toFixed(2)}
                 </p>
               </>
             )}
@@ -371,7 +421,7 @@ export function LaborProfitTab({
                 <p className="text-sm text-yellow-700">
                   <strong>Note:</strong> This roof has pitches that are 8/12 or steeper. 
                   The steepest pitch is {steepestPitch}, which will require a labor rate of 
-                  ${getPitchRate(steepestPitch.replace("/", ":"))}/square.
+                  ${getPitchRate(steepestPitch?.replace("/", ":") || "8:12")}/square.
                 </p>
               </div>
             )}

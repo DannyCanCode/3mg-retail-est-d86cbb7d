@@ -27,11 +27,56 @@ export function EstimateSummaryTab({
   onFinalize,
   isSubmitting = false
 }: EstimateSummaryTabProps) {
+  // Add defensive checks to prevent errors when rendering with missing data
+  if (!measurements || !materials || !quantities || !laborRates) {
+    console.error("EstimateSummaryTab missing required props:", { 
+      hasMeasurements: !!measurements, 
+      hasMaterials: !!materials,
+      hasQuantities: !!quantities,
+      hasLaborRates: !!laborRates
+    });
+    
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Estimate Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="p-6 text-center">
+            <p className="text-red-500 mb-4">Missing required data to display summary.</p>
+            <Button onClick={onBack} variant="default">
+              Go Back to Previous Step
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Ensure safe access to properties with fallbacks
+  const safeMeasurements = {
+    totalArea: measurements?.totalArea || 0,
+    roofPitch: measurements?.roofPitch || "3/12"
+  };
+  
+  const safeLaborRates = {
+    laborRate: laborRates?.laborRate || 85,
+    tearOff: laborRates?.tearOff || 0,
+    installation: laborRates?.installation || 0,
+    isHandload: laborRates?.isHandload || false,
+    handloadRate: laborRates?.handloadRate || 15,
+    dumpsterLocation: laborRates?.dumpsterLocation || "orlando",
+    dumpsterCount: laborRates?.dumpsterCount || 1,
+    dumpsterRate: laborRates?.dumpsterRate || 400,
+    pitchRates: laborRates?.pitchRates || {},
+    wastePercentage: laborRates?.wastePercentage || 12
+  };
+
   // Calculate the number of squares
-  const totalSquares = Math.round(measurements.totalArea / 100 * 10) / 10;
+  const totalSquares = Math.round(safeMeasurements.totalArea / 100 * 10) / 10;
   
   // Calculate material costs
-  const materialCosts = Object.entries(materials).map(([key, material]) => {
+  const materialCosts = Object.entries(materials || {}).map(([key, material]) => {
     const quantity = quantities[key] || 0;
     const totalCost = material.price * quantity;
     return {
@@ -49,23 +94,23 @@ export function EstimateSummaryTab({
   const laborCosts = [];
 
   // Add combined labor or backward compatibility with separate tear off/installation
-  if (laborRates.laborRate) {
+  if (safeLaborRates.laborRate) {
     // Use combined labor rate
     laborCosts.push({ 
       name: "Labor (Tear Off & Installation)", 
-      rate: laborRates.laborRate, 
-      totalCost: laborRates.laborRate * totalSquares * (1 + (laborRates.wastePercentage || 12)/100) 
+      rate: safeLaborRates.laborRate, 
+      totalCost: safeLaborRates.laborRate * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
     });
-  } else if (laborRates.tearOff || laborRates.installation) {
+  } else if (safeLaborRates.tearOff || safeLaborRates.installation) {
     // Backward compatibility: handle old format with separate rates
-    const tearOff = laborRates.tearOff || 0;
-    const installation = laborRates.installation || 0;
+    const tearOff = safeLaborRates.tearOff || 0;
+    const installation = safeLaborRates.installation || 0;
     
     if (tearOff > 0) {
       laborCosts.push({ 
         name: "Tear Off", 
         rate: tearOff, 
-        totalCost: tearOff * totalSquares * (1 + (laborRates.wastePercentage || 12)/100) 
+        totalCost: tearOff * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
       });
     }
     
@@ -73,7 +118,7 @@ export function EstimateSummaryTab({
       laborCosts.push({ 
         name: "Installation", 
         rate: installation, 
-        totalCost: installation * totalSquares * (1 + (laborRates.wastePercentage || 12)/100) 
+        totalCost: installation * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
       });
     }
   } else {
@@ -82,28 +127,28 @@ export function EstimateSummaryTab({
     laborCosts.push({ 
       name: "Labor (Default Rate)", 
       rate: defaultRate, 
-      totalCost: defaultRate * totalSquares * (1 + (laborRates.wastePercentage || 12)/100) 
+      totalCost: defaultRate * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
     });
   }
 
   // Add handload cost if enabled
-  if (laborRates.isHandload) {
+  if (safeLaborRates.isHandload) {
     laborCosts.push({
       name: "Handload", 
-      rate: laborRates.handloadRate || 15, 
-      totalCost: (laborRates.handloadRate || 15) * totalSquares * (1 + (laborRates.wastePercentage || 12)/100)
+      rate: safeLaborRates.handloadRate || 15, 
+      totalCost: (safeLaborRates.handloadRate || 15) * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100)
     });
   }
   
   // Add dumpster costs
   laborCosts.push({
-    name: `Dumpsters (${laborRates.dumpsterCount})`, 
-    rate: laborRates.dumpsterRate, 
-    totalCost: laborRates.dumpsterRate * laborRates.dumpsterCount
+    name: `Dumpsters (${safeLaborRates.dumpsterCount})`, 
+    rate: safeLaborRates.dumpsterRate, 
+    totalCost: safeLaborRates.dumpsterRate * safeLaborRates.dumpsterCount
   });
   
   // Add pitch adjustments if applicable
-  const predominantPitch = measurements.roofPitch;
+  const predominantPitch = safeMeasurements.roofPitch;
   const pitchValue = parseInt(predominantPitch.split(/[:\/]/)[0]);
   
   if (pitchValue >= 8) {
@@ -146,11 +191,11 @@ export function EstimateSummaryTab({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             <div>
               <p className="text-muted-foreground">Total Roof Area:</p>
-              <p className="font-medium">{measurements.totalArea.toLocaleString()} sq ft ({totalSquares} squares)</p>
+              <p className="font-medium">{safeMeasurements.totalArea.toLocaleString()} sq ft ({totalSquares} squares)</p>
             </div>
             <div>
               <p className="text-muted-foreground">Predominant Pitch:</p>
-              <p className="font-medium">{measurements.roofPitch}</p>
+              <p className="font-medium">{safeMeasurements.roofPitch}</p>
             </div>
           </div>
         </div>
