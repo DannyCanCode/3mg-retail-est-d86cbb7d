@@ -51,15 +51,15 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): Meas
   
   console.log("Raw areasByPitch data:", parsedData.areasByPitch);
   
-  // Process the areas by pitch data
-  const areasByPitch = parsedData.areasByPitch.map(pitchData => ({
+  // Process the areas by pitch data - safely handle undefined or empty areasByPitch
+  const areasByPitch = Array.isArray(parsedData.areasByPitch) ? parsedData.areasByPitch.map(pitchData => ({
     ...pitchData,
     // Ensure area is a number
     area: typeof pitchData.area === 'number' ? pitchData.area : 0,
     // Calculate percentage if not provided
     percentage: pitchData.percentage || 
       (parsedData.totalArea > 0 ? (pitchData.area / parsedData.totalArea) * 100 : 0)
-  })).filter(item => item.area > 0);
+  })).filter(item => item.area > 0) : [];
 
   console.log("Processed areasByPitch:", areasByPitch);
   
