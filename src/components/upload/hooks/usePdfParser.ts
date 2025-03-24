@@ -623,7 +623,7 @@ export function usePdfParser() {
             // Match both x/12 and x:12 formats
             const pitchMatches = rowText.match(/(\d+\/12|\d+:\d+)/g);
             if (pitchMatches) {
-              // Store pitches in their original format
+              // Store pitches in their original format without adding redundant "/12" or ":12"
               pitches.push(...pitchMatches);
               foundPitchRow = true;
               console.log('Found pitch row:', pitches);
@@ -704,11 +704,13 @@ export function usePdfParser() {
           if (index < areas.length && index < percentages.length) {
             const area = areas[index];
             const percentage = percentages[index];
-            const pitchKey = `${pitch}:12`;
+            
+            // Don't add redundant ":12" if the pitch already has a denominator
+            // Use the pitch format exactly as extracted
             
             // Create PitchArea object
             const pitchArea = {
-              pitch: pitchKey,
+              pitch: pitch,
               area: area,
               percentage: percentage
             };
@@ -717,7 +719,7 @@ export function usePdfParser() {
             measurements.areasByPitch.push(pitchArea);
             parsedMeasurements.areasByPitch.push(pitchArea);
             
-            console.log(`Storing pitch data - ${pitchKey}:`, pitchArea);
+            console.log(`Storing pitch data - ${pitch}:`, pitchArea);
           }
         });
         
@@ -728,7 +730,9 @@ export function usePdfParser() {
           
           const maxArea = Math.max(...areas);
           const predominantIndex = areas.indexOf(maxArea);
-          measurements.roofPitch = `${pitches[predominantIndex]}:12`;
+          
+          // Use the pitch format exactly as extracted without adding redundant ":12"
+          measurements.roofPitch = pitches[predominantIndex];
           measurements.predominantPitch = measurements.roofPitch;
           parsedMeasurements.predominantPitch = measurements.roofPitch;
           
