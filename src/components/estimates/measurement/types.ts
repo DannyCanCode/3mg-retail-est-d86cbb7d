@@ -13,10 +13,24 @@ export interface MeasurementValues {
   rakeLength: number;
   stepFlashingLength: number;
   flashingLength: number;
+  dripEdgeLength: number;
   penetrationsArea: number;
-  roofPitch: string;
+  penetrationsPerimeter: number;
+  predominantPitch: string;
+  roofPitch?: string;
+  
+  // Count fields
+  ridgeCount: number;
+  hipCount: number;
+  valleyCount: number;
+  rakeCount: number;
+  eaveCount: number;
+  
+  // Property information
+  propertyAddress: string;
+  latitude: string;
+  longitude: string;
+  
+  // Areas by pitch
   areasByPitch: AreaByPitch[];
-  latitude?: string;
-  longitude?: string;
-  propertyAddress?: string;
 }

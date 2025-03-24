@@ -30,6 +30,28 @@ export function MaterialsSelectionTab({
   onBack,
   onContinue,
 }: MaterialsSelectionTabProps) {
+  // Add validation at the start
+  if (!measurements || !measurements.totalArea || measurements.totalArea === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Missing Measurements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
+        </CardContent>
+        <CardFooter>
+          <Button onClick={onBack} variant="outline">Back to Measurements</Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  // Debug log measurements
+  useEffect(() => {
+    console.log("MaterialsSelectionTab measurements:", measurements);
+  }, [measurements]);
+
   const [wasteFactor, setWasteFactor] = useState(10); // Default 10% waste
   const [expandedCategories, setExpandedCategories] = useState<string[]>([
     MaterialCategory.SHINGLES
@@ -52,11 +74,6 @@ export function MaterialsSelectionTab({
   
   // Check if GAF Timberline HDZ is selected
   const isGafTimberlineSelected = Boolean(selectedMaterials["gaf-timberline-hdz"]);
-  
-  // Debug logging
-  useEffect(() => {
-    console.log("Rendering MaterialsSelectionTab with preset bundles");
-  }, []);
   
   // Check if there are flat/low-slope areas on the roof
   useEffect(() => {

@@ -25,54 +25,71 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): Meas
     console.warn("Warning: parsedData is null or undefined, returning default measurement values");
     return {
       totalArea: 0,
-      roofPitch: "",
       ridgeLength: 0,
       hipLength: 0,
       valleyLength: 0,
-      rakeLength: 0,
       eaveLength: 0,
+      rakeLength: 0,
       stepFlashingLength: 0,
       flashingLength: 0,
+      dripEdgeLength: 0,
       penetrationsArea: 0,
-      areasByPitch: [] // The type system expects an array of AreaByPitch objects
+      penetrationsPerimeter: 0,
+      predominantPitch: "6:12",
+      roofPitch: undefined,
+      // Initialize counts to 0
+      ridgeCount: 0,
+      hipCount: 0,
+      valleyCount: 0,
+      rakeCount: 0,
+      eaveCount: 0,
+      // Initialize property info as empty strings
+      propertyAddress: "",
+      latitude: "",
+      longitude: "",
+      // Initialize empty areas by pitch array
+      areasByPitch: []
     };
   }
   
   console.log("Raw areasByPitch data:", parsedData.areasByPitch);
   
-  // CRITICAL FIX: Don't modify or transform the original pitch data at all
-  // Just convert it directly to the required format without filtering
+  // Convert the areasByPitch object to array format
   const areasByPitch = Object.entries(parsedData.areasByPitch || {})
-    .map(([pitch, area]) => {
-      // Ensure numeric value for area
-      const numArea = typeof area === 'number' ? area : parseFloat(String(area));
-      
-      // Don't normalize pitch format - keep it exactly as extracted
-      const normalizedPitch = pitch.includes(':') ? pitch : pitch.replace('/', ':');
-      
-      console.log(`Processing pitch ${pitch} with area ${numArea}`);
-      
-      // Calculate percentage based on the total area
-      const percentage = parsedData.totalArea > 0 
-        ? (numArea / parsedData.totalArea) * 100 
-        : 0;
-      
+    .map(([pitch, data]) => {
+      // Handle both PitchArea objects and raw number values
+      const area = typeof data === 'object' ? data.area : (typeof data === 'number' ? data : 0);
+      const percentage = typeof data === 'object' ? data.percentage : 
+        (parsedData.totalArea > 0 ? (area / parsedData.totalArea) * 100 : 0);
+
       return {
-        pitch: normalizedPitch,
-        area: numArea,
+        pitch: pitch,
+        area: area,
         percentage: Number(percentage.toFixed(1))  // Round to 1 decimal place
       };
+    })
+    .filter(item => item.area > 0) // Filter out zero areas
+    .sort((a, b) => {
+      // Sort by pitch numerically
+      const pitchA = parseFloat(a.pitch.split(/[:\/]/)[0]);
+      const pitchB = parseFloat(b.pitch.split(/[:\/]/)[0]);
+      return pitchA - pitchB;
     });
 
-  console.log("FINAL areasByPitch DATA:", areasByPitch);
-  console.log("Total number of pitches:", areasByPitch.length);
-  console.log("Total area used for percentage calculations:", parsedData.totalArea);
+  console.log("Processed areasByPitch:", areasByPitch);
   
-  // Log a validation summary
+  // Log validation summary
   const totalExtractedArea = areasByPitch.reduce((sum, item) => sum + item.area, 0);
-  console.log(`Sum of areas by pitch: ${totalExtractedArea.toFixed(1)} sq ft`);
-  console.log(`Difference from total area: ${Math.abs(totalExtractedArea - parsedData.totalArea).toFixed(1)} sq ft (${((Math.abs(totalExtractedArea - parsedData.totalArea) / parsedData.totalArea) * 100).toFixed(1)}%)`);
+  console.log("Validation Summary:");
+  console.log(`Total Area: ${parsedData.totalArea}`);
+  console.log(`Sum of Areas by Pitch: ${totalExtractedArea}`);
+  console.log(`Difference: ${Math.abs(totalExtractedArea - parsedData.totalArea)}`);
+  console.log(`Ridge Length: ${parsedData.ridgeLength}`);
+  console.log(`Hip Length: ${parsedData.hipLength}`);
+  console.log(`Valley Length: ${parsedData.valleyLength}`);
+  console.log(`Counts - Ridge: ${parsedData.ridgeCount}, Hip: ${parsedData.hipCount}, Valley: ${parsedData.valleyCount}`);
 
+  // Return complete measurement values
   return {
     totalArea: parsedData.totalArea || 0,
     ridgeLength: parsedData.ridgeLength || 0,
@@ -81,14 +98,24 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): Meas
     eaveLength: parsedData.eaveLength || 0,
     rakeLength: parsedData.rakeLength || 0,
     stepFlashingLength: parsedData.stepFlashingLength || 0,
-    flashingLength: parsedData.flashingLength || 0, 
+    flashingLength: parsedData.flashingLength || 0,
+    dripEdgeLength: parsedData.dripEdgeLength || 0,
     penetrationsArea: parsedData.penetrationsArea || 0,
-    roofPitch: parsedData.predominantPitch || "6:12",
-    areasByPitch: areasByPitch,
-    // Include property location information
-    propertyAddress: parsedData.propertyAddress || undefined,
-    latitude: parsedData.latitude || undefined,
-    longitude: parsedData.longitude || undefined
+    penetrationsPerimeter: parsedData.penetrationsPerimeter || 0,
+    predominantPitch: parsedData.predominantPitch || "6:12",
+    roofPitch: parsedData.roofPitch,
+    // Include all count fields
+    ridgeCount: parsedData.ridgeCount || 0,
+    hipCount: parsedData.hipCount || 0,
+    valleyCount: parsedData.valleyCount || 0,
+    rakeCount: parsedData.rakeCount || 0,
+    eaveCount: parsedData.eaveCount || 0,
+    // Include property information
+    propertyAddress: parsedData.propertyAddress || "",
+    latitude: parsedData.latitude || "",
+    longitude: parsedData.longitude || "",
+    // Include processed areas by pitch
+    areasByPitch: areasByPitch
   };
 };
 
@@ -293,24 +320,6 @@ const Estimates = () => {
     });
   };
 
-  // Default measurements for the materials tab if no measurements exist yet
-  const defaultMeasurements: MeasurementValues = {
-    totalArea: 3000,
-    ridgeLength: 80,
-    hipLength: 40,
-    valleyLength: 30,
-    eaveLength: 120,
-    rakeLength: 60,
-    stepFlashingLength: 20,
-    flashingLength: 30,
-    penetrationsArea: 20,
-    roofPitch: "6:12",
-    areasByPitch: [
-      { pitch: "6:12", area: 2400, percentage: 80 },
-      { pitch: "4:12", area: 600, percentage: 20 }
-    ]
-  };
-
   return (
     <MainLayout>
       <div className="container mx-auto p-4 max-w-7xl">
@@ -477,7 +486,7 @@ const Estimates = () => {
                 
                 <TabsContent value="materials">
                   <MaterialsSelectionTab 
-                    measurements={measurements || defaultMeasurements}
+                    measurements={measurements}
                     onContinue={handleMaterialsSelected}
                     onBack={() => setActiveTab("measurements")}
                   />
@@ -496,7 +505,7 @@ const Estimates = () => {
                 
                 <TabsContent value="summary">
                   <EstimateSummaryTab 
-                    measurements={measurements || defaultMeasurements}
+                    measurements={measurements || undefined}
                     materials={selectedMaterials}
                     quantities={quantities}
                     laborRates={laborRates}
