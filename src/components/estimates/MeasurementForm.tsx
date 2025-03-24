@@ -7,7 +7,7 @@ import { LengthMeasurementsTab } from "./measurement/LengthMeasurementsTab";
 import { ReviewTab } from "./measurement/ReviewTab";
 import { MeasurementValues, AreaByPitch } from "./measurement/types";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, AlertTriangle } from "lucide-react";
 
 interface MeasurementFormProps {
   onMeasurementsSaved?: (measurements: MeasurementValues) => void;
@@ -25,35 +25,68 @@ export function MeasurementForm({
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("roof-area");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isIncomplete, setIsIncomplete] = useState(false);
   
-  // Use initialMeasurements if provided, otherwise use default empty values
-  const [measurements, setMeasurements] = useState<MeasurementValues>(
-    initialMeasurements || {
-      totalArea: 0,
-      ridgeLength: 0,
-      hipLength: 0,
-      valleyLength: 0,
-      eaveLength: 0,
-      rakeLength: 0,
-      stepFlashingLength: 0,
-      flashingLength: 0,
-      penetrationsArea: 0,
-      roofPitch: "6:12",
-      areasByPitch: [{ pitch: "6:12", area: 0, percentage: 100 }]
-    }
-  );
+  // Initialize with empty measurements
+  const emptyMeasurements: MeasurementValues = {
+    totalArea: 0,
+    ridgeLength: 0,
+    hipLength: 0,
+    valleyLength: 0,
+    eaveLength: 0,
+    rakeLength: 0,
+    stepFlashingLength: 0,
+    flashingLength: 0,
+    dripEdgeLength: 0,
+    penetrationsArea: 0,
+    penetrationsPerimeter: 0,
+    predominantPitch: "",
+    roofPitch: "",
+    ridgeCount: 0,
+    hipCount: 0,
+    valleyCount: 0,
+    rakeCount: 0,
+    eaveCount: 0,
+    propertyAddress: "",
+    latitude: "",
+    longitude: "",
+    areasByPitch: []
+  };
+  
+  const [measurements, setMeasurements] = useState<MeasurementValues>(emptyMeasurements);
 
   // Update measurements if initialMeasurements changes (e.g., after PDF extraction)
   useEffect(() => {
     if (initialMeasurements) {
       console.log("Setting measurements from initialMeasurements:", initialMeasurements);
       setMeasurements(initialMeasurements);
+      
+      // Check if measurements are incomplete
+      const requiredFields: (keyof MeasurementValues)[] = [
+        'totalArea',
+        'predominantPitch',
+        'areasByPitch'
+      ];
+      
+      const isDataIncomplete = requiredFields.some(field => {
+        if (field === 'areasByPitch') {
+          return !initialMeasurements[field] || initialMeasurements[field].length === 0;
+        }
+        return !initialMeasurements[field];
+      });
+      
+      setIsIncomplete(isDataIncomplete);
     }
   }, [initialMeasurements]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const numValue = name !== "roofPitch" ? parseFloat(value) || 0 : value;
+    const numValue = name !== "roofPitch" && 
+                    name !== "propertyAddress" && 
+                    name !== "latitude" && 
+                    name !== "longitude" 
+                    ? parseFloat(value) || 0 
+                    : value;
     
     setMeasurements((prev) => ({
       ...prev,
@@ -122,9 +155,33 @@ export function MeasurementForm({
     e.preventDefault();
     setIsSubmitting(true);
     
-    console.log("About to save measurements with the following areasByPitch:", measurements.areasByPitch);
+    console.log("Submitting measurements:", measurements);
     
-    // Basic validation
+    // Enhanced validation
+    const requiredFields: (keyof MeasurementValues)[] = [
+      'totalArea',
+      'predominantPitch',
+      'areasByPitch'
+    ];
+    
+    const missingFields = requiredFields.filter(field => {
+      if (field === 'areasByPitch') {
+        return !measurements[field] || measurements[field].length === 0;
+      }
+      return !measurements[field];
+    });
+    
+    if (missingFields.length > 0) {
+      toast({
+        title: "Incomplete measurements",
+        description: `Missing required fields: ${missingFields.join(', ')}`,
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Validate total area
     if (measurements.totalArea <= 0) {
       toast({
         title: "Invalid measurements",
@@ -135,15 +192,44 @@ export function MeasurementForm({
       return;
     }
     
-    // IMPORTANT: DO NOT modify or adjust the areas by pitch that came from the PDF
-    // This ensures we preserve all the exact pitch data from the original source
-    console.log("Saving measurements with original areasByPitch:", measurements.areasByPitch);
+    // Validate pitch data
+    if (measurements.areasByPitch.length === 0) {
+      toast({
+        title: "Invalid pitch data",
+        description: "At least one roof pitch area is required",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    const totalPitchPercentage = measurements.areasByPitch.reduce((sum, area) => sum + area.percentage, 0);
+    if (Math.abs(totalPitchPercentage - 100) > 0.1) {
+      toast({
+        title: "Invalid pitch data",
+        description: "Total pitch percentages must equal 100%",
+        variant: "destructive"
+      });
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Validate property information if any is provided
+    if (measurements.propertyAddress || measurements.latitude || measurements.longitude) {
+      if (!measurements.propertyAddress || !measurements.latitude || !measurements.longitude) {
+        toast({
+          title: "Incomplete property information",
+          description: "Please provide all property information or none",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+    }
     
     setTimeout(() => {
-      // In a real implementation, save measurements to database
-      // For now, just pass to parent component
       if (onMeasurementsSaved) {
-        console.log("Saving measurements with areasByPitch:", measurements.areasByPitch);
+        console.log("Saving complete measurements:", measurements);
         onMeasurementsSaved(measurements);
       }
       setIsSubmitting(false);
@@ -183,6 +269,16 @@ export function MeasurementForm({
         </div>
       )}
       
+      {/* Display warning if measurements are incomplete */}
+      {isIncomplete && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4 rounded">
+          <p className="text-sm text-yellow-700 flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            Incomplete measurements detected. Please ensure all required fields are filled out.
+          </p>
+        </div>
+      )}
+      
       {/* Display a message if we're using extracted data */}
       {extractedFileName && (
         <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 rounded">
@@ -205,7 +301,12 @@ export function MeasurementForm({
           
           <TabsContent value="roof-area">
             <RoofAreaTab 
-              measurements={measurements}
+              measurements={{
+                totalArea: measurements.totalArea,
+                predominantPitch: measurements.predominantPitch,
+                penetrationsArea: measurements.penetrationsArea,
+                areasByPitch: measurements.areasByPitch
+              }}
               handleInputChange={handleInputChange}
               handleAreaByPitchChange={handleAreaByPitchChange}
               addPitchArea={addPitchArea}

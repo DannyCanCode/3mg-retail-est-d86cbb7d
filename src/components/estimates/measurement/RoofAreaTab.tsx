@@ -9,7 +9,7 @@ import { AreaByPitch } from "./types";
 interface RoofAreaTabProps {
   measurements: {
     totalArea: number;
-    roofPitch: string;
+    predominantPitch: string;
     penetrationsArea: number;
     areasByPitch: AreaByPitch[];
   };
@@ -56,11 +56,11 @@ export function RoofAreaTab({
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="roofPitch">Predominant Roof Pitch</Label>
+            <Label htmlFor="predominantPitch">Predominant Roof Pitch</Label>
             <Input
-              id="roofPitch"
-              name="roofPitch"
-              value={measurements.roofPitch || ""}
+              id="predominantPitch"
+              name="predominantPitch"
+              value={measurements.predominantPitch || ""}
               onChange={handleInputChange}
               placeholder="e.g., 6:12"
             />

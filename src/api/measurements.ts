@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 export interface PitchArea {
+  pitch: string;
   area: number;
   percentage: number;
 }
@@ -34,7 +35,7 @@ export interface ParsedMeasurements {
   penetrationsPerimeter: number;
   
   // Areas by pitch - for storing the pitch table data
-  areasByPitch: { [pitch: string]: PitchArea };
+  areasByPitch: PitchArea[];
   // Also support areasPerPitch for backward compatibility
   areasPerPitch?: Record<string, number>;
   
@@ -52,12 +53,16 @@ export const saveMeasurement = async (
   measurements: ParsedMeasurements
 ) => {
   try {
-    // Ensure consistency between areasByPitch and areasPerPitch
-    const pitchData = measurements.areasByPitch || measurements.areasPerPitch || {};
-    measurements.areasByPitch = pitchData;
-    measurements.areasPerPitch = pitchData;
+    // Convert areasByPitch array to a format suitable for database storage
+    const areasPerPitchData = measurements.areasByPitch.reduce((acc, area) => {
+      acc[area.pitch] = {
+        area: area.area,
+        percentage: area.percentage
+      };
+      return acc;
+    }, {} as Record<string, { area: number; percentage: number }>);
     
-    console.log("Saving measurement with pitch data:", pitchData);
+    console.log("Saving measurement with pitch data:", areasPerPitchData);
     
     const { data, error } = await supabase
       .from('measurements')
@@ -77,7 +82,7 @@ export const saveMeasurement = async (
         // Calculate squares from total area (1 square = 100 sq ft)
         total_squares: measurements.totalArea ? Math.ceil(measurements.totalArea / 100) : 0,
         // Store detailed information as JSON
-        areas_per_pitch: measurements.areasByPitch, // Use the consistent data
+        areas_per_pitch: JSON.stringify(areasPerPitchData),
         length_measurements: JSON.stringify({
           ridge: { length: measurements.ridgeLength, count: measurements.ridgeCount },
           valley: { length: measurements.valleyLength, count: measurements.valleyCount },
