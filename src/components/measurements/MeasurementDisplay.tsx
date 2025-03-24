@@ -62,6 +62,24 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
       .sort((a, b) => getNumericPitch(a.pitch) - getNumericPitch(b.pitch));
   }, [measurements.areasByPitch]);
 
+  // Store pitch data in DOM for debugging and data recovery
+  useEffect(() => {
+    if (measurements.areasByPitch && measurements.areasByPitch.length > 0) {
+      // Create or update a hidden element with the pitch data
+      let debugElement = document.querySelector('[data-debug-pitch-data]');
+      if (!debugElement) {
+        debugElement = document.createElement('div');
+        debugElement.setAttribute('data-debug-pitch-data', 'true');
+        (debugElement as HTMLElement).style.display = 'none';
+        document.body.appendChild(debugElement);
+      }
+      
+      debugElement.setAttribute('data-pitch-data', JSON.stringify(measurements.areasByPitch));
+      console.log("Stored pitch data in DOM for recovery:", measurements.areasByPitch);
+    }
+  }, [measurements.areasByPitch]);
+
+  return (
     <div className={`w-full space-y-6 ${className}`}>
       {/* Main Area Summary */}
       <div>

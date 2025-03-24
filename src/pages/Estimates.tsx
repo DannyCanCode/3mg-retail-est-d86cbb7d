@@ -174,6 +174,25 @@ const Estimates = () => {
 
   const handlePdfDataExtracted = (data: ParsedMeasurements, fileName: string) => {
     console.log("PDF data extracted:", data);
+    
+    // Ensure areasByPitch is preserved (even if server-side processing loses it)
+    if (!data.areasByPitch || data.areasByPitch.length === 0) {
+      console.log("areasByPitch is missing or empty, trying to retrieve from client-side data");
+      // Try to get the client-side parsed pitch areas
+      const clientSidePitchData = document.querySelector('[data-debug-pitch-data]')?.getAttribute('data-pitch-data');
+      if (clientSidePitchData) {
+        try {
+          const parsedPitchData = JSON.parse(clientSidePitchData);
+          if (Array.isArray(parsedPitchData) && parsedPitchData.length > 0) {
+            console.log("Found client-side pitch data:", parsedPitchData);
+            data.areasByPitch = parsedPitchData;
+          }
+        } catch (e) {
+          console.error("Error parsing client-side pitch data:", e);
+        }
+      }
+    }
+    
     setExtractedPdfData(data);
     setPdfFileName(fileName);
     
