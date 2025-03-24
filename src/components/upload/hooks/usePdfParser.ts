@@ -613,6 +613,7 @@ export function usePdfParser() {
           const rowText = row.map(item => item.text).join(' ').trim();
           console.log('Processing row:', rowText);
 
+          // Look for the Areas per Pitch section header
           if (rowText.includes('Areas per Pitch')) {
             inPitchSection = true;
             continue;
@@ -621,31 +622,34 @@ export function usePdfParser() {
           if (!inPitchSection) continue;
 
           // Look for pitch row (contains multiple x/12 format numbers)
-          if (!foundPitchRow && rowText.includes('/12')) {
-            const pitchMatches = rowText.match(/\d+\/12/g);
+          if (!foundPitchRow && rowText.match(/\d+\/12/)) {
+            const pitchMatches = rowText.match(/(\d+)\/12/g);
             if (pitchMatches) {
               pitches.push(...pitchMatches.map(p => p.split('/')[0]));
               foundPitchRow = true;
+              console.log('Found pitch row:', pitches);
             }
             continue;
           }
 
-          // Look for area row (contains "Area (sq ft)" and numbers)
-          if (foundPitchRow && !foundAreaRow && rowText.includes('Area (sq ft)')) {
-            const areaMatches = rowText.match(/(\d+\.?\d*)/g);
+          // Look for area row (contains numbers with possible decimals)
+          if (foundPitchRow && !foundAreaRow && rowText.includes('Area')) {
+            const areaMatches = rowText.match(/(\d+(?:\.\d+)?)/g);
             if (areaMatches) {
               areas.push(...areaMatches.map(a => parseFloat(a)));
               foundAreaRow = true;
+              console.log('Found area row:', areas);
             }
             continue;
           }
 
-          // Look for percentage row (contains "%" and numbers)
+          // Look for percentage row (contains % symbol)
           if (foundAreaRow && !foundPercentageRow && rowText.includes('%')) {
-            const percentageMatches = rowText.match(/(\d+\.?\d*)%/g);
+            const percentageMatches = rowText.match(/(\d+(?:\.\d+)?)\s*%/g);
             if (percentageMatches) {
               percentages.push(...percentageMatches.map(p => parseFloat(p)));
               foundPercentageRow = true;
+              console.log('Found percentage row:', percentages);
             }
             continue;
           }
@@ -656,8 +660,22 @@ export function usePdfParser() {
           }
         }
 
-        console.log('Extracted pitch data:', { pitches, areas, percentages });
-        return { pitches, areas, percentages };
+        // Validate the extracted data
+        if (pitches.length === areas.length && areas.length === percentages.length) {
+          console.log('Successfully extracted pitch table data:', {
+            pitches,
+            areas,
+            percentages
+          });
+          return { pitches, areas, percentages };
+        } else {
+          console.warn('Mismatched data lengths:', {
+            pitches: pitches.length,
+            areas: areas.length,
+            percentages: percentages.length
+          });
+          return { pitches: [], areas: [], percentages: [] };
+        }
       }
       
       // Try the coordinate-based table extraction first
@@ -667,22 +685,27 @@ export function usePdfParser() {
       // Try to extract the pitch table from each page
       for (let i = 1; i <= numPages; i++) {
         console.log(`Trying to extract pitch table from page ${i}`);
-        extractedTableData = extractPitchTableData(pageTextItems[i].map(item => ({
+        const textItemsForPage = pageTextItems[i].map(item => ({
           text: item.str.trim(),
           x: Math.round(item.transform[4]),
           y: Math.round(item.transform[5])
-        })));
-        if (extractedTableData && extractedTableData.pitches.length > 0) {
+        }));
+        
+        extractedTableData = extractPitchTableData(textItemsForPage);
+        
+        if (extractedTableData && extractedTableData.pitches.length > 0 &&
+            extractedTableData.areas.length === extractedTableData.pitches.length &&
+            extractedTableData.percentages.length === extractedTableData.pitches.length) {
           console.log(`Successfully extracted pitch table from page ${i}`);
           break;
         }
       }
       
-      // If we found valid data from coordinate-based extraction, use it
+      // Process the extracted pitch table data
       if (extractedTableData && extractedTableData.pitches.length > 0) {
         const { pitches, areas, percentages } = extractedTableData;
         
-        console.log("Raw areasByPitch data:", { pitches, areas, percentages });
+        console.log("Processing extracted pitch data:", { pitches, areas, percentages });
         
         // Reset measurements objects
         parsedMeasurements.areasByPitch = {};
@@ -710,9 +733,9 @@ export function usePdfParser() {
           }
         });
         
-        // Log the final data for verification
-        console.log("Final areasByPitch data:", {
-          parsed: parsedMeasurements.areasByPitch,
+        // Verify the data was stored correctly
+        console.log("Stored pitch data:", {
+          parsedMeasurements: parsedMeasurements.areasByPitch,
           measurements: measurements.areasByPitch
         });
       } else if (parsedMeasurements.predominantPitch && parsedMeasurements.totalArea > 0) {
