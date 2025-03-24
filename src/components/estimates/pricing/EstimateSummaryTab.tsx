@@ -45,10 +45,9 @@ export function EstimateSummaryTab({
   
   const totalMaterialCost = materialCosts.reduce((sum, item) => sum + item.totalCost, 0);
   
-  // Calculate labor costs
+  // Calculate labor costs with combined labor rate
   const laborCosts = [
-    { name: "Tear Off", rate: laborRates.tearOff, totalCost: laborRates.tearOff * totalSquares * (1 + laborRates.wastePercentage/100) },
-    { name: "Installation", rate: laborRates.installation, totalCost: laborRates.installation * totalSquares * (1 + laborRates.wastePercentage/100) }
+    { name: "Labor (Tear Off & Installation)", rate: laborRates.laborRate, totalCost: laborRates.laborRate * totalSquares * (1 + laborRates.wastePercentage/100) }
   ];
   
   // Add handload cost if enabled
@@ -69,7 +68,7 @@ export function EstimateSummaryTab({
   
   // Add pitch adjustments if applicable
   const predominantPitch = measurements.roofPitch;
-  const pitchValue = parseInt(predominantPitch.split(':')[0]);
+  const pitchValue = parseInt(predominantPitch.split(/[:\/]/)[0]);
   
   if (pitchValue >= 8) {
     // Calculate pitch-based rate
@@ -82,6 +81,14 @@ export function EstimateSummaryTab({
       name: `Pitch Adjustment (${predominantPitch})`, 
       rate: pitchRate, 
       totalCost: pitchRate * totalSquares
+    });
+  } else if (pitchValue <= 2) {
+    // Low slope adjustment
+    const lowSlopeRate = 75;
+    laborCosts.push({
+      name: `Low Slope Adjustment (${predominantPitch})`, 
+      rate: lowSlopeRate, 
+      totalCost: lowSlopeRate * totalSquares
     });
   }
   

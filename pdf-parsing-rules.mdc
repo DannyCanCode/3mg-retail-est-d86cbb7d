@@ -1,0 +1,49 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# PDF Parsing & Measurement Extraction Rules
+
+1. Preserve original data formats:
+   - Never modify pitch formats (e.g., "3/12", "6:12") unless explicitly required
+   - Store data exactly as extracted from source documents
+   - Avoid redundant notation (e.g., never convert "3/12" to "3/12:12")
+
+2. Defensive data handling:
+   - Always check if arrays/objects exist before calling methods on them
+   - Use Array.isArray() to verify before mapping/filtering
+   - Provide default empty arrays/objects when data might be undefined
+   - Use optional chaining (?.) and nullish coalescing (??) operators
+
+3. Data structure consistency:
+   - Maintain consistent data structures throughout the application flow
+   - Document expected formats in interfaces with clear comments
+   - Use typed interfaces for all measurement data
+   - Never mix object and array formats for the same data
+
+4. Safe data transformation:
+   - Add validation checks before format conversions
+   - Log data state at critical transformation points
+   - Implement graceful fallbacks when expected data is missing
+   - Keep transformations simple and reversible when possible
+
+5. UI rendering safeguards:
+   - Always use the actual property values in UI, never array indices
+   - Include validation checks before rendering tabular data
+   - Ensure consistent formatting in all display components
+   - Store critical data with DOM recovery mechanisms
+
+6. PDF extraction principles:
+   - Handle various PDF layouts and formats gracefully
+   - Look for key section headers before extracting data
+   - Use both text content and coordinate positioning for table detection
+   - Implement multiple extraction strategies as fallbacks
+
+7. Labor pricing consistency:
+   - Follow the single labor rate model for tear-off and installation
+   - Apply pitch-based pricing adjustments consistently:
+     - 0/12-2/12: Low slope rate
+     - 3/12-7/12: Standard rate 
+     - 8/12+: Progressive steep-slope rates
+   - Always calculate waste percentage consistently across all materials and labor 

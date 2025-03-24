@@ -19,8 +19,7 @@ interface LaborProfitTabProps {
 }
 
 export interface LaborRates {
-  tearOff: number;
-  installation: number;
+  laborRate: number; // Combined tear off and installation rate
   isHandload: boolean;
   handloadRate: number;
   dumpsterLocation: "orlando" | "outside";
@@ -34,8 +33,7 @@ export function LaborProfitTab({
   onBack,
   onContinue,
   initialLaborRates = {
-    tearOff: 55,
-    installation: 125,
+    laborRate: 85, // Default combined rate for 3/12-7/12 pitches
     isHandload: false,
     handloadRate: 15,
     dumpsterLocation: "orlando",
@@ -116,6 +114,13 @@ export function LaborProfitTab({
   };
   
   const handleContinue = () => {
+    // Convert laborRate back to tearOff and installation for backward compatibility
+    const compatLaborRates = {
+      ...laborRates,
+      tearOff: laborRates.laborRate * 0.3, // 30% of labor rate goes to tear off
+      installation: laborRates.laborRate * 0.7, // 70% goes to installation
+    };
+    
     onContinue(laborRates, profitMargin);
   };
   
@@ -127,12 +132,22 @@ export function LaborProfitTab({
   
   // Calculate the rate for each pitch level
   const getPitchRate = (pitch: string) => {
-    const basePitchValue = 8; // 8/12 is the base pitch
-    const baseRate = 90; // Base rate for 8/12
-    const increment = 5; // $5 increment per pitch level
+    const pitchValue = parseInt(pitch.split(/[:\/]/)[0]);
     
-    const pitchValue = parseInt(pitch.split(':')[0]);
-    return baseRate + (pitchValue - basePitchValue) * increment;
+    // Different rate logic based on pitch range
+    if (pitchValue >= 8) {
+      // 8/12-18/12 has increasing rates
+      const basePitchValue = 8; // 8/12 is the base pitch
+      const baseRate = 90; // Base rate for 8/12
+      const increment = 5; // $5 increment per pitch level
+      return baseRate + (pitchValue - basePitchValue) * increment;
+    } else if (pitchValue <= 2) {
+      // 0/12-2/12 (low slope) has special rates
+      return 75; // Just an example rate for low-slope
+    } else {
+      // 3/12-7/12 has the standard $85 rate
+      return 85;
+    }
   };
   
   // Build a list of pitch rates to display
@@ -278,33 +293,24 @@ export function LaborProfitTab({
         
         <Separator />
         
-        {/* Labor Tear Off and Installation */}
+        {/* Combined Labor Rate */}
         <div>
           <h3 className="text-lg font-semibold mb-4">Labor Rates (per square)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="tearOff">Tear Off Rate ($/square)</Label>
+                <Label htmlFor="laborRate">Labor Rate ($/square)</Label>
                 <Input
-                  id="tearOff"
+                  id="laborRate"
                   type="number"
-                  value={laborRates.tearOff.toString()}
-                  onChange={(e) => handleLaborRateChange("tearOff", e.target.value)}
+                  value={laborRates.laborRate.toString()}
+                  onChange={(e) => handleLaborRateChange("laborRate", e.target.value)}
                   min="0"
                   step="0.01"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="installation">Installation Rate ($/square)</Label>
-                <Input
-                  id="installation"
-                  type="number"
-                  value={laborRates.installation.toString()}
-                  onChange={(e) => handleLaborRateChange("installation", e.target.value)}
-                  min="0"
-                  step="0.01"
-                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Combined rate for tear off and installation (3/12-7/12 pitches)
+                </p>
               </div>
               
               <div className="space-y-2">
@@ -322,11 +328,8 @@ export function LaborProfitTab({
             <div className="space-y-2">
               <p className="text-sm mb-2">Fixed 12% waste factored into calculations</p>
               <div className="bg-muted p-3 rounded-md">
-                <p className="text-sm">Tear Off with waste: 
-                  ${(totalSquares * (1 + laborRates.wastePercentage/100) * laborRates.tearOff).toFixed(2)}
-                </p>
-                <p className="text-sm mt-1">Installation with waste: 
-                  ${(totalSquares * (1 + laborRates.wastePercentage/100) * laborRates.installation).toFixed(2)}
+                <p className="text-sm">Labor with waste: 
+                  ${(totalSquares * (1 + laborRates.wastePercentage/100) * laborRates.laborRate).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -366,6 +369,17 @@ export function LaborProfitTab({
                   />
                 </div>
               ))}
+            </div>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <p className="text-sm text-blue-700">
+                <strong>Note:</strong> Different labor rates apply for different pitch ranges:
+                <ul className="mt-1 list-disc list-inside">
+                  <li>0/12-2/12 (low slope): $75/square</li>
+                  <li>3/12-7/12 (standard): $85/square</li>
+                  <li>8/12-18/12 (steep): $90-$140/square (increases with pitch)</li>
+                </ul>
+              </p>
             </div>
           </div>
         </div>
