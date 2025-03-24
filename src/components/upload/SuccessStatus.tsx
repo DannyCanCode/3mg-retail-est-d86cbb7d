@@ -69,10 +69,13 @@ export function SuccessStatus({
             <div className="mt-4">
               <h4 className="font-medium mb-2">Areas by Pitch:</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {Object.entries(parsedData.areasByPitch).map(([pitch, area]) => (
+                {Object.entries(parsedData.areasByPitch).map(([pitch, data]) => (
                   <div key={pitch} className="flex justify-between gap-2 py-1 border-b">
                     <span>Pitch {pitch}:</span>
-                    <span>{area} sq ft</span>
+                    <span>
+                      {typeof data === 'object' ? data.area : data} sq ft 
+                      {typeof data === 'object' && ` (${data.percentage.toFixed(1)}%)`}
+                    </span>
                   </div>
                 ))}
               </div>

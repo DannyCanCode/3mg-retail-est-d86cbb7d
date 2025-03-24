@@ -1,4 +1,5 @@
-import React, { useEffect } from "react";
+
+import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,35 +20,6 @@ export function LengthMeasurementsTab({
   goToPreviousTab,
   goToNextTab,
 }: LengthMeasurementsTabProps) {
-  // Debug log when measurements change
-  useEffect(() => {
-    console.log("CRITICAL: LengthMeasurementsTab - Measurements received:", measurements);
-    console.log("CRITICAL: LengthMeasurementsTab - Length values:", {
-      ridgeLength: measurements.ridgeLength,
-      hipLength: measurements.hipLength,
-      valleyLength: measurements.valleyLength,
-      rakeLength: measurements.rakeLength,
-      eaveLength: measurements.eaveLength,
-      stepFlashingLength: measurements.stepFlashingLength,
-      flashingLength: measurements.flashingLength,
-    });
-    console.log("CRITICAL: LengthMeasurementsTab - Value types:", {
-      ridgeLength: typeof measurements.ridgeLength,
-      hipLength: typeof measurements.hipLength,
-      valleyLength: typeof measurements.valleyLength,
-      rakeLength: typeof measurements.rakeLength,
-      eaveLength: typeof measurements.eaveLength,
-      stepFlashingLength: typeof measurements.stepFlashingLength,
-      flashingLength: typeof measurements.flashingLength,
-    });
-  }, [measurements]);
-
-  // Helper function to format value display
-  const formatValueForInput = (value: number | undefined | null): string => {
-    if (value === undefined || value === null) return "";
-    return value.toString();
-  };
-
   return (
     <Card>
       <CardHeader>
@@ -61,10 +33,9 @@ export function LengthMeasurementsTab({
               id="ridgeLength"
               name="ridgeLength"
               type="number"
-              value={formatValueForInput(measurements.ridgeLength)}
+              value={measurements.ridgeLength || ""}
               onChange={handleInputChange}
               placeholder="Enter ridge length"
-              data-testid="ridge-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all ridges
@@ -77,10 +48,9 @@ export function LengthMeasurementsTab({
               id="hipLength"
               name="hipLength"
               type="number"
-              value={formatValueForInput(measurements.hipLength)}
+              value={measurements.hipLength || ""}
               onChange={handleInputChange}
               placeholder="Enter hip length"
-              data-testid="hip-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all hip ridges
@@ -93,10 +63,9 @@ export function LengthMeasurementsTab({
               id="valleyLength"
               name="valleyLength"
               type="number"
-              value={formatValueForInput(measurements.valleyLength)}
+              value={measurements.valleyLength || ""}
               onChange={handleInputChange}
               placeholder="Enter valley length"
-              data-testid="valley-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all valleys
@@ -109,10 +78,9 @@ export function LengthMeasurementsTab({
               id="eaveLength"
               name="eaveLength"
               type="number"
-              value={formatValueForInput(measurements.eaveLength)}
+              value={measurements.eaveLength || ""}
               onChange={handleInputChange}
               placeholder="Enter eave length"
-              data-testid="eave-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all eaves
@@ -125,10 +93,9 @@ export function LengthMeasurementsTab({
               id="rakeLength"
               name="rakeLength"
               type="number"
-              value={formatValueForInput(measurements.rakeLength)}
+              value={measurements.rakeLength || ""}
               onChange={handleInputChange}
               placeholder="Enter rake length"
-              data-testid="rake-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of all rake edges
@@ -141,10 +108,9 @@ export function LengthMeasurementsTab({
               id="stepFlashingLength"
               name="stepFlashingLength"
               type="number"
-              value={formatValueForInput(measurements.stepFlashingLength)}
+              value={measurements.stepFlashingLength || ""}
               onChange={handleInputChange}
               placeholder="Enter step flashing length"
-              data-testid="step-flashing-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of step flashing
@@ -157,10 +123,9 @@ export function LengthMeasurementsTab({
               id="flashingLength"
               name="flashingLength"
               type="number"
-              value={formatValueForInput(measurements.flashingLength)}
+              value={measurements.flashingLength || ""}
               onChange={handleInputChange}
               placeholder="Enter wall flashing length"
-              data-testid="wall-flashing-length-input"
             />
             <p className="text-sm text-muted-foreground">
               The total length of wall flashing

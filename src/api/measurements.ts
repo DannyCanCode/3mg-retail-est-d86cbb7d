@@ -1,5 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 
+export interface PitchArea {
+  area: number;
+  percentage: number;
+}
+
 export interface ParsedMeasurements {
   // Areas
   totalArea: number;
@@ -29,7 +34,7 @@ export interface ParsedMeasurements {
   penetrationsPerimeter: number;
   
   // Areas by pitch - for storing the pitch table data
-  areasByPitch: Record<string, number>;
+  areasByPitch: { [pitch: string]: PitchArea };
   // Also support areasPerPitch for backward compatibility
   areasPerPitch?: Record<string, number>;
   
@@ -37,9 +42,9 @@ export interface ParsedMeasurements {
   [key: string]: any;
   
   // Add new fields for property information
-  longitude?: string;
-  latitude?: string;
-  propertyAddress?: string;
+  longitude: string;
+  latitude: string;
+  propertyAddress: string;
 }
 
 export const saveMeasurement = async (

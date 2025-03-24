@@ -37,20 +37,25 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
   
   // Calculate total area for percentage calculations
   const totalArea = measurements.totalArea || 
-    Object.values(measurements.areasByPitch || {}).reduce((sum, area) => sum + area, 0);
+    Object.values(measurements.areasByPitch || {}).reduce((sum, data) => {
+      if (typeof data === 'object') {
+        return sum + data.area;
+      }
+      return sum + (typeof data === 'number' ? data : 0);
+    }, 0);
   
   // Format pitch areas as array for display
   const pitchAreas = React.useMemo(() => {
     if (!measurements.areasByPitch) return [];
     
     return Object.entries(measurements.areasByPitch)
-      .map(([pitch, area]) => ({
+      .map(([pitch, data]) => ({
         pitch,
         // Don't modify the pitch format - display it exactly as is
         // If it already contains a "/", preserve it; if it uses ":" format, convert to "/"
         displayPitch: pitch.includes("/") ? pitch : pitch.replace(":", "/"),
-        area: typeof area === 'number' ? area : parseFloat(area),
-        percentage: totalArea > 0 ? (area / totalArea * 100) : 0
+        area: typeof data === 'object' ? data.area : (typeof data === 'number' ? data : 0),
+        percentage: typeof data === 'object' ? data.percentage : 0
       }))
       .sort((a, b) => {
         // Try to sort by pitch numerically, but fallback to string comparison for non-standard formats
@@ -69,7 +74,7 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
         // Fallback to preserving the original order
         return 0;
       });
-  }, [measurements.areasByPitch, totalArea]);
+  }, [measurements.areasByPitch]);
 
   return (
     <div className={`w-full space-y-6 ${className}`}>

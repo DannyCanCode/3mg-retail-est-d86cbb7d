@@ -45,39 +45,6 @@ export const handleInvalidPdfError = (
   });
 };
 
-export const handleEdgeFunctionError = (
-  error: any,
-  fileSizeMB: number,
-  setErrorDetails: React.Dispatch<React.SetStateAction<string>>,
-  setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>
-) => {
-  console.error("Edge function error:", error);
-  setStatus("error");
-  
-  // Check if it's a size-related error
-  if (error.message && (
-    error.message.includes("too long") || 
-    error.message.includes("too large") || 
-    error.message.includes("context length") ||
-    error.message.includes("maximum context length")
-  )) {
-    setErrorDetails(`Error: The PDF file (${fileSizeMB.toFixed(2)} MB) is too complex to process. Please try a smaller file with fewer pages.`);
-    toast({
-      title: "File too complex",
-      description: "The PDF contains too much data to process. Try a simpler PDF with fewer pages.",
-      variant: "destructive",
-    });
-  } else {
-    // Generic error handling
-    setErrorDetails(error.message || "An unknown error occurred while processing the PDF");
-    toast({
-      title: "Processing error",
-      description: "There was an error processing your file. Please try a different PDF file.",
-      variant: "destructive",
-    });
-  }
-};
-
 export const handleGeneralPdfError = (
   error: any,
   setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
@@ -102,15 +69,12 @@ export const handleGeneralPdfError = (
 
 export const handleSuccessfulParsing = (
   fileName: string, 
-  setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
-  showToast: boolean = true
+  setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>
 ) => {
   setStatus("success");
   
-  if (showToast) {
-    toast({
-      title: "Parsing successful",
-      description: `${fileName} has been processed successfully.`,
-    });
-  }
+  toast({
+    title: "Parsing successful",
+    description: `${fileName} has been processed successfully.`,
+  });
 };

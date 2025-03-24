@@ -5,4 +5,4 @@ export const MAX_RECOMMENDED_SIZE_MB = 5;
 export const MAX_ALLOWED_SIZE_MB = 10;
 
 // Processing modes for PDF files
-export type ProcessingMode = 'supabase' | 'client' | 'regular' | 'fallback';
+export type ProcessingMode = 'supabase' | 'client';

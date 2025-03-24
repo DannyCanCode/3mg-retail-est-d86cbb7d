@@ -1,7 +1,6 @@
 import React from "react";
 import { FileText, Loader2 } from "lucide-react";
 import { FileUploadStatus } from "./hooks/useFileUpload";
-import "./processing-status.css";
 
 interface ProcessingStatusProps {
   status: Extract<FileUploadStatus, "uploading" | "parsing">;
@@ -51,10 +50,10 @@ export function ProcessingStatus({ status, fileName, processingMode, progress }:
           <> (Page {progress.page} of {progress.totalPages})</>
         )}
       </p>
-      <div className="progress-bar">
+      <div className="w-full max-w-xs bg-secondary rounded-full h-2.5 mb-4">
         <div 
-          className={`progress-bar-fill animate ${!progressPercentage ? 'default-width' : ''}`}
-          style={progressPercentage ? { width: `${progressPercentage}%` } : undefined}
+          className="bg-accent h-2.5 rounded-full animate-pulse-soft"
+          style={{ width: progressPercentage ? `${progressPercentage}%` : '66%' }}
         ></div>
       </div>
     </>

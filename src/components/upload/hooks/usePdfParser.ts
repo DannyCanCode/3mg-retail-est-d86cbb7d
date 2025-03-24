@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ParsedMeasurements, PitchArea } from "@/api/measurements";
-import { MeasurementValues } from "@/components/measurement/types";
 import { validatePdfFile } from "../pdf-utils";
 import { FileUploadStatus } from "./useFileUpload";
 import { ProcessingMode } from "./pdf-constants";
@@ -189,7 +188,7 @@ export function usePdfParser() {
       totalPages: number;
       status: string;
     } | null>>
-  ): Promise<{ measurements: MeasurementValues, parsedMeasurements: ParsedMeasurements }> => {
+  ): Promise<{ measurements: ParsedMeasurements, parsedMeasurements: ParsedMeasurements }> => {
     try {
       // Create a URL to the PDF file
       const fileURL = URL.createObjectURL(file);
@@ -204,10 +203,10 @@ export function usePdfParser() {
       const loadingTask = pdfjs.getDocument(fileURL);
       const pdf = await loadingTask.promise;
       
-      // Initialize measurements objects
-      const measurements: MeasurementValues = {
+      // Initialize measurements object with the correct type
+      const measurements: ParsedMeasurements = {
         totalArea: 0,
-        roofPitch: "",
+        predominantPitch: "",
         ridgeLength: 0,
         hipLength: 0,
         valleyLength: 0,
@@ -224,16 +223,13 @@ export function usePdfParser() {
         penetrationsPerimeter: 0,
         dripEdgeLength: 0,
         areasByPitch: {},
-        predominantPitch: ""
+        longitude: "",
+        latitude: "",
+        propertyAddress: ""
       };
       
       const parsedMeasurements: ParsedMeasurements = {
-        ...measurements,
-        longitude: "",
-        latitude: "",
-        propertyAddress: "",
-        areasByPitch: {},
-        areasPerPitch: {}
+        ...measurements
       };
       
       // Extract text from all pages
@@ -701,8 +697,13 @@ export function usePdfParser() {
             const percentage = percentages[index];
             const pitchKey = `${pitch}:12`;
             
-            // Store in both objects
-            measurements.areasByPitch[pitchKey] = area;
+            // Store as PitchArea object
+            measurements.areasByPitch[pitchKey] = {
+              area: area,
+              percentage: percentage
+            };
+            
+            // Also store in parsedMeasurements
             parsedMeasurements.areasByPitch[pitchKey] = {
               area: area,
               percentage: percentage
@@ -745,8 +746,11 @@ export function usePdfParser() {
           percentage: 100
         };
         
-        // Store in MeasurementValues format
-        measurements.areasByPitch[pitch] = parsedMeasurements.totalArea;
+        // Store in measurements format (also as PitchArea)
+        measurements.areasByPitch[pitch] = {
+          area: parsedMeasurements.totalArea,
+          percentage: 100
+        };
         measurements.roofPitch = pitch;
       }
       
