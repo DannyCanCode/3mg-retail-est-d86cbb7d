@@ -7,31 +7,35 @@ interface MeasurementSummaryProps {
 
 export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurements }) => {
   const renderAreasByPitch = () => {
-    // Convert areasByPitch object to array format
-    const pitchAreas = Object.entries(measurements.areasByPitch || {})
-      .map(([pitch, area]) => {
-        const [numerator] = pitch.split(':');
-        const percentage = ((area / measurements.totalArea) * 100);
-        return {
-          pitch: `${numerator}/12`,
-          area: typeof area === 'number' ? area : 0,
-          percentage: !isNaN(percentage) ? percentage : 0
-        };
-      })
-      .filter(item => item.area > 0); // Only include pitches with area > 0
+    if (!measurements.areasByPitch || Object.keys(measurements.areasByPitch).length === 0) {
+      return null;
+    }
 
-    // Sort pitches numerically by the numerator
-    const sortedPitchAreas = [...pitchAreas].sort((a, b) => {
-      const getPitchValue = (p: string) => parseInt(p.split('/')[0]);
-      return getPitchValue(a.pitch) - getPitchValue(b.pitch);
+    // Convert areasByPitch object to array format
+    const pitchAreas = Object.entries(measurements.areasByPitch).map(([pitch, area]) => {
+      const percentage = (area / measurements.totalArea) * 100;
+      return {
+        pitch: pitch.replace(':', '/'),
+        area: area,
+        percentage: percentage
+      };
     });
+
+    // Filter out pitches with 0 area and sort by pitch numerically
+    const sortedPitchAreas = pitchAreas
+      .filter(item => item.area > 0)
+      .sort((a, b) => {
+        const aNum = parseInt(a.pitch.split('/')[0]);
+        const bNum = parseInt(b.pitch.split('/')[0]);
+        return aNum - bNum;
+      });
 
     // Calculate total area for verification
     const totalArea = sortedPitchAreas.reduce((sum, item) => sum + item.area, 0);
-    console.log('Areas by Pitch - Total Area Check:', {
-      sumOfAreas: totalArea,
-      totalArea: measurements.totalArea,
-      difference: Math.abs(totalArea - measurements.totalArea)
+    console.log('Areas by Pitch - Total Check:', {
+      sum: totalArea.toFixed(1),
+      totalArea: measurements.totalArea.toFixed(1),
+      difference: (measurements.totalArea - totalArea).toFixed(1)
     });
 
     return (
@@ -48,7 +52,7 @@ export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurem
             </thead>
             <tbody>
               {sortedPitchAreas.map((item, index) => (
-                <tr key={index}>
+                <tr key={index} className="hover:bg-gray-50">
                   <td className="py-2 px-4 border">{item.pitch}</td>
                   <td className="py-2 px-4 border text-center">{item.area.toFixed(1)}</td>
                   <td className="py-2 px-4 border text-center">{item.percentage.toFixed(1)}%</td>

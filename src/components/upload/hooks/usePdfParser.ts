@@ -621,7 +621,7 @@ export function usePdfParser() {
 
           if (!inPitchSection) continue;
 
-          // Look for pitch row (contains multiple x/12 format numbers)
+          // Look for pitch row (contains x/12 format numbers)
           if (!foundPitchRow && rowText.match(/\d+\/12/)) {
             const pitchMatches = rowText.match(/(\d+)\/12/g);
             if (pitchMatches) {
@@ -632,11 +632,11 @@ export function usePdfParser() {
             continue;
           }
 
-          // Look for area row (contains numbers with possible decimals)
-          if (foundPitchRow && !foundAreaRow && rowText.includes('Area')) {
-            const areaMatches = rowText.match(/(\d+(?:\.\d+)?)/g);
+          // Look for area row (contains "Area" and numbers)
+          if (foundPitchRow && !foundAreaRow && rowText.toLowerCase().includes('area')) {
+            const areaMatches = rowText.match(/(\d+(?:,\d+)*(?:\.\d+)?)/g);
             if (areaMatches) {
-              areas.push(...areaMatches.map(a => parseFloat(a)));
+              areas.push(...areaMatches.map(a => parseFloat(a.replace(/,/g, ''))));
               foundAreaRow = true;
               console.log('Found area row:', areas);
             }
@@ -660,50 +660,7 @@ export function usePdfParser() {
           }
         }
 
-        // Validate the extracted data
-        if (pitches.length === areas.length && areas.length === percentages.length) {
-          console.log('Successfully extracted pitch table data:', {
-            pitches,
-            areas,
-            percentages
-          });
-
-          // Reset measurements objects
-          parsedMeasurements.areasByPitch = {};
-          measurements.areasByPitch = {};
-          
-          // Store each pitch's data
-          pitches.forEach((pitch, index) => {
-            const pitchKey = `${pitch}:12`;
-            const area = areas[index];
-            const percentage = percentages[index];
-            
-            if (!isNaN(area) && !isNaN(percentage)) {
-              // Store in ParsedMeasurements format
-              parsedMeasurements.areasByPitch[pitchKey] = {
-                area: area,
-                percentage: percentage
-              };
-              
-              // Store in MeasurementValues format
-              measurements.areasByPitch[pitchKey] = area;
-            }
-          });
-
-          console.log('Stored pitch data:', {
-            parsedMeasurements: parsedMeasurements.areasByPitch,
-            measurements: measurements.areasByPitch
-          });
-
-          return { pitches, areas, percentages };
-        } else {
-          console.warn('Mismatched data lengths:', {
-            pitches: pitches.length,
-            areas: areas.length,
-            percentages: percentages.length
-          });
-          return { pitches: [], areas: [], percentages: [] };
-        }
+        return { pitches, areas, percentages };
       }
       
       // Try the coordinate-based table extraction first
@@ -761,10 +718,26 @@ export function usePdfParser() {
           }
         });
         
+        // Set the predominant pitch
+        if (pitches.length > 0) {
+          const maxArea = Math.max(...areas);
+          const predominantIndex = areas.indexOf(maxArea);
+          measurements.roofPitch = `${pitches[predominantIndex]}:12`;
+          parsedMeasurements.predominantPitch = measurements.roofPitch;
+        }
+        
+        // Set the total area if not already set
+        if (!parsedMeasurements.totalArea || parsedMeasurements.totalArea === 0) {
+          parsedMeasurements.totalArea = areas.reduce((sum, area) => sum + area, 0);
+          measurements.totalArea = parsedMeasurements.totalArea;
+        }
+        
         // Verify the data was stored correctly
         console.log("Stored pitch data:", {
           parsedMeasurements: parsedMeasurements.areasByPitch,
-          measurements: measurements.areasByPitch
+          measurements: measurements.areasByPitch,
+          totalArea: parsedMeasurements.totalArea,
+          predominantPitch: measurements.roofPitch
         });
       } else if (parsedMeasurements.predominantPitch && parsedMeasurements.totalArea > 0) {
         // If no pitch table found but we have predominant pitch and total area,
