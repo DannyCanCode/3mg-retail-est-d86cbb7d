@@ -19,7 +19,9 @@ interface LaborProfitTabProps {
 }
 
 export interface LaborRates {
-  laborRate: number; // Combined tear off and installation rate
+  laborRate?: number; // Combined tear off and installation rate
+  tearOff?: number; // For backward compatibility
+  installation?: number; // For backward compatibility
   isHandload: boolean;
   handloadRate: number;
   dumpsterLocation: "orlando" | "outside";
@@ -46,7 +48,25 @@ export function LaborProfitTab({
   measurements
 }: LaborProfitTabProps) {
   console.log("LaborProfitTab rendering, received measurements:", measurements?.totalArea);
-  const [laborRates, setLaborRates] = useState<LaborRates>(initialLaborRates);
+  
+  // Normalize initialLaborRates for backward compatibility
+  const normalizedInitialRates = { ...initialLaborRates };
+  
+  // If we have old format data (tearOff and installation) but no laborRate
+  if (!normalizedInitialRates.laborRate && (normalizedInitialRates.tearOff || normalizedInitialRates.installation)) {
+    const tearOff = normalizedInitialRates.tearOff || 0;
+    const installation = normalizedInitialRates.installation || 0;
+    normalizedInitialRates.laborRate = tearOff + installation;
+    console.log(`Converted old labor rates (tearOff: ${tearOff}, installation: ${installation}) to combined rate: ${normalizedInitialRates.laborRate}`);
+  }
+  
+  // Ensure laborRate has a default value
+  if (!normalizedInitialRates.laborRate) {
+    normalizedInitialRates.laborRate = 85; // Default value
+    console.log("Using default laborRate: 85");
+  }
+  
+  const [laborRates, setLaborRates] = useState<LaborRates>(normalizedInitialRates);
   const [profitMargin, setProfitMargin] = useState(initialProfitMargin);
   
   // Calculate dumpster count based on total roof area
@@ -303,7 +323,7 @@ export function LaborProfitTab({
                 <Input
                   id="laborRate"
                   type="number"
-                  value={laborRates.laborRate.toString()}
+                  value={(laborRates.laborRate || 85).toString()}
                   onChange={(e) => handleLaborRateChange("laborRate", e.target.value)}
                   min="0"
                   step="0.01"
@@ -318,7 +338,7 @@ export function LaborProfitTab({
                 <Input
                   id="wastePercentage"
                   type="number"
-                  value={laborRates.wastePercentage.toString()}
+                  value={(laborRates.wastePercentage || 12).toString()}
                   readOnly
                   className="bg-muted"
                 />
@@ -329,7 +349,7 @@ export function LaborProfitTab({
               <p className="text-sm mb-2">Fixed 12% waste factored into calculations</p>
               <div className="bg-muted p-3 rounded-md">
                 <p className="text-sm">Labor with waste: 
-                  ${(totalSquares * (1 + laborRates.wastePercentage/100) * laborRates.laborRate).toFixed(2)}
+                  ${(totalSquares * (1 + (laborRates.wastePercentage || 12)/100) * (laborRates.laborRate || 85)).toFixed(2)}
                 </p>
               </div>
             </div>

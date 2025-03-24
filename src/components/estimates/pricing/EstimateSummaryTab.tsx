@@ -46,16 +46,52 @@ export function EstimateSummaryTab({
   const totalMaterialCost = materialCosts.reduce((sum, item) => sum + item.totalCost, 0);
   
   // Calculate labor costs with combined labor rate
-  const laborCosts = [
-    { name: "Labor (Tear Off & Installation)", rate: laborRates.laborRate, totalCost: laborRates.laborRate * totalSquares * (1 + laborRates.wastePercentage/100) }
-  ];
-  
+  const laborCosts = [];
+
+  // Add combined labor or backward compatibility with separate tear off/installation
+  if (laborRates.laborRate) {
+    // Use combined labor rate
+    laborCosts.push({ 
+      name: "Labor (Tear Off & Installation)", 
+      rate: laborRates.laborRate, 
+      totalCost: laborRates.laborRate * totalSquares * (1 + (laborRates.wastePercentage || 12)/100) 
+    });
+  } else if (laborRates.tearOff || laborRates.installation) {
+    // Backward compatibility: handle old format with separate rates
+    const tearOff = laborRates.tearOff || 0;
+    const installation = laborRates.installation || 0;
+    
+    if (tearOff > 0) {
+      laborCosts.push({ 
+        name: "Tear Off", 
+        rate: tearOff, 
+        totalCost: tearOff * totalSquares * (1 + (laborRates.wastePercentage || 12)/100) 
+      });
+    }
+    
+    if (installation > 0) {
+      laborCosts.push({ 
+        name: "Installation", 
+        rate: installation, 
+        totalCost: installation * totalSquares * (1 + (laborRates.wastePercentage || 12)/100) 
+      });
+    }
+  } else {
+    // Fallback to default rate if neither format is available
+    const defaultRate = 85;
+    laborCosts.push({ 
+      name: "Labor (Default Rate)", 
+      rate: defaultRate, 
+      totalCost: defaultRate * totalSquares * (1 + (laborRates.wastePercentage || 12)/100) 
+    });
+  }
+
   // Add handload cost if enabled
   if (laborRates.isHandload) {
     laborCosts.push({
       name: "Handload", 
-      rate: laborRates.handloadRate, 
-      totalCost: laborRates.handloadRate * totalSquares * (1 + laborRates.wastePercentage/100)
+      rate: laborRates.handloadRate || 15, 
+      totalCost: (laborRates.handloadRate || 15) * totalSquares * (1 + (laborRates.wastePercentage || 12)/100)
     });
   }
   
