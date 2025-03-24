@@ -205,9 +205,9 @@ export function usePdfParser() {
       const pdf = await loadingTask.promise;
       
       // Initialize measurements objects
-      const parsedMeasurements: ParsedMeasurements = {
+      const measurements: MeasurementValues = {
         totalArea: 0,
-        predominantPitch: "",
+        roofPitch: "",
         ridgeLength: 0,
         hipLength: 0,
         valleyLength: 0,
@@ -224,15 +224,16 @@ export function usePdfParser() {
         penetrationsPerimeter: 0,
         dripEdgeLength: 0,
         areasByPitch: {},
-        areasPerPitch: {},
-        longitude: "",
-        latitude: "",
-        propertyAddress: ""
+        predominantPitch: ""
       };
       
-      const measurements: MeasurementValues = {
-        ...parsedMeasurements,
-        areasByPitch: {}  // This will store numbers instead of PitchArea objects
+      const parsedMeasurements: ParsedMeasurements = {
+        ...measurements,
+        longitude: "",
+        latitude: "",
+        propertyAddress: "",
+        areasByPitch: {},
+        areasPerPitch: {}
       };
       
       // Extract text from all pages
@@ -562,9 +563,6 @@ export function usePdfParser() {
       // Extract areas by pitch
       console.log("Extracting areas by pitch...");
       
-      // Initialize empty object to store areas by pitch
-      parsedMeasurements.areasByPitch = {};
-      
       // Define the pitch validation function for use throughout this parsing logic
       function isValidPitch(pitch: string): boolean {
         // ACCEPT ANY format that has numbers separated by / or :
@@ -632,7 +630,7 @@ export function usePdfParser() {
             continue;
           }
 
-          // Look for area row (contains "Area" and numbers)
+          // Look for area row (contains numbers with possible commas and decimals)
           if (foundPitchRow && !foundAreaRow && rowText.toLowerCase().includes('area')) {
             const areaMatches = rowText.match(/(\d+(?:,\d+)*(?:\.\d+)?)/g);
             if (areaMatches) {
@@ -690,11 +688,11 @@ export function usePdfParser() {
       if (extractedTableData && extractedTableData.pitches.length > 0) {
         const { pitches, areas, percentages } = extractedTableData;
         
-        console.log("Processing extracted pitch data:", { pitches, areas, percentages });
-        
-        // Reset measurements objects
-        parsedMeasurements.areasByPitch = {};
-        measurements.areasByPitch = {};
+        console.log("DEBUG - Raw extracted data:", {
+          pitches,
+          areas,
+          percentages
+        });
         
         // Store each pitch's data
         pitches.forEach((pitch, index) => {
@@ -703,41 +701,38 @@ export function usePdfParser() {
             const percentage = percentages[index];
             const pitchKey = `${pitch}:12`;
             
-            if (!isNaN(area) && !isNaN(percentage)) {
-              console.log(`Storing pitch data for ${pitchKey}:`, { area, percentage });
-              
-              // Store in ParsedMeasurements format
-              parsedMeasurements.areasByPitch[pitchKey] = {
-                area: area,
-                percentage: percentage
-              };
-              
-              // Store in MeasurementValues format
-              measurements.areasByPitch[pitchKey] = area;
-            }
+            // Store in both objects
+            measurements.areasByPitch[pitchKey] = area;
+            parsedMeasurements.areasByPitch[pitchKey] = {
+              area: area,
+              percentage: percentage
+            };
+            
+            console.log(`Storing pitch data - ${pitchKey}:`, {
+              area,
+              percentage,
+              measurementsObj: measurements.areasByPitch[pitchKey],
+              parsedObj: parsedMeasurements.areasByPitch[pitchKey]
+            });
           }
         });
         
-        // Set the predominant pitch
-        if (pitches.length > 0) {
+        // Set total area and predominant pitch
+        if (areas.length > 0) {
+          measurements.totalArea = areas.reduce((sum, area) => sum + area, 0);
+          parsedMeasurements.totalArea = measurements.totalArea;
+          
           const maxArea = Math.max(...areas);
           const predominantIndex = areas.indexOf(maxArea);
           measurements.roofPitch = `${pitches[predominantIndex]}:12`;
           parsedMeasurements.predominantPitch = measurements.roofPitch;
         }
         
-        // Set the total area if not already set
-        if (!parsedMeasurements.totalArea || parsedMeasurements.totalArea === 0) {
-          parsedMeasurements.totalArea = areas.reduce((sum, area) => sum + area, 0);
-          measurements.totalArea = parsedMeasurements.totalArea;
-        }
-        
-        // Verify the data was stored correctly
-        console.log("Stored pitch data:", {
-          parsedMeasurements: parsedMeasurements.areasByPitch,
-          measurements: measurements.areasByPitch,
-          totalArea: parsedMeasurements.totalArea,
-          predominantPitch: measurements.roofPitch
+        console.log("Final stored data:", {
+          measurementsPitches: measurements.areasByPitch,
+          parsedPitches: parsedMeasurements.areasByPitch,
+          totalArea: measurements.totalArea,
+          roofPitch: measurements.roofPitch
         });
       } else if (parsedMeasurements.predominantPitch && parsedMeasurements.totalArea > 0) {
         // If no pitch table found but we have predominant pitch and total area,
