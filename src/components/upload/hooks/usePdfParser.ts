@@ -621,7 +621,7 @@ export function usePdfParser() {
           if (!foundPitchRow && rowText.match(/\d+\/12/)) {
             const pitchMatches = rowText.match(/(\d+)\/12/g);
             if (pitchMatches) {
-              pitches.push(...pitchMatches.map(p => p.split('/')[0]));
+              pitches.push(...pitchMatches.map(p => p.replace('/12', '')));
               foundPitchRow = true;
               console.log('Found pitch row:', pitches);
             }
