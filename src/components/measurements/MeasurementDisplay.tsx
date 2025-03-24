@@ -49,30 +49,20 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
     if (!measurements.areasByPitch) return [];
     
     return Object.entries(measurements.areasByPitch)
-      .map(([pitch, data]) => ({
-        pitch,
-        // Don't modify the pitch format - display it exactly as is
-        // If it already contains a "/", preserve it; if it uses ":" format, convert to "/"
-        displayPitch: pitch.includes("/") ? pitch : pitch.replace(":", "/"),
-        area: typeof data === 'object' ? data.area : (typeof data === 'number' ? data : 0),
-        percentage: typeof data === 'object' ? data.percentage : 0
-      }))
+      .map(([pitch, data]) => {
+        const pitchValue = typeof data === 'object' ? data.pitch || pitch : pitch;
+        return {
+          pitch: pitchValue,
+          displayPitch: pitchValue,  // Don't modify the pitch format at all
+          area: typeof data === 'object' ? data.area : (typeof data === 'number' ? data : 0),
+          percentage: typeof data === 'object' ? data.percentage : 0
+        };
+      })
       .sort((a, b) => {
-        // Try to sort by pitch numerically, but fallback to string comparison for non-standard formats
-        try {
-          // For standard pitches like 4:12 or 4/12
-          const pitchA = parseFloat(a.pitch.split(/[:\/]/)[0]);
-          const pitchB = parseFloat(b.pitch.split(/[:\/]/)[0]);
-          // Check if both are valid numbers before comparison
-          if (!isNaN(pitchA) && !isNaN(pitchB)) {
-            return pitchA - pitchB;
-          }
-        } catch (e) {
-          // If parsing fails, fall back to string comparison
-          console.log("Failed to sort pitch numerically:", e);
-        }
-        // Fallback to preserving the original order
-        return 0;
+        // Try to sort by pitch numerically
+        const pitchA = parseFloat(a.pitch.split(/[:\/]/)[0]);
+        const pitchB = parseFloat(b.pitch.split(/[:\/]/)[0]);
+        return pitchA - pitchB;
       });
   }, [measurements.areasByPitch]);
 
