@@ -65,19 +65,40 @@ export function SuccessStatus({
           </div>
           
           {/* Show areas by pitch if available */}
-          {parsedData.areasByPitch && Object.keys(parsedData.areasByPitch).length > 0 && (
+          {parsedData.areasByPitch && parsedData.areasByPitch.length > 0 && (
             <div className="mt-4">
               <h4 className="font-medium mb-2">Areas by Pitch:</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {Object.entries(parsedData.areasByPitch).map(([pitch, data]) => (
-                  <div key={pitch} className="flex justify-between gap-2 py-1 border-b">
-                    <span>Pitch {pitch}:</span>
-                    <span>
-                      {typeof data === 'object' ? data.area : data} sq ft 
-                      {typeof data === 'object' && ` (${data.percentage.toFixed(1)}%)`}
-                    </span>
-                  </div>
-                ))}
+              <div className="border border-gray-200 rounded-md overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                        Roof Pitch
+                      </th>
+                      <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        Area (sq ft)
+                      </th>
+                      <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                        % of Roof
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {parsedData.areasByPitch.map((area) => (
+                      <tr key={area.pitch} className="hover:bg-gray-50">
+                        <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {area.pitch}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                          {area.area.toFixed(1)}
+                        </td>
+                        <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                          {area.percentage.toFixed(1)}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
