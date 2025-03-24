@@ -621,7 +621,7 @@ export function usePdfParser() {
           if (!foundPitchRow && rowText.match(/\d+\/12/)) {
             const pitchMatches = rowText.match(/(\d+)\/12/g);
             if (pitchMatches) {
-              pitches.push(...pitchMatches.map(p => p.replace('/12', '')));
+              pitches.push(...pitchMatches.map(p => p.replace('/12', ':12')));
               foundPitchRow = true;
               console.log('Found pitch row:', pitches);
             }
@@ -629,10 +629,10 @@ export function usePdfParser() {
           }
 
           // Look for area row (contains numbers with possible commas and decimals)
-          if (foundPitchRow && !foundAreaRow && rowText.toLowerCase().includes('area')) {
-            const areaMatches = rowText.match(/(\d+(?:,\d+)*(?:\.\d+)?)/g);
+          if (foundPitchRow && !foundAreaRow && rowText.includes('Area (sq ft)')) {
+            const areaMatches = rowText.match(/\d+\.?\d*/g);
             if (areaMatches) {
-              areas.push(...areaMatches.map(a => parseFloat(a.replace(/,/g, ''))));
+              areas.push(...areaMatches.map(Number));
               foundAreaRow = true;
               console.log('Found area row:', areas);
             }
@@ -641,9 +641,9 @@ export function usePdfParser() {
 
           // Look for percentage row (contains % symbol)
           if (foundAreaRow && !foundPercentageRow && rowText.includes('%')) {
-            const percentageMatches = rowText.match(/(\d+(?:\.\d+)?)\s*%/g);
+            const percentageMatches = rowText.match(/\d+\.?\d*(?=%)/g);
             if (percentageMatches) {
-              percentages.push(...percentageMatches.map(p => parseFloat(p)));
+              percentages.push(...percentageMatches.map(Number));
               foundPercentageRow = true;
               console.log('Found percentage row:', percentages);
             }
