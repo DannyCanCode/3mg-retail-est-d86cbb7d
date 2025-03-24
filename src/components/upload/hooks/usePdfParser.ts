@@ -203,31 +203,33 @@ export function usePdfParser() {
       const loadingTask = pdfjs.getDocument(fileURL);
       const pdf = await loadingTask.promise;
       
-      // Initialize measurements object with the correct type
+      // Initialize measurements object with proper structure
       const measurements: ParsedMeasurements = {
         totalArea: 0,
-        predominantPitch: "",
         ridgeLength: 0,
         hipLength: 0,
         valleyLength: 0,
-        rakeLength: 0,
         eaveLength: 0,
-        ridgeCount: 0,
-        hipCount: 0,
-        valleyCount: 0,
-        rakeCount: 0,
-        eaveCount: 0,
+        rakeLength: 0,
         stepFlashingLength: 0,
         flashingLength: 0,
         penetrationsArea: 0,
         penetrationsPerimeter: 0,
         dripEdgeLength: 0,
+        predominantPitch: "6:12",
+        // Count fields initialized to 0
+        ridgeCount: 0,
+        hipCount: 0,
+        valleyCount: 0,
+        rakeCount: 0,
+        eaveCount: 0,
         areasByPitch: {},
-        longitude: "",
+        propertyAddress: "",
         latitude: "",
-        propertyAddress: ""
+        longitude: ""
       };
       
+      // Initialize parsedMeasurements with the same structure
       const parsedMeasurements: ParsedMeasurements = {
         ...measurements
       };
@@ -690,6 +692,10 @@ export function usePdfParser() {
           percentages
         });
         
+        // Initialize areasByPitch as an empty object if it doesn't exist
+        measurements.areasByPitch = {};
+        parsedMeasurements.areasByPitch = {};
+        
         // Store each pitch's data
         pitches.forEach((pitch, index) => {
           if (index < areas.length && index < percentages.length) {
@@ -726,15 +732,15 @@ export function usePdfParser() {
           const maxArea = Math.max(...areas);
           const predominantIndex = areas.indexOf(maxArea);
           measurements.roofPitch = `${pitches[predominantIndex]}:12`;
+          measurements.predominantPitch = measurements.roofPitch;
           parsedMeasurements.predominantPitch = measurements.roofPitch;
+          
+          console.log("Final measurements after processing:", {
+            totalArea: measurements.totalArea,
+            roofPitch: measurements.roofPitch,
+            areasByPitch: measurements.areasByPitch
+          });
         }
-        
-        console.log("Final stored data:", {
-          measurementsPitches: measurements.areasByPitch,
-          parsedPitches: parsedMeasurements.areasByPitch,
-          totalArea: measurements.totalArea,
-          roofPitch: measurements.roofPitch
-        });
       } else if (parsedMeasurements.predominantPitch && parsedMeasurements.totalArea > 0) {
         // If no pitch table found but we have predominant pitch and total area,
         // create a single entry
