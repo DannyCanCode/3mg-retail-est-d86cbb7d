@@ -28,19 +28,22 @@ interface BaseMeasurements {
 }
 
 export interface PitchArea {
+  // The original pitch format from the PDF (e.g. "4/12" or "4:12")
   pitch: string;
+  // The numeric area value
   area: number;
+  // The percentage of total roof area
   percentage: number;
 }
 
 // ParsedMeasurements is used for the initial PDF extraction
 export interface ParsedMeasurements extends BaseMeasurements {
-  // Areas by pitch stored as a record for easier PDF parsing
-  areasByPitch: Record<string, { area: number; percentage: number }>;
+  // Areas by pitch stored as an array for consistent format handling
+  areasByPitch: PitchArea[];
 }
 
 // MeasurementValues is used throughout the application
 export interface MeasurementValues extends BaseMeasurements {
-  // Areas by pitch stored as an array for easier UI handling
+  // Areas by pitch stored as an array for consistent format handling
   areasByPitch: PitchArea[];
 } 

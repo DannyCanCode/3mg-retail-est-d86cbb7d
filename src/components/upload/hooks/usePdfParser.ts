@@ -570,7 +570,7 @@ export function usePdfParser() {
       
       // Define a function for coordinate-based table detection and extraction
       // This will use the raw text items with their positions to reconstruct the table structure
-      function extractPitchTableData(textItems: TextItem[]): { pitches: string[], areas: number[], percentages: number[] } {
+      function groupTextItemsByPosition(textItems: TextItem[]): TextItem[][] {
         // Group items by Y coordinate (with some tolerance)
         const yTolerance = 2;
         const itemsByY: { [key: number]: TextItem[] } = {};
@@ -589,21 +589,22 @@ export function usePdfParser() {
         });
 
         // Convert to sorted rows
-        const sortedRows = Object.entries(itemsByY)
+        return Object.entries(itemsByY)
           .sort(([y1], [y2]) => Number(y2) - Number(y1))
           .map(([_, items]) => items);
-
-        console.log('Processing sorted rows for pitch data extraction...');
-
+      }
+      
+      function extractPitchTableData(textItems: TextItem[]): { pitches: string[], areas: number[], percentages: number[] } {
         const pitches: string[] = [];
         const areas: number[] = [];
         const percentages: number[] = [];
-
-        // Find the Areas per Pitch section
         let inPitchSection = false;
         let foundPitchRow = false;
         let foundAreaRow = false;
         let foundPercentageRow = false;
+
+        // Group items by Y coordinate (with some tolerance)
+        const sortedRows = groupTextItemsByPosition(textItems);
 
         for (const row of sortedRows) {
           const rowText = row.map(item => item.text).join(' ').trim();
@@ -617,11 +618,13 @@ export function usePdfParser() {
 
           if (!inPitchSection) continue;
 
-          // Look for pitch row (contains x/12 format numbers)
-          if (!foundPitchRow && rowText.match(/\d+\/12/)) {
-            const pitchMatches = rowText.match(/(\d+)\/12/g);
+          // Look for pitch row (preserve original format)
+          if (!foundPitchRow && (rowText.match(/\d+\/12/) || rowText.match(/\d+:\d+/))) {
+            // Match both x/12 and x:12 formats
+            const pitchMatches = rowText.match(/(\d+\/12|\d+:\d+)/g);
             if (pitchMatches) {
-              pitches.push(...pitchMatches.map(p => p.replace('/12', ':12')));
+              // Store pitches in their original format
+              pitches.push(...pitchMatches);
               foundPitchRow = true;
               console.log('Found pitch row:', pitches);
             }

@@ -48,25 +48,20 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
   const pitchAreas = React.useMemo(() => {
     if (!measurements.areasByPitch) return [];
     
-    return Object.entries(measurements.areasByPitch)
-      .map(([pitch, data]) => {
-        const pitchValue = typeof data === 'object' ? data.pitch || pitch : pitch;
-        return {
-          pitch: pitchValue,
-          displayPitch: pitchValue,  // Don't modify the pitch format at all
-          area: typeof data === 'object' ? data.area : (typeof data === 'number' ? data : 0),
-          percentage: typeof data === 'object' ? data.percentage : 0
-        };
-      })
-      .sort((a, b) => {
-        // Try to sort by pitch numerically
-        const pitchA = parseFloat(a.pitch.split(/[:\/]/)[0]);
-        const pitchB = parseFloat(b.pitch.split(/[:\/]/)[0]);
-        return pitchA - pitchB;
-      });
+    const getNumericPitch = (pitch: string): number => {
+      return parseFloat(pitch.split(/[:\/]/)[0]);
+    };
+
+    return measurements.areasByPitch
+      .map(data => ({
+        pitch: data.pitch,
+        displayPitch: data.pitch, // Keep original format
+        area: data.area,
+        percentage: data.percentage
+      }))
+      .sort((a, b) => getNumericPitch(a.pitch) - getNumericPitch(b.pitch));
   }, [measurements.areasByPitch]);
 
-  return (
     <div className={`w-full space-y-6 ${className}`}>
       {/* Main Area Summary */}
       <div>

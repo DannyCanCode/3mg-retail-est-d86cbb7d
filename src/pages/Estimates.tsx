@@ -37,58 +37,32 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): Meas
       penetrationsPerimeter: 0,
       predominantPitch: "6:12",
       roofPitch: undefined,
-      // Initialize counts to 0
       ridgeCount: 0,
       hipCount: 0,
       valleyCount: 0,
       rakeCount: 0,
       eaveCount: 0,
-      // Initialize property info as empty strings
       propertyAddress: "",
       latitude: "",
       longitude: "",
-      // Initialize empty areas by pitch array
       areasByPitch: []
     };
   }
   
   console.log("Raw areasByPitch data:", parsedData.areasByPitch);
   
-  // Convert the areasByPitch object to array format
-  const areasByPitch = Object.entries(parsedData.areasByPitch || {})
-    .map(([pitch, data]) => {
-      // Handle both PitchArea objects and raw number values
-      const area = typeof data === 'object' ? data.area : (typeof data === 'number' ? data : 0);
-      const percentage = typeof data === 'object' ? data.percentage : 
-        (parsedData.totalArea > 0 ? (area / parsedData.totalArea) * 100 : 0);
-
-      return {
-        pitch: pitch,
-        area: area,
-        percentage: Number(percentage.toFixed(1))  // Round to 1 decimal place
-      };
-    })
-    .filter(item => item.area > 0) // Filter out zero areas
-    .sort((a, b) => {
-      // Sort by pitch numerically
-      const pitchA = parseFloat(a.pitch.split(/[:\/]/)[0]);
-      const pitchB = parseFloat(b.pitch.split(/[:\/]/)[0]);
-      return pitchA - pitchB;
-    });
+  // Process the areas by pitch data
+  const areasByPitch = parsedData.areasByPitch.map(pitchData => ({
+    ...pitchData,
+    // Ensure area is a number
+    area: typeof pitchData.area === 'number' ? pitchData.area : 0,
+    // Calculate percentage if not provided
+    percentage: pitchData.percentage || 
+      (parsedData.totalArea > 0 ? (pitchData.area / parsedData.totalArea) * 100 : 0)
+  })).filter(item => item.area > 0);
 
   console.log("Processed areasByPitch:", areasByPitch);
   
-  // Log validation summary
-  const totalExtractedArea = areasByPitch.reduce((sum, item) => sum + item.area, 0);
-  console.log("Validation Summary:");
-  console.log(`Total Area: ${parsedData.totalArea}`);
-  console.log(`Sum of Areas by Pitch: ${totalExtractedArea}`);
-  console.log(`Difference: ${Math.abs(totalExtractedArea - parsedData.totalArea)}`);
-  console.log(`Ridge Length: ${parsedData.ridgeLength}`);
-  console.log(`Hip Length: ${parsedData.hipLength}`);
-  console.log(`Valley Length: ${parsedData.valleyLength}`);
-  console.log(`Counts - Ridge: ${parsedData.ridgeCount}, Hip: ${parsedData.hipCount}, Valley: ${parsedData.valleyCount}`);
-
   // Return complete measurement values
   return {
     totalArea: parsedData.totalArea || 0,
@@ -104,18 +78,15 @@ const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): Meas
     penetrationsPerimeter: parsedData.penetrationsPerimeter || 0,
     predominantPitch: parsedData.predominantPitch || "6:12",
     roofPitch: parsedData.roofPitch,
-    // Include all count fields
     ridgeCount: parsedData.ridgeCount || 0,
     hipCount: parsedData.hipCount || 0,
     valleyCount: parsedData.valleyCount || 0,
     rakeCount: parsedData.rakeCount || 0,
     eaveCount: parsedData.eaveCount || 0,
-    // Include property information
     propertyAddress: parsedData.propertyAddress || "",
     latitude: parsedData.latitude || "",
     longitude: parsedData.longitude || "",
-    // Include processed areas by pitch
-    areasByPitch: areasByPitch
+    areasByPitch
   };
 };
 
