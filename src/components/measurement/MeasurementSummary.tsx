@@ -62,9 +62,6 @@ export const MeasurementSummary: React.FC<MeasurementSummaryProps> = ({ measurem
             </tbody>
           </table>
         </div>
-        <p className="text-sm text-gray-600 mt-2">
-          The table above lists each pitch on this roof and the total area and percent of the roof with that pitch.
-        </p>
       </div>
     );
   };

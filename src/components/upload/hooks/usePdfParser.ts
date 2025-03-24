@@ -667,6 +667,34 @@ export function usePdfParser() {
             areas,
             percentages
           });
+
+          // Reset measurements objects
+          parsedMeasurements.areasByPitch = {};
+          measurements.areasByPitch = {};
+          
+          // Store each pitch's data
+          pitches.forEach((pitch, index) => {
+            const pitchKey = `${pitch}:12`;
+            const area = areas[index];
+            const percentage = percentages[index];
+            
+            if (!isNaN(area) && !isNaN(percentage)) {
+              // Store in ParsedMeasurements format
+              parsedMeasurements.areasByPitch[pitchKey] = {
+                area: area,
+                percentage: percentage
+              };
+              
+              // Store in MeasurementValues format
+              measurements.areasByPitch[pitchKey] = area;
+            }
+          });
+
+          console.log('Stored pitch data:', {
+            parsedMeasurements: parsedMeasurements.areasByPitch,
+            measurements: measurements.areasByPitch
+          });
+
           return { pitches, areas, percentages };
         } else {
           console.warn('Mismatched data lengths:', {
