@@ -113,6 +113,8 @@ const Estimates = () => {
     dumpsterLocation: "orlando",
     dumpsterCount: 1,
     dumpsterRate: 400,
+    includePermits: true,
+    permitRate: 550,
     pitchRates: {},
     wastePercentage: 12
   });
@@ -307,6 +309,8 @@ const Estimates = () => {
       dumpsterLocation: "orlando",
       dumpsterCount: 1,
       dumpsterRate: 400,
+      includePermits: true,
+      permitRate: 550,
       pitchRates: {},
       wastePercentage: 12
     });

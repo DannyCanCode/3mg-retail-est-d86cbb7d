@@ -69,6 +69,8 @@ export function EstimateSummaryTab({
     dumpsterLocation: laborRates?.dumpsterLocation || "orlando",
     dumpsterCount: laborRates?.dumpsterCount || 1,
     dumpsterRate: laborRates?.dumpsterRate || 400,
+    includePermits: laborRates?.includePermits || true,
+    permitRate: laborRates?.permitRate || 550,
     pitchRates: laborRates?.pitchRates || {},
     wastePercentage: laborRates?.wastePercentage || 12
   };
@@ -216,6 +218,15 @@ export function EstimateSummaryTab({
     rate: safeLaborRates.dumpsterRate, 
     totalCost: safeLaborRates.dumpsterRate * safeLaborRates.dumpsterCount
   });
+  
+  // Add permit costs if included
+  if (safeLaborRates.includePermits) {
+    laborCosts.push({
+      name: `Permits (${safeLaborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"})`,
+      rate: safeLaborRates.permitRate,
+      totalCost: safeLaborRates.permitRate
+    });
+  }
   
   const totalLaborCost = laborCosts.reduce((sum, item) => sum + item.totalCost, 0);
   

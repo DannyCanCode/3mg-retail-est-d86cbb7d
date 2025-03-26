@@ -27,6 +27,8 @@ export interface LaborRates {
   dumpsterLocation: "orlando" | "outside";
   dumpsterCount: number;
   dumpsterRate: number;
+  includePermits: boolean; // Add permits flag
+  permitRate: number; // Add permit rate
   pitchRates: {[pitch: string]: number};
   wastePercentage: number;
 }
@@ -41,6 +43,8 @@ export function LaborProfitTab({
     dumpsterLocation: "orlando",
     dumpsterCount: 1,
     dumpsterRate: 400,
+    includePermits: true, // Default to include permits
+    permitRate: 550, // Default to Orlando permit rate
     pitchRates: {},
     wastePercentage: 12
   },
@@ -61,6 +65,8 @@ export function LaborProfitTab({
     dumpsterLocation: "orlando",
     dumpsterCount: 1,
     dumpsterRate: 400,
+    includePermits: true,
+    permitRate: 550,
     pitchRates: {},
     wastePercentage: 12,
     // Override with any values from initialLaborRates that exist
@@ -95,7 +101,17 @@ export function LaborProfitTab({
     }
   }, [measurements?.totalArea, laborRates.dumpsterLocation]);
   
-  const handleLaborRateChange = (field: keyof Omit<LaborRates, "pitchRates" | "dumpsterCount" | "dumpsterRate">, value: string | boolean | number) => {
+  // Update permit rate when location changes
+  useEffect(() => {
+    const newPermitRate = laborRates.dumpsterLocation === "orlando" ? 550 : 700;
+    
+    setLaborRates(prev => ({
+      ...prev,
+      permitRate: newPermitRate
+    }));
+  }, [laborRates.dumpsterLocation]);
+  
+  const handleLaborRateChange = (field: keyof Omit<LaborRates, "pitchRates" | "dumpsterCount" | "dumpsterRate" | "permitRate">, value: string | boolean | number) => {
     let numValue = value;
     if (typeof value === "string" && field !== "dumpsterLocation") {
       numValue = parseFloat(value) || 0;
@@ -110,6 +126,8 @@ export function LaborProfitTab({
         dumpsterLocation: "orlando",
         dumpsterCount: 1,
         dumpsterRate: 400,
+        includePermits: true,
+        permitRate: 550,
         pitchRates: {},
         wastePercentage: 12
       };
@@ -132,6 +150,8 @@ export function LaborProfitTab({
           dumpsterLocation: "orlando",
           dumpsterCount: 1,
           dumpsterRate: 400,
+          includePermits: true,
+          permitRate: 550,
           pitchRates: {},
           wastePercentage: 12
         };
@@ -161,12 +181,14 @@ export function LaborProfitTab({
   
   const handleDumpsterLocationChange = (value: string) => {
     const location = value as "orlando" | "outside";
-    const rate = location === "orlando" ? 400 : 500;
+    const dumpsterRate = location === "orlando" ? 400 : 500;
+    const permitRate = location === "orlando" ? 550 : 700;
     
     setLaborRates(prev => ({
       ...prev,
       dumpsterLocation: location,
-      dumpsterRate: rate
+      dumpsterRate,
+      permitRate
     }));
   };
   
@@ -273,27 +295,27 @@ export function LaborProfitTab({
       <CardHeader>
         <CardTitle>Labor Rates & Profit Margin</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-8">
-        {/* Dumpsters Section */}
+      <CardContent className="space-y-6">
+        {/* Dumpster Section */}
         <div>
           <h3 className="text-lg font-semibold mb-4">Dumpsters</h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            Based on roof area of {totalSquares} squares, we recommend {laborRates.dumpsterCount} dumpster(s).
+          </p>
+          
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Based on roof area of {totalSquares} squares, we recommend {laborRates.dumpsterCount} dumpster(s).
-            </p>
-            
             <RadioGroup
               value={laborRates.dumpsterLocation}
               onValueChange={handleDumpsterLocationChange}
-              className="grid grid-cols-2 gap-4"
+              className="flex flex-col space-y-1"
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="orlando" id="orlando" />
-                <Label htmlFor="orlando">Orlando ($400 per dumpster)</Label>
+                <Label htmlFor="orlando">Orlando (${laborRates.dumpsterLocation === "orlando" ? "400" : "500"} per dumpster)</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="outside" id="outside" />
-                <Label htmlFor="outside">Outside Orlando ($500 per dumpster)</Label>
+                <Label htmlFor="outside">Outside Orlando (${laborRates.dumpsterLocation === "outside" ? "500" : "400"} per dumpster)</Label>
               </div>
             </RadioGroup>
             
@@ -319,6 +341,33 @@ export function LaborProfitTab({
                 />
               </div>
             </div>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        {/* Permits Section */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Permits</h3>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4">
+              <Switch
+                id="includePermits"
+                checked={!!laborRates.includePermits}
+                onCheckedChange={(checked) => handleLaborRateChange("includePermits", checked)}
+              />
+              <Label htmlFor="includePermits">
+                Include Permits
+              </Label>
+            </div>
+            
+            {!!laborRates.includePermits && (
+              <div className="bg-muted p-3 rounded-md">
+                <p className="text-sm">Permit cost for {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}: 
+                  ${laborRates.permitRate.toFixed(2)}
+                </p>
+              </div>
+            )}
           </div>
         </div>
         
