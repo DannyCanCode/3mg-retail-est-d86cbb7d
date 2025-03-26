@@ -12,6 +12,9 @@ interface RoofAreaTabProps {
     predominantPitch: string;
     penetrationsArea: number;
     areasByPitch: AreaByPitch[];
+    propertyAddress: string;
+    latitude: string;
+    longitude: string;
   };
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleAreaByPitchChange: (index: number, field: keyof AreaByPitch, value: string) => void;
@@ -82,6 +85,48 @@ export function RoofAreaTab({
             <p className="text-sm text-muted-foreground">
               Total area of penetrations (vents, skylights, etc.)
             </p>
+          </div>
+        </div>
+
+        {/* Property Location Information */}
+        <div className="mt-4 space-y-4">
+          <h3 className="text-lg font-semibold">Property Information</h3>
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="propertyAddress">Property Address</Label>
+              <Input
+                id="propertyAddress"
+                name="propertyAddress"
+                value={measurements.propertyAddress || ""}
+                onChange={handleInputChange}
+                placeholder="Enter property address"
+              />
+              <p className="text-sm text-muted-foreground">
+                The full address of the property
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="latitude">Latitude</Label>
+                <Input
+                  id="latitude"
+                  name="latitude"
+                  value={measurements.latitude || ""}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 28.5383"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="longitude">Longitude</Label>
+                <Input
+                  id="longitude"
+                  name="longitude"
+                  value={measurements.longitude || ""}
+                  onChange={handleInputChange}
+                  placeholder="e.g., -81.3792"
+                />
+              </div>
+            </div>
           </div>
         </div>
 

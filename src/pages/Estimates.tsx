@@ -432,6 +432,16 @@ const Estimates = () => {
                             {extractedPdfData.rakeLength > 0 && <p><strong>Rake Length:</strong> {extractedPdfData.rakeLength} ft</p>}
                             {extractedPdfData.penetrationsArea > 0 && <p><strong>Penetrations Area:</strong> {extractedPdfData.penetrationsArea} sq ft</p>}
                             
+                            {/* Display property address if available */}
+                            {extractedPdfData.propertyAddress && (
+                              <p><strong>Property Address:</strong> {extractedPdfData.propertyAddress}</p>
+                            )}
+                            
+                            {/* Display coordinates if available */}
+                            {(extractedPdfData.latitude && extractedPdfData.longitude) && (
+                              <p><strong>Coordinates:</strong> {extractedPdfData.latitude}, {extractedPdfData.longitude}</p>
+                            )}
+                            
                             {/* Show areas by pitch if available */}
                             {Object.keys(extractedPdfData.areasByPitch || {}).length > 0 && (
                               <div className="mt-2">

@@ -56,8 +56,11 @@ export function EstimateSummaryTab({
   // Ensure safe access to properties with fallbacks
   const safeMeasurements = {
     totalArea: measurements?.totalArea || 0,
-    roofPitch: measurements?.roofPitch || "3/12",
-    areasByPitch: measurements?.areasByPitch || []
+    roofPitch: measurements?.roofPitch || measurements?.predominantPitch || "Unknown",
+    areasByPitch: measurements?.areasByPitch || [],
+    propertyAddress: measurements?.propertyAddress || "",
+    latitude: measurements?.latitude || "",
+    longitude: measurements?.longitude || ""
   };
   
   const safeLaborRates = {
@@ -252,6 +255,18 @@ export function EstimateSummaryTab({
               <p className="text-muted-foreground">Predominant Pitch:</p>
               <p className="font-medium">{safeMeasurements.roofPitch}</p>
             </div>
+            {safeMeasurements.propertyAddress && (
+              <div>
+                <p className="text-muted-foreground">Property Address:</p>
+                <p className="font-medium">{safeMeasurements.propertyAddress}</p>
+              </div>
+            )}
+            {(safeMeasurements.latitude && safeMeasurements.longitude) && (
+              <div>
+                <p className="text-muted-foreground">Coordinates:</p>
+                <p className="font-medium">{safeMeasurements.latitude}, {safeMeasurements.longitude}</p>
+              </div>
+            )}
           </div>
         </div>
         
