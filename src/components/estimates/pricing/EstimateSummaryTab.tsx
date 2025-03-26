@@ -142,27 +142,27 @@ export function EstimateSummaryTab({
           
           hasPitchSpecificLabor = true;
         } else {
-          // Only add standard pitch if we have pitch-specific items
-          // (to avoid double-counting standard areas)
-          if (hasPitchSpecificLabor) {
-            // 3/12-7/12 has the standard rate
-            laborCosts.push({ 
-              name: `Labor for ${pitch} Pitch (Standard) (${Math.round(areaSquares * 10) / 10} squares)`, 
-              rate: rate, 
-              totalCost: rate * areaSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
-            });
-          }
+          // 3/12-7/12 has the standard rate
+          // Always add standard pitches too (not just when other pitches exist)
+          laborCosts.push({ 
+            name: `Labor for ${pitch} Pitch (${Math.round(areaSquares * 10) / 10} squares)`, 
+            rate: rate, 
+            totalCost: rate * areaSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
+          });
+          
+          // No need to set hasPitchSpecificLabor flag since we're adding all pitches now
         }
       });
       
+      // We don't need this check anymore since we're always adding all pitches
       // If we didn't add any pitch-specific labor (all standard pitches), add the standard rate for the total
-      if (!hasPitchSpecificLabor) {
-        laborCosts.push({ 
-          name: "Labor (Tear Off & Installation)", 
-          rate: safeLaborRates.laborRate, 
-          totalCost: safeLaborRates.laborRate * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
-        });
-      }
+      // if (!hasPitchSpecificLabor) {
+      //   laborCosts.push({ 
+      //     name: "Labor (Tear Off & Installation)", 
+      //     rate: safeLaborRates.laborRate, 
+      //     totalCost: safeLaborRates.laborRate * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
+      //   });
+      // }
     } else {
       // No pitch areas available, just use the standard rate for the total
       laborCosts.push({ 
