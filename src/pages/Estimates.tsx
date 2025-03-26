@@ -443,12 +443,12 @@ const Estimates = () => {
                             )}
                             
                             {/* Show areas by pitch if available */}
-                            {Object.keys(extractedPdfData.areasByPitch || {}).length > 0 && (
+                            {Array.isArray(extractedPdfData.areasByPitch) && extractedPdfData.areasByPitch.length > 0 && (
                               <div className="mt-2">
                                 <p className="font-medium">Areas by Pitch:</p>
                                 <ul className="list-disc list-inside pl-2">
-                                  {Object.entries(extractedPdfData.areasByPitch || {}).map(([pitch, area]) => (
-                                    <li key={pitch}>{pitch}: {typeof area === 'number' ? area : parseFloat(String(area))} sq ft</li>
+                                  {extractedPdfData.areasByPitch.map((pitchData) => (
+                                    <li key={pitchData.pitch}>{pitchData.pitch}: {typeof pitchData.area === 'number' ? Math.round(pitchData.area) : 0} sq ft</li>
                                   ))}
                                 </ul>
                               </div>

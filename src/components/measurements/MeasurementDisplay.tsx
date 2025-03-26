@@ -109,6 +109,59 @@ export function MeasurementDisplay({ measurements, className = "" }: Measurement
         </div>
       </div>
       
+      {/* Areas by Pitch - Enhanced Table View */}
+      {pitchAreas.length > 0 && (
+        <div>
+          <h3 className="text-lg font-medium mb-3">Areas by Pitch</h3>
+          <div className="border border-gray-200 rounded-md overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Roof Pitch
+                  </th>
+                  <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Area (sq ft)
+                  </th>
+                  <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    % of Roof
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {pitchAreas.map(({ pitch, displayPitch, area, percentage }) => (
+                  <tr key={pitch} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {displayPitch}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                      {formatMeasurement(area, 0)}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                      {formatMeasurement(percentage, 1)}%
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-gray-50">
+                  <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                    Total
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                    {formatMeasurement(totalArea, 0)}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                    100.0%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            The table above lists each pitch on this roof and the total area and percent of the roof with that pitch.
+          </p>
+        </div>
+      )}
+      
       {/* Roof Features */}
       <div>
         <h3 className="text-lg font-medium mb-3">Roof Features</h3>
