@@ -418,45 +418,7 @@ const Estimates = () => {
                     <div>
                       <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
                       
-                      {/* Display extracted measurements right after upload */}
-                      {extractedPdfData && (
-                        <div className="mt-6 bg-slate-50 p-4 rounded border border-slate-200">
-                          <h3 className="text-md font-medium mb-2">Extracted Measurements from {pdfFileName}</h3>
-                          <div className="text-sm space-y-1">
-                            <p><strong>Total Area:</strong> {extractedPdfData.totalArea || 0} sq ft</p>
-                            <p><strong>Predominant Pitch:</strong> {extractedPdfData.predominantPitch || 'Not detected'}</p>
-                            {extractedPdfData.ridgeLength > 0 && <p><strong>Ridge Length:</strong> {extractedPdfData.ridgeLength} ft</p>}
-                            {extractedPdfData.hipLength > 0 && <p><strong>Hip Length:</strong> {extractedPdfData.hipLength} ft</p>}
-                            {extractedPdfData.valleyLength > 0 && <p><strong>Valley Length:</strong> {extractedPdfData.valleyLength} ft</p>}
-                            {extractedPdfData.eaveLength > 0 && <p><strong>Eave Length:</strong> {extractedPdfData.eaveLength} ft</p>}
-                            {extractedPdfData.rakeLength > 0 && <p><strong>Rake Length:</strong> {extractedPdfData.rakeLength} ft</p>}
-                            {extractedPdfData.penetrationsArea > 0 && <p><strong>Penetrations Area:</strong> {extractedPdfData.penetrationsArea} sq ft</p>}
-                            
-                            {/* Display property address if available */}
-                            {extractedPdfData.propertyAddress && (
-                              <p><strong>Property Address:</strong> {extractedPdfData.propertyAddress}</p>
-                            )}
-                            
-                            {/* Display coordinates if available */}
-                            {(extractedPdfData.latitude && extractedPdfData.longitude) && (
-                              <p><strong>Coordinates:</strong> {extractedPdfData.latitude}, {extractedPdfData.longitude}</p>
-                            )}
-                            
-                            {/* Show areas by pitch if available */}
-                            {Array.isArray(extractedPdfData.areasByPitch) && extractedPdfData.areasByPitch.length > 0 && (
-                              <div className="mt-2">
-                                <p className="font-medium">Areas by Pitch:</p>
-                                <ul className="list-disc list-inside pl-2">
-                                  {extractedPdfData.areasByPitch.map((pitchData) => (
-                                    <li key={pitchData.pitch}>{pitchData.pitch}: {typeof pitchData.area === 'number' ? Math.round(pitchData.area) : 0} sq ft</li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
+                      {/* Continue button only if PDF data was extracted */}
                       {extractedPdfData && (
                         <div className="mt-6 flex justify-end">
                           <Button onClick={handleGoToMeasurements} className="flex items-center gap-2">
