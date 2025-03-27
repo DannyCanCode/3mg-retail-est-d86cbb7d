@@ -261,8 +261,8 @@ export function MaterialsSelectionTab({
       if (material) {
         newSelectedMaterials[materialId] = material;
         
-        // Special handling for GAF 2 package WeatherWatch (valleys only)
-        if (materialId === "gaf-weatherwatch-ice-water-shield" && preset === "GAF 2") {
+        // Special handling for WeatherWatch (valleys only) for both GAF 1 and GAF 2 packages
+        if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
           // Calculate quantity for valleys only
           const valleyLength = measurements.valleyLength || 0;
           if (valleyLength > 0) {
@@ -286,23 +286,17 @@ export function MaterialsSelectionTab({
             valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
             newSelectedMaterials[materialId] = valleyOnlyMaterial;
           }
-        } else if (materialId === "gaf-timberline-hdz") {
-          // Use special calculation for GAF Timberline HDZ to match Excel
-          // Ensure minimum 12% waste factor for GAF Timberline HDZ
-          const actualWasteFactor = Math.max(gafTimberlineWasteFactor / 100, 0.12);
-          const totalArea = Math.abs(measurements.totalArea); // Ensure positive area
-          
-          // Calculate squares with waste using Excel formula
-          const squaresWithWaste = Math.round((totalArea * (1 + actualWasteFactor)) / 100 * 10) / 10;
-          
-          // Calculate bundles (3 per square)
-          newQuantities[materialId] = Math.max(3, Math.ceil(squaresWithWaste * 3));
         } else {
-          // Regular calculation for other materials
+          // Calculate quantity normally for other materials
+          // Use regular waste factor for everything else
+          const effectiveWasteFactor = material.id === "gaf-timberline-hdz" ? 
+            gafTimberlineWasteFactor / 100 : 
+            wasteFactor / 100;
+          
           newQuantities[materialId] = calculateMaterialQuantity(
-            material,
-            measurements,
-            wasteFactor / 100
+            material, 
+            measurements, 
+            effectiveWasteFactor
           );
         }
       }

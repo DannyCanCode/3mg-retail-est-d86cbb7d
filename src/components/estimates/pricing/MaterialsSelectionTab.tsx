@@ -16,7 +16,7 @@ const MaterialsSelectionTab = ({
         shingles: 'GAF Timberline HDZ',
         starter: 'GAF ProStart Starter Shingle Strip (120\')',
         ridge: 'GAF Seal-A-Ridge (25\')',
-        iceAndWater: 'GAF WeatherWatch Ice & Water Shield',
+        iceAndWater: 'GAF WeatherWatch Ice & Water Shield (valleys only)',
         underlayment: 'ABC Pro Guard 20 (Rhino)',
         drip: 'White Aluminum Drip Edge',
         vents: 'Lomanco 750 Roof Vents'

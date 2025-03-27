@@ -21,7 +21,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             <li>GAF ProStart Starter Shingle Strip (120')</li>
             <li>GAF Timberline HDZ</li>
             <li>GAF Seal-A-Ridge (25')</li>
-            <li>GAF WeatherWatch Ice & Water Shield</li>
+            <li>GAF WeatherWatch Ice & Water Shield (valleys only)</li>
             <li>ABC Pro Guard 20 (Rhino)</li>
           </ul>
           <p className="text-sm font-medium mt-2">Silver Pledge Warranty Eligible</p>
