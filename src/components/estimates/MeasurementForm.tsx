@@ -305,7 +305,10 @@ export function MeasurementForm({
                 totalArea: measurements.totalArea,
                 predominantPitch: measurements.predominantPitch,
                 penetrationsArea: measurements.penetrationsArea,
-                areasByPitch: measurements.areasByPitch
+                areasByPitch: measurements.areasByPitch,
+                propertyAddress: measurements.propertyAddress,
+                latitude: measurements.latitude,
+                longitude: measurements.longitude
               }}
               handleInputChange={handleInputChange}
               handleAreaByPitchChange={handleAreaByPitchChange}
