@@ -582,12 +582,12 @@ export function usePdfParser() {
           }
           itemsByY[y].push(item);
         });
-
+        
         // Sort each row by X coordinate
         Object.values(itemsByY).forEach(row => {
           row.sort((a, b) => a.x - b.x);
         });
-
+        
         // Convert to sorted rows
         return Object.entries(itemsByY)
           .sort(([y1], [y2]) => Number(y2) - Number(y1))
@@ -630,7 +630,7 @@ export function usePdfParser() {
             }
             continue;
           }
-
+          
           // Look for area row (contains numbers with possible commas and decimals)
           if (foundPitchRow && !foundAreaRow && rowText.includes('Area (sq ft)')) {
             const areaMatches = rowText.match(/\d+\.?\d*/g);
@@ -650,16 +650,16 @@ export function usePdfParser() {
               foundPercentageRow = true;
               console.log('Found percentage row:', percentages);
             }
-            continue;
-          }
-
+                continue;
+              }
+              
           // If we've found all rows, break
           if (foundPitchRow && foundAreaRow && foundPercentageRow) {
             break;
           }
         }
 
-        return { pitches, areas, percentages };
+          return { pitches, areas, percentages };
       }
       
       // Try the coordinate-based table extraction first
@@ -772,10 +772,13 @@ export function usePdfParser() {
       // Add code to extract property address, latitude, and longitude
       console.log("Extracting property information...");
 
+      // Initialize foundAddress flag
+      let foundAddress = false;
+
       // Enhanced patterns for property address extraction
       const addressPatterns = [
-        // Match date-prefixed addresses (like in the screenshot 8/9/2021 1921 Tropic Bay Court...)
-        /((?:\d{1,2}\/\d{1,2}\/\d{2,4}\s+)?\d+\s+[^,\n]+,\s*[^,\n]+,\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?)/i,
+        // Match property address pattern without date
+        /(\d+\s+[^,\n]+,\s*[^,\n]+,\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?)/i,
         
         // Property address with label (common format)
         /Property\s+Address:?\s*([^\n]+)/i,
@@ -790,33 +793,52 @@ export function usePdfParser() {
         /([^,\n]+,[^,\n]+,\s*[A-Z]{2}\s*\d{5})/i
       ];
 
-      // Try all patterns in order until we find a match
-      let foundAddress = false;
-      for (const pattern of addressPatterns) {
-        const addressMatch = fullText.match(pattern);
-        if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
-          parsedMeasurements.propertyAddress = addressMatch[1].trim();
-          console.log(`Found property address: ${parsedMeasurements.propertyAddress}`);
-          foundAddress = true;
-          break;
+      // Special case for EagleView reports that have date and address on same line
+      // Example: "8/18/2021  2458 Hunterfield Road, Maitland, FL 32751"
+      const dateAddressPattern = /(\d{1,2}\/\d{1,2}\/\d{2,4})\s+(\d+\s+[^,\n]+,\s*[^,\n]+,\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?)/i;
+      const dateAddressMatch = fullText.match(dateAddressPattern);
+      if (dateAddressMatch && dateAddressMatch[2] && dateAddressMatch[2].trim().length > 5) {
+        parsedMeasurements.propertyAddress = dateAddressMatch[2].trim();
+        console.log(`Found property address with date separator: ${parsedMeasurements.propertyAddress}`);
+        foundAddress = true;
+      } else {
+        // Try all patterns in order until we find a match
+        for (const pattern of addressPatterns) {
+          const addressMatch = fullText.match(pattern);
+          if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
+            parsedMeasurements.propertyAddress = addressMatch[1].trim();
+            console.log(`Found property address: ${parsedMeasurements.propertyAddress}`);
+            foundAddress = true;
+            break;
+          }
         }
-      }
 
-      // If still no address found, look for it in page headers
-      if (!foundAddress) {
-        // Look in the first few pages
-        for (let i = 1; i <= Math.min(5, numPages); i++) {
-          if (pageContents[i]) {
-            for (const pattern of addressPatterns) {
-              const addressMatch = pageContents[i].match(pattern);
-              if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
-                parsedMeasurements.propertyAddress = addressMatch[1].trim();
-                console.log(`Found property address in page ${i}: ${parsedMeasurements.propertyAddress}`);
+        // If still no address found, look for it in page headers
+        if (!foundAddress) {
+          // Look in the first few pages
+          for (let i = 1; i <= Math.min(5, numPages); i++) {
+            if (pageContents[i]) {
+              // First try the date+address pattern
+              const dateAddressMatch = pageContents[i].match(dateAddressPattern);
+              if (dateAddressMatch && dateAddressMatch[2] && dateAddressMatch[2].trim().length > 5) {
+                parsedMeasurements.propertyAddress = dateAddressMatch[2].trim();
+                console.log(`Found property address with date separator in page ${i}: ${parsedMeasurements.propertyAddress}`);
                 foundAddress = true;
                 break;
               }
+            
+              // Then try regular patterns
+              for (const pattern of addressPatterns) {
+                const addressMatch = pageContents[i].match(pattern);
+                if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
+                  parsedMeasurements.propertyAddress = addressMatch[1].trim();
+                  console.log(`Found property address in page ${i}: ${parsedMeasurements.propertyAddress}`);
+                  foundAddress = true;
+                  break;
+                }
+              }
+              if (foundAddress) break;
             }
-            if (foundAddress) break;
           }
         }
       }
