@@ -345,9 +345,27 @@ export function MaterialsSelectionTab({
   
   // Apply material preset bundle
   const applyPresetBundle = (preset: string) => {
-    // Clear existing selections
+    // Check if the roof has any standard pitches (3/12 or higher)
+    const hasStandardPitchAreas = measurements.areasByPitch.some(
+      area => {
+        const pitchValue = parseInt(area.pitch.split(/[:\/]/)[0]) || 0;
+        return pitchValue >= 3;
+      }
+    );
+    
+    // Instead of clearing all materials, save any mandatory low-pitch materials
     const newSelectedMaterials: {[key: string]: Material} = {};
     const newQuantities: {[key: string]: number} = {};
+    
+    // Preserve mandatory low-pitch materials if they exist
+    Object.entries(selectedMaterials).forEach(([materialId, material]) => {
+      // Check if this is a mandatory low-pitch material
+      if (isMandatoryMaterial(material.name)) {
+        // Keep the material
+        newSelectedMaterials[materialId] = material;
+        newQuantities[materialId] = quantities[materialId] || 0;
+      }
+    });
     
     // Define preset material ids for each bundle
     const presetMaterials: { [key: string]: string[] } = {
@@ -357,47 +375,63 @@ export function MaterialsSelectionTab({
       "OC 2": ["oc-duration", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "gaf-feltbuster-synthetic-underlayment"]
     };
     
-    // Find and add the materials in the preset
-    presetMaterials[preset].forEach(materialId => {
-      const material = ROOFING_MATERIALS.find(m => m.id === materialId);
-      if (material) {
-        newSelectedMaterials[materialId] = material;
-        
-        // Special handling for WeatherWatch (valleys only) for both GAF 1 and GAF 2 packages
-        if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
-          // Calculate quantity for valleys only - 45.5 LF of valleys equals 1 roll
-          const valleyLength = measurements.valleyLength || 0;
-          
-          // Only add WeatherWatch if there are valleys
-          if (valleyLength > 0) {
-            // Calculate rolls needed based on 45.5 LF per roll
-            const rollsNeeded = Math.ceil(valleyLength / 45.5);
-            
-            // Modify the material name to indicate valleys only
-            const valleyOnlyMaterial = { ...material };
-            valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
-            newSelectedMaterials[materialId] = valleyOnlyMaterial;
-            
-            newQuantities[materialId] = rollsNeeded;
-          }
-          // If no valleys, don't add WeatherWatch to the package (skip it)
-        } else {
-          // Calculate quantity normally for other materials
-          // Use regular waste factor for everything else
-          const effectiveWasteFactor = material.id === "gaf-timberline-hdz" ? 
-            gafTimberlineWasteFactor / 100 : 
-            wasteFactor / 100;
-          
-          newQuantities[materialId] = calculateMaterialQuantity(
-            material, 
-            measurements, 
-            effectiveWasteFactor
-          );
-        }
-      }
-    });
+    // Show notification if there are no standard pitch areas
+    if (!hasStandardPitchAreas) {
+      toast({
+        title: "Low-Slope Roof Detected",
+        description: `Your roof only has low-slope areas (0/12, 1/12, or 2/12). The ${preset} package will only apply to any standard pitch areas, while the special low-slope materials will be used for your low-slope areas.`,
+      });
+    }
     
-    // Update state with new bundle
+    // Only apply package materials if there are standard pitch areas
+    if (hasStandardPitchAreas) {
+      // Find and add the materials in the preset
+      presetMaterials[preset].forEach(materialId => {
+        // Skip if this material ID is already in newSelectedMaterials
+        // This prevents package materials from overriding mandatory low-pitch materials
+        if (newSelectedMaterials[materialId]) return;
+        
+        const material = ROOFING_MATERIALS.find(m => m.id === materialId);
+        if (material) {
+          // Special handling for WeatherWatch (valleys only) for both GAF 1 and GAF 2 packages
+          if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
+            // Calculate quantity for valleys only - 45.5 LF of valleys equals 1 roll
+            const valleyLength = measurements.valleyLength || 0;
+            
+            // Only add WeatherWatch if there are valleys
+            if (valleyLength > 0) {
+              // Calculate rolls needed based on 45.5 LF per roll
+              const rollsNeeded = Math.ceil(valleyLength / 45.5);
+              
+              // Modify the material name to indicate valleys only
+              const valleyOnlyMaterial = { ...material };
+              valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
+              newSelectedMaterials[materialId] = valleyOnlyMaterial;
+              
+              newQuantities[materialId] = rollsNeeded;
+            }
+            // If no valleys, don't add WeatherWatch to the package (skip it)
+          } else {
+            // Calculate quantity normally for other materials
+            // Use regular waste factor for everything else
+            const effectiveWasteFactor = material.id === "gaf-timberline-hdz" ? 
+              gafTimberlineWasteFactor / 100 : 
+              wasteFactor / 100;
+            
+            newQuantities[materialId] = calculateMaterialQuantity(
+              material, 
+              measurements, 
+              effectiveWasteFactor
+            );
+            
+            // Add the material to the selected list
+            newSelectedMaterials[materialId] = material;
+          }
+        }
+      });
+    }
+    
+    // Update state with new bundle + preserved mandatory materials
     setSelectedMaterials(newSelectedMaterials);
     setQuantities(newQuantities);
   };
