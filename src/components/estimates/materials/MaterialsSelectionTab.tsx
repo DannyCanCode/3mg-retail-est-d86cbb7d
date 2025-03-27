@@ -263,13 +263,13 @@ export function MaterialsSelectionTab({
         
         // Special handling for WeatherWatch (valleys only) for both GAF 1 and GAF 2 packages
         if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
-          // Calculate quantity for valleys only
+          // Calculate quantity for valleys only - 45.5 LF of valleys equals 1 roll
           const valleyLength = measurements.valleyLength || 0;
+          
+          // Only add WeatherWatch if there are valleys
           if (valleyLength > 0) {
-            // Each valley is about 3' wide and we need 1 roll per 2 squares
-            const valleyArea = valleyLength * 3; // 3 feet wide
-            const squaresNeeded = valleyArea / 100; // Convert to squares
-            const rollsNeeded = Math.ceil(squaresNeeded / 1.5); // 1.5 squares per roll
+            // Calculate rolls needed based on 45.5 LF per roll
+            const rollsNeeded = Math.ceil(valleyLength / 45.5);
             
             // Modify the material name to indicate valleys only
             const valleyOnlyMaterial = { ...material };
@@ -277,15 +277,8 @@ export function MaterialsSelectionTab({
             newSelectedMaterials[materialId] = valleyOnlyMaterial;
             
             newQuantities[materialId] = rollsNeeded;
-          } else {
-            // If no valleys, set a minimum of 1 roll
-            newQuantities[materialId] = 1;
-            
-            // Modify the material name to indicate valleys only
-            const valleyOnlyMaterial = { ...material };
-            valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
-            newSelectedMaterials[materialId] = valleyOnlyMaterial;
           }
+          // If no valleys, don't add WeatherWatch to the package (skip it)
         } else {
           // Calculate quantity normally for other materials
           // Use regular waste factor for everything else
@@ -356,6 +349,13 @@ export function MaterialsSelectionTab({
     } 
     
     if (material.category === MaterialCategory.UNDERLAYMENTS) {
+      // Special case for valleys-only WeatherWatch Ice & Water Shield
+      if (material.name && material.name.includes("valleys only")) {
+        const valleyLength = measurements.valleyLength || 0;
+        return `Valley (${valleyLength} LF) ÷ 45.5 = ${quantity} rolls`;
+      }
+      
+      // Standard WeatherWatch Ice & Water Shield calculation (for standalone usage)
       if (material.id === "gaf-weatherwatch-ice-water-shield") {
         return `${Math.abs(measurements.totalArea).toFixed(1)} sq ft ÷ 100 = ${(Math.abs(measurements.totalArea)/100).toFixed(1)} squares ÷ 1.5 = ${quantity} rolls`;
       }
