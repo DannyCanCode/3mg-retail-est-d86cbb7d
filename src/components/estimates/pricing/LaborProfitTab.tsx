@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { MeasurementValues } from "../measurement/types";
+import { Material } from "../materials/types";
 
 interface LaborProfitTabProps {
   onBack: () => void;
@@ -83,6 +84,126 @@ export function LaborProfitTab({
   
   const [laborRates, setLaborRates] = useState<LaborRates>(safeInitialRates);
   const [profitMargin, setProfitMargin] = useState(initialProfitMargin || 25);
+  
+  // Check for special materials in the parent component
+  // Here, we would need to get the selectedMaterials and quantities from the parent
+  // For now, we'll focus on the pitch-specific calculations
+  const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
+  const [quantities, setQuantities] = useState<{[key: string]: number}>({});
+  
+  // Calculate the rate for each pitch level
+  const getPitchRate = (pitch: string = "6:12") => {
+    try {
+      // Handle potential undefined or malformed input
+      if (!pitch) {
+        console.log("getPitchRate received undefined/empty pitch, using default");
+        return 85; // Default rate for standard pitch
+      }
+      
+      // Make sure we have a valid string to parse
+      const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
+      console.log(`Calculating rate for pitch ${pitch}, numeric value: ${pitchValue}`);
+      
+      // Different rate logic based on pitch range
+      if (pitchValue >= 8) {
+        // 8/12-18/12 has increasing rates
+        const basePitchValue = 8; // 8/12 is the base pitch
+        const baseRate = 90; // Base rate for 8/12
+        const increment = 5; // $5 increment per pitch level
+        return baseRate + (pitchValue - basePitchValue) * increment;
+      } else if (pitchValue === 0) {
+        // 0/12 pitch uses GAF Poly ISO with $60/sq labor rate
+        // This is handled separately in the getLaborCostForMaterial function
+        return 60;
+      } else if (pitchValue <= 2) {
+        // 1/12-2/12 uses Polyglass Base and Cap with $100/sq labor rate
+        // This is handled separately in the getLaborCostForMaterial function
+        return 100;
+      } else {
+        // 3/12-7/12 has the standard $85 rate
+        return 85;
+      }
+    } catch (e) {
+      console.error("Error in getPitchRate:", e);
+      return 85; // Default fallback
+    }
+  };
+  
+  // Get labor cost for a specific material
+  const getLaborCostForMaterial = (materialId: string, squaresArea: number): number => {
+    // Special case for GAF Poly ISO 4X8 (0/12 pitch) - $60/sq
+    if (materialId === "gaf-poly-iso-4x8") {
+      return squaresArea * 60;
+    }
+    
+    // Special case for Polyglass Base Sheet (1/12 or 2/12 pitch) - $50/sq
+    if (materialId === "polyglass-elastoflex-sbs") {
+      return squaresArea * 50;
+    }
+    
+    // Special case for Polyglass Cap Sheet (1/12 or 2/12 pitch) - $50/sq
+    if (materialId === "polyglass-polyflex-app") {
+      return squaresArea * 50;
+    }
+    
+    // Default labor rate for standard pitches
+    return squaresArea * (laborRates.laborRate || 85);
+  };
+  
+  const calculateTotalLaborCost = (measurements: MeasurementValues, laborRates: LaborRates, selectedMaterials: {[key: string]: Material} = {}, quantities: {[key: string]: number} = {}) => {
+    // Start with base assumptions
+    const totalArea = measurements?.totalArea || 0;
+    const squares = totalArea / 100;
+    
+    let totalLaborCost = 0;
+    let has0PitchMaterial = false;
+    let has12PitchMaterial = false;
+    
+    // Check for special pitch materials
+    if (selectedMaterials) {
+      has0PitchMaterial = Object.values(selectedMaterials).some(material => 
+        material.id === "gaf-poly-iso-4x8");
+      
+      has12PitchMaterial = Object.values(selectedMaterials).some(material => 
+        material.id === "polyglass-elastoflex-sbs" || material.id === "polyglass-polyflex-app");
+    }
+    
+    // Calculate labor based on pitch areas
+    if (measurements?.areasByPitch && measurements.areasByPitch.length > 0) {
+      measurements.areasByPitch.forEach(area => {
+        const pitchRaw = area.pitch;
+        const pitchValue = parseInt(pitchRaw.split(/[:\/]/)[0]) || 0;
+        const pitchSquares = area.area / 100;
+        
+        // Apply different labor rates based on pitch
+        if (pitchValue === 0 && has0PitchMaterial) {
+          // 0/12 pitch uses $60/sq labor rate for GAF Poly ISO
+          totalLaborCost += pitchSquares * 60; // $60/sq for 0/12 pitch areas
+        } else if ((pitchValue === 1 || pitchValue === 2) && has12PitchMaterial) {
+          // 1/12 or 2/12 pitch uses $100/sq labor rate for Polyglass Base and Cap
+          totalLaborCost += pitchSquares * 100; // $100/sq for 1/12-2/12 pitch areas
+        } else {
+          // Regular labor rate for standard pitches
+          const specificPitchRate = laborRates.pitchRates[pitchRaw] || getPitchRate(pitchRaw);
+          totalLaborCost += pitchSquares * specificPitchRate;
+        }
+      });
+    } else {
+      // Fallback if no pitch data
+      totalLaborCost = squares * (laborRates.laborRate || 85);
+    }
+    
+    // Add handload cost if applicable
+    if (laborRates.isHandload) {
+      totalLaborCost += squares * (laborRates.handloadRate || 15);
+    }
+    
+    return totalLaborCost;
+  };
+  
+  // Calculate approximate labor cost
+  const estTotalLaborCost = measurements ? 
+    calculateTotalLaborCost(measurements, laborRates, selectedMaterials, quantities) : 0;
   
   // Calculate dumpster count based on total roof area
   useEffect(() => {
@@ -208,39 +329,6 @@ export function LaborProfitTab({
     const pitch = i + 8;
     return `${pitch}:12`;
   });
-  
-  // Calculate the rate for each pitch level
-  const getPitchRate = (pitch: string = "6:12") => {
-    try {
-      // Handle potential undefined or malformed input
-      if (!pitch) {
-        console.log("getPitchRate received undefined/empty pitch, using default");
-        return 85; // Default rate for standard pitch
-      }
-      
-      // Make sure we have a valid string to parse
-      const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
-      console.log(`Calculating rate for pitch ${pitch}, numeric value: ${pitchValue}`);
-      
-      // Different rate logic based on pitch range
-      if (pitchValue >= 8) {
-        // 8/12-18/12 has increasing rates
-        const basePitchValue = 8; // 8/12 is the base pitch
-        const baseRate = 90; // Base rate for 8/12
-        const increment = 5; // $5 increment per pitch level
-        return baseRate + (pitchValue - basePitchValue) * increment;
-      } else if (pitchValue <= 2) {
-        // 0/12-2/12 (low slope) has special rates
-        return 75; // Just an example rate for low-slope
-      } else {
-        // 3/12-7/12 has the standard $85 rate
-        return 85;
-      }
-    } catch (e) {
-      console.error("Error in getPitchRate:", e);
-      return 85; // Default fallback
-    }
-  };
   
   // Build a list of pitch rates to display
   const pitchRateDisplay = pitchOptions.map(pitch => {

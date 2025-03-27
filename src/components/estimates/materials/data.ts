@@ -146,6 +146,18 @@ export const ROOFING_MATERIALS: Material[] = [
     }
   },
   {
+    id: "gaf-poly-iso-4x8",
+    name: "GAF Poly ISO 4X8",
+    category: MaterialCategory.UNDERLAYMENTS,
+    price: 90.0,
+    unit: "Roll",
+    approxPerSquare: 90.0,
+    coverageRule: {
+      description: "For 0/12 pitch areas only",
+      calculation: "0/12 pitch area square footage × 1.12 ÷ 100, rounded up",
+    }
+  },
+  {
     id: "rhino-synthetic",
     name: "Rhino Synthetic",
     category: MaterialCategory.UNDERLAYMENTS,

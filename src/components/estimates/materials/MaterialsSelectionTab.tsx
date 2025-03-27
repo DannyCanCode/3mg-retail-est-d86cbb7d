@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import PackageSelector from "../packages/PackageSelector";
 import WarrantySelector from "../warranties/WarrantySelector";
 import LowSlopeOptions from "../lowslope/LowSlopeOptions";
+import { toast } from "@/hooks/use-toast";
 
 interface MaterialsSelectionTabProps {
   measurements: MeasurementValues;
@@ -78,7 +79,7 @@ export function MaterialsSelectionTab({
   // Check if there are flat/low-slope areas on the roof
   useEffect(() => {
     const hasFlatRoofAreas = measurements.areasByPitch.some(
-      area => ["0:12", "1:12", "2:12"].includes(area.pitch)
+      area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
     );
     
     setShowLowSlope(hasFlatRoofAreas);
@@ -87,7 +88,100 @@ export function MaterialsSelectionTab({
     if (hasFlatRoofAreas && !expandedCategories.includes(MaterialCategory.LOW_SLOPE)) {
       setExpandedCategories([...expandedCategories, MaterialCategory.LOW_SLOPE]);
     }
-  }, [measurements]);
+    
+    // Auto-detect special low pitch areas and add required materials
+    const has0Pitch = measurements.areasByPitch.some(
+      area => ["0:12", "0/12"].includes(area.pitch)
+    );
+    
+    const has1or2Pitch = measurements.areasByPitch.some(
+      area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch)
+    );
+    
+    // Auto-select special materials based on pitch detection
+    const newSelectedMaterials = { ...selectedMaterials };
+    const newQuantities = { ...quantities };
+    
+    // Add GAF Poly ISO for 0/12 pitch
+    if (has0Pitch) {
+      const polyIsoMaterial = ROOFING_MATERIALS.find(m => m.id === "gaf-poly-iso-4x8");
+      if (polyIsoMaterial) {
+        // Calculate area with 0/12 pitch
+        const zeroPitchArea = measurements.areasByPitch
+          .filter(area => ["0:12", "0/12"].includes(area.pitch))
+          .reduce((total, area) => total + area.area, 0);
+        
+        // Calculate quantity with 12% waste
+        const squaresNeeded = zeroPitchArea / 100;
+        const quantityNeeded = Math.ceil(squaresNeeded * 1.12);
+        
+        // Add to materials with a note that it's mandatory
+        const mandatoryMaterial = { 
+          ...polyIsoMaterial,
+          name: `${polyIsoMaterial.name} (Required for 0/12 pitch - cannot be removed)`
+        };
+        
+        newSelectedMaterials["gaf-poly-iso-4x8"] = mandatoryMaterial;
+        newQuantities["gaf-poly-iso-4x8"] = quantityNeeded;
+        
+        // Show notification if this is a new addition
+        if (!selectedMaterials["gaf-poly-iso-4x8"]) {
+          toast({
+            title: "Material Auto-Selected",
+            description: `GAF Poly ISO 4X8 has been automatically added because your roof has 0/12 pitch areas (${zeroPitchArea.toFixed(1)} sq ft).`,
+          });
+        }
+      }
+    }
+    
+    // Add Polyglass Base and Cap sheets for 1/12 and 2/12 pitches
+    if (has1or2Pitch) {
+      const baseSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
+      const capSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
+      
+      if (baseSheetMaterial && capSheetMaterial) {
+        // Calculate area with 1/12 or 2/12 pitch
+        const lowPitchArea = measurements.areasByPitch
+          .filter(area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch))
+          .reduce((total, area) => total + area.area, 0);
+        
+        // Calculate quantity (both materials use 0.8 squares/roll)
+        const squaresNeeded = lowPitchArea / 100;
+        const baseQuantity = Math.ceil(squaresNeeded / 0.8);
+        const capQuantity = Math.ceil(squaresNeeded / 0.8);
+        
+        // Add to materials with a note that they're mandatory
+        const mandatoryBaseSheet = {
+          ...baseSheetMaterial,
+          name: `${baseSheetMaterial.name} (Required for 1/12 or 2/12 pitch - cannot be removed)`
+        };
+        
+        const mandatoryCapSheet = {
+          ...capSheetMaterial,
+          name: `${capSheetMaterial.name} (Required for 1/12 or 2/12 pitch - cannot be removed)`
+        };
+        
+        newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBaseSheet;
+        newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCapSheet;
+        newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
+        newQuantities["polyglass-polyflex-app"] = capQuantity;
+        
+        // Show notification if these are new additions
+        if (!selectedMaterials["polyglass-elastoflex-sbs"] || !selectedMaterials["polyglass-polyflex-app"]) {
+          toast({
+            title: "Materials Auto-Selected",
+            description: `Polyglass Base and Cap sheets have been automatically added because your roof has 1/12 or 2/12 pitch areas (${lowPitchArea.toFixed(1)} sq ft).`,
+          });
+        }
+      }
+    }
+    
+    // Update state only if materials were added
+    if (has0Pitch || has1or2Pitch) {
+      setSelectedMaterials(newSelectedMaterials);
+      setQuantities(newQuantities);
+    }
+  }, [measurements, expandedCategories]);
 
   // Update materials when package changes
   useEffect(() => {
@@ -172,6 +266,14 @@ export function MaterialsSelectionTab({
   
   // Remove material from selection
   const removeMaterial = (materialId: string) => {
+    // Get the material
+    const material = selectedMaterials[materialId];
+    
+    // Do not allow removing mandatory materials
+    if (material && isMandatoryMaterial(material.name)) {
+      return;
+    }
+    
     const newSelectedMaterials = { ...selectedMaterials };
     const newQuantities = { ...quantities };
     
@@ -349,6 +451,15 @@ export function MaterialsSelectionTab({
     } 
     
     if (material.category === MaterialCategory.UNDERLAYMENTS) {
+      // Special case for GAF Poly ISO 4X8 (for 0/12 pitch)
+      if (material.id === "gaf-poly-iso-4x8") {
+        const zeroPitchArea = measurements.areasByPitch
+          .filter(area => ["0:12", "0/12"].includes(area.pitch))
+          .reduce((total, area) => total + area.area, 0);
+        
+        return `0/12 pitch area (${zeroPitchArea.toFixed(1)} sq ft) ÷ 100 = ${(zeroPitchArea/100).toFixed(1)} squares × 1.12 waste = ${Math.ceil((zeroPitchArea/100) * 1.12)} rolls`;
+      }
+      
       // Special case for valleys-only WeatherWatch Ice & Water Shield
       if (material.name && material.name.includes("valleys only")) {
         const valleyLength = measurements.valleyLength || 0;
@@ -380,17 +491,27 @@ export function MaterialsSelectionTab({
     if (material.category === MaterialCategory.LOW_SLOPE) {
       const lowSlopeArea = measurements.areasByPitch
         .filter(area => {
-          const [rise] = area.pitch.split(':').map(Number);
+          const [rise] = area.pitch.split(/[:\/]/).map(Number);
           return rise <= 2;
         })
         .reduce((total, area) => total + area.area, 0);
       
+      // Special case for Polyglass elastoflex base sheet (for 1/12 or 2/12 pitch)
       if (material.id === "polyglass-elastoflex-sbs") {
-        return `Low slope area ${lowSlopeArea.toFixed(1)} sq ft ÷ 100 = ${(lowSlopeArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
+        const lowPitchArea = measurements.areasByPitch
+          .filter(area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch))
+          .reduce((total, area) => total + area.area, 0);
+        
+        return `1/12 or 2/12 pitch area (${lowPitchArea.toFixed(1)} sq ft) ÷ 100 = ${(lowPitchArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
       }
       
+      // Special case for Polyglass polyflex cap sheet (for 1/12 or 2/12 pitch)
       if (material.id === "polyglass-polyflex-app") {
-        return `Low slope area ${lowSlopeArea.toFixed(1)} sq ft ÷ 100 = ${(lowSlopeArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls (1.25 rolls per square)`;
+        const lowPitchArea = measurements.areasByPitch
+          .filter(area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch))
+          .reduce((total, area) => total + area.area, 0);
+        
+        return `1/12 or 2/12 pitch area (${lowPitchArea.toFixed(1)} sq ft) ÷ 100 = ${(lowPitchArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
       }
       
       // Default low slope material
@@ -419,6 +540,84 @@ export function MaterialsSelectionTab({
     }
     // Default fallback
     return 10; // Reasonable default
+  };
+
+  // Helper to determine if a material is mandatory based on the name
+  const isMandatoryMaterial = (materialName: string): boolean => {
+    return materialName.includes('Required') && materialName.includes('cannot be removed');
+  };
+
+  // Render a selected material row with quantity
+  const renderSelectedMaterial = (materialId: string, material: Material) => {
+    const quantity = quantities[materialId] || 0;
+    const isMandatory = isMandatoryMaterial(material.name);
+    
+    return (
+      <div 
+        key={materialId} 
+        className={`flex justify-between items-center p-2 rounded-md ${isMandatory ? 'bg-blue-50 border border-blue-200' : ''}`}
+      >
+        <div className="flex-1">
+          <div className="flex items-center">
+            <span className="font-medium">{material.name}</span>
+            {isMandatory && (
+              <Badge className="ml-2 bg-blue-500" variant="secondary">Auto-Selected</Badge>
+            )}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {formatPrice(material.price)} per {material.unit}
+            {material.approxPerSquare && ` (≈ ${formatPrice(material.approxPerSquare)}/square)`}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            {getCalculationExplanation(material, quantity)}
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-r-none"
+              onClick={() => updateQuantity(materialId, Math.max(0, quantity - 1))}
+              disabled={isMandatory}
+            >
+              -
+            </Button>
+            <Input
+              type="number"
+              min="0"
+              value={quantity}
+              onChange={(e) => updateQuantity(materialId, parseInt(e.target.value) || 0)}
+              className="h-8 w-16 rounded-none text-center"
+              disabled={isMandatory}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 rounded-l-none"
+              onClick={() => updateQuantity(materialId, quantity + 1)}
+              disabled={isMandatory}
+            >
+              +
+            </Button>
+          </div>
+          
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => removeMaterial(materialId)}
+            className="h-8 w-8"
+            disabled={isMandatory}
+          >
+            <Trash className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -655,115 +854,7 @@ export function MaterialsSelectionTab({
             ) : (
               <div className="space-y-4">
                 {Object.entries(selectedMaterials).map(([materialId, material]) => {
-                  const quantity = quantities[materialId] || 0;
-                  const price = material.price;
-                  const total = quantity * price;
-                  
-                  // Calculate squares for shingles (bundles ÷ 3)
-                  let squareCount = null;
-                  let isGafTimberline = false;
-                  
-                  if (material.category === MaterialCategory.SHINGLES && material.unit === "Bundle" && !material.id.includes("hip-ridge") && !material.id.includes("starter")) {
-                    isGafTimberline = material.id === "gaf-timberline-hdz";
-                    
-                    // Calculate squares based on bundles
-                    if (isGafTimberline) {
-                      // For GAF Timberline HDZ, use the same formula as in Excel
-                      // Calculate total squares including waste
-                      const actualWasteFactor = Math.max(gafTimberlineWasteFactor / 100, 0.12);
-                      const totalArea = Math.abs(measurements.totalArea); // Ensure positive area
-                      
-                      // Excel formula logic:
-                      // 1. Calculate area with waste: totalArea * (1 + wasteFactor)
-                      // 2. Convert to squares: area / 100
-                      // 3. Round to 1 decimal place: Math.round(squares * 10) / 10
-                      const squaresWithWaste = Math.round((totalArea * (1 + actualWasteFactor)) / 100 * 10) / 10;
-                      
-                      // Display the calculated squares value - ensure it's positive
-                      squareCount = squaresWithWaste.toFixed(1);
-                      
-                      // Validate: Make sure the bundle quantity matches the squares calculation
-                      const expectedBundles = Math.max(3, Math.ceil(squaresWithWaste * 3));
-                      if (quantity !== expectedBundles) {
-                        // Update quantity to match the calculated square count
-                        // This ensures consistency between displayed squares and bundle count
-                        setTimeout(() => updateQuantity(materialId, expectedBundles), 0);
-                      }
-                    } else {
-                      // For regular shingles
-                      const calculatedSquares = quantity / 3;
-                      squareCount = calculatedSquares > 0 ? calculatedSquares.toFixed(1) : "calculating...";
-                    }
-                  }
-                  
-                  // Get the calculation explanation
-                  const calculationExplanation = getCalculationExplanation(material, quantity);
-                  
-                  return (
-                    <div key={materialId} className="flex flex-col border-b pb-2 last:border-0">
-                      <div className="flex justify-between items-start">
-                        <div className="font-medium">{material.name}</div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeMaterial(materialId)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <div className="text-sm">
-                          {formatPrice(price)} per {material.unit}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 w-7 p-0"
-                            onClick={() => updateQuantity(materialId, quantity - 1)}
-                            disabled={quantity <= 1}
-                          >
-                            <ChevronDown className="h-3 w-3" />
-                          </Button>
-                          <div className="text-center">
-                            <div className="font-medium w-12">
-                              {quantity}
-                            </div>
-                            {squareCount && (
-                              <div className={`text-xs mt-0.5 ${isGafTimberline ? 'text-blue-600 font-medium' : 'text-muted-foreground'}`}>
-                                {typeof squareCount === 'string' && squareCount === "calculating..." 
-                                  ? squareCount 
-                                  : `${Math.abs(parseFloat(squareCount))} sq${isGafTimberline ? ` (${gafTimberlineWasteFactor}% waste)` : ''}`}
-                              </div>
-                            )}
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 w-7 p-0"
-                            onClick={() => updateQuantity(materialId, quantity + 1)}
-                          >
-                            <ChevronUp className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="flex justify-between items-center mt-1">
-                        <div className="text-xs text-muted-foreground">
-                          {material.coverageRule.description}
-                          {isGafTimberline && ` (Min waste: ${gafTimberlineWasteFactor}%)`}
-                        </div>
-                        <div className="text-sm font-medium">
-                          {formatPrice(total)}
-                        </div>
-                      </div>
-                      {/* Add calculation explanation */}
-                      <div className="mt-1 text-xs text-blue-600 bg-blue-50 p-2 rounded-md">
-                        <span className="font-medium">Calculation: </span>
-                        {calculationExplanation}
-                      </div>
-                    </div>
-                  );
+                  return renderSelectedMaterial(materialId, material);
                 })}
                 <div className="flex justify-between font-medium text-lg pt-2 border-t">
                   <span>Total:</span>
