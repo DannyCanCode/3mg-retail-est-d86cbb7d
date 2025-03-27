@@ -148,7 +148,7 @@ export const ROOFING_MATERIALS: Material[] = [
   {
     id: "gaf-poly-iso-4x8",
     name: "GAF Poly ISO 4X8",
-    category: MaterialCategory.UNDERLAYMENTS,
+    category: MaterialCategory.LOW_SLOPE,
     price: 90.0,
     unit: "Roll",
     approxPerSquare: 90.0,

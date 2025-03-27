@@ -485,15 +485,6 @@ export function MaterialsSelectionTab({
     } 
     
     if (material.category === MaterialCategory.UNDERLAYMENTS) {
-      // Special case for GAF Poly ISO 4X8 (for 0/12 pitch)
-      if (material.id === "gaf-poly-iso-4x8") {
-        const zeroPitchArea = measurements.areasByPitch
-          .filter(area => ["0:12", "0/12"].includes(area.pitch))
-          .reduce((total, area) => total + area.area, 0);
-        
-        return `0/12 pitch area (${zeroPitchArea.toFixed(1)} sq ft) ÷ 100 = ${(zeroPitchArea/100).toFixed(1)} squares × 1.12 waste = ${Math.ceil((zeroPitchArea/100) * 1.12)} rolls`;
-      }
-      
       // Special case for valleys-only WeatherWatch Ice & Water Shield
       if (material.name && material.name.includes("valleys only")) {
         const valleyLength = measurements.valleyLength || 0;
@@ -529,6 +520,15 @@ export function MaterialsSelectionTab({
           return rise <= 2;
         })
         .reduce((total, area) => total + area.area, 0);
+      
+      // Special case for GAF Poly ISO 4X8 (for 0/12 pitch)
+      if (material.id === "gaf-poly-iso-4x8") {
+        const zeroPitchArea = measurements.areasByPitch
+          .filter(area => ["0:12", "0/12"].includes(area.pitch))
+          .reduce((total, area) => total + area.area, 0);
+        
+        return `0/12 pitch area (${zeroPitchArea.toFixed(1)} sq ft) ÷ 100 = ${(zeroPitchArea/100).toFixed(1)} squares × 1.12 waste = ${Math.ceil((zeroPitchArea/100) * 1.12)} rolls`;
+      }
       
       // Special case for Polyglass elastoflex base sheet (for 1/12 or 2/12 pitch)
       if (material.id === "polyglass-elastoflex-sbs") {
