@@ -59,7 +59,15 @@ export function MeasurementForm({
   useEffect(() => {
     if (initialMeasurements) {
       console.log("Setting measurements from initialMeasurements:", initialMeasurements);
-      setMeasurements(initialMeasurements);
+      // Make sure we have default values for latitude and longitude if they're missing
+      const measurementsWithDefaults = {
+        ...initialMeasurements,
+        // Default to empty strings so they don't show as "Not available" in the UI
+        latitude: initialMeasurements.latitude || "",
+        longitude: initialMeasurements.longitude || ""
+      };
+      
+      setMeasurements(measurementsWithDefaults);
       
       // Check if measurements are incomplete
       const requiredFields: (keyof MeasurementValues)[] = [
@@ -215,6 +223,9 @@ export function MeasurementForm({
     }
     
     // Validate property information if any is provided
+    // Remove the strict validation requiring all three fields
+    // We'll allow saving even if only the address is available
+    /* 
     if (measurements.propertyAddress || measurements.latitude || measurements.longitude) {
       if (!measurements.propertyAddress || !measurements.latitude || !measurements.longitude) {
         toast({
@@ -226,6 +237,7 @@ export function MeasurementForm({
         return;
       }
     }
+    */
     
     setTimeout(() => {
       if (onMeasurementsSaved) {

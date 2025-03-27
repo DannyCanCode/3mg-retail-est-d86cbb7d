@@ -846,36 +846,126 @@ export function usePdfParser() {
       // Enhanced patterns for latitude/longitude extraction
       const latitudePatterns = [
         /Latitude:?\s*([-+]?\d+\.?\d*)/i,
-        /Lat(?:itude)?:?\s*([-+]?\d+\.?\d*)/i
+        /Lat(?:itude)?:?\s*([-+]?\d+\.?\d*)/i,
+        /GPS\s+Lat(?:itude)?:?\s*([-+]?\d+\.?\d*)/i,
+        // Common format with degrees/minutes
+        /Lat(?:itude)?:?\s*(\d+°\s*\d+'\s*\d+(\.\d+)?"\s*[NS])/i
       ];
       
       const longitudePatterns = [
         /Longitude:?\s*([-+]?\d+\.?\d*)/i,
-        /Long(?:itude)?:?\s*([-+]?\d+\.?\d*)/i
+        /Long(?:itude)?:?\s*([-+]?\d+\.?\d*)/i,
+        /GPS\s+Long(?:itude)?:?\s*([-+]?\d+\.?\d*)/i,
+        // Common format with degrees/minutes
+        /Long(?:itude)?:?\s*(\d+°\s*\d+'\s*\d+(\.\d+)?"\s*[EW])/i
       ];
 
-      // Try to extract latitude
+      // Try to extract latitude from any page
+      let foundLatitude = false;
+      // First try in full text
       for (const pattern of latitudePatterns) {
         const latMatch = fullText.match(pattern);
         if (latMatch && latMatch[1]) {
-          const latValue = parseFloat(latMatch[1]);
-          if (!isNaN(latValue) && latValue >= -90 && latValue <= 90) {
+          // Check if it's a decimal format
+          if (latMatch[1].includes('.') || !latMatch[1].includes('°')) {
+            const latValue = parseFloat(latMatch[1]);
+            if (!isNaN(latValue) && latValue >= -90 && latValue <= 90) {
+              parsedMeasurements.latitude = latMatch[1];
+              console.log(`Found latitude in full text: ${parsedMeasurements.latitude}`);
+              foundLatitude = true;
+              break;
+            }
+          } else {
+            // It's in degrees/minutes format, just use it as is
             parsedMeasurements.latitude = latMatch[1];
-            console.log(`Found latitude: ${parsedMeasurements.latitude}`);
+            console.log(`Found latitude in degrees format: ${parsedMeasurements.latitude}`);
+            foundLatitude = true;
             break;
           }
         }
       }
+      
+      // If not found in full text, check each page
+      if (!foundLatitude) {
+        for (let i = 1; i <= Math.min(numPages, 10); i++) {
+          if (pageContents[i]) {
+            for (const pattern of latitudePatterns) {
+              const latMatch = pageContents[i].match(pattern);
+              if (latMatch && latMatch[1]) {
+                // Check if it's a decimal format
+                if (latMatch[1].includes('.') || !latMatch[1].includes('°')) {
+                  const latValue = parseFloat(latMatch[1]);
+                  if (!isNaN(latValue) && latValue >= -90 && latValue <= 90) {
+                    parsedMeasurements.latitude = latMatch[1];
+                    console.log(`Found latitude on page ${i}: ${parsedMeasurements.latitude}`);
+                    foundLatitude = true;
+                    break;
+                  }
+                } else {
+                  // It's in degrees/minutes format, just use it as is
+                  parsedMeasurements.latitude = latMatch[1];
+                  console.log(`Found latitude in degrees format on page ${i}: ${parsedMeasurements.latitude}`);
+                  foundLatitude = true;
+                  break;
+                }
+              }
+            }
+            if (foundLatitude) break;
+          }
+        }
+      }
 
-      // Try to extract longitude
+      // Try to extract longitude from any page
+      let foundLongitude = false;
+      // First try in full text
       for (const pattern of longitudePatterns) {
         const longMatch = fullText.match(pattern);
         if (longMatch && longMatch[1]) {
-          const longValue = parseFloat(longMatch[1]);
-          if (!isNaN(longValue) && longValue >= -180 && longValue <= 180) {
+          // Check if it's a decimal format
+          if (longMatch[1].includes('.') || !longMatch[1].includes('°')) {
+            const longValue = parseFloat(longMatch[1]);
+            if (!isNaN(longValue) && longValue >= -180 && longValue <= 180) {
+              parsedMeasurements.longitude = longMatch[1];
+              console.log(`Found longitude in full text: ${parsedMeasurements.longitude}`);
+              foundLongitude = true;
+              break;
+            }
+          } else {
+            // It's in degrees/minutes format, just use it as is
             parsedMeasurements.longitude = longMatch[1];
-            console.log(`Found longitude: ${parsedMeasurements.longitude}`);
+            console.log(`Found longitude in degrees format: ${parsedMeasurements.longitude}`);
+            foundLongitude = true;
             break;
+          }
+        }
+      }
+      
+      // If not found in full text, check each page
+      if (!foundLongitude) {
+        for (let i = 1; i <= Math.min(numPages, 10); i++) {
+          if (pageContents[i]) {
+            for (const pattern of longitudePatterns) {
+              const longMatch = pageContents[i].match(pattern);
+              if (longMatch && longMatch[1]) {
+                // Check if it's a decimal format
+                if (longMatch[1].includes('.') || !longMatch[1].includes('°')) {
+                  const longValue = parseFloat(longMatch[1]);
+                  if (!isNaN(longValue) && longValue >= -180 && longValue <= 180) {
+                    parsedMeasurements.longitude = longMatch[1];
+                    console.log(`Found longitude on page ${i}: ${parsedMeasurements.longitude}`);
+                    foundLongitude = true;
+                    break;
+                  }
+                } else {
+                  // It's in degrees/minutes format, just use it as is
+                  parsedMeasurements.longitude = longMatch[1];
+                  console.log(`Found longitude in degrees format on page ${i}: ${parsedMeasurements.longitude}`);
+                  foundLongitude = true;
+                  break;
+                }
+              }
+            }
+            if (foundLongitude) break;
           }
         }
       }
