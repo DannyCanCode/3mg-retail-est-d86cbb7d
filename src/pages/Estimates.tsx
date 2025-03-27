@@ -418,15 +418,7 @@ const Estimates = () => {
                     <div>
                       <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
                       
-                      {/* Continue button only if PDF data was extracted */}
-                      {extractedPdfData && (
-                        <div className="mt-6 flex justify-end">
-                          <Button onClick={handleGoToMeasurements} className="flex items-center gap-2">
-                            Continue to Measurements
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                      {/* Continue button only if PDF data was extracted - REMOVED as it's redundant with the main Continue button */}
                     </div>
                     
                     <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
