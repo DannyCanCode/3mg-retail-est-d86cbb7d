@@ -173,29 +173,19 @@ const Estimates = () => {
     }
   }, [pdfFileName]);
 
-  const handlePdfDataExtracted = (data: ParsedMeasurements, fileName: string) => {
-    console.log("PDF data extracted:", data);
-    
-    // Ensure areasByPitch is preserved (even if server-side processing loses it)
-    if (!data.areasByPitch || data.areasByPitch.length === 0) {
-      console.log("areasByPitch is missing or empty, trying to retrieve from client-side data");
-      // Try to get the client-side parsed pitch areas
-      const clientSidePitchData = document.querySelector('[data-debug-pitch-data]')?.getAttribute('data-pitch-data');
-      if (clientSidePitchData) {
-        try {
-          const parsedPitchData = JSON.parse(clientSidePitchData);
-          if (Array.isArray(parsedPitchData) && parsedPitchData.length > 0) {
-            console.log("Found client-side pitch data:", parsedPitchData);
-            data.areasByPitch = parsedPitchData;
-          }
-        } catch (e) {
-          console.error("Error parsing client-side pitch data:", e);
-        }
-      }
-    }
-    
+  const handlePdfDataExtracted = (data: ParsedMeasurements | null, fileName: string) => {
+    console.log("PDF data extracted:", data, fileName);
     setExtractedPdfData(data);
     setPdfFileName(fileName);
+    
+    if (!data) {
+      toast({
+        title: "Error",
+        description: "Failed to extract data from PDF",
+        variant: "destructive"
+      });
+      return;
+    }
     
     // Store in localStorage
     setStoredPdfData(data);
@@ -206,10 +196,15 @@ const Estimates = () => {
     setMeasurements(convertedMeasurements);
     setStoredMeasurements(convertedMeasurements);
     
+    // Make sure we have a valid totalArea number before showing in toast
+    const areaDisplay = data.totalArea && !isNaN(data.totalArea) && data.totalArea > 0 
+      ? data.totalArea.toFixed(1) 
+      : 'unknown';
+    
     // Inform the user data was extracted successfully
     toast({
       title: "Measurements extracted",
-      description: `Successfully parsed ${fileName} with ${data.totalArea || 0} sq ft of roof area.`,
+      description: `Successfully parsed ${fileName} with ${areaDisplay} sq ft of roof area.`,
     });
   };
 
@@ -222,13 +217,18 @@ const Estimates = () => {
   };
 
   const handleMeasurementsSaved = (savedMeasurements: MeasurementValues) => {
+    // Update measurements state first
     setMeasurements(savedMeasurements);
-    handleGoToMaterials();
     
-    toast({
-      title: "Measurements saved",
-      description: "Now you can select materials for your estimate.",
-    });
+    // Add a small delay to ensure state is updated before navigation and toast
+    setTimeout(() => {
+      handleGoToMaterials();
+      
+      toast({
+        title: "Measurements saved",
+        description: "Now you can select materials for your estimate.",
+      });
+    }, 100);
   };
 
   const handleMaterialsSelected = (materials: {[key: string]: Material}, quantities: {[key: string]: number}) => {

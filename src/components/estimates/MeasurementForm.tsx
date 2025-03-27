@@ -159,30 +159,15 @@ export function MeasurementForm({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    console.log("Submitting measurements:", measurements);
-    
-    // Enhanced validation
-    const requiredFields: (keyof MeasurementValues)[] = [
-      'totalArea',
-      'predominantPitch',
-      'areasByPitch'
-    ];
-    
-    const missingFields = requiredFields.filter(field => {
-      if (field === 'areasByPitch') {
-        return !measurements[field] || measurements[field].length === 0;
-      }
-      return !measurements[field];
-    });
-    
-    if (missingFields.length > 0) {
+    // Validate the measurements
+    if (!measurements) {
       toast({
-        title: "Incomplete measurements",
-        description: `Missing required fields: ${missingFields.join(', ')}`,
+        title: "Invalid measurements",
+        description: "Measurements object is undefined or null",
         variant: "destructive"
       });
       setIsSubmitting(false);
@@ -222,30 +207,21 @@ export function MeasurementForm({
       return;
     }
     
-    // Validate property information if any is provided
-    // Remove the strict validation requiring all three fields
-    // We'll allow saving even if only the address is available
-    /* 
-    if (measurements.propertyAddress || measurements.latitude || measurements.longitude) {
-      if (!measurements.propertyAddress || !measurements.latitude || !measurements.longitude) {
-        toast({
-          title: "Incomplete property information",
-          description: "Please provide all property information or none",
-          variant: "destructive"
-        });
-        setIsSubmitting(false);
-        return;
-      }
-    }
-    */
-    
-    setTimeout(() => {
+    try {
       if (onMeasurementsSaved) {
         console.log("Saving complete measurements:", measurements);
-        onMeasurementsSaved(measurements);
+        // Wait for parent to complete its state updates and navigation
+        await new Promise<void>((resolve) => {
+          onMeasurementsSaved(measurements);
+          // Add a small delay to ensure state updates complete
+          setTimeout(resolve, 1000);
+        });
       }
+    } catch (error) {
+      console.error("Error in measurement save process:", error);
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   const goToNextTab = () => {
