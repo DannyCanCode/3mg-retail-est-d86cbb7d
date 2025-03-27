@@ -111,6 +111,13 @@ export function EstimateSummaryTab({
       // Track if we've already added any pitch-specific labor items
       let hasPitchSpecificLabor = false;
       
+      // Check if special low pitch materials are selected
+      const hasPolyIsoMaterial = Object.values(materials).some(material => 
+        material.id === "gaf-poly-iso-4x8");
+      
+      const hasPolyglasMaterials = Object.values(materials).some(material => 
+        material.id === "polyglass-elastoflex-sbs" || material.id === "polyglass-polyflex-app");
+      
       // Loop through each pitch area and apply the appropriate rate
       pitchAreas.forEach(pitchArea => {
         // Get the pitch value (numeric part of the pitch)
@@ -135,8 +142,30 @@ export function EstimateSummaryTab({
           });
           
           hasPitchSpecificLabor = true;
+        } else if (pitchValue === 0 && hasPolyIsoMaterial) {
+          // 0/12 pitch with GAF Poly ISO has special $60/sq rate
+          rate = 60;
+          
+          laborCosts.push({ 
+            name: `Labor for ${pitch} Pitch (GAF Poly ISO) (${Math.round(areaSquares * 10) / 10} squares)`, 
+            rate: rate, 
+            totalCost: rate * areaSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
+          });
+          
+          hasPitchSpecificLabor = true;
+        } else if ((pitchValue === 1 || pitchValue === 2) && hasPolyglasMaterials) {
+          // 1/12 or 2/12 pitch with Polyglass materials has special $100/sq rate
+          rate = 100;
+          
+          laborCosts.push({ 
+            name: `Labor for ${pitch} Pitch (Polyglass Base & Cap) (${Math.round(areaSquares * 10) / 10} squares)`, 
+            rate: rate, 
+            totalCost: rate * areaSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
+          });
+          
+          hasPitchSpecificLabor = true;
         } else if (pitchValue <= 2) {
-          // 0/12-2/12 (low slope) has special rates
+          // Default rate for low slope areas if special materials are not selected
           rate = 75;
           
           laborCosts.push({ 
