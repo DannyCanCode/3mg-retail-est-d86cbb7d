@@ -7,6 +7,7 @@ import { MeasurementValues } from "./types";
 
 interface ReviewTabProps {
   measurements: MeasurementValues;
+  readOnly?: boolean;
   isSubmitting: boolean;
   goToPreviousTab: () => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -20,6 +21,23 @@ export function ReviewTab({
 }: ReviewTabProps) {
   // Calculate totals
   const totalSquares = Math.round(measurements.totalArea / 100 * 10) / 10;
+  
+  // Prepare the final measurement object with all required properties
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Make sure propertyAddress is included
+    const finalMeasurements = {
+      ...measurements,
+      // Add a default propertyAddress if none exists
+      propertyAddress: measurements.propertyAddress || "Manual Entry"
+    };
+    
+    console.log("Enhanced measurements with address:", finalMeasurements);
+    
+    // Submit with the original event
+    onSubmit(e);
+  };
   
   return (
     <Card>
@@ -119,7 +137,7 @@ export function ReviewTab({
         </Button>
         <Button 
           type="button" 
-          onClick={onSubmit}
+          onClick={handleSubmit}
           disabled={isSubmitting}
         >
           {isSubmitting ? "Saving..." : "Save Measurements"}

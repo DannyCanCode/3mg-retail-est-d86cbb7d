@@ -81,6 +81,8 @@ export const saveMeasurement = async (
         penetrations_perimeter: measurements.penetrationsPerimeter || 0,
         // Calculate squares from total area (1 square = 100 sq ft)
         total_squares: measurements.totalArea ? Math.ceil(measurements.totalArea / 100) : 0,
+        // Add address field
+        address: measurements.propertyAddress || "Manual Entry",
         // Store detailed information as JSON
         areas_per_pitch: JSON.stringify(areasPerPitchData),
         length_measurements: JSON.stringify({
