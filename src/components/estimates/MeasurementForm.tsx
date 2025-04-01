@@ -14,13 +14,15 @@ interface MeasurementFormProps {
   initialMeasurements?: MeasurementValues;
   extractedFileName?: string;
   onBack?: () => void;
+  readOnly?: boolean;
 }
 
 export function MeasurementForm({ 
   onMeasurementsSaved, 
   initialMeasurements,
   extractedFileName,
-  onBack
+  onBack,
+  readOnly
 }: MeasurementFormProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("roof-area");

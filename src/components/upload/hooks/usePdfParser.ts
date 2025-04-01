@@ -802,22 +802,22 @@ export function usePdfParser() {
         console.log(`Found property address with date separator: ${parsedMeasurements.propertyAddress}`);
         foundAddress = true;
       } else {
-        // Try all patterns in order until we find a match
-        for (const pattern of addressPatterns) {
-          const addressMatch = fullText.match(pattern);
-          if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
+      // Try all patterns in order until we find a match
+      for (const pattern of addressPatterns) {
+        const addressMatch = fullText.match(pattern);
+        if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
             parsedMeasurements.propertyAddress = addressMatch[1].trim();
             console.log(`Found property address: ${parsedMeasurements.propertyAddress}`);
-            foundAddress = true;
-            break;
-          }
+          foundAddress = true;
+          break;
         }
+      }
 
-        // If still no address found, look for it in page headers
-        if (!foundAddress) {
-          // Look in the first few pages
-          for (let i = 1; i <= Math.min(5, numPages); i++) {
-            if (pageContents[i]) {
+      // If still no address found, look for it in page headers
+      if (!foundAddress) {
+        // Look in the first few pages
+        for (let i = 1; i <= Math.min(5, numPages); i++) {
+          if (pageContents[i]) {
               // First try the date+address pattern
               const dateAddressMatch = pageContents[i].match(dateAddressPattern);
               if (dateAddressMatch && dateAddressMatch[2] && dateAddressMatch[2].trim().length > 5) {
@@ -828,16 +828,16 @@ export function usePdfParser() {
               }
             
               // Then try regular patterns
-              for (const pattern of addressPatterns) {
-                const addressMatch = pageContents[i].match(pattern);
-                if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
+            for (const pattern of addressPatterns) {
+              const addressMatch = pageContents[i].match(pattern);
+              if (addressMatch && addressMatch[1] && addressMatch[1].trim().length > 5) {
                   parsedMeasurements.propertyAddress = addressMatch[1].trim();
                   console.log(`Found property address in page ${i}: ${parsedMeasurements.propertyAddress}`);
-                  foundAddress = true;
-                  break;
-                }
+                foundAddress = true;
+                break;
               }
-              if (foundAddress) break;
+            }
+            if (foundAddress) break;
             }
           }
         }
@@ -868,8 +868,8 @@ export function usePdfParser() {
         if (latMatch && latMatch[1]) {
           // Check if it's a decimal format
           if (latMatch[1].includes('.') || !latMatch[1].includes('°')) {
-            const latValue = parseFloat(latMatch[1]);
-            if (!isNaN(latValue) && latValue >= -90 && latValue <= 90) {
+          const latValue = parseFloat(latMatch[1]);
+          if (!isNaN(latValue) && latValue >= -90 && latValue <= 90) {
               parsedMeasurements.latitude = latMatch[1];
               console.log(`Found latitude in full text: ${parsedMeasurements.latitude}`);
               foundLatitude = true;
@@ -884,7 +884,7 @@ export function usePdfParser() {
           }
         }
       }
-      
+
       // If not found in full text, check each page
       if (!foundLatitude) {
         for (let i = 1; i <= Math.min(numPages, 10); i++) {
@@ -923,8 +923,8 @@ export function usePdfParser() {
         if (longMatch && longMatch[1]) {
           // Check if it's a decimal format
           if (longMatch[1].includes('.') || !longMatch[1].includes('°')) {
-            const longValue = parseFloat(longMatch[1]);
-            if (!isNaN(longValue) && longValue >= -180 && longValue <= 180) {
+          const longValue = parseFloat(longMatch[1]);
+          if (!isNaN(longValue) && longValue >= -180 && longValue <= 180) {
               parsedMeasurements.longitude = longMatch[1];
               console.log(`Found longitude in full text: ${parsedMeasurements.longitude}`);
               foundLongitude = true;

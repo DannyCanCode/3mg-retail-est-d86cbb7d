@@ -12,6 +12,11 @@ const LowSlopeOptions = ({
   includeIso, 
   onIsoToggle 
 }: LowSlopeOptionsProps) => {
+  // Add safety check for measurements.areasByPitch
+  if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
+    return null;
+  }
+  
   // Check if the roof has 2/12 pitch areas
   const lowSlopePitchArea = measurements.areasByPitch.find(
     area => area.pitch === "2:12" || area.pitch === "2/12"

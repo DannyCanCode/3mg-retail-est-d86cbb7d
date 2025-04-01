@@ -20,6 +20,7 @@ interface RoofAreaTabProps {
   handleAreaByPitchChange: (index: number, field: keyof AreaByPitch, value: string) => void;
   addPitchArea: () => void;
   removePitchArea: (index: number) => void;
+  readOnly?: boolean;
   goToNextTab: () => void;
 }
 
@@ -29,6 +30,7 @@ export function RoofAreaTab({
   handleAreaByPitchChange,
   addPitchArea,
   removePitchArea,
+  readOnly,
   goToNextTab,
 }: RoofAreaTabProps) {
   // Calculate if any of the pitches are flat (requires special materials)
@@ -52,6 +54,7 @@ export function RoofAreaTab({
               value={measurements.totalArea || ""}
               onChange={handleInputChange}
               placeholder="Enter total roof area"
+              readOnly={readOnly}
             />
             <p className="text-sm text-muted-foreground">
               The total area of the roof in square feet
@@ -66,6 +69,7 @@ export function RoofAreaTab({
               value={measurements.predominantPitch || ""}
               onChange={handleInputChange}
               placeholder="e.g., 6:12"
+              readOnly={readOnly}
             />
             <p className="text-sm text-muted-foreground">
               The most common pitch on the roof (e.g., 4:12, 6:12)
@@ -81,6 +85,7 @@ export function RoofAreaTab({
               value={measurements.penetrationsArea || ""}
               onChange={handleInputChange}
               placeholder="Enter penetrations area"
+              readOnly={readOnly}
             />
             <p className="text-sm text-muted-foreground">
               Total area of penetrations (vents, skylights, etc.)
@@ -100,6 +105,7 @@ export function RoofAreaTab({
                 value={measurements.propertyAddress || ""}
                 onChange={handleInputChange}
                 placeholder="Enter property address"
+                readOnly={readOnly}
               />
               <p className="text-sm text-muted-foreground">
                 The full address of the property
@@ -114,6 +120,7 @@ export function RoofAreaTab({
                   value={measurements.latitude || ""}
                   onChange={handleInputChange}
                   placeholder="e.g., 28.5383"
+                  readOnly={readOnly}
                 />
               </div>
               <div className="space-y-2">
@@ -124,6 +131,7 @@ export function RoofAreaTab({
                   value={measurements.longitude || ""}
                   onChange={handleInputChange}
                   placeholder="e.g., -81.3792"
+                  readOnly={readOnly}
                 />
               </div>
             </div>
@@ -159,6 +167,7 @@ export function RoofAreaTab({
                   value={area.pitch}
                   onChange={(e) => handleAreaByPitchChange(index, 'pitch', e.target.value)}
                   placeholder="e.g., 6:12"
+                  readOnly={readOnly}
                 />
               </div>
               <div className="col-span-4">
@@ -167,6 +176,7 @@ export function RoofAreaTab({
                   value={area.area || ""}
                   onChange={(e) => handleAreaByPitchChange(index, 'area', e.target.value)}
                   placeholder="Area"
+                  readOnly={readOnly}
                 />
               </div>
               <div className="col-span-4">
@@ -177,6 +187,7 @@ export function RoofAreaTab({
                   placeholder="Percentage"
                   min="0"
                   max="100"
+                  readOnly={readOnly}
                 />
               </div>
               <div className="col-span-1">

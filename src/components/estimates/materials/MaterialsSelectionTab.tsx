@@ -22,17 +22,25 @@ import { toast } from "@/hooks/use-toast";
 
 interface MaterialsSelectionTabProps {
   measurements: MeasurementValues;
-  onBack: () => void;
-  onContinue: (selectedMaterials: {[key: string]: Material}, quantities: {[key: string]: number}) => void;
+  selectedMaterials?: {[key: string]: Material};
+  quantities?: {[key: string]: number};
+  onMaterialsSelected: (selectedMaterials: {[key: string]: Material}, quantities: {[key: string]: number}) => void;
+  readOnly?: boolean;
 }
 
 export function MaterialsSelectionTab({
   measurements,
-  onBack,
-  onContinue,
+  selectedMaterials,
+  quantities,
+  onMaterialsSelected,
+  readOnly,
 }: MaterialsSelectionTabProps) {
+  // Debug log measurements
+  console.log("MaterialsSelectionTab rendering with measurements:", measurements);
+  console.log("areasByPitch:", measurements?.areasByPitch);
+  
   // Add validation at the start
-  if (!measurements || !measurements.totalArea || measurements.totalArea === 0) {
+  if (!measurements || !measurements.totalArea || measurements.totalArea === 0 || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
     return (
       <Card>
         <CardHeader>
@@ -42,7 +50,7 @@ export function MaterialsSelectionTab({
           <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
         </CardContent>
         <CardFooter>
-          <Button onClick={onBack} variant="outline">Back to Measurements</Button>
+          <Button onClick={() => onMaterialsSelected({}, {})} variant="outline">Back to Measurements</Button>
         </CardFooter>
       </Card>
     );
@@ -57,8 +65,6 @@ export function MaterialsSelectionTab({
   const [expandedCategories, setExpandedCategories] = useState<string[]>([
     MaterialCategory.SHINGLES
   ]);
-  const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
-  const [quantities, setQuantities] = useState<{[key: string]: number}>({});
   const [showLowSlope, setShowLowSlope] = useState(false);
   // Special waste factor for GAF Timberline HDZ
   const [gafTimberlineWasteFactor, setGafTimberlineWasteFactor] = useState(12); // Minimum 12%
@@ -78,6 +84,11 @@ export function MaterialsSelectionTab({
   
   // Check if there are flat/low-slope areas on the roof
   useEffect(() => {
+    // Make sure measurements and areasByPitch are valid
+    if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+      return;
+    }
+    
     const hasFlatRoofAreas = measurements.areasByPitch.some(
       area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
     );
@@ -178,8 +189,7 @@ export function MaterialsSelectionTab({
     
     // Update state only if materials were added
     if (has0Pitch || has1or2Pitch) {
-      setSelectedMaterials(newSelectedMaterials);
-      setQuantities(newQuantities);
+      onMaterialsSelected(newSelectedMaterials, newQuantities);
     }
   }, [measurements, expandedCategories]);
 
@@ -213,7 +223,7 @@ export function MaterialsSelectionTab({
     }, 0);
     
     // Add low slope costs if applicable
-    if (showLowSlope) {
+    if (showLowSlope && measurements && measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
       const lowSlopePitchArea = measurements.areasByPitch.find(
         area => area.pitch === "2:12" || area.pitch === "2/12"
       );
@@ -253,12 +263,10 @@ export function MaterialsSelectionTab({
       effectiveWasteFactor
     );
     
-    setSelectedMaterials({
+    onMaterialsSelected({
       ...selectedMaterials,
       [material.id]: material
-    });
-    
-    setQuantities({
+    }, {
       ...quantities,
       [material.id]: suggestedQuantity
     });
@@ -280,15 +288,16 @@ export function MaterialsSelectionTab({
     delete newSelectedMaterials[materialId];
     delete newQuantities[materialId];
     
-    setSelectedMaterials(newSelectedMaterials);
-    setQuantities(newQuantities);
+    onMaterialsSelected(newSelectedMaterials, newQuantities);
   };
   
   // Update quantity for a material
   const updateQuantity = (materialId: string, newQuantity: number) => {
     if (newQuantity < 0) return;
     
-    setQuantities({
+    onMaterialsSelected({
+      ...selectedMaterials,
+    }, {
       ...quantities,
       [materialId]: newQuantity
     });
@@ -323,7 +332,7 @@ export function MaterialsSelectionTab({
       );
     });
     
-    setQuantities(newQuantities);
+    onMaterialsSelected(selectedMaterials, newQuantities);
   };
   
   // Handle GAF Timberline HDZ waste factor change
@@ -339,7 +348,7 @@ export function MaterialsSelectionTab({
         newWasteFactor / 100
       );
       
-      setQuantities(newQuantities);
+      onMaterialsSelected(selectedMaterials, newQuantities);
     }
   };
   
@@ -432,13 +441,14 @@ export function MaterialsSelectionTab({
     }
     
     // Update state with new bundle + preserved mandatory materials
-    setSelectedMaterials(newSelectedMaterials);
-    setQuantities(newQuantities);
+    onMaterialsSelected(newSelectedMaterials, newQuantities);
   };
   
   // Handle continue button click
   const handleContinue = () => {
-    onContinue(selectedMaterials, quantities);
+    // INSTEAD of calling onMaterialsSelected which triggers navigation to pricing
+    // Just return so that parent component handles tab navigation naturally
+    return;
   };
   
   // Format price to display as currency
@@ -855,7 +865,7 @@ export function MaterialsSelectionTab({
             <Button 
               type="button" 
               variant="outline" 
-              onClick={onBack}
+              onClick={() => onMaterialsSelected({}, {})}
               className="flex items-center gap-2"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -863,7 +873,11 @@ export function MaterialsSelectionTab({
             </Button>
             
             <Button 
-              onClick={handleContinue}
+              onClick={() => {
+                // Save materials without triggering navigation
+                // This lets the parent component handle tab navigation
+                onMaterialsSelected(selectedMaterials, quantities);
+              }}
               disabled={Object.keys(selectedMaterials).length === 0}
               className="flex items-center gap-2"
             >

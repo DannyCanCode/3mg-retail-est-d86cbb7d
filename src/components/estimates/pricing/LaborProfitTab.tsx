@@ -17,6 +17,12 @@ interface LaborProfitTabProps {
   initialLaborRates?: LaborRates;
   initialProfitMargin?: number;
   measurements?: MeasurementValues;
+  selectedMaterials: {[key: string]: Material};
+  quantities: {[key: string]: number};
+  initialLaborRates2?: LaborRates;
+  initialProfitMargin2?: number;
+  onLaborProfitContinue: (laborRates: LaborRates, profitMargin: number) => void;
+  readOnly?: boolean;
 }
 
 export interface LaborRates {
@@ -50,7 +56,13 @@ export function LaborProfitTab({
     wastePercentage: 12
   },
   initialProfitMargin = 25,
-  measurements
+  measurements,
+  selectedMaterials,
+  quantities,
+  initialLaborRates2,
+  initialProfitMargin2,
+  onLaborProfitContinue,
+  readOnly
 }: LaborProfitTabProps) {
   console.log("LaborProfitTab rendering, received measurements:", measurements?.totalArea);
   console.log("Received initialLaborRates:", JSON.stringify(initialLaborRates, null, 2));
@@ -71,7 +83,9 @@ export function LaborProfitTab({
     pitchRates: {},
     wastePercentage: 12,
     // Override with any values from initialLaborRates that exist
-    ...initialLaborRates
+    ...initialLaborRates,
+    // If initialLaborRates2 is provided, use those values instead
+    ...(initialLaborRates2 || {})
   };
   
   console.log("Using safeInitialRates:", JSON.stringify(safeInitialRates, null, 2));
@@ -83,13 +97,7 @@ export function LaborProfitTab({
   }
   
   const [laborRates, setLaborRates] = useState<LaborRates>(safeInitialRates);
-  const [profitMargin, setProfitMargin] = useState(initialProfitMargin || 25);
-  
-  // Check for special materials in the parent component
-  // Here, we would need to get the selectedMaterials and quantities from the parent
-  // For now, we'll focus on the pitch-specific calculations
-  const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
-  const [quantities, setQuantities] = useState<{[key: string]: number}>({});
+  const [profitMargin, setProfitMargin] = useState(initialProfitMargin2 || initialProfitMargin || 25);
   
   // Calculate the rate for each pitch level
   const getPitchRate = (pitch: string = "6:12") => {
@@ -321,7 +329,11 @@ export function LaborProfitTab({
       installation: laborRates.laborRate * 0.7, // 70% goes to installation
     };
     
-    onContinue(laborRates, profitMargin);
+    if (onLaborProfitContinue) {
+      onLaborProfitContinue(laborRates, profitMargin);
+    } else if (onContinue) {
+      onContinue(laborRates, profitMargin);
+    }
   };
   
   // Generate pitch options from 8/12 to 18/12

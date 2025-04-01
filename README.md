@@ -1,129 +1,73 @@
-# 3MG Retail Estimator
+# 3MG Retail Roofing Estimator
 
-A web application for processing roof measurement PDFs and generating estimates.
+A modern roofing estimation tool for 3MG Retail Roofing.
 
 ## Features
 
-- PDF upload and processing
-- Automatic measurement extraction including area by pitch data
-- Save measurements to Supabase database
-- Create and manage roofing estimates
-- Intelligent material calculation with special rules for GAF Timberline HDZ
-- Support for multiple roof pitches and accurate waste factor calculation
+### Dashboard
+- Overview of estimate counts and statuses
+- Quick access to recent estimates
+- EagleView PDF uploader for measurements extraction
 
-## Current Progress
+### Estimates
+- Create detailed roofing estimates with material selections
+- Select from GAF or other manufacturer packages
+- Configure labor rates and profit margins
+- View and manage all estimate statuses (Draft, Pending, Approved, Rejected)
 
-We've successfully implemented several key features:
+### Measurements
+- View all properties with extracted measurements from EagleView reports
+- Detailed breakdown of roof areas by pitch
+- Comprehensive roof measurements including ridges, hips, valleys, eaves, and rakes
+- Create new estimates directly from measurement data
+- Export measurement data for offline use or sharing
 
-- ✅ PDF upload and processing for EagleView reports
-- ✅ Automatic extraction of roof measurements including areas by pitch
-- ✅ Special waste factor handling for GAF Timberline HDZ (minimum 12%)
-- ✅ Display of square counts alongside bundle quantities
-- ✅ Comprehensive material library with accurate pricing and coverage rules
-- ✅ Fixed the "Start Fresh" and "Upload Another" functionality
+### Pricing Templates
+- Create and manage pricing templates with default material selections
+- Customize labor rates, profit margins, and permit fees
+- Duplicate templates to create variations for different project types
+- Apply templates during estimate creation for faster workflow
 
-## Upcoming Features
-
-We're currently working on:
-
-- **GAF Package Options** - Implementation of GAF 1 (basic) and GAF 2 (premium) packages
-- **Warranty Options** - Support for Silver Pledge and Gold Pledge warranty selections
-- **Low Slope Handling** - Special pricing and ISO requirements for 2/12 pitch areas
-- **Enhanced UI** - Improvements to the measurement display and material selection interface
-
-See the [Milestones document](./README-MILESTONES.md) for a detailed roadmap.
-
-## Tech Stack
-
-- React + TypeScript + Vite
-- Tailwind CSS
-- Supabase (storage, edge functions, database)
-- PDF.js for PDF processing
-
-## Setup
-
-### Prerequisites
-
-- Node.js 16+
-- npm or yarn
-- Supabase account
+## Getting Started
 
 ### Installation
 
-1. Clone the repository:
-   ```
-   git clone https://github.com/DannyCanCode/3mg-retail-est-d86cbb7d.git
-   cd 3mg-retail-est-d86cbb7d
-   ```
+```bash
+# Install dependencies
+npm install
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+# Start development server
+npm run dev
+```
 
-3. Environment setup:
-   - Copy `.env` file and update with your Supabase credentials
-   - Ensure the `pdf-uploads` bucket exists in your Supabase project
+### Configuration
 
-4. Deploy Supabase Edge Function:
-   ```
-   cd supabase/functions/process-pdf
-   supabase functions deploy process-pdf
-   ```
+The application connects to a Supabase backend for data storage. Configure your environment variables:
 
-5. Run the application:
-   ```
-   npm run dev
-   ```
+```
+VITE_SUPABASE_URL=your-supabase-url
+VITE_SUPABASE_ANON_KEY=your-supabase-key
+```
 
-### Supabase Configuration
+## Workflow
 
-The application requires the following Supabase resources:
+1. Upload an EagleView PDF to extract measurements
+2. Review the measurements in the Measurements tab
+3. Create a new estimate from the measurements
+4. Select materials and configure pricing
+5. Save the estimate and share with the customer
 
-1. Storage bucket named `pdf-uploads` with public access
-2. Edge function named `process-pdf` for PDF processing
-3. Database tables:
-   - `measurements` - stores extracted roof measurements
-   - `estimates` - stores estimates created from measurements
-   - `estimate_items` - stores line items for estimates
-   - `pricing` - stores pricing data
-   - `pricing_lists` - stores pricing list data
+## Technologies
 
-## Usage
-
-1. Upload an EagleView PDF file
-2. The system will process the PDF and extract measurements including areas by pitch
-3. View the extracted measurements
-4. Create an estimate based on the measurements
-5. Add pricing and materials to the estimate
-6. Generate the final estimate
-
-## Key Workflows
-
-### PDF Processing and Measurement Extraction
-
-1. Upload an EagleView PDF
-2. System parses and extracts all measurements
-3. Measurements are displayed with special handling for pitch areas
-4. Create estimate based on measurements
-
-### Material Selection and Pricing
-
-1. Select materials from comprehensive library
-2. System calculates quantities based on measurements and coverage rules
-3. Special handling applied for GAF Timberline HDZ and low slope areas
-4. Total cost calculated with appropriate waste factors
-
-## Troubleshooting
-
-- **PDF Upload Issues**: Check Supabase storage bucket permissions
-- **Processing Errors**: Verify Edge Function deployment and logs
-- **Database Issues**: Check database structure matches the required schema
-- **Material Calculation Issues**: Verify the special rules in the utils.ts file
+- React + TypeScript
+- Vite for development and building
+- Shadcn UI components
+- Supabase for backend storage
+- PDF.js for PDF parsing
 
 ## License
 
-MIT
+[MIT](LICENSE)
 
 ## Project info
 

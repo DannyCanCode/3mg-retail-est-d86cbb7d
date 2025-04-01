@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { MeasurementValues } from "./types";
 interface LengthMeasurementsTabProps {
   measurements: MeasurementValues;
   handleInputChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  readOnly?: boolean;
   goToPreviousTab: () => void;
   goToNextTab: () => void;
 }
@@ -17,6 +17,7 @@ interface LengthMeasurementsTabProps {
 export function LengthMeasurementsTab({
   measurements,
   handleInputChange,
+  readOnly,
   goToPreviousTab,
   goToNextTab,
 }: LengthMeasurementsTabProps) {
