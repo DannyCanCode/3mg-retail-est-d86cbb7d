@@ -520,6 +520,17 @@ export const ROOFING_MATERIALS: Material[] = [
     }
   },
   {
+    id: "master-sealant",
+    name: "Master Sealant",
+    category: MaterialCategory.ACCESSORIES,
+    price: 11.76,
+    unit: "Tube",
+    coverageRule: {
+      description: "1 tube per 10 squares",
+      calculation: "Ceiling(Total Squares ÷ 10)",
+    }
+  },
+  {
     id: "orv-screws",
     name: "ORV Screws",
     category: MaterialCategory.ACCESSORIES,
