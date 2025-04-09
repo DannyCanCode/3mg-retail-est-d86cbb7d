@@ -509,17 +509,6 @@ export const ROOFING_MATERIALS: Material[] = [
     }
   },
   {
-    id: "cap-nails",
-    name: "Cap Nails",
-    category: MaterialCategory.ACCESSORIES,
-    price: 39.34,
-    unit: "Box",
-    coverageRule: {
-      description: "1 box per 10 squares of felt or synthetic",
-      calculation: "Ceiling(Total Squares ÷ 10)",
-    }
-  },
-  {
     id: "karnak-19",
     name: "Karnak 19",
     category: MaterialCategory.ACCESSORIES,
