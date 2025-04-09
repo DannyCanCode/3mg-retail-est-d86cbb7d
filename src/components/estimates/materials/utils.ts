@@ -65,6 +65,30 @@ export const calculateMaterialQuantity = (
     }
   }
   
+  // For accessories, calculate based on coverage rules
+  if (material.category === MaterialCategory.ACCESSORIES) {
+    const totalSquares = measurements.totalArea / 100;
+    const totalSquaresWithWaste = totalSquares * (1 + wasteFactor);
+    
+    // Check if the material has a specific coverage rule
+    if (material.coverageRule && material.coverageRule.description) {
+      // For materials that use "per X squares" in their coverage rule (like Master Sealant)
+      if (material.coverageRule.description.includes("per 10 squares")) {
+        return Math.ceil(totalSquaresWithWaste / 10);
+      } else if (material.coverageRule.description.includes("per 15 squares") || 
+                material.coverageRule.description.includes("per 10-15 squares")) {
+        return Math.ceil(totalSquaresWithWaste / 15);
+      } else if (material.coverageRule.description.includes("per 20 squares")) {
+        return Math.ceil(totalSquaresWithWaste / 20);
+      } else if (material.coverageRule.description.includes("per 30 squares")) {
+        return Math.ceil(totalSquaresWithWaste / 30);
+      }
+    }
+    
+    // If we couldn't determine from the coverage rule, default to 0 (manual entry)
+    return 0;
+  }
+  
   // Default fallback - shouldn't reach here in most cases
   return 0;
 }

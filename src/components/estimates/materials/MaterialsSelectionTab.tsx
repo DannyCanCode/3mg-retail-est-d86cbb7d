@@ -566,6 +566,25 @@ export function MaterialsSelectionTab({
       return `Low slope area ${lowSlopeArea.toFixed(1)} sq ft ÷ 100 = ${(lowSlopeArea/100).toFixed(1)} squares ÷ ${squaresPerRoll} = ${quantity} rolls`;
     }
     
+    // For accessories with per-square calculations (like Master Sealant)
+    if (material.category === MaterialCategory.ACCESSORIES) {
+      const totalArea = Math.abs(measurements.totalArea);
+      const totalSquares = totalArea / 100;
+      const totalSquaresWithWaste = Math.round(totalSquares * (1 + wasteFactor / 100) * 10) / 10;
+      
+      // Check for specific coverage patterns in the description
+      if (material.coverageRule.description.includes("per 10 squares")) {
+        return `${totalArea.toFixed(1)} sq ft ÷ 100 = ${totalSquares.toFixed(1)} squares × (1 + ${wasteFactor}% waste) = ${totalSquaresWithWaste} squares ÷ 10 = ${quantity} ${material.unit.toLowerCase()}s`;
+      } else if (material.coverageRule.description.includes("per 15 squares") || 
+                material.coverageRule.description.includes("per 10-15 squares")) {
+        return `${totalArea.toFixed(1)} sq ft ÷ 100 = ${totalSquares.toFixed(1)} squares × (1 + ${wasteFactor}% waste) = ${totalSquaresWithWaste} squares ÷ 15 = ${quantity} ${material.unit.toLowerCase()}s`;
+      } else if (material.coverageRule.description.includes("per 20 squares")) {
+        return `${totalArea.toFixed(1)} sq ft ÷ 100 = ${totalSquares.toFixed(1)} squares × (1 + ${wasteFactor}% waste) = ${totalSquaresWithWaste} squares ÷ 20 = ${quantity} ${material.unit.toLowerCase()}s`;
+      } else if (material.coverageRule.description.includes("per 30 squares")) {
+        return `${totalArea.toFixed(1)} sq ft ÷ 100 = ${totalSquares.toFixed(1)} squares × (1 + ${wasteFactor}% waste) = ${totalSquaresWithWaste} squares ÷ 30 = ${quantity} ${material.unit.toLowerCase()}s`;
+      }
+    }
+    
     // Default explanation
     return material.coverageRule.calculation;
   };
@@ -875,7 +894,7 @@ export function MaterialsSelectionTab({
             <Button 
               onClick={() => {
                 // Save materials without triggering navigation
-                // This lets the parent component handle tab navigation
+                // This lets the parent component handle tab navigation naturally
                 onMaterialsSelected(selectedMaterials, quantities);
               }}
               disabled={Object.keys(selectedMaterials).length === 0}
