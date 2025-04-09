@@ -38,6 +38,12 @@ export interface LaborRates {
   permitRate: number; // Add permit rate
   pitchRates: {[pitch: string]: number};
   wastePercentage: number;
+  includeGutters?: boolean; // Whether to include gutters
+  gutterLinearFeet?: number; // Linear feet of 6" aluminum gutters
+  gutterRate?: number; // Rate per linear foot for gutters
+  includeDownspouts?: boolean; // Whether to include downspouts
+  downspoutCount?: number; // Number of downspouts
+  downspoutRate?: number; // Rate per downspout
 }
 
 export function LaborProfitTab({
@@ -53,7 +59,13 @@ export function LaborProfitTab({
     includePermits: true, // Default to include permits
     permitRate: 550, // Default to Orlando permit rate
     pitchRates: {},
-    wastePercentage: 12
+    wastePercentage: 12,
+    includeGutters: false,
+    gutterLinearFeet: 0,
+    gutterRate: 8, // $8 per linear foot
+    includeDownspouts: false,
+    downspoutCount: 0,
+    downspoutRate: 65 // $65 each
   },
   initialProfitMargin = 25,
   measurements,
@@ -82,6 +94,12 @@ export function LaborProfitTab({
     permitRate: 550,
     pitchRates: {},
     wastePercentage: 12,
+    includeGutters: false,
+    gutterLinearFeet: 0,
+    gutterRate: 8,
+    includeDownspouts: false,
+    downspoutCount: 0,
+    downspoutRate: 65,
     // Override with any values from initialLaborRates that exist
     ...initialLaborRates,
     // If initialLaborRates2 is provided, use those values instead
@@ -466,6 +484,88 @@ export function LaborProfitTab({
                 <p className="text-sm">Permit cost for {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}: 
                   ${laborRates.permitRate.toFixed(2)}
                 </p>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <Separator />
+        
+        {/* Gutters Section */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Gutters</h3>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-4">
+              <Switch
+                id="includeGutters"
+                checked={!!laborRates.includeGutters}
+                onCheckedChange={(checked) => handleLaborRateChange("includeGutters", checked)}
+              />
+              <Label htmlFor="includeGutters">
+                Install 6" Aluminum Seamless Gutters ($8 per linear foot)
+              </Label>
+            </div>
+            
+            {!!laborRates.includeGutters && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="gutterLinearFeet">Linear Feet</Label>
+                  <Input
+                    id="gutterLinearFeet"
+                    type="number"
+                    value={(laborRates.gutterLinearFeet || 0).toString()}
+                    onChange={(e) => handleLaborRateChange("gutterLinearFeet", e.target.value)}
+                    min="0"
+                    step="1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gutterTotal">Total Gutter Cost</Label>
+                  <Input
+                    id="gutterTotal"
+                    type="text"
+                    value={`$${((laborRates.gutterLinearFeet || 0) * (laborRates.gutterRate || 8)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-center space-x-4 mt-4">
+              <Switch
+                id="includeDownspouts"
+                checked={!!laborRates.includeDownspouts}
+                onCheckedChange={(checked) => handleLaborRateChange("includeDownspouts", checked)}
+              />
+              <Label htmlFor="includeDownspouts">
+                Install 3" x 4" Downspouts ($65 each)
+              </Label>
+            </div>
+            
+            {!!laborRates.includeDownspouts && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="downspoutCount">Number of Downspouts</Label>
+                  <Input
+                    id="downspoutCount"
+                    type="number"
+                    value={(laborRates.downspoutCount || 0).toString()}
+                    onChange={(e) => handleLaborRateChange("downspoutCount", e.target.value)}
+                    min="0"
+                    step="1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="downspoutTotal">Total Downspout Cost</Label>
+                  <Input
+                    id="downspoutTotal"
+                    type="text"
+                    value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 65)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
               </div>
             )}
           </div>

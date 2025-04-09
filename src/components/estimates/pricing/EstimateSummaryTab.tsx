@@ -132,7 +132,13 @@ export function EstimateSummaryTab({
     includePermits: laborRates?.includePermits || true,
     permitRate: laborRates?.permitRate || 550,
     pitchRates: laborRates?.pitchRates || {},
-    wastePercentage: laborRates?.wastePercentage || 12
+    wastePercentage: laborRates?.wastePercentage || 12,
+    includeGutters: laborRates?.includeGutters || false,
+    gutterLinearFeet: laborRates?.gutterLinearFeet || 0,
+    gutterRate: laborRates?.gutterRate || 8,
+    includeDownspouts: laborRates?.includeDownspouts || false,
+    downspoutCount: laborRates?.downspoutCount || 0,
+    downspoutRate: laborRates?.downspoutRate || 65
   };
 
   // Calculate the number of squares
@@ -301,6 +307,24 @@ export function EstimateSummaryTab({
       name: `Permits (${safeLaborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"})`,
       rate: safeLaborRates.permitRate,
       totalCost: safeLaborRates.permitRate
+    });
+  }
+  
+  // Add gutters if included
+  if (safeLaborRates.includeGutters && safeLaborRates.gutterLinearFeet > 0) {
+    laborCosts.push({
+      name: `6" Aluminum Seamless Gutters (${safeLaborRates.gutterLinearFeet} linear ft)`,
+      rate: safeLaborRates.gutterRate,
+      totalCost: safeLaborRates.gutterRate * safeLaborRates.gutterLinearFeet
+    });
+  }
+  
+  // Add downspouts if included
+  if (safeLaborRates.includeDownspouts && safeLaborRates.downspoutCount > 0) {
+    laborCosts.push({
+      name: `3" x 4" Downspouts (${safeLaborRates.downspoutCount})`,
+      rate: safeLaborRates.downspoutRate,
+      totalCost: safeLaborRates.downspoutRate * safeLaborRates.downspoutCount
     });
   }
   
