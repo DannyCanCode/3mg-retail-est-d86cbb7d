@@ -154,36 +154,45 @@ export function MaterialsSelectionTab({
         // Calculate area with 1/12 or 2/12 pitch
         const lowPitchArea = measurements.areasByPitch
           .filter(area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch))
-          .reduce((total, area) => total + area.area, 0);
+          .reduce((total, area) => total + (area.area || 0), 0);
         
-        // Calculate quantity (both materials use 0.8 squares/roll)
-        const squaresNeeded = lowPitchArea / 100;
-        const baseQuantity = Math.ceil(squaresNeeded / 0.8);
-        const capQuantity = Math.ceil(squaresNeeded / 0.8);
-        
-        // Add to materials with a note that they're mandatory
-        const mandatoryBaseSheet = {
-          ...baseSheetMaterial,
-          name: `${baseSheetMaterial.name} (Required for 1/12 or 2/12 pitch - cannot be removed)`
-        };
-        
-        const mandatoryCapSheet = {
-          ...capSheetMaterial,
-          name: `${capSheetMaterial.name} (Required for 1/12 or 2/12 pitch - cannot be removed)`
-        };
-        
-        newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBaseSheet;
-        newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCapSheet;
-        newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
-        newQuantities["polyglass-polyflex-app"] = capQuantity;
-        
-        // Show notification if these are new additions
-        if (!selectedMaterials["polyglass-elastoflex-sbs"] || !selectedMaterials["polyglass-polyflex-app"]) {
-          toast({
-            title: "Low Slope Materials Auto-Selected",
-            description: `Polyglass Base and Cap sheets automatically added because your roof has 1/12 or 2/12 pitch areas (${lowPitchArea.toFixed(1)} sq ft).`,
-          });
+        // --- FIX: Calculate quantity based on lowPitchArea --- 
+        if (lowPitchArea > 0) {
+          const squaresNeeded = lowPitchArea / 100;
+          // Ensure waste factor is applied to low slope areas as well
+          const wasteFactorForLowSlope = wasteFactor / 100; // Use the general waste factor
+          const squaresWithWaste = squaresNeeded * (1 + wasteFactorForLowSlope);
+          const baseQuantity = Math.ceil(squaresWithWaste / 0.8); // Apply to squares with waste
+          const capQuantity = Math.ceil(squaresWithWaste / 0.8); // Apply to squares with waste
+          console.log(`[useEffect] Calculated Polyglass quantities: Area=${lowPitchArea.toFixed(1)}, Squares=${squaresNeeded.toFixed(2)}, Waste=${wasteFactor}%, SqWaste=${squaresWithWaste.toFixed(2)}, BaseQ=${baseQuantity}, CapQ=${capQuantity}`);
+
+          // Add to materials with a note that they're mandatory
+          const mandatoryBaseSheet = {
+            ...baseSheetMaterial,
+            name: `${baseSheetMaterial.name} (Required for 1/12 or 2/12 pitch - cannot be removed)`
+          };
+          
+          const mandatoryCapSheet = {
+            ...capSheetMaterial,
+            name: `${capSheetMaterial.name} (Required for 1/12 or 2/12 pitch - cannot be removed)`
+          };
+          
+          newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBaseSheet;
+          newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCapSheet;
+          newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
+          newQuantities["polyglass-polyflex-app"] = capQuantity;
+          
+          // Show notification if these are new additions
+          if (!selectedMaterials["polyglass-elastoflex-sbs"] || !selectedMaterials["polyglass-polyflex-app"]) {
+            toast({
+              title: "Low Slope Materials Auto-Selected",
+              description: `Polyglass Base and Cap sheets automatically added because your roof has 1/12 or 2/12 pitch areas (${lowPitchArea.toFixed(1)} sq ft).`,
+            });
+          }
+        } else {
+            console.log("[useEffect] lowPitchArea is 0, skipping Polyglass quantity calculation.");
         }
+        // --- END FIX --- 
       }
     }
     
