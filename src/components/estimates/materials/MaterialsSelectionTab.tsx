@@ -464,36 +464,36 @@ export function MaterialsSelectionTab({
     if (material.category === MaterialCategory.SHINGLES) {
       // --- Field Shingles (e.g., GAF Timberline HDZ) ---
       if (material.unit === 'bundle' && !material.id.includes('ridge') && !material.id.includes('hip') && !material.id.includes('starter')) {
-        console.log(`[Explainer] Calculating explanation for Field Shingle: ${material.id}`); // Log Start
+        console.log(`[Explainer V2] Calculating explanation for Field Shingle: ${material.id}`); // Log Start V2
         const actualWasteFactor = material.id === "gaf-timberline-hdz" 
                                   ? Math.max(gafTimberlineWasteFactor / 100, 0.12)
                                   : wasteFactor / 100; 
                                   
         let steepSlopeArea = 0;
         if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
-            console.log(`[Explainer] Found areasByPitch:`, measurements.areasByPitch); // Log pitch data
+            console.log(`[Explainer V2] Found areasByPitch:`, JSON.stringify(measurements.areasByPitch)); // Log pitch data V2
             steepSlopeArea = measurements.areasByPitch
               .filter(area => {
                 const pitchParts = area.pitch.split(/[:\/]/);
                 const rise = parseInt(pitchParts[0] || '0');
                 const isSteep = !isNaN(rise) && rise >= 3;
-                // console.log(`[Explainer] Pitch: ${area.pitch}, Rise: ${rise}, IsSteep: ${isSteep}`); // Optional detailed log
                 return isSteep;
               })
               .reduce((sum, area) => sum + (area.area || 0), 0);
-             console.log(`[Explainer] Calculated steepSlopeArea: ${steepSlopeArea}`); // Log calculated area
+             console.log(`[Explainer V2] Calculated steepSlopeArea: ${steepSlopeArea}`); // Log calculated area V2
         } else {
-             console.warn(`[Explainer] Field Shingle: areasByPitch missing or not an array. Using totalArea as fallback.`);
+             console.warn(`[Explainer V2] Field Shingle: areasByPitch missing or not an array. Using totalArea as fallback.`);
              steepSlopeArea = measurements.totalArea || 0; 
-             console.log(`[Explainer] Using fallback totalArea: ${steepSlopeArea}`);
+             console.log(`[Explainer V2] Using fallback totalArea: ${steepSlopeArea}`);
         }
 
         const steepSlopeSquares = steepSlopeArea / 100;
-        const squaresWithWaste = Math.round(steepSlopeSquares * (1 + actualWasteFactor) * 10) / 10;
-        const bundlesPerSquare = material.coverageRule.description.includes("3 Bundles/Square") ? 3 : 3;
+        // Ensure waste factor is treated as a percentage added (e.g., 1 + 0.12)
+        const squaresWithWaste = Math.round(steepSlopeSquares * (1 + actualWasteFactor) * 10) / 10; 
+        const bundlesPerSquare = material.coverageRule.description.includes("3 Bundles/Square") ? 3 : 3; 
         
         const explanationText = `${steepSlopeArea.toFixed(1)} sq ft (Steep Slope Only) × (1 + ${(actualWasteFactor * 100).toFixed(0)}% waste) ÷ 100 = ${squaresWithWaste.toFixed(1)} squares × ${bundlesPerSquare} = ${quantity} bundles`;
-        console.log(`[Explainer] Generated Text: ${explanationText}`); // Log final text
+        console.log(`[Explainer V2] Generated Text: ${explanationText}`); // Log final text V2
         return explanationText;
       } 
       
@@ -502,24 +502,26 @@ export function MaterialsSelectionTab({
         const ridgeLength = measurements.ridgeLength || 0;
         const hipLength = measurements.hipLength || 0;
         const lfPerBundle = extractCoverageValue(material.coverageRule.description);
-        const totalLengthWithWaste = (ridgeLength + hipLength) * (1 + wasteFactor / 100); // Add waste factor here too for consistency
+        // Use the component's general wasteFactor state for length waste
+        const totalLengthWithWaste = (ridgeLength + hipLength) * (1 + wasteFactor / 100);
         return `Ridge (${ridgeLength} LF) + Hip (${hipLength} LF) = ${ridgeLength + hipLength} LF × (1 + ${wasteFactor}% waste) = ${totalLengthWithWaste.toFixed(1)} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
       }
       
       // --- Starter Shingles ---
       if (material.id.includes("starter")) {
-        let totalLength = 0;
-        let lengthDesc = "";
-        if (material.id === "gaf-prostart-starter-shingle-strip") {
-          totalLength = measurements.eaveLength || 0;
-          lengthDesc = `Eaves (${totalLength} LF)`;
-        } else {
-          totalLength = (measurements.eaveLength || 0) + (measurements.rakeLength || 0);
+         let totalLength = 0;
+         let lengthDesc = "";
+         if (material.id === "gaf-prostart-starter-shingle-strip") {
+           totalLength = measurements.eaveLength || 0;
+           lengthDesc = `Eaves (${totalLength} LF)`;
+         } else {
+           totalLength = (measurements.eaveLength || 0) + (measurements.rakeLength || 0);
            lengthDesc = `Eaves (${measurements.eaveLength || 0} LF) + Rakes (${measurements.rakeLength || 0} LF) = ${totalLength} LF`;
-        }
-        const lfPerBundle = extractCoverageValue(material.coverageRule.description);
-        const totalLengthWithWaste = totalLength * (1 + wasteFactor / 100); // Add waste factor
-        return `${lengthDesc} × (1 + ${wasteFactor}% waste) = ${totalLengthWithWaste.toFixed(1)} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
+         }
+         const lfPerBundle = extractCoverageValue(material.coverageRule.description);
+         // Use the component's general wasteFactor state for length waste
+         const totalLengthWithWaste = totalLength * (1 + wasteFactor / 100); 
+         return `${lengthDesc} × (1 + ${wasteFactor}% waste) = ${totalLengthWithWaste.toFixed(1)} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
       }
       
       // Fallback explanation for any other shingles (shouldn't be reached ideally)
@@ -556,13 +558,16 @@ export function MaterialsSelectionTab({
     }
     
     if (material.category === MaterialCategory.LOW_SLOPE) {
+      console.log(`[Explainer V2] Calculating explanation for Low Slope: ${material.id}`); // Log Start V2
       const lowSlopeArea = measurements.areasByPitch
         .filter(area => {
-          const [rise] = area.pitch.split(/[:\/]/).map(Number);
-          return rise <= 2;
+          const pitchParts = area.pitch.split(/[:\/]/);
+          const rise = parseInt(pitchParts[0] || '0');
+          return !isNaN(rise) && rise <= 2;
         })
-        .reduce((total, area) => total + area.area, 0);
-      
+        .reduce((total, area) => total + (area.area || 0), 0);
+      console.log(`[Explainer V2] Low Slope: Calculated lowSlopeArea (all <= 2/12): ${lowSlopeArea}`); // Log general low slope area
+
       // Special case for GAF Poly ISO 4X8 (for 0/12 pitch)
       if (material.id === "gaf-poly-iso-4x8") {
         const zeroPitchArea = measurements.areasByPitch
@@ -576,18 +581,22 @@ export function MaterialsSelectionTab({
       if (material.id === "polyglass-elastoflex-sbs") {
         const lowPitchArea = measurements.areasByPitch
           .filter(area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch))
-          .reduce((total, area) => total + area.area, 0);
-        
-        return `1/12 or 2/12 pitch area (${lowPitchArea.toFixed(1)} sq ft) ÷ 100 = ${(lowPitchArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
+          .reduce((total, area) => total + (area.area || 0), 0);
+        console.log(`[Explainer V2] Polyglass Base: Calculated specific lowPitchArea (1/12, 2/12): ${lowPitchArea}`); // Log specific area
+        const explanationText = `1/12 or 2/12 pitch area (${lowPitchArea.toFixed(1)} sq ft) ÷ 100 = ${(lowPitchArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
+        console.log(`[Explainer V2] Polyglass Base: Generated Text: ${explanationText}`); // Log final text
+        return explanationText;
       }
       
       // Special case for Polyglass polyflex cap sheet (for 1/12 or 2/12 pitch)
       if (material.id === "polyglass-polyflex-app") {
         const lowPitchArea = measurements.areasByPitch
           .filter(area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch))
-          .reduce((total, area) => total + area.area, 0);
-        
-        return `1/12 or 2/12 pitch area (${lowPitchArea.toFixed(1)} sq ft) ÷ 100 = ${(lowPitchArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
+          .reduce((total, area) => total + (area.area || 0), 0);
+        console.log(`[Explainer V2] Polyglass Cap: Calculated specific lowPitchArea (1/12, 2/12): ${lowPitchArea}`); // Log specific area
+        const explanationText = `1/12 or 2/12 pitch area (${lowPitchArea.toFixed(1)} sq ft) ÷ 100 = ${(lowPitchArea/100).toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
+        console.log(`[Explainer V2] Polyglass Cap: Generated Text: ${explanationText}`); // Log final text
+        return explanationText;
       }
       
       // Default low slope material
