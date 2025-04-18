@@ -489,7 +489,7 @@ export function MaterialsSelectionTab({
   const getCalculationExplanation = (material: Material, quantity: number): string => {
     if (material.category === MaterialCategory.SHINGLES) {
       // --- Field Shingles (e.g., GAF Timberline HDZ) ---
-      if (material.unit === 'bundle' && !material.id.includes('ridge') && !material.id.includes('hip') && !material.id.includes('starter')) {
+      if (material.unit?.toLowerCase() === 'bundle' && !material.id.includes('ridge') && !material.id.includes('hip') && !material.id.includes('starter')) {
         console.log(`[Explainer V2] Calculating explanation for Field Shingle: ${material.id}`); // Log Start V2
         const actualWasteFactor = material.id === "gaf-timberline-hdz" 
                                   ? Math.max(gafTimberlineWasteFactor / 100, 0.12)
