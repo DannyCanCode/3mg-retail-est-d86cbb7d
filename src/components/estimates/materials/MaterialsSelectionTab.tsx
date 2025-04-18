@@ -461,37 +461,63 @@ export function MaterialsSelectionTab({
   
   // Generate a human-readable explanation of the calculation for a material
   const getCalculationExplanation = (material: Material, quantity: number): string => {
-    // Determine what type of material we're dealing with
     if (material.category === MaterialCategory.SHINGLES) {
-      if (material.id === "gaf-timberline-hdz") {
-        const actualWasteFactor = Math.max(gafTimberlineWasteFactor / 100, 0.12);
-        const totalArea = Math.abs(measurements.totalArea);
-        const squaresWithWaste = Math.round((totalArea * (1 + actualWasteFactor)) / 100 * 10) / 10;
-        return `${totalArea.toFixed(1)} sq ft × (1 + ${(actualWasteFactor * 100).toFixed(0)}% waste) ÷ 100 = ${squaresWithWaste} squares × 3 = ${Math.ceil(squaresWithWaste * 3)} bundles`;
+      // --- Field Shingles (e.g., GAF Timberline HDZ) ---
+      // This needs to be checked first before the more specific id.includes checks
+      if (material.unit === 'bundle' && !material.id.includes('ridge') && !material.id.includes('hip') && !material.id.includes('starter')) {
+        const actualWasteFactor = material.id === "gaf-timberline-hdz" 
+                                  ? Math.max(gafTimberlineWasteFactor / 100, 0.12)
+                                  : wasteFactor / 100; // Use general waste factor for others
+                                  
+        // Calculate steep slope area for explanation
+        let steepSlopeArea = 0;
+        if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+            steepSlopeArea = measurements.areasByPitch
+              .filter(area => {
+                const pitchParts = area.pitch.split(/[:\/]/);
+                const rise = parseInt(pitchParts[0] || '0');
+                return !isNaN(rise) && rise >= 3;
+              })
+              .reduce((sum, area) => sum + (area.area || 0), 0);
+        } else {
+             // Fallback or warning if pitch data is missing
+             steepSlopeArea = measurements.totalArea || 0; 
+        }
+
+        const steepSlopeSquares = steepSlopeArea / 100;
+        const squaresWithWaste = Math.round(steepSlopeSquares * (1 + actualWasteFactor) * 10) / 10;
+        const bundlesPerSquare = material.coverageRule.description.includes("3 Bundles/Square") ? 3 : 3; // Assume 3
+
+        return `${steepSlopeArea.toFixed(1)} sq ft (Steep Slope Only) × (1 + ${(actualWasteFactor * 100).toFixed(0)}% waste) ÷ 100 = ${squaresWithWaste.toFixed(1)} squares × ${bundlesPerSquare} = ${quantity} bundles`;
       } 
       
+      // --- Ridge/Hip Cap Shingles ---
       if (material.id.includes("ridge") || material.id.includes("hip")) {
         const ridgeLength = measurements.ridgeLength || 0;
         const hipLength = measurements.hipLength || 0;
         const lfPerBundle = extractCoverageValue(material.coverageRule.description);
-        return `Ridge (${ridgeLength} LF) + Hip (${hipLength} LF) = ${ridgeLength + hipLength} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
+        const totalLengthWithWaste = (ridgeLength + hipLength) * (1 + wasteFactor / 100); // Add waste factor here too for consistency
+        return `Ridge (${ridgeLength} LF) + Hip (${hipLength} LF) = ${ridgeLength + hipLength} LF × (1 + ${wasteFactor}% waste) = ${totalLengthWithWaste.toFixed(1)} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
       }
       
+      // --- Starter Shingles ---
       if (material.id.includes("starter")) {
+        let totalLength = 0;
+        let lengthDesc = "";
         if (material.id === "gaf-prostart-starter-shingle-strip") {
-          const eaveLength = measurements.eaveLength || 0;
-          const lfPerBundle = extractCoverageValue(material.coverageRule.description);
-          return `Eaves (${eaveLength} LF) ÷ ${lfPerBundle} = ${quantity} bundles`;  
+          totalLength = measurements.eaveLength || 0;
+          lengthDesc = `Eaves (${totalLength} LF)`;
         } else {
-          const eaveLength = measurements.eaveLength || 0;
-          const rakeLength = measurements.rakeLength || 0;
-          const lfPerBundle = extractCoverageValue(material.coverageRule.description);
-          return `Eaves (${eaveLength} LF) + Rakes (${rakeLength} LF) = ${eaveLength + rakeLength} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
+          totalLength = (measurements.eaveLength || 0) + (measurements.rakeLength || 0);
+           lengthDesc = `Eaves (${measurements.eaveLength || 0} LF) + Rakes (${measurements.rakeLength || 0} LF) = ${totalLength} LF`;
         }
+        const lfPerBundle = extractCoverageValue(material.coverageRule.description);
+        const totalLengthWithWaste = totalLength * (1 + wasteFactor / 100); // Add waste factor
+        return `${lengthDesc} × (1 + ${wasteFactor}% waste) = ${totalLengthWithWaste.toFixed(1)} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
       }
       
-      // Default shingles
-      return `${Math.abs(measurements.totalArea).toFixed(1)} sq ft ÷ 100 = ${(Math.abs(measurements.totalArea)/100).toFixed(1)} squares × 3 = ${quantity} bundles`;
+      // Fallback explanation for any other shingles (shouldn't be reached ideally)
+      return `Calculation based on ${material.coverageRule.calculation || 'standard rules'}`; 
     } 
     
     if (material.category === MaterialCategory.UNDERLAYMENTS) {
