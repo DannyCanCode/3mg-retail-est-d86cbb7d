@@ -396,13 +396,18 @@ export function MaterialsSelectionTab({
     if (hasStandardPitchAreas) {
       // Find and add the materials in the preset
       presetMaterials[preset].forEach(materialId => {
-        // Skip if this material ID is already in newSelectedMaterials
-        // This prevents package materials from overriding mandatory low-pitch materials
-        if (newSelectedMaterials[materialId]) return;
+        // *** Add logging here ***
+        console.log(`[Preset] Processing materialId: ${materialId}`); 
+
+        if (newSelectedMaterials[materialId]) {
+           console.log(`[Preset] Skipping ${materialId} because it's already selected (mandatory).`);
+           return;
+        }
         
         const material = ROOFING_MATERIALS.find(m => m.id === materialId);
         if (material) {
-          // Special handling for WeatherWatch (valleys only) for both GAF 1 and GAF 2 packages
+          console.log(`[Preset] Found material object for ${materialId}`);
+          // Special handling for WeatherWatch 
           if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
             // Calculate quantity for valleys only - 45.5 LF of valleys equals 1 roll
             const valleyLength = measurements.valleyLength || 0;
@@ -420,22 +425,31 @@ export function MaterialsSelectionTab({
               newQuantities[materialId] = rollsNeeded;
             }
             // If no valleys, don't add WeatherWatch to the package (skip it)
+             console.log(`[Preset] Calculated WeatherWatch quantity: ${newQuantities[materialId]}`);
           } else {
             // Calculate quantity normally for other materials
-            // Use regular waste factor for everything else
             const effectiveWasteFactor = material.id === "gaf-timberline-hdz" ? 
               gafTimberlineWasteFactor / 100 : 
               wasteFactor / 100;
             
+            console.log(`[Preset] Calculating quantity for ${materialId} with waste ${effectiveWasteFactor}`);
+            // *** Add log BEFORE calculation ***
+            console.log(`[Preset] Measurements being used:`, JSON.stringify(measurements, null, 2)); 
+
             newQuantities[materialId] = calculateMaterialQuantity(
               material, 
               measurements, 
               effectiveWasteFactor
             );
             
-            // Add the material to the selected list
+            // *** Add log AFTER calculation ***
+            console.log(`[Preset] Calculated quantity for ${materialId}: ${newQuantities[materialId]}`);
+            
             newSelectedMaterials[materialId] = material;
           }
+        } else {
+            // *** Add log if material not found ***
+            console.error(`[Preset] Material object NOT FOUND for materialId: ${materialId}`);
         }
       });
     }
