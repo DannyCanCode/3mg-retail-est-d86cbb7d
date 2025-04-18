@@ -359,9 +359,9 @@ const Estimates = () => {
     setMeasurements(convertedMeasurements);
     setStoredMeasurements(convertedMeasurements);
     
-    // Make sure we have a valid totalArea number before showing in toast
-    const areaDisplay = data.totalArea && !isNaN(data.totalArea) && data.totalArea > 0 
-      ? data.totalArea.toFixed(1) 
+    // Calculate areaDisplay *after* conversion, using the reliable converted value
+    const areaDisplay = convertedMeasurements.totalArea && !isNaN(convertedMeasurements.totalArea) && convertedMeasurements.totalArea > 0 
+      ? convertedMeasurements.totalArea.toFixed(1) 
       : 'unknown';
     
     // Inform the user data was extracted successfully
