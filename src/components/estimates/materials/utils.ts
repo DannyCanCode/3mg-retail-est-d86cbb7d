@@ -6,10 +6,18 @@ export const calculateMaterialQuantity = (
   measurements: MeasurementValues,
   wasteFactor: number = 0.1
 ): number => {
+  // Add initial log
+  console.log(`[CalcQuantity] Calculating for: ${material.id} (${material.name})`);
+  console.log(`[CalcQuantity] Received Measurements:`, JSON.stringify(measurements, null, 2));
+  console.log(`[CalcQuantity] Received wasteFactor: ${wasteFactor}`);
+
   // Make sure we have valid measurements
   if (!measurements || !measurements.totalArea) {
+    console.log(`[CalcQuantity] Invalid base measurements (totalArea: ${measurements?.totalArea}), returning 0.`);
     return 0;
   }
+
+  let quantity = 0;
 
   // For shingles, use the total area (square footage) OR lengths
   if (material.category === MaterialCategory.SHINGLES) {
@@ -20,26 +28,31 @@ export const calculateMaterialQuantity = (
       const totalLength = ridgeLength + hipLength;
       // Extract LF per bundle from description (e.g., "20 LF/Bundle", "25 LF/Bundle")
       const lfPerBundle = extractCoverageValue(material.coverageRule.description) || 25; // Default 25 if extraction fails
-      if (lfPerBundle === 0) return 1; // Avoid division by zero, return 1 bundle minimum
-      // Add waste factor to length calculations too
-      return Math.ceil((totalLength * (1 + wasteFactor)) / lfPerBundle);
+      console.log(`[CalcQuantity] Ridge/Hip: RL=${ridgeLength}, HL=${hipLength}, TotalL=${totalLength}, LF/Bundle=${lfPerBundle}`);
+      if (lfPerBundle === 0) { quantity = 1; } 
+      else { quantity = Math.ceil((totalLength * (1 + wasteFactor)) / lfPerBundle); }
+      console.log(`[CalcQuantity] Ridge/Hip Result: ${quantity}`);
     }
 
     // --- Starter Shingles --- 
     else if (material.id.includes('starter')) {
       let totalLength = 0;
+      let calculationBasis = "";
       // GAF ProStart uses Eaves only based on its rule
       if (material.id === 'gaf-prostart-starter-shingle-strip') {
         totalLength = measurements.eaveLength || 0;
+        calculationBasis = `Eaves (${totalLength} LF)`;
       } else {
         // Other starters (like OC) might use Eaves + Rakes
         totalLength = (measurements.eaveLength || 0) + (measurements.rakeLength || 0);
+        calculationBasis = `Eaves (${measurements.eaveLength || 0} LF) + Rakes (${measurements.rakeLength || 0} LF) = ${totalLength} LF`;
       }
       // Extract LF per bundle from description (e.g., "110 LF/Bundle", "120 LF/Bundle")
       const lfPerBundle = extractCoverageValue(material.coverageRule.description) || 120; // Default 120
-      if (lfPerBundle === 0) return 1;
-      // Add waste factor to length calculations
-      return Math.ceil((totalLength * (1 + wasteFactor)) / lfPerBundle);
+      console.log(`[CalcQuantity] Starter: Basis=${calculationBasis}, LF/Bundle=${lfPerBundle}`);
+      if (lfPerBundle === 0) { quantity = 1; } 
+      else { quantity = Math.ceil((totalLength * (1 + wasteFactor)) / lfPerBundle); }
+      console.log(`[CalcQuantity] Starter Result: ${quantity}`);
     }
 
     // --- Standard Field Shingles (by Area) --- 
@@ -49,8 +62,9 @@ export const calculateMaterialQuantity = (
       // Check description just in case, but default to 3
       const bundlesPerSquare = material.coverageRule.description.includes("3 Bundles/Square") ? 3 : 
                               (material.unit === 'bundle' ? 3 : 1); // Default guess
-                              
-      return Math.ceil(totalSquares * bundlesPerSquare * (1 + wasteFactor));
+      console.log(`[CalcQuantity] Field Shingle: Area=${measurements.totalArea}, Squares=${totalSquares.toFixed(2)}, Bundles/Sq=${bundlesPerSquare}`);
+      quantity = Math.ceil(totalSquares * bundlesPerSquare * (1 + wasteFactor));
+      console.log(`[CalcQuantity] Field Shingle Result: ${quantity}`);
     }
   }
   
@@ -58,13 +72,15 @@ export const calculateMaterialQuantity = (
   if (material.category === MaterialCategory.UNDERLAYMENTS) {
     const totalSquares = measurements.totalArea / 100;
     // Default to 4 squares per roll if not specified in coverageRule
-    const squaresPerRoll = material.coverageAmount || 4; 
-    return Math.ceil(totalSquares / squaresPerRoll * (1 + wasteFactor));
+    const squaresPerRoll = material.coverageAmount || extractCoverageValue(material.coverageRule.description) || 4; 
+    quantity = Math.ceil(totalSquares / squaresPerRoll * (1 + wasteFactor));
+    console.log(`[CalcQuantity] Underlayment Result: ${quantity}`);
   }
   
   // For low slope materials, only apply to specific pitch areas
   if (material.category === MaterialCategory.LOW_SLOPE) {
     if (!measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+      console.log(`[CalcQuantity] Invalid low slope measurements, returning 0.`);
       return 0;
     }
     
@@ -76,22 +92,26 @@ export const calculateMaterialQuantity = (
       })
       .reduce((total, area) => total + area.area, 0);
     
-    if (lowSlopeArea <= 0) return 0;
+    if (lowSlopeArea <= 0) {
+      console.log(`[CalcQuantity] Low slope area is 0, returning 0.`);
+      return 0;
+    }
     
     // Apply waste factor to low slope area
     const lowSlopeWithWaste = lowSlopeArea * (1 + wasteFactor);
     
     if (material.id === "polyglass-elastoflex-sbs") {
-      return Math.ceil(lowSlopeWithWaste / 0.8); // 0.8 squares per roll
+      quantity = Math.ceil(lowSlopeWithWaste / 0.8); // 0.8 squares per roll
     } else if (material.id === "polyglass-polyflex-app") {
-      return Math.ceil(lowSlopeWithWaste / 0.8); // 0.8 squares per roll (1.25 rolls per square)
+      quantity = Math.ceil(lowSlopeWithWaste / 0.8); // 0.8 squares per roll (1.25 rolls per square)
     } else if (material.coverageRule.description.includes("Base")) {
-      return Math.ceil(lowSlopeWithWaste / 2); // 2 squares per roll (default)
+      quantity = Math.ceil(lowSlopeWithWaste / 2); // 2 squares per roll (default)
     } else if (material.coverageRule.description.includes("Cap")) {
-      return Math.ceil(lowSlopeWithWaste / 1); // 1 square per roll (default)
+      quantity = Math.ceil(lowSlopeWithWaste / 1); // 1 square per roll (default)
     } else {
-      return Math.ceil(lowSlopeWithWaste / 1.5); // Default 1.5 squares per roll
+      quantity = Math.ceil(lowSlopeWithWaste / 1.5); // Default 1.5 squares per roll
     }
+    console.log(`[CalcQuantity] Low Slope Result: ${quantity}`);
   }
   
   // For accessories, calculate based on coverage rules
@@ -103,23 +123,26 @@ export const calculateMaterialQuantity = (
     if (material.coverageRule && material.coverageRule.description) {
       // For materials that use "per X squares" in their coverage rule (like Master Sealant)
       if (material.coverageRule.description.includes("per 10 squares")) {
-        return Math.ceil(totalSquaresWithWaste / 10);
+        quantity = Math.ceil(totalSquaresWithWaste / 10);
       } else if (material.coverageRule.description.includes("per 15 squares") || 
                 material.coverageRule.description.includes("per 10-15 squares")) {
-        return Math.ceil(totalSquaresWithWaste / 15);
+        quantity = Math.ceil(totalSquaresWithWaste / 15);
       } else if (material.coverageRule.description.includes("per 20 squares")) {
-        return Math.ceil(totalSquaresWithWaste / 20);
+        quantity = Math.ceil(totalSquaresWithWaste / 20);
       } else if (material.coverageRule.description.includes("per 30 squares")) {
-        return Math.ceil(totalSquaresWithWaste / 30);
+        quantity = Math.ceil(totalSquaresWithWaste / 30);
       }
     }
     
     // If we couldn't determine from the coverage rule, default to 0 (manual entry)
-    return 0;
+    quantity = Math.max(0, quantity);
+    console.log(`[CalcQuantity] Accessory Result: ${quantity}`);
   }
   
-  // Default fallback - shouldn't reach here in most cases
-  return 0;
+  // Final check and return
+  const finalQuantity = Math.max(0, quantity); // Ensure quantity is not negative
+  console.log(`[CalcQuantity] Final returned quantity for ${material.id}: ${finalQuantity}`);
+  return finalQuantity;
 }
 
 // Helper function to extract numeric values from coverage descriptions
