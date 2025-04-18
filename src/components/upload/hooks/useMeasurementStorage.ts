@@ -29,10 +29,22 @@ export function useMeasurementStorage() {
       // Use the provided fileUrl or a placeholder
       const url = fileUrl || `local://pdf/${fileName}`;
       
+      if (!parsedData || !parsedData.totalArea || parsedData.totalArea <= 0) {
+        console.error("Invalid or missing totalArea from parser:", parsedData?.totalArea);
+        toast({
+          title: "Parsing Incomplete",
+          description: "Failed to extract a valid total roof area from the PDF. Cannot save measurements.",
+          variant: "destructive",
+        });
+        // Stop the process here, do not attempt to save
+        return null; // Return null to indicate failure
+      }
+
       const { data, error } = await saveMeasurementsToDatabase(fileName, url, parsedData);
       
       if (error) {
-        throw error;
+        console.error("Detailed Supabase Save Error:", JSON.stringify(error, null, 2)); 
+        throw error; // Re-throw the original error to be caught below
       }
 
       toast({
@@ -52,7 +64,7 @@ export function useMeasurementStorage() {
       console.error("Error saving measurements:", error);
       toast({
         title: "Save failed",
-        description: "Failed to save measurements to database.",
+        description: "Failed to save measurements to database. Check console for details.",
         variant: "destructive",
       });
       return null;
