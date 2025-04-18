@@ -57,21 +57,47 @@ export const calculateMaterialQuantity = (
 
     // --- Standard Field Shingles (by Area) --- 
     else {
-      const totalSquares = measurements.totalArea / 100;
-      // Most field shingles are 3 bundles/square
-      // Check description just in case, but default to 3
-      const bundlesPerSquare = material.coverageRule.description.includes("3 Bundles/Square") ? 3 : 
-                              (material.unit === 'bundle' ? 3 : 1); // Default guess
-      console.log(`[CalcQuantity] Field Shingle: Area=${measurements.totalArea}, Squares=${totalSquares.toFixed(2)}, Bundles/Sq=${bundlesPerSquare}`);
-      quantity = Math.ceil(totalSquares * bundlesPerSquare * (1 + wasteFactor));
+      // Calculate STEEP SLOPE area only (pitch >= 3/12)
+      let steepSlopeArea = 0;
+      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+        steepSlopeArea = measurements.areasByPitch
+          .filter(area => {
+            // Extract the rise value from pitch string (e.g., "5/12" -> 5)
+            const pitchParts = area.pitch.split(/[:\/]/);
+            const rise = parseInt(pitchParts[0] || '0');
+            return !isNaN(rise) && rise >= 3; // Check if rise is a number and >= 3
+          })
+          .reduce((sum, area) => sum + (area.area || 0), 0); // Sum the areas
+      } else {
+         console.warn(`[CalcQuantity] Field Shingle: areasByPitch missing or not an array. Using totalArea as fallback.`);
+         // Fallback to totalArea if pitch data is missing/invalid (though initial check should prevent this)
+         steepSlopeArea = measurements.totalArea || 0;
+      }
+      
+      console.log(`[CalcQuantity] Field Shingle: Using Steep Slope Area=${steepSlopeArea.toFixed(1)} sq ft`);
+
+      if (steepSlopeArea <= 0) {
+          console.log(`[CalcQuantity] Field Shingle: Steep slope area is 0, returning 0 quantity.`);
+          quantity = 0;
+      } else {
+          const steepSlopeSquares = steepSlopeArea / 100;
+          const bundlesPerSquare = material.coverageRule.description.includes("3 Bundles/Square") ? 3 : 
+                                  (material.unit === 'bundle' ? 3 : 1); 
+          console.log(`[CalcQuantity] Field Shingle: SteepSquares=${steepSlopeSquares.toFixed(2)}, Bundles/Sq=${bundlesPerSquare}`);
+          quantity = Math.ceil(steepSlopeSquares * bundlesPerSquare * (1 + wasteFactor));
+      }
       console.log(`[CalcQuantity] Field Shingle Result: ${quantity}`);
     }
   }
   
   // For underlayment, typically one roll covers 4 squares (400 sq ft)
   if (material.category === MaterialCategory.UNDERLAYMENTS) {
-    const totalSquares = measurements.totalArea / 100;
-    // Default to 4 squares per roll if not specified in coverageRule
+    // --- IMPORTANT: Decide if Underlayment should also use steep slope area or total area --- 
+    // Current logic uses totalArea. If it should only cover steep slopes, modify this.
+    const calculationArea = measurements.totalArea; // Using totalArea for now
+    console.log(`[CalcQuantity] Underlayment: Using Area=${calculationArea.toFixed(1)} sq ft`);
+    
+    const totalSquares = calculationArea / 100;
     const squaresPerRoll = material.coverageAmount || extractCoverageValue(material.coverageRule.description) || 4; 
     quantity = Math.ceil(totalSquares / squaresPerRoll * (1 + wasteFactor));
     console.log(`[CalcQuantity] Underlayment Result: ${quantity}`);
