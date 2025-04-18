@@ -20,6 +20,9 @@ import WarrantySelector from "../warranties/WarrantySelector";
 import LowSlopeOptions from "../lowslope/LowSlopeOptions";
 import { toast } from "@/hooks/use-toast";
 
+// *** ADD UNIQUE LOG HERE ***
+console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: April 19th 1:15 PM"); 
+
 interface MaterialsSelectionTabProps {
   measurements: MeasurementValues;
   selectedMaterials?: {[key: string]: Material};
