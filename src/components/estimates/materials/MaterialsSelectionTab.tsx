@@ -109,6 +109,14 @@ export function MaterialsSelectionTab({
       area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch)
     );
     
+    // Add Polyglass Base and Cap sheets ONLY if ALL pitches are 1/12 or 2/12
+    const allPitchesAreLowSlope = measurements.areasByPitch.length > 0 && 
+                                 measurements.areasByPitch.every(area => {
+                                    const pitchParts = area.pitch.split(/[:\/]/);
+                                    const rise = parseInt(pitchParts[0] || '0');
+                                    return !isNaN(rise) && rise >= 1 && rise <= 2;
+                                 });
+                                 
     // Auto-select special materials based on pitch detection
     const newSelectedMaterials = { ...selectedMaterials };
     const newQuantities = { ...quantities };
@@ -145,8 +153,8 @@ export function MaterialsSelectionTab({
       }
     }
     
-    // Add Polyglass Base and Cap sheets for 1/12 and 2/12 pitches
-    if (has1or2Pitch) {
+    // Add Polyglass Base and Cap sheets ONLY if ALL pitches are 1/12 or 2/12
+    if (has1or2Pitch && allPitchesAreLowSlope) {
       const baseSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
       const capSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
       
@@ -180,15 +188,15 @@ export function MaterialsSelectionTab({
         // Show notification if these are new additions
         if (!selectedMaterials["polyglass-elastoflex-sbs"] || !selectedMaterials["polyglass-polyflex-app"]) {
           toast({
-            title: "Materials Auto-Selected",
-            description: `Polyglass Base and Cap sheets have been automatically added because your roof has 1/12 or 2/12 pitch areas (${lowPitchArea.toFixed(1)} sq ft).`,
+            title: "Low Slope Materials Auto-Selected",
+            description: `Polyglass Base and Cap sheets automatically added for your 1/12-2/12 low-slope roof (${lowPitchArea.toFixed(1)} sq ft).`,
           });
         }
       }
     }
     
-    // Update state only if materials were added
-    if (has0Pitch || has1or2Pitch) {
+    // Update state only if materials were automatically added (0/12 OR exclusively 1/12-2/12)
+    if (has0Pitch || (has1or2Pitch && allPitchesAreLowSlope)) {
       onMaterialsSelected(newSelectedMaterials, newQuantities);
     }
   }, [measurements, expandedCategories]);
