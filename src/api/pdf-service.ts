@@ -112,9 +112,9 @@ export async function saveMeasurementsToDatabase(
       penetrations_perimeter: parsedData.penetrationsPerimeter,
       waste_percentage: parsedData.wastePercentage,
       suggested_waste_percentage: parsedData.suggestedWastePercentage,
-      areas_by_pitch: parsedData.areasByPitch,
-      length_measurements: parsedData.lengthMeasurements,
-      debug_info: parsedData.debugInfo,
+      areas_per_pitch: parsedData.areasByPitch as any,
+      length_measurements: parsedData.lengthMeasurements as any,
+      debug_info: parsedData.debugInfo as any,
       raw_text: parsedData.rawText,
       property_address: parsedData.propertyAddress,
     };
