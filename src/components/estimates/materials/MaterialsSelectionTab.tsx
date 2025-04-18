@@ -471,32 +471,38 @@ export function MaterialsSelectionTab({
   const getCalculationExplanation = (material: Material, quantity: number): string => {
     if (material.category === MaterialCategory.SHINGLES) {
       // --- Field Shingles (e.g., GAF Timberline HDZ) ---
-      // This needs to be checked first before the more specific id.includes checks
       if (material.unit === 'bundle' && !material.id.includes('ridge') && !material.id.includes('hip') && !material.id.includes('starter')) {
+        console.log(`[Explainer] Calculating explanation for Field Shingle: ${material.id}`); // Log Start
         const actualWasteFactor = material.id === "gaf-timberline-hdz" 
                                   ? Math.max(gafTimberlineWasteFactor / 100, 0.12)
-                                  : wasteFactor / 100; // Use general waste factor for others
+                                  : wasteFactor / 100; 
                                   
-        // Calculate steep slope area for explanation
         let steepSlopeArea = 0;
         if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+            console.log(`[Explainer] Found areasByPitch:`, measurements.areasByPitch); // Log pitch data
             steepSlopeArea = measurements.areasByPitch
               .filter(area => {
                 const pitchParts = area.pitch.split(/[:\/]/);
                 const rise = parseInt(pitchParts[0] || '0');
-                return !isNaN(rise) && rise >= 3;
+                const isSteep = !isNaN(rise) && rise >= 3;
+                // console.log(`[Explainer] Pitch: ${area.pitch}, Rise: ${rise}, IsSteep: ${isSteep}`); // Optional detailed log
+                return isSteep;
               })
               .reduce((sum, area) => sum + (area.area || 0), 0);
+             console.log(`[Explainer] Calculated steepSlopeArea: ${steepSlopeArea}`); // Log calculated area
         } else {
-             // Fallback or warning if pitch data is missing
+             console.warn(`[Explainer] Field Shingle: areasByPitch missing or not an array. Using totalArea as fallback.`);
              steepSlopeArea = measurements.totalArea || 0; 
+             console.log(`[Explainer] Using fallback totalArea: ${steepSlopeArea}`);
         }
 
         const steepSlopeSquares = steepSlopeArea / 100;
         const squaresWithWaste = Math.round(steepSlopeSquares * (1 + actualWasteFactor) * 10) / 10;
-        const bundlesPerSquare = material.coverageRule.description.includes("3 Bundles/Square") ? 3 : 3; // Assume 3
-
-        return `${steepSlopeArea.toFixed(1)} sq ft (Steep Slope Only) × (1 + ${(actualWasteFactor * 100).toFixed(0)}% waste) ÷ 100 = ${squaresWithWaste.toFixed(1)} squares × ${bundlesPerSquare} = ${quantity} bundles`;
+        const bundlesPerSquare = material.coverageRule.description.includes("3 Bundles/Square") ? 3 : 3;
+        
+        const explanationText = `${steepSlopeArea.toFixed(1)} sq ft (Steep Slope Only) × (1 + ${(actualWasteFactor * 100).toFixed(0)}% waste) ÷ 100 = ${squaresWithWaste.toFixed(1)} squares × ${bundlesPerSquare} = ${quantity} bundles`;
+        console.log(`[Explainer] Generated Text: ${explanationText}`); // Log final text
+        return explanationText;
       } 
       
       // --- Ridge/Hip Cap Shingles ---
