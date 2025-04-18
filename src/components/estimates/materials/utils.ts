@@ -11,17 +11,46 @@ export const calculateMaterialQuantity = (
     return 0;
   }
 
-  // For shingles, use the total area (square footage)
+  // For shingles, use the total area (square footage) OR lengths
   if (material.category === MaterialCategory.SHINGLES) {
-    const totalSquares = measurements.totalArea / 100;
-    
-    // Quantity depends on the unit type
-    if (material.unit === "bundle") {
-      // 3 bundles per square is standard for most shingles
-      return Math.ceil(totalSquares * 3 * (1 + wasteFactor));
-    } else {
-      // Calculate quantity including waste factor
-      return Math.ceil(totalSquares * (1 + wasteFactor));
+    // --- Ridge/Hip Cap Shingles --- 
+    if (material.id.includes('seal-a-ridge') || material.id.includes('hip-ridge')) {
+      const ridgeLength = measurements.ridgeLength || 0;
+      const hipLength = measurements.hipLength || 0;
+      const totalLength = ridgeLength + hipLength;
+      // Extract LF per bundle from description (e.g., "20 LF/Bundle", "25 LF/Bundle")
+      const lfPerBundle = extractCoverageValue(material.coverageRule.description) || 25; // Default 25 if extraction fails
+      if (lfPerBundle === 0) return 1; // Avoid division by zero, return 1 bundle minimum
+      // Add waste factor to length calculations too
+      return Math.ceil((totalLength * (1 + wasteFactor)) / lfPerBundle);
+    }
+
+    // --- Starter Shingles --- 
+    else if (material.id.includes('starter')) {
+      let totalLength = 0;
+      // GAF ProStart uses Eaves only based on its rule
+      if (material.id === 'gaf-prostart-starter-shingle-strip') {
+        totalLength = measurements.eaveLength || 0;
+      } else {
+        // Other starters (like OC) might use Eaves + Rakes
+        totalLength = (measurements.eaveLength || 0) + (measurements.rakeLength || 0);
+      }
+      // Extract LF per bundle from description (e.g., "110 LF/Bundle", "120 LF/Bundle")
+      const lfPerBundle = extractCoverageValue(material.coverageRule.description) || 120; // Default 120
+      if (lfPerBundle === 0) return 1;
+      // Add waste factor to length calculations
+      return Math.ceil((totalLength * (1 + wasteFactor)) / lfPerBundle);
+    }
+
+    // --- Standard Field Shingles (by Area) --- 
+    else {
+      const totalSquares = measurements.totalArea / 100;
+      // Most field shingles are 3 bundles/square
+      // Check description just in case, but default to 3
+      const bundlesPerSquare = material.coverageRule.description.includes("3 Bundles/Square") ? 3 : 
+                              (material.unit === 'bundle' ? 3 : 1); // Default guess
+                              
+      return Math.ceil(totalSquares * bundlesPerSquare * (1 + wasteFactor));
     }
   }
   
