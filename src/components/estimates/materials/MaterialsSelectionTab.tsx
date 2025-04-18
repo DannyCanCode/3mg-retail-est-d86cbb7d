@@ -682,10 +682,33 @@ export function MaterialsSelectionTab({
     const quantity = quantities[materialId] || 0;
     const isMandatory = isMandatoryMaterial(material.name);
     
-    // *** ADD LOGGING HERE ***
     console.log(`[Renderer] Rendering: ${material.id}, Quantity: ${quantity}, IsMandatory: ${isMandatory}`);
-    const explanation = getCalculationExplanation(material, quantity);
-    console.log(`[Renderer] Explanation for ${material.id}: ${explanation}`);
+    
+    // *** Generate explanation conditionally ***
+    let explanation = '';
+    if (material.id === "polyglass-elastoflex-sbs" || material.id === "polyglass-polyflex-app") {
+        // --- Replicate explanation logic directly here for Polyglass ---
+        console.log(`[Renderer] Applying INLINE explanation for Polyglass: ${material.id}`);
+        let lowPitchArea = 0;
+        if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+             lowPitchArea = measurements.areasByPitch
+               .filter(area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch))
+               .reduce((total, area) => total + (area.area || 0), 0);
+        }
+        console.log(`[Renderer] INLINE Polyglass lowPitchArea: ${lowPitchArea}`);
+        const lowPitchSquares = lowPitchArea / 100;
+        // Note: Explanation doesn't typically include waste, unlike quantity calc
+        explanation = `1/12 or 2/12 pitch area (${lowPitchArea.toFixed(1)} sq ft) ÷ 100 = ${lowPitchSquares.toFixed(1)} squares ÷ 0.8 = ${quantity} rolls`;
+        console.log(`[Renderer] INLINE Polyglass Explanation Text: ${explanation}`);
+        // --- End Polyglass specific logic ---
+    } else {
+      // For all other materials, call the potentially stale shared function
+      // (We know HDZ explanation works now via this path)
+      explanation = getCalculationExplanation(material, quantity);
+    }
+    // *** End conditional explanation ***
+
+    console.log(`[Renderer] Final Explanation for ${material.id}: ${explanation}`);
 
     return (
       <div 
@@ -704,7 +727,6 @@ export function MaterialsSelectionTab({
             {material.approxPerSquare && ` (≈ ${formatPrice(material.approxPerSquare)}/square)`}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            {/* Use the generated explanation */} 
             {explanation}
           </div>
         </div>
