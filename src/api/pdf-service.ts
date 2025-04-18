@@ -82,57 +82,70 @@ export async function processPdfWithSupabase(file: File): Promise<{
 export async function saveMeasurementsToDatabase(
   fileName: string,
   fileUrl: string,
-  measurements: ParsedMeasurements
+  parsedData: ParsedMeasurements
 ): Promise<{ data: any; error: Error | null }> {
   try {
-    // Check if Supabase is configured
     if (!isSupabaseConfigured()) {
       throw new Error('Supabase is not configured. Please add your API keys to the .env file.');
     }
 
-    // Mapping to match the database schema from the images
-    console.log("Saving measurement with propertyAddress:", measurements.propertyAddress);
-    
-    const insertData = {
+    // 1. Log the data received by this function
+    console.log("[saveMeasurementsToDatabase] Received parsedData:", JSON.stringify(parsedData, null, 2));
+
+    // 2. Construct the object to be inserted, matching the schema exactly
+    const dataToInsert = {
+      // --- Required Fields --- 
       filename: fileName,
-      total_area: measurements.totalArea || 0,
-      predominant_pitch: measurements.predominantPitch || '',
-      ridges: measurements.ridgeLength || 0,
-      valleys: measurements.valleyLength || 0,
-      hips: measurements.hipLength || 0,
-      eaves: measurements.eaveLength || 0,
-      rakes: measurements.rakeLength || 0,
-      step_flashing: measurements.stepFlashingLength || 0,
-      flashing: measurements.flashingLength || 0,
-      raw_text: JSON.stringify(measurements),
-      areas_per_pitch: measurements.areasByPitch || {},
-      penetrations: measurements.penetrationsArea || 0,
-      penetrations_perimeter: measurements.penetrationsPerimeter || 0,
-      waste_percentage: 10, // Default waste percentage
-      total_squares: Math.ceil((measurements.totalArea || 0) / 100),
-      created_at: new Date().toISOString(),
-      // Add address field to store the property address
-      address: measurements.propertyAddress || ''
+      total_area: parsedData.totalArea || 0,
+      predominant_pitch: parsedData.predominantPitch || 'Unknown',
+
+      // --- Optional Fields (using correct schema names) --- 
+      total_squares: parsedData.totalArea ? Math.ceil(parsedData.totalArea / 100) : null,
+      ridges: parsedData.ridgeLength,
+      valleys: parsedData.valleyLength,
+      hips: parsedData.hipLength,
+      eaves: parsedData.eaveLength,
+      rakes: parsedData.rakeLength,
+      flashing: parsedData.flashingLength,
+      step_flashing: parsedData.stepFlashingLength,
+      penetrations: parsedData.penetrationsArea,
+      penetrations_perimeter: parsedData.penetrationsPerimeter,
+      waste_percentage: parsedData.wastePercentage,
+      suggested_waste_percentage: parsedData.suggestedWastePercentage,
+      areas_by_pitch: parsedData.areasByPitch,
+      length_measurements: parsedData.lengthMeasurements,
+      debug_info: parsedData.debugInfo,
+      raw_text: parsedData.rawText,
+      property_address: parsedData.propertyAddress,
     };
-    
-    console.log("Database insert data:", insertData);
-    
+
+    // 3. Log the EXACT object being sent to Supabase
+    console.log("[saveMeasurementsToDatabase] Data object being inserted:", JSON.stringify(dataToInsert, null, 2));
+
     const { data, error } = await supabase
       .from('measurements')
-      .insert(insertData)
+      .insert([dataToInsert])
       .select()
       .single();
 
     if (error) {
+      // 4. Log individual error properties for more detail
+      console.error("[saveMeasurementsToDatabase] Supabase Error Code:", error.code);
+      console.error("[saveMeasurementsToDatabase] Supabase Error Message:", error.message);
+      console.error("[saveMeasurementsToDatabase] Supabase Error Details:", error.details);
+      console.error("[saveMeasurementsToDatabase] Supabase Error Hint:", error.hint);
+      console.error("[saveMeasurementsToDatabase] Full Supabase Error Object:", error);
       throw error;
     }
 
+    console.log("[saveMeasurementsToDatabase] Insert successful:", data);
     return { data, error: null };
-  } catch (error) {
-    console.error('Error saving measurements to database:', error);
+
+  } catch (catchError) {
+    console.error('[saveMeasurementsToDatabase] Caught exception during insert:', catchError);
     return { 
       data: null, 
-      error: error instanceof Error ? error : new Error('Unknown error occurred') 
+      error: catchError instanceof Error ? catchError : new Error('Unknown error occurred during measurement save') 
     };
   }
 } 
