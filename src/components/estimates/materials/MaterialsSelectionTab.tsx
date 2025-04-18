@@ -682,6 +682,11 @@ export function MaterialsSelectionTab({
     const quantity = quantities[materialId] || 0;
     const isMandatory = isMandatoryMaterial(material.name);
     
+    // *** ADD LOGGING HERE ***
+    console.log(`[Renderer] Rendering: ${material.id}, Quantity: ${quantity}, IsMandatory: ${isMandatory}`);
+    const explanation = getCalculationExplanation(material, quantity);
+    console.log(`[Renderer] Explanation for ${material.id}: ${explanation}`);
+
     return (
       <div 
         key={materialId} 
@@ -699,7 +704,8 @@ export function MaterialsSelectionTab({
             {material.approxPerSquare && ` (≈ ${formatPrice(material.approxPerSquare)}/square)`}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
-            {getCalculationExplanation(material, quantity)}
+            {/* Use the generated explanation */} 
+            {explanation}
           </div>
         </div>
         
