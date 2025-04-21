@@ -170,19 +170,19 @@ export function LaborProfitTab({
   
   // Get labor cost for a specific material
   const getLaborCostForMaterial = (materialId: string, squaresArea: number): number => {
-    // Special case for GAF Poly ISO 4X8 (0/12 pitch) - $60/sq
+    // Special case for GAF Poly ISO 4X8 (0/12 pitch) - $50/sq
     if (materialId === "gaf-poly-iso-4x8") {
-      return squaresArea * 60;
+      return squaresArea * 50;
     }
     
-    // Special case for Polyglass Base Sheet (1/12 or 2/12 pitch) - $50/sq
+    // Special case for Polyglass Base Sheet (1/12 or 2/12 pitch) - $109/sq
     if (materialId === "polyglass-elastoflex-sbs") {
-      return squaresArea * 50;
+      return squaresArea * 109;
     }
     
-    // Special case for Polyglass Cap Sheet (1/12 or 2/12 pitch) - $50/sq
+    // Special case for Polyglass Cap Sheet (1/12 or 2/12 pitch) - $109/sq
     if (materialId === "polyglass-polyflex-app") {
-      return squaresArea * 50;
+      return squaresArea * 109;
     }
     
     // Default labor rate for standard pitches
