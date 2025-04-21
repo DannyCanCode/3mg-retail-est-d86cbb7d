@@ -128,6 +128,7 @@ const Estimates = () => {
   });
   const [profitMargin, setProfitMargin] = useState(25);
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
+  const [peelStickAddonCost, setPeelStickAddonCost] = useState<string>("0.00");
   
   // Add localStorage hooks to persist state across refreshes and tabs
   const [storedPdfData, setStoredPdfData] = useLocalStorage<ParsedMeasurements | null>("estimateExtractedPdfData", null);
@@ -394,28 +395,33 @@ const Estimates = () => {
     }, 100);
   };
 
-  const handleMaterialsSelected = (materials: {[key: string]: Material}, quantities: {[key: string]: number}) => {
-    console.log("handleMaterialsSelected called, setting materials:", Object.keys(materials).length);
+  const handleMaterialsUpdate = (update: { 
+    selectedMaterials: {[key: string]: Material}, 
+    quantities: {[key: string]: number},
+    peelStickPrice: string
+  }) => {
+    console.log("handleMaterialsUpdate called, setting materials/quantities/price:", Object.keys(update.selectedMaterials).length, update.peelStickPrice);
     
-    // Check if this is the "Back" button (empty objects) or actual material selection
-    if (Object.keys(materials).length === 0 && Object.keys(quantities).length === 0) {
-      console.log("Back button clicked, setting activeTab to 'measurements'");
+    // Check if this is the "Back" button 
+    if (Object.keys(update.selectedMaterials).length === 0 && Object.keys(update.quantities).length === 0 && update.peelStickPrice === "0.00") {
+      console.log("Back button clicked in Materials Tab, setting activeTab to 'measurements'");
+      setPeelStickAddonCost("0.00"); // Reset cost
+      setSelectedMaterials({});
+      setQuantities({});
       setActiveTab("measurements");
       return;
     }
     
-    // Otherwise, this is the "Continue" button with material selections
-    setSelectedMaterials(materials);
-    setQuantities(quantities);
+    // Update state with all received data
+    setSelectedMaterials(update.selectedMaterials);
+    setQuantities(update.quantities);
+    setPeelStickAddonCost(update.peelStickPrice); // Store the addon cost
     
-    // Save the materials but DON'T navigate to pricing
-    // Let the Continue button below the Tabs handle navigation between tabs
-    console.log("Materials saved, but NOT navigating automatically");
+    // Save the materials but DON'T navigate automatically
+    console.log("Materials/Cost updated, but NOT navigating automatically");
     
-    toast({
-      title: "Materials selected",
-      description: "Materials saved. Use the Continue button below to proceed to the next step.",
-    });
+    // Optional: Show toast only if materials actually changed?
+    // toast({ ... });
   };
 
   const handleLaborProfitContinue = (laborRates: LaborRates, profitMargin: number) => {
@@ -553,7 +559,17 @@ const Estimates = () => {
   };
   
   const calculateTotalEstimate = (): number => {
-    return calculateEstimateTotal(selectedMaterials, quantities, laborRates, profitMargin);
+    // Base cost calculation using the existing API function
+    let total = calculateEstimateTotal(selectedMaterials, quantities, laborRates, profitMargin);
+    
+    // Add the peel & stick addon cost stored in state
+    const numericAddonCost = parseFloat(peelStickAddonCost) || 0;
+    if (numericAddonCost > 0) {
+      console.log(`[calculateTotalEstimate - FINAL] Adding Peel&Stick Addon Cost: ${numericAddonCost}`);
+      total += numericAddonCost;
+    }
+    
+    return total;
   };
   
   // Function to start fresh and clear all state
@@ -793,7 +809,7 @@ const Estimates = () => {
                             measurements={measurements}
                             selectedMaterials={selectedMaterials}
                             quantities={quantities}
-                            onMaterialsSelected={handleMaterialsSelected}
+                            onMaterialsUpdate={handleMaterialsUpdate}
                             readOnly={isViewMode}
                           />
                         );
@@ -824,6 +840,7 @@ const Estimates = () => {
                       laborRates={laborRates}
                       profitMargin={profitMargin}
                       totalAmount={calculateTotalEstimate()}
+                      peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
                       onFinalizeEstimate={handleFinalizeEstimate}
                       isSubmitting={isSubmittingFinal}
                       estimate={estimateData}

@@ -196,27 +196,41 @@ export const ROOFING_MATERIALS: Material[] = [
   {
     id: "polyglass-elastoflex-sbs",
     name: "Polyglass Elastoflex SA-V SBS Base Sheet (2 sq)",
-    category: MaterialCategory.UNDERLAYMENTS,
+    category: MaterialCategory.LOW_SLOPE,
     price: 142.22,
     unit: "Roll",
     approxPerSquare: 177.78,
     coverageRule: {
-      description: "0.8 Squares/Roll (80 sq ft)",
-      calculation: "Total Low Slope Area ÷ 0.8, rounded up",
+      description: "1.60 Rolls per Square (0.625 sq/roll)",
+      calculation: "1/12 or 2/12 Pitch Area ÷ 0.625, rounded up",
     }
   },
   {
     id: "polyglass-polyflex-app",
     name: "Polyglass Polyflex SA-P APP Cap Sheet (1 sq)",
-    category: MaterialCategory.UNDERLAYMENTS,
+    category: MaterialCategory.LOW_SLOPE,
     price: 132.22,
     unit: "Roll",
     approxPerSquare: 165.28,
     coverageRule: {
-      description: "0.8 Square/Roll (80 sq ft)",
-      calculation: "Total Low Slope Area ÷ 0.8, rounded up",
+      description: "1.25 Rolls per Square (0.8 sq/roll)",
+      calculation: "1/12 or 2/12 Pitch Area ÷ 0.8, rounded up",
     }
   },
+  // --- ADDING PSEUDO-MATERIAL FOR FULL PEEL & STICK SYSTEM ---
+  {
+    id: "full-peel-stick-system",
+    name: "Full W.W Peel & Stick System Add-on",
+    category: MaterialCategory.UNDERLAYMENTS, // Or ACCESSORIES?
+    price: 0, // Cost is handled separately ($60/sq)
+    unit: "Roll", // Based on user rule 1.5 sq = 1 roll
+    approxPerSquare: 0, // Cost is separate
+    coverageRule: {
+      description: "1.5 Squares Steep Area / Roll (Cost: $60/sq extra)",
+      calculation: "Steep Slope Area (>= 3/12) ÷ 1.5, rounded up",
+    }
+  },
+  // --- END ADDITION ---
   // METAL
   {
     id: "drip-edge-26ga",

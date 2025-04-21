@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,34 +18,30 @@ const WarrantySelector = ({
   onWarrantySelect,
   onPeelStickPriceUpdate,
   isPeelStickSelected = false,
-  onPeelStickToggle
+  onPeelStickToggle,
 }: WarrantySelectorProps) => {
   
-  // Check if Gold Pledge is available based on selected package
   const isGoldPledgeAvailable = selectedPackage === 'gaf-2';
   
-  // State for custom price for full peel and stick system
-  const [peelStickPrice, setPeelStickPrice] = useState<string>("");
-  
-  // Handle price change
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow numbers and decimal point
-    const value = e.target.value.replace(/[^0-9.]/g, '');
-    setPeelStickPrice(value);
-    
-    // Notify parent component of price change
-    if (onPeelStickPriceUpdate) {
-      onPeelStickPriceUpdate(value);
-    }
-  };
+  // State for the calculated peel & stick extra cost (passed from parent)
+  const [displayPeelStickCost, setDisplayPeelStickCost] = useState<string>("0.00");
 
   // Handle peel & stick checkbox toggle
   const handlePeelStickToggle = (checked: boolean) => {
     if (onPeelStickToggle) {
       onPeelStickToggle(checked);
     }
+    // Cost update will now happen in the parent based on the toggled state
   };
   
+  // Format price (can keep as utility)
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(price);
+  };
+
   return (
     <div className="bg-white p-4 rounded-md shadow-sm mt-4">
       <h3 className="text-lg font-medium mb-3">GAF Warranty Options</h3>
@@ -100,22 +96,17 @@ const WarrantySelector = ({
             <Label htmlFor="peel-stick-system" className="font-medium cursor-pointer">Full W.W Peel & Stick System</Label>
             <p className="text-sm text-gray-600 mt-1">Enhanced waterproofing protection</p>
             <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
-              <li>Complete peel & stick underlayment system</li>
+              <li>Complete peel & stick underlayment system (1 roll / 1.5 sq)</li>
               <li>Maximum protection against water infiltration</li>
-              <li>Available with both GAF 1 and GAF 2 packages</li>
+              <li>Adds $60/square to the estimate</li>
             </ul>
-            <div className="mt-2">
-              <Label htmlFor="peelStickPrice" className="text-xs">Custom Price ($):</Label>
-              <Input 
-                id="peelStickPrice"
-                type="text" 
-                value={peelStickPrice} 
-                onChange={handlePriceChange}
-                onClick={(e) => e.stopPropagation()}
-                className="mt-1 h-7 text-sm"
-                placeholder="Enter price"
-              />
-            </div>
+            {isPeelStickSelected && (
+               <div className="mt-2 bg-gray-100 p-2 rounded">
+                 <span className="text-xs font-medium">Additional System Cost:</span>
+                 <span className="ml-2 font-semibold text-green-700">{/* Display value driven by parent */}</span>
+                 <span className="ml-1 text-xs text-muted-foreground">($60.00/sq)</span>
+               </div>
+            )}
           </div>
         </div>
       </div>

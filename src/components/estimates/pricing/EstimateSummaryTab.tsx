@@ -20,6 +20,7 @@ interface EstimateSummaryTabProps {
   laborRates: LaborRates;
   profitMargin: number;
   totalAmount: number;
+  peelStickAddonCost?: number;
   onFinalizeEstimate: () => void;
   isSubmitting?: boolean;
   estimate?: Estimate | null;
@@ -33,6 +34,7 @@ export function EstimateSummaryTab({
   laborRates,
   profitMargin,
   totalAmount,
+  peelStickAddonCost = 0,
   onFinalizeEstimate,
   isSubmitting = false,
   estimate,
@@ -157,7 +159,8 @@ export function EstimateSummaryTab({
     };
   });
   
-  const totalMaterialCost = materialCosts.reduce((sum, item) => sum + item.totalCost, 0);
+  const baseMaterialCost = materialCosts.reduce((sum, item) => sum + item.totalCost, 0);
+  const totalMaterialCost = baseMaterialCost + peelStickAddonCost;
   
   // Calculate labor costs with combined labor rate
   const laborCosts = [];
@@ -406,6 +409,13 @@ export function EstimateSummaryTab({
                       <td className="text-right py-2 px-4">${item.totalCost.toFixed(2)}</td>
                     </tr>
                   ))}
+                  {peelStickAddonCost > 0 && (
+                     <tr className="border-t">
+                       <td className="py-2 px-4 italic">Full Peel & Stick System Cost</td>
+                       <td colSpan={2} className="text-right py-2 px-4">($60.00/sq)</td>
+                       <td className="text-right py-2 px-4">${peelStickAddonCost.toFixed(2)}</td>
+                     </tr>
+                  )}
                   <tr className="border-t bg-muted/30">
                     <td colSpan={3} className="py-2 px-4 font-semibold">Materials Subtotal</td>
                     <td className="text-right py-2 px-4 font-semibold">${totalMaterialCost.toFixed(2)}</td>

@@ -691,14 +691,14 @@ export function LaborProfitTab({
             </div>
             
             <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-              <p className="text-sm text-blue-700">
+              <div className="text-sm text-blue-700">
                 <strong>Note:</strong> Different labor rates apply for different pitch ranges:
                 <ul className="mt-1 list-disc list-inside">
                   <li>0/12-2/12 (low slope): $75/square</li>
                   <li>3/12-7/12 (standard): $85/square</li>
                   <li>8/12-18/12 (steep): $90-$140/square (increases with pitch)</li>
                 </ul>
-              </p>
+              </div>
             </div>
           </div>
         </div>
@@ -725,9 +725,9 @@ export function LaborProfitTab({
         </div>
         
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <p className="text-sm text-blue-700">
+          <div className="text-sm text-blue-700">
             <strong>Note:</strong> Labor rates are applied per square of roof area. The profit margin is applied to the total cost of materials and labor.
-          </p>
+          </div>
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">

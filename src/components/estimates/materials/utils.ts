@@ -92,14 +92,48 @@ export const calculateMaterialQuantity = (
   
   // For underlayment, typically one roll covers 4 squares (400 sq ft)
   if (material.category === MaterialCategory.UNDERLAYMENTS) {
-    // --- IMPORTANT: Decide if Underlayment should also use steep slope area or total area --- 
-    // Current logic uses totalArea. If it should only cover steep slopes, modify this.
-    const calculationArea = measurements.totalArea; // Using totalArea for now
+    let calculationArea = 0;
+    
+    // Special case for ABC Pro Guard 20 (Rhino) - only applies to steep slopes
+    if (material.id === "abc-pro-guard-20") {
+      console.log(`[CalcQuantity] Underlayment ${material.id}: Applying to steep slopes only.`);
+      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+        calculationArea = measurements.areasByPitch
+          .filter(area => {
+            const pitchParts = area.pitch.split(/[:\\/]/);
+            const rise = parseInt(pitchParts[0] || '0');
+            return !isNaN(rise) && rise >= 3; // Check if rise is a number and >= 3
+          })
+          .reduce((sum, area) => sum + (area.area || 0), 0); // Sum the areas
+        
+        if (calculationArea <= 0) {
+          console.log(`[CalcQuantity] Underlayment ${material.id}: No steep slope area found, quantity will be 0.`);
+        }
+      } else {
+        console.warn(`[CalcQuantity] Underlayment ${material.id}: areasByPitch missing or not an array. Cannot calculate steep slope area, quantity will be 0.`);
+        calculationArea = 0; // Ensure quantity is 0 if pitch data is missing
+      }
+    } else {
+      // For other underlayments, use the total area
+      console.log(`[CalcQuantity] Underlayment ${material.id}: Using total area.`);
+      calculationArea = measurements.totalArea;
+    }
+
     console.log(`[CalcQuantity] Underlayment: Using Area=${calculationArea.toFixed(1)} sq ft`);
     
-    const totalSquares = calculationArea / 100;
-    const squaresPerRoll = material.coverageAmount || extractCoverageValue(material.coverageRule.description) || 4; 
-    quantity = Math.ceil(totalSquares / squaresPerRoll * (1 + wasteFactor));
+    if (calculationArea <= 0) {
+      quantity = 0; // Ensure quantity is 0 if calculation area is 0
+    } else {
+      const totalSquares = calculationArea / 100;
+      // Extract coverage per roll (e.g., 4.5 for Rhino, 10 for Feltbuster, 1.5 for Ice&Water)
+      const squaresPerRoll = material.coverageAmount || extractCoverageValue(material.coverageRule.description) || 4; 
+      console.log(`[CalcQuantity] Underlayment: Squares=${totalSquares.toFixed(2)}, Sq/Roll=${squaresPerRoll}`);
+      // Apply waste factor ONLY if using total area (usually not applied to underlayment, but included for consistency)
+      // If specific underlayments have different waste rules, add more conditions here.
+      const finalSquares = totalSquares * (1 + (material.id !== "abc-pro-guard-20" ? wasteFactor : 0)); // No waste factor for Rhino on steep slope? Review needed.
+      quantity = Math.ceil(finalSquares / squaresPerRoll);
+    }
+    
     console.log(`[CalcQuantity] Underlayment Result: ${quantity}`);
   }
   
@@ -127,9 +161,11 @@ export const calculateMaterialQuantity = (
     const lowSlopeWithWaste = lowSlopeArea * (1 + wasteFactor);
     
     if (material.id === "polyglass-elastoflex-sbs") {
-      quantity = Math.ceil(lowSlopeWithWaste / 0.8); // 0.8 squares per roll
+      // Corrected divisor based on 1.60 rolls/sq = 0.625 sq/roll
+      quantity = Math.ceil(lowSlopeWithWaste / 0.625); 
     } else if (material.id === "polyglass-polyflex-app") {
-      quantity = Math.ceil(lowSlopeWithWaste / 0.8); // 0.8 squares per roll (1.25 rolls per square)
+      // Cap sheet uses 0.8 sq/roll (1.25 rolls/sq)
+      quantity = Math.ceil(lowSlopeWithWaste / 0.8); 
     } else if (material.coverageRule.description.includes("Base")) {
       quantity = Math.ceil(lowSlopeWithWaste / 2); // 2 squares per roll (default)
     } else if (material.coverageRule.description.includes("Cap")) {
