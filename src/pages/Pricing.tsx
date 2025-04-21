@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Copy, Edit, Trash, Check, X, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Copy, Edit, Trash, Check, X, ChevronRight, ChevronUp, ChevronDown, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,8 @@ import { useNavigate } from "react-router-dom";
 
 // Import the API functions (we'll create these later)
 import { getPricingTemplates, createPricingTemplate, updatePricingTemplate, deletePricingTemplate } from "@/api/pricing-templates";
+// Import our utility to create the updated default template
+import { createDefaultTemplate } from "@/utils/create-default-template";
 
 // Import the material and labor types
 import { Material, MaterialCategory } from "@/components/estimates/materials/types";
@@ -181,6 +183,7 @@ const Pricing = () => {
   const [templates, setTemplates] = useState<PricingTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState<PricingTemplate | null>(null);
+  const [creatingUpdatedTemplate, setCreatingUpdatedTemplate] = useState(false);
   
   // State for dialog operations
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -727,6 +730,40 @@ const Pricing = () => {
     });
   };
   
+  const handleCreateUpdatedTemplate = async () => {
+    setCreatingUpdatedTemplate(true);
+    
+    try {
+      const { data, error } = await createDefaultTemplate();
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: `Failed to create updated template: ${error.message}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Updated template with new materials created successfully!",
+          variant: "default",
+        });
+        
+        // Refresh the templates to show the new one
+        fetchTemplates();
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "An unknown error occurred";
+      toast({
+        title: "Error",
+        description: `Failed to create updated template: ${message}`,
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingUpdatedTemplate(false);
+    }
+  };
+  
   return (
     <MainLayout>
       <div className="space-y-8">
@@ -737,12 +774,23 @@ const Pricing = () => {
               Create and manage pricing templates for estimates
             </p>
           </div>
-          <Button onClick={handleCreateNew} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            <span>New Template</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleCreateUpdatedTemplate} 
+              disabled={creatingUpdatedTemplate}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              {creatingUpdatedTemplate ? "Creating..." : "Create Updated Template"}
+            </Button>
+            <Button onClick={handleCreateNew} className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              <span>New Template</span>
+            </Button>
+          </div>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Templates list */}
           <div className="lg:col-span-1 space-y-4">
