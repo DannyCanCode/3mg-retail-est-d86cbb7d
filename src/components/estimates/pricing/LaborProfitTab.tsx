@@ -35,7 +35,9 @@ export interface LaborRates {
   dumpsterCount: number;
   dumpsterRate: number;
   includePermits: boolean; // Add permits flag
-  permitRate: number; // Add permit rate
+  permitRate: number; // Base permit rate
+  permitCount: number; // Number of permits
+  permitAdditionalRate: number; // Cost for each additional permit
   pitchRates: {[pitch: string]: number};
   wastePercentage: number;
   includeGutters?: boolean; // Whether to include gutters
@@ -58,6 +60,8 @@ export function LaborProfitTab({
     dumpsterRate: 400,
     includePermits: true, // Default to include permits
     permitRate: 550, // Default to Orlando permit rate
+    permitCount: 1, // Default to 1 permit
+    permitAdditionalRate: 450, // Cost for each additional permit
     pitchRates: {},
     wastePercentage: 12,
     includeGutters: false,
@@ -92,6 +96,8 @@ export function LaborProfitTab({
     dumpsterRate: 400,
     includePermits: true,
     permitRate: 550,
+    permitCount: 1,
+    permitAdditionalRate: 450,
     pitchRates: {},
     wastePercentage: 12,
     includeGutters: false,
@@ -250,7 +256,7 @@ export function LaborProfitTab({
   
   // Update permit rate when location changes
   useEffect(() => {
-    const newPermitRate = laborRates.dumpsterLocation === "orlando" ? 550 : 700;
+    const newPermitRate = laborRates.dumpsterLocation === "orlando" ? 550 : 650;
     
     setLaborRates(prev => ({
       ...prev,
@@ -275,6 +281,8 @@ export function LaborProfitTab({
         dumpsterRate: 400,
         includePermits: true,
         permitRate: 550,
+        permitCount: 1,
+        permitAdditionalRate: 450,
         pitchRates: {},
         wastePercentage: 12
       };
@@ -299,6 +307,8 @@ export function LaborProfitTab({
           dumpsterRate: 400,
           includePermits: true,
           permitRate: 550,
+          permitCount: 1,
+          permitAdditionalRate: 450,
           pitchRates: {},
           wastePercentage: 12
         };
@@ -329,7 +339,7 @@ export function LaborProfitTab({
   const handleDumpsterLocationChange = (value: string) => {
     const location = value as "orlando" | "outside";
     const dumpsterRate = location === "orlando" ? 400 : 500;
-    const permitRate = location === "orlando" ? 550 : 700;
+    const permitRate = location === "orlando" ? 550 : 650;
     
     setLaborRates(prev => ({
       ...prev,
@@ -480,11 +490,62 @@ export function LaborProfitTab({
             </div>
             
             {!!laborRates.includePermits && (
-              <div className="bg-muted p-3 rounded-md">
-                <p className="text-sm">Permit cost for {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}: 
-                  ${laborRates.permitRate.toFixed(2)}
-                </p>
-              </div>
+              <>
+                <div className="bg-muted p-3 rounded-md">
+                  <p className="text-sm mb-2">Base permit cost for {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}: 
+                    ${laborRates.permitRate.toFixed(2)}
+                  </p>
+                  <p className="text-sm">Additional permits: ${laborRates.permitAdditionalRate.toFixed(2)} each</p>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="permitCount">Number of Permits</Label>
+                    <div className="flex items-center">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleLaborRateChange("permitCount", Math.max(1, (laborRates.permitCount || 1) - 1))}
+                        disabled={(laborRates.permitCount || 1) <= 1}
+                        className="h-8 w-8 rounded-r-none"
+                      >
+                        <span className="sr-only">Decrease</span>
+                        <span className="text-lg font-bold">-</span>
+                      </Button>
+                      <Input
+                        id="permitCount"
+                        type="number"
+                        value={(laborRates.permitCount || 1).toString()}
+                        onChange={(e) => handleLaborRateChange("permitCount", parseInt(e.target.value, 10) || 1)}
+                        min="1"
+                        step="1"
+                        className="h-8 rounded-none text-center"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => handleLaborRateChange("permitCount", (laborRates.permitCount || 1) + 1)}
+                        className="h-8 w-8 rounded-l-none"
+                      >
+                        <span className="sr-only">Increase</span>
+                        <span className="text-lg font-bold">+</span>
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="permitTotal">Total Permit Cost</Label>
+                    <Input
+                      id="permitTotal"
+                      type="text"
+                      value={`$${((laborRates.permitRate || 550) + ((laborRates.permitCount || 1) - 1) * (laborRates.permitAdditionalRate || 450)).toFixed(2)}`}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
