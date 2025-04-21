@@ -153,13 +153,11 @@ export function LaborProfitTab({
         const increment = 5; // $5 increment per pitch level
         return baseRate + (pitchValue - basePitchValue) * increment;
       } else if (pitchValue === 0) {
-        // 0/12 pitch uses GAF Poly ISO with $60/sq labor rate
-        // This is handled separately in the getLaborCostForMaterial function
-        return 60;
+        // 0/12 pitch has $50/sq labor rate
+        return 50;
       } else if (pitchValue <= 2) {
-        // 1/12-2/12 uses Polyglass Base and Cap with $100/sq labor rate
-        // This is handled separately in the getLaborCostForMaterial function
-        return 100;
+        // 1/12-2/12 has $109/sq labor rate
+        return 109;
       } else {
         // 3/12-7/12 has the standard $85 rate
         return 85;
@@ -217,16 +215,19 @@ export function LaborProfitTab({
         const pitchSquares = area.area / 100;
         
         // Apply different labor rates based on pitch
-        if (pitchValue === 0 && has0PitchMaterial) {
-          // 0/12 pitch uses $60/sq labor rate for GAF Poly ISO
-          totalLaborCost += pitchSquares * 60; // $60/sq for 0/12 pitch areas
-        } else if ((pitchValue === 1 || pitchValue === 2) && has12PitchMaterial) {
-          // 1/12 or 2/12 pitch uses $100/sq labor rate for Polyglass Base and Cap
-          totalLaborCost += pitchSquares * 100; // $100/sq for 1/12-2/12 pitch areas
-        } else {
-          // Regular labor rate for standard pitches
+        if (pitchValue === 0) {
+          // 0/12 pitch uses $50/sq labor rate
+          totalLaborCost += pitchSquares * 50;
+        } else if (pitchValue === 1 || pitchValue === 2) {
+          // 1/12 or 2/12 pitch uses $109/sq labor rate
+          totalLaborCost += pitchSquares * 109;
+        } else if (pitchValue >= 8) {
+          // Steep slopes 8/12 and up
           const specificPitchRate = laborRates.pitchRates[pitchRaw] || getPitchRate(pitchRaw);
           totalLaborCost += pitchSquares * specificPitchRate;
+        } else {
+          // Regular labor rate for standard pitches (3/12-7/12)
+          totalLaborCost += pitchSquares * (laborRates.laborRate || 85);
         }
       });
     } else {
@@ -410,6 +411,19 @@ export function LaborProfitTab({
     });
   }, [measurements?.areasByPitch]);
   
+  // Check if any pitches are low slope (0/12, 1/12, 2/12)
+  const hasLowSlopePitches = React.useMemo(() => {
+    if (!measurements?.areasByPitch) return false;
+    
+    return measurements.areasByPitch.some(areaByPitch => {
+      const pitchParts = areaByPitch.pitch.split(/[:\/]/);
+      if (pitchParts.length < 2) return false;
+      
+      const numerator = parseInt(pitchParts[0]);
+      return numerator >= 0 && numerator <= 2;
+    });
+  }, [measurements?.areasByPitch]);
+  
   // Get steepest pitch for display
   const steepestPitch = React.useMemo(() => {
     if (!measurements?.areasByPitch || measurements.areasByPitch.length === 0) {
@@ -432,6 +446,41 @@ export function LaborProfitTab({
     
     return pitchText;
   }, [measurements?.areasByPitch]);
+  
+  // Get lowest pitch for display
+  const lowestPitch = React.useMemo(() => {
+    if (!measurements?.areasByPitch || measurements.areasByPitch.length === 0) {
+      return null; // No pitches detected
+    }
+    
+    let minPitch = 100; // Start with high value
+    let pitchText = "";
+    
+    measurements.areasByPitch.forEach(areaByPitch => {
+      const pitchParts = areaByPitch.pitch.split(/[:\/]/);
+      if (pitchParts.length < 2) return;
+      
+      const numerator = parseInt(pitchParts[0]);
+      if (numerator < minPitch) {
+        minPitch = numerator;
+        pitchText = areaByPitch.pitch;
+      }
+    });
+    
+    return pitchText || null;
+  }, [measurements?.areasByPitch]);
+  
+  // Generate pitch options from 0/12 to 2/12 for low slope
+  const lowSlopePitchOptions = ["0:12", "1:12", "2:12"];
+  
+  // Build a list of low slope pitch rates to display
+  const lowSlopePitchRateDisplay = lowSlopePitchOptions.map(pitch => {
+    const defaultRate = getPitchRate(pitch);
+    return {
+      pitch,
+      rate: defaultRate
+    };
+  });
   
   return (
     <Card>
@@ -793,6 +842,16 @@ export function LaborProfitTab({
               Labor rates for steeper pitches (starting at 8/12 with $90/square):
             </p>
             
+            {hasLowSlopePitches && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
+                <p className="text-sm text-yellow-700">
+                  <strong>Note:</strong> This roof has low slope pitches (0/12 to 2/12). 
+                  The lowest pitch is {lowestPitch}, which will require a labor rate of 
+                  ${getPitchRate(lowestPitch?.replace("/", ":") || "0:12")}/square.
+                </p>
+              </div>
+            )}
+            
             {hasSteeperPitches && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
                 <p className="text-sm text-yellow-700">
@@ -803,26 +862,54 @@ export function LaborProfitTab({
               </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {pitchRateDisplay.map(({ pitch, rate }) => (
-                <div key={pitch} className="flex items-center space-x-2">
-                  <Label htmlFor={`pitch_${pitch}`} className="min-w-24">{pitch}</Label>
-                  <Input
-                    id={`pitch_${pitch}`}
-                    type="text"
-                    value={`$${rate}/square`}
-                    readOnly
-                    className="bg-muted flex-1"
-                  />
+            <div className="space-y-4">
+              {/* Low Slope Pitches Section */}
+              <div className="mb-4">
+                <h4 className="text-md font-medium mb-2">Low Slope Pitches (0/12-2/12)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {lowSlopePitchRateDisplay.map(({ pitch, rate }) => (
+                    <div key={pitch} className="flex items-center space-x-2">
+                      <Label htmlFor={`pitch_${pitch}`} className="min-w-24">{pitch}</Label>
+                      <Input
+                        id={`pitch_${pitch}`}
+                        type="text"
+                        value={`$${rate}/square`}
+                        readOnly
+                        className="bg-muted flex-1"
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+              
+              {/* Standard Pitches - this information is already in the Note box below */}
+              
+              {/* Steep Pitches Section */}
+              <div>
+                <h4 className="text-md font-medium mb-2">Steep Pitches (8/12-18/12)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {pitchRateDisplay.map(({ pitch, rate }) => (
+                    <div key={pitch} className="flex items-center space-x-2">
+                      <Label htmlFor={`pitch_${pitch}`} className="min-w-24">{pitch}</Label>
+                      <Input
+                        id={`pitch_${pitch}`}
+                        type="text"
+                        value={`$${rate}/square`}
+                        readOnly
+                        className="bg-muted flex-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
             
             <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
               <div className="text-sm text-blue-700">
                 <strong>Note:</strong> Different labor rates apply for different pitch ranges:
                 <ul className="mt-1 list-disc list-inside">
-                  <li>0/12-2/12 (low slope): $75/square</li>
+                  <li>0/12 (flat): $50/square</li>
+                  <li>1/12-2/12 (low slope): $109/square</li>
                   <li>3/12-7/12 (standard): $85/square</li>
                   <li>8/12-18/12 (steep): $90-$140/square (increases with pitch)</li>
                 </ul>
