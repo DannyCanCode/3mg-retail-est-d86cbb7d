@@ -46,6 +46,9 @@ export interface LaborRates {
   includeDownspouts?: boolean; // Whether to include downspouts
   downspoutCount?: number; // Number of downspouts
   downspoutRate?: number; // Rate per downspout
+  includeDetachResetGutters?: boolean; // Whether to include detach and reset gutters
+  detachResetGutterLinearFeet?: number; // Linear feet of gutters to detach and reset
+  detachResetGutterRate?: number; // Rate per linear foot for detach and reset
 }
 
 export function LaborProfitTab({
@@ -69,7 +72,10 @@ export function LaborProfitTab({
     gutterRate: 8, // $8 per linear foot
     includeDownspouts: false,
     downspoutCount: 0,
-    downspoutRate: 75 // $75 each
+    downspoutRate: 75, // $75 each
+    includeDetachResetGutters: false,
+    detachResetGutterLinearFeet: 0,
+    detachResetGutterRate: 1 // $1 per linear foot
   },
   initialProfitMargin = 25,
   measurements,
@@ -106,6 +112,9 @@ export function LaborProfitTab({
     includeDownspouts: false,
     downspoutCount: 0,
     downspoutRate: 75,
+    includeDetachResetGutters: false,
+    detachResetGutterLinearFeet: 0,
+    detachResetGutterRate: 1,
     // Override with any values from initialLaborRates that exist
     ...initialLaborRates,
     // If initialLaborRates2 is provided, use those values instead
@@ -284,7 +293,10 @@ export function LaborProfitTab({
         permitCount: 1,
         permitAdditionalRate: 450,
         pitchRates: {},
-        wastePercentage: 12
+        wastePercentage: 12,
+        includeDetachResetGutters: false,
+        detachResetGutterLinearFeet: 0,
+        detachResetGutterRate: 1
       };
       
       return {
@@ -310,7 +322,10 @@ export function LaborProfitTab({
           permitCount: 1,
           permitAdditionalRate: 450,
           pitchRates: {},
-          wastePercentage: 12
+          wastePercentage: 12,
+          includeDetachResetGutters: false,
+          detachResetGutterLinearFeet: 0,
+          detachResetGutterRate: 1
         };
         
         return {
@@ -601,6 +616,43 @@ export function LaborProfitTab({
                     id="gutterTotal"
                     type="text"
                     value={`$${((laborRates.gutterLinearFeet || 0) * (laborRates.gutterRate || 8)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-center space-x-4 mt-4">
+              <Switch
+                id="includeDetachResetGutters"
+                checked={!!laborRates.includeDetachResetGutters}
+                onCheckedChange={(checked) => handleLaborRateChange("includeDetachResetGutters", checked)}
+              />
+              <Label htmlFor="includeDetachResetGutters">
+                Detach and Reset Gutters ($1 per linear foot)
+              </Label>
+            </div>
+            
+            {!!laborRates.includeDetachResetGutters && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="detachResetGutterLinearFeet">Linear Feet</Label>
+                  <Input
+                    id="detachResetGutterLinearFeet"
+                    type="number"
+                    value={(laborRates.detachResetGutterLinearFeet || 0).toString()}
+                    onChange={(e) => handleLaborRateChange("detachResetGutterLinearFeet", e.target.value)}
+                    min="0"
+                    step="1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="detachResetGutterTotal">Total Detach/Reset Cost</Label>
+                  <Input
+                    id="detachResetGutterTotal"
+                    type="text"
+                    value={`$${((laborRates.detachResetGutterLinearFeet || 0) * (laborRates.detachResetGutterRate || 1)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
                   />
