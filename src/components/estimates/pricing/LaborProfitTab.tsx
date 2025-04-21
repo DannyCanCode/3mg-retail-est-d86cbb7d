@@ -62,7 +62,7 @@ export function LaborProfitTab({
     dumpsterCount: 1,
     dumpsterRate: 400,
     includePermits: true, // Default to include permits
-    permitRate: 550, // Default to Orlando permit rate
+    permitRate: 450, // Default to Orlando permit rate
     permitCount: 1, // Default to 1 permit
     permitAdditionalRate: 450, // Cost for each additional permit
     pitchRates: {},
@@ -101,7 +101,7 @@ export function LaborProfitTab({
     dumpsterCount: 1,
     dumpsterRate: 400,
     includePermits: true,
-    permitRate: 550,
+    permitRate: 450,
     permitCount: 1,
     permitAdditionalRate: 450,
     pitchRates: {},
@@ -265,7 +265,7 @@ export function LaborProfitTab({
   
   // Update permit rate when location changes
   useEffect(() => {
-    const newPermitRate = laborRates.dumpsterLocation === "orlando" ? 550 : 650;
+    const newPermitRate = laborRates.dumpsterLocation === "orlando" ? 450 : 550;
     
     setLaborRates(prev => ({
       ...prev,
@@ -289,7 +289,7 @@ export function LaborProfitTab({
         dumpsterCount: 1,
         dumpsterRate: 400,
         includePermits: true,
-        permitRate: 550,
+        permitRate: 450,
         permitCount: 1,
         permitAdditionalRate: 450,
         pitchRates: {},
@@ -318,7 +318,7 @@ export function LaborProfitTab({
           dumpsterCount: 1,
           dumpsterRate: 400,
           includePermits: true,
-          permitRate: 550,
+          permitRate: 450,
           permitCount: 1,
           permitAdditionalRate: 450,
           pitchRates: {},
@@ -354,7 +354,7 @@ export function LaborProfitTab({
   const handleDumpsterLocationChange = (value: string) => {
     const location = value as "orlando" | "outside";
     const dumpsterRate = location === "orlando" ? 400 : 500;
-    const permitRate = location === "orlando" ? 550 : 650;
+    const permitRate = location === "orlando" ? 450 : 550;
     
     setLaborRates(prev => ({
       ...prev,
@@ -513,11 +513,11 @@ export function LaborProfitTab({
                 >
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="orlando" id="permit-orlando" />
-                    <Label htmlFor="permit-orlando">Orlando (Base permit: $550)</Label>
+                    <Label htmlFor="permit-orlando">Orlando (Base permit: $450)</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="outside" id="permit-outside" />
-                    <Label htmlFor="permit-outside">Outside Orlando (Base permit: $650)</Label>
+                    <Label htmlFor="permit-outside">Outside Orlando (Base permit: $550)</Label>
                   </div>
                 </RadioGroup>
                 
@@ -569,7 +569,7 @@ export function LaborProfitTab({
                     <Input
                       id="permitTotal"
                       type="text"
-                      value={`$${((laborRates.permitRate || 550) + ((laborRates.permitCount || 1) - 1) * (laborRates.permitAdditionalRate || 450)).toFixed(2)}`}
+                      value={`$${((laborRates.permitRate || 450) + ((laborRates.permitCount || 1) - 1) * (laborRates.permitAdditionalRate || 450)).toFixed(2)}`}
                       readOnly
                       className="bg-muted"
                     />
