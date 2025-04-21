@@ -65,7 +65,7 @@ export function LaborProfitTab({
     gutterRate: 8, // $8 per linear foot
     includeDownspouts: false,
     downspoutCount: 0,
-    downspoutRate: 65 // $65 each
+    downspoutRate: 75 // $75 each
   },
   initialProfitMargin = 25,
   measurements,
@@ -99,7 +99,7 @@ export function LaborProfitTab({
     gutterRate: 8,
     includeDownspouts: false,
     downspoutCount: 0,
-    downspoutRate: 65,
+    downspoutRate: 75,
     // Override with any values from initialLaborRates that exist
     ...initialLaborRates,
     // If initialLaborRates2 is provided, use those values instead
@@ -539,7 +539,7 @@ export function LaborProfitTab({
                 onCheckedChange={(checked) => handleLaborRateChange("includeDownspouts", checked)}
               />
               <Label htmlFor="includeDownspouts">
-                Install 3" x 4" Downspouts ($65 each)
+                Install 3" x 4" Downspouts ($75 each)
               </Label>
             </div>
             
@@ -561,7 +561,7 @@ export function LaborProfitTab({
                   <Input
                     id="downspoutTotal"
                     type="text"
-                    value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 65)).toFixed(2)}`}
+                    value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 75)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
                   />
