@@ -2,8 +2,8 @@
 const formatSquareCount = (material: Material, quantity: number) => {
   if (!quantity || quantity <= 0) return "0";
 
-  // Special handling for GAF Timberline HDZ
-  if (material.id === "gaf-timberline-hdz") {
+  // Special handling for GAF Timberline HDZ SG
+  if (material.id === "gaf-timberline-hdz-sg") {
     // Calculate squares from bundles (3 bundles = 1 square)
     const squares = Math.round((quantity / 3) * 10) / 10;
     return squares.toFixed(1);
@@ -24,7 +24,7 @@ const formatSquareCount = (material: Material, quantity: number) => {
   />
   {material.type === "shingles" && (
     <SquareCount>
-      {formatSquareCount(material, quantities[material.id])} {material.id === "gaf-timberline-hdz" ? "squares" : "bundles"}
+      {formatSquareCount(material, quantities[material.id])} {material.id === "gaf-timberline-hdz-sg" ? "squares" : "bundles"}
     </SquareCount>
   )}
 </Cell> 

@@ -258,7 +258,6 @@ const Pricing = () => {
     const materialsByCategory = {
       // Shingles category
       shingles: [
-        "gaf-timberline-hdz", 
         "gaf-timberline-hdz-sg",
         "gaf-seal-a-ridge", 
         "gaf-prostart-starter-shingle-strip",

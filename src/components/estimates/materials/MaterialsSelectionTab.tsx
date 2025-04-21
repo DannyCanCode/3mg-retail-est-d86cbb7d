@@ -87,7 +87,7 @@ export function MaterialsSelectionTab({
   const groupedMaterials = groupMaterialsByCategory(ROOFING_MATERIALS);
   
   // Check if GAF Timberline HDZ is selected
-  const isGafTimberlineSelected = Boolean(selectedMaterials["gaf-timberline-hdz"]);
+  const isGafTimberlineSelected = Boolean(selectedMaterials["gaf-timberline-hdz-sg"]);
   
   // Check if there are flat/low-slope areas on the roof
   useEffect(() => {
@@ -377,8 +377,8 @@ export function MaterialsSelectionTab({
   
   // Add material to selection
   const addMaterial = (material: Material) => {
-    // Use GAF Timberline specific waste factor if this is GAF Timberline HDZ
-    const effectiveWasteFactor = material.id === "gaf-timberline-hdz" ? 
+    // Use GAF Timberline specific waste factor if this is GAF Timberline HDZ SG
+    const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
       gafTimberlineWasteFactor / 100 : 
       wasteFactor / 100;
     
@@ -460,8 +460,8 @@ export function MaterialsSelectionTab({
     // Recalculate all quantities with new waste factor
     const newQuantities = { ...quantities };
     Object.keys(selectedMaterials).forEach(materialId => {
-      // Skip GAF Timberline HDZ as it has its own waste factor
-      if (materialId === "gaf-timberline-hdz") return;
+      // Skip GAF Timberline HDZ SG as it has its own waste factor
+      if (materialId === "gaf-timberline-hdz-sg") return;
       
       newQuantities[materialId] = calculateMaterialQuantity(
         selectedMaterials[materialId],
@@ -477,11 +477,11 @@ export function MaterialsSelectionTab({
   const handleGafTimberlineWasteFactorChange = (newWasteFactor: number) => {
     setGafTimberlineWasteFactor(newWasteFactor);
     
-    // Only update GAF Timberline HDZ if it's selected
-    if (selectedMaterials["gaf-timberline-hdz"]) {
+    // Only update GAF Timberline HDZ SG if it's selected
+    if (selectedMaterials["gaf-timberline-hdz-sg"]) {
       const newQuantities = { ...quantities };
-      newQuantities["gaf-timberline-hdz"] = calculateMaterialQuantity(
-        selectedMaterials["gaf-timberline-hdz"],
+      newQuantities["gaf-timberline-hdz-sg"] = calculateMaterialQuantity(
+        selectedMaterials["gaf-timberline-hdz-sg"],
         measurements,
         newWasteFactor / 100
       );
@@ -516,8 +516,8 @@ export function MaterialsSelectionTab({
     
     // Define preset material ids for each bundle
     const presetMaterials: { [key: string]: string[] } = {
-      "GAF 1": ["gaf-timberline-hdz", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "abc-pro-guard-20"],
-      "GAF 2": ["gaf-timberline-hdz", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield"],
+      "GAF 1": ["gaf-timberline-hdz-sg", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "abc-pro-guard-20"],
+      "GAF 2": ["gaf-timberline-hdz-sg", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield"],
       "OC 1": ["oc-oakridge", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "lead-boot-4inch"],
       "OC 2": ["oc-duration", "oc-hip-ridge", "oc-starter", "abc-pro-guard-20", "gaf-feltbuster-synthetic-underlayment"]
     };
@@ -566,7 +566,7 @@ export function MaterialsSelectionTab({
              console.log(`[Preset] Calculated WeatherWatch quantity: ${newQuantities[materialId]}`);
           } else {
             // Calculate quantity normally for other materials
-            const effectiveWasteFactor = material.id === "gaf-timberline-hdz" ? 
+            const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
               gafTimberlineWasteFactor / 100 : 
               wasteFactor / 100;
             
@@ -617,7 +617,7 @@ export function MaterialsSelectionTab({
       // --- Field Shingles (e.g., GAF Timberline HDZ) ---
       if (material.unit?.toLowerCase() === 'bundle' && !material.id.includes('ridge') && !material.id.includes('hip') && !material.id.includes('starter')) {
         console.log(`[Explainer V2] Calculating explanation for Field Shingle: ${material.id}`); // Log Start V2
-        const actualWasteFactor = material.id === "gaf-timberline-hdz" 
+        const actualWasteFactor = material.id === "gaf-timberline-hdz-sg" 
                                   ? Math.max(gafTimberlineWasteFactor / 100, 0.12)
                                   : wasteFactor / 100; 
                                   
