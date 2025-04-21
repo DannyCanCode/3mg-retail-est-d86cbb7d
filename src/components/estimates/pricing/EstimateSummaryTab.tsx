@@ -220,8 +220,8 @@ export function EstimateSummaryTab({
           
           hasPitchSpecificLabor = true;
         } else if ((pitchValue === 1 || pitchValue === 2) && hasPolyglasMaterials) {
-          // 1/12 or 2/12 pitch with Polyglass materials has special $100/sq rate
-          rate = 100;
+          // 1/12 or 2/12 pitch with Polyglass materials has special $109/sq rate
+          rate = 109;
           
           laborCosts.push({ 
             name: `Labor for ${pitch} Pitch (Polyglass Base & Cap) (${Math.round(areaSquares * 10) / 10} squares)`, 
