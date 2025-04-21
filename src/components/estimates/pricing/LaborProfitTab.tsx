@@ -491,6 +491,21 @@ export function LaborProfitTab({
             
             {!!laborRates.includePermits && (
               <>
+                <RadioGroup
+                  value={laborRates.dumpsterLocation}
+                  onValueChange={handleDumpsterLocationChange}
+                  className="flex flex-col space-y-1 mb-3"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="orlando" id="permit-orlando" />
+                    <Label htmlFor="permit-orlando">Orlando (Base permit: $550)</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="outside" id="permit-outside" />
+                    <Label htmlFor="permit-outside">Outside Orlando (Base permit: $650)</Label>
+                  </div>
+                </RadioGroup>
+                
                 <div className="bg-muted p-3 rounded-md">
                   <p className="text-sm mb-2">Base permit cost for {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}: 
                     ${laborRates.permitRate.toFixed(2)}
