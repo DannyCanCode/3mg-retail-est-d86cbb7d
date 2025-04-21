@@ -893,7 +893,6 @@ export function MaterialsSelectionTab({
     const quantity = quantities[materialId] || 0;
     const isMandatory = isMandatoryMaterial(material.name);
     
-    // Extract the base name and the requirement text if mandatory
     let baseName = material.name;
     let requirementText = "";
     if (isMandatory) {
@@ -931,7 +930,6 @@ export function MaterialsSelectionTab({
             <p className="text-[11px] text-blue-700 mb-0.5">{requirementText}</p>
           )}
           <div className="text-sm text-muted-foreground">
-            {/* Simple Price Display */}
             {material.price > 0 && 
               <>{formatPrice(material.price)} per {material.unit}</>
             }
@@ -1051,12 +1049,8 @@ export function MaterialsSelectionTab({
              </Accordion>
           </CardContent>
           <CardFooter className="flex justify-between">
-             <Button type="button" variant="outline" onClick={() => onMaterialsUpdate({ selectedMaterials: {}, quantities: {}, peelStickPrice: "0.00" })} className="flex items-center gap-2">
-               <ChevronLeft className="h-4 w-4" />Back to Measurements
-             </Button>
-             <Button onClick={() => { onMaterialsUpdate({ selectedMaterials, quantities, peelStickPrice }); /* No nav needed */ }} disabled={Object.keys(selectedMaterials).length === 0} className="flex items-center gap-2">
-               Continue
-             </Button>
+             <Button type="button" variant="outline" onClick={() => onMaterialsUpdate({ selectedMaterials: {}, quantities: {}, peelStickPrice: "0.00" })} className="flex items-center gap-2"><ChevronLeft className="h-4 w-4" />Back to Measurements</Button>
+             <Button onClick={() => { onMaterialsUpdate({ selectedMaterials, quantities, peelStickPrice }); /* No nav needed */ }} disabled={Object.keys(selectedMaterials).length === 0} className="flex items-center gap-2">Continue</Button>
            </CardFooter>
         </Card>
       </div>
@@ -1074,7 +1068,7 @@ export function MaterialsSelectionTab({
             ) : (
               <div className="space-y-4">
                 {Object.entries(selectedMaterials).map(([materialId, material]) => {
-                   if (!material || !material.id) return null; // Safety check
+                   if (!material || !material.id) return null; 
                    return renderSelectedMaterial(materialId, material);
                  })}
                  <div className="flex justify-between font-medium text-lg pt-2 border-t">
