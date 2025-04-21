@@ -52,7 +52,7 @@ export function LaborProfitTab({
   initialLaborRates = {
     laborRate: 85, // Default combined rate for 3/12-7/12 pitches
     isHandload: false,
-    handloadRate: 15,
+    handloadRate: 10,
     dumpsterLocation: "orlando",
     dumpsterCount: 1,
     dumpsterRate: 400,
@@ -86,7 +86,7 @@ export function LaborProfitTab({
     tearOff: 0,
     installation: 0,
     isHandload: false,
-    handloadRate: 15,
+    handloadRate: 10,
     dumpsterLocation: "orlando",
     dumpsterCount: 1,
     dumpsterRate: 400,
@@ -221,7 +221,7 @@ export function LaborProfitTab({
     
     // Add handload cost if applicable
     if (laborRates.isHandload) {
-      totalLaborCost += squares * (laborRates.handloadRate || 15);
+      totalLaborCost += squares * (laborRates.handloadRate || 10);
     }
     
     return totalLaborCost;
@@ -269,7 +269,7 @@ export function LaborProfitTab({
       const safePrev = prev || {
         laborRate: 85,
         isHandload: false,
-        handloadRate: 15,
+        handloadRate: 10,
         dumpsterLocation: "orlando",
         dumpsterCount: 1,
         dumpsterRate: 400,
@@ -293,7 +293,7 @@ export function LaborProfitTab({
         const safePrev = prev || {
           laborRate: 85,
           isHandload: false,
-          handloadRate: 15,
+          handloadRate: 10,
           dumpsterLocation: "orlando",
           dumpsterCount: 1,
           dumpsterRate: 400,
@@ -595,7 +595,7 @@ export function LaborProfitTab({
                   <Input
                     id="handloadRate"
                     type="number"
-                    value={(laborRates.handloadRate || 15).toString()}
+                    value={(laborRates.handloadRate || 10).toString()}
                     onChange={(e) => handleLaborRateChange("handloadRate", e.target.value)}
                     min="0"
                     step="0.01"
@@ -603,7 +603,7 @@ export function LaborProfitTab({
                 </div>
                 <p className="text-sm text-muted-foreground">
                   Handload cost with {laborRates.wastePercentage || 12}% waste: 
-                  ${(totalSquares * (1 + (laborRates.wastePercentage || 12)/100) * (laborRates.handloadRate || 15)).toFixed(2)}
+                  ${(totalSquares * (1 + (laborRates.wastePercentage || 12)/100) * (laborRates.handloadRate || 10)).toFixed(2)}
                 </p>
               </>
             )}
