@@ -696,7 +696,7 @@ export const getSoldEstimates = async (filters?: { startDate?: string, endDate?:
     .select(`
       id,
       customer_name,
-      customer_address, /* Select the correct address column */
+      customer_address,
       sold_at,
       calculated_material_cost,
       calculated_labor_cost,
