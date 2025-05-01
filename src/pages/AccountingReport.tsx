@@ -213,7 +213,7 @@ const AccountingReport: React.FC = () => {
                                  <TableCell>
                                    <div>{est.customer_name || 'N/A'}</div>
                                    <div className="text-xs text-muted-foreground">
-                                      {est.customer_address || 'Address N/A'}
+                                      {est.customer_address || ''}
                                    </div>
                                  </TableCell>
                                  <TableCell>{formatDate(est.sold_at)}</TableCell>
