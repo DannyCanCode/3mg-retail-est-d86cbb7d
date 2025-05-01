@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -11,6 +10,7 @@ import {
   Settings,
   Menu,
   X,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -19,6 +19,7 @@ const navigationItems = [
   { name: "Estimates", href: "/estimates", icon: FileText },
   { name: "Measurements", href: "/measurements", icon: Database },
   { name: "Pricing", href: "/pricing", icon: DollarSign },
+  { name: "Accounting", href: "/accounting-report", icon: FileSpreadsheet },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

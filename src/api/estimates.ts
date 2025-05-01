@@ -4,7 +4,7 @@ import { Material } from "@/components/estimates/materials/types";
 import { LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
 
 // Define the status type for estimates
-export type EstimateStatus = "draft" | "pending" | "approved" | "rejected";
+export type EstimateStatus = "draft" | "pending" | "approved" | "rejected" | "Sold";
 
 // Complete estimate interface that represents what's stored in the database
 export interface Estimate {
@@ -24,6 +24,14 @@ export interface Estimate {
   created_at?: string;
   updated_at?: string;
   notes?: string;
+  is_sold?: boolean;
+  sold_at?: string;
+  calculated_material_cost?: number;
+  calculated_labor_cost?: number;
+  calculated_subtotal?: number;
+  calculated_profit_amount?: number;
+  job_type?: 'Retail' | 'Insurance' | null;
+  insurance_company?: string | null;
 }
 
 /**
@@ -422,3 +430,264 @@ export const calculateEstimateTotal = (
 
   return Math.round(total); // Round to nearest dollar
 };
+
+// --- Helper Function for Cost Calculation ---
+// NOTE: This logic MUST precisely match the calculations used in EstimateSummaryTab.tsx
+//       Consider refactoring the logic from EstimateSummaryTab into a shared utility
+//       function to avoid duplication and ensure consistency.
+const calculateFinalCosts = (estimateData: Estimate) => {
+  console.log("[calculateFinalCosts] Received estimateData:", JSON.stringify(estimateData, null, 2)); // Log input
+
+  // --- Default/Safe values ---
+  const safeMeasurements = estimateData.measurements as MeasurementValues || { totalArea: 0, areasByPitch: [] };
+  const selectedMaterials = estimateData.materials as Record<string, Material> || {};
+  const quantities = estimateData.quantities as Record<string, number> || {};
+  const laborRates = estimateData.labor_rates as LaborRates || {}; 
+  const profitMargin = estimateData.profit_margin || 0;
+  const peelStickAddonCost = estimateData.peel_stick_addon_cost || 0; 
+
+  console.log("[calculateFinalCosts] Parsed Materials:", selectedMaterials);
+  console.log("[calculateFinalCosts] Parsed Quantities:", quantities);
+  console.log("[calculateFinalCosts] Parsed LaborRates:", laborRates);
+  console.log("[calculateFinalCosts] Parsed Measurements:", safeMeasurements);
+
+  // --- Material Cost Calculation ---
+  let calculated_material_cost = 0;
+  try {
+    for (const materialId in selectedMaterials) {
+      const material = selectedMaterials[materialId];
+      const quantity = quantities[materialId] || 0;
+      console.log(`[calculateFinalCosts] Processing Material: ID=${materialId}, Qty=${quantity}, Material Data:`, material);
+      
+      // **Crucial Check:** Ensure material and price exist and are valid numbers
+      if (material && typeof material.price === 'number' && !isNaN(material.price) && typeof quantity === 'number' && !isNaN(quantity)) {
+        calculated_material_cost += material.price * quantity;
+      } else {
+        console.warn(`[calculateFinalCosts] Skipping invalid material/quantity: ID=${materialId}, Price=${material?.price}, Qty=${quantity}`);
+      }
+    }
+  } catch (matError) {
+    console.error("[calculateFinalCosts] Error during material cost calculation:", matError);
+    throw new Error("Material cost calculation failed."); // Re-throw or handle
+  }
+  calculated_material_cost += peelStickAddonCost; 
+
+  // --- Labor Cost Calculation --- 
+  let calculated_labor_cost = 0;
+  const totalArea = safeMeasurements.totalArea || 0;
+  const totalSquares = totalArea > 0 ? totalArea / 100 : 0;
+  const wasteFactor = (laborRates.wastePercentage || 12) / 100; // Default 12%
+
+  // Helper to get pitch rate (adjust based on your actual implementation)
+  const getPitchRate = (pitch: string): number => {
+      const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
+      // Add logic for special material rates if needed here, checking selectedMaterials
+      // Example: Check if specific low-slope materials are present
+      const hasPolyIso = Object.values(selectedMaterials).some(m => m.id === "gaf-poly-iso-4x8");
+      const hasPolyglass = Object.values(selectedMaterials).some(m => m.id === "polyglass-elastoflex-sbs" || m.id === "polyglass-polyflex-app");
+
+      if (pitchValue === 0 && hasPolyIso) return 60; // GAF Poly ISO rate
+      if ((pitchValue === 1 || pitchValue === 2) && hasPolyglass) return 109; // Polyglass rate
+      if (pitchValue <= 2) return 75; // Default Low Slope
+      if (pitchValue >= 8) { // Steep
+          const basePitchValue = 8;
+          const baseRate = 90;
+          const increment = 5;
+          return baseRate + (pitchValue - basePitchValue) * increment;
+      }
+      return laborRates.laborRate || 85; // Standard (3-7) or default
+  };
+
+  // Calculate pitch-based labor
+  if (safeMeasurements.areasByPitch && safeMeasurements.areasByPitch.length > 0 && totalSquares > 0) {
+      safeMeasurements.areasByPitch.forEach(area => {
+          const pitch = area.pitch;
+          const areaSquares = (area.area || 0) / 100;
+          if (areaSquares > 0) {
+              const rate = getPitchRate(pitch);
+              calculated_labor_cost += rate * areaSquares * (1 + wasteFactor);
+              console.log(`[calculateFinalCosts] Labor for Pitch ${pitch}: ${areaSquares.toFixed(2)} sq @ $${rate}/sq (w/ waste) = $${(rate * areaSquares * (1 + wasteFactor)).toFixed(2)}`);
+          }
+      });
+  } else if (totalSquares > 0) {
+      // Fallback if no pitch data but total area exists
+      const fallbackRate = laborRates.laborRate || 85;
+      calculated_labor_cost += fallbackRate * totalSquares * (1 + wasteFactor);
+      console.log(`[calculateFinalCosts] Labor Fallback: ${totalSquares.toFixed(2)} sq @ $${fallbackRate}/sq (w/ waste) = $${(fallbackRate * totalSquares * (1 + wasteFactor)).toFixed(2)}`);
+  }
+
+  // Add Handload
+  if (laborRates.isHandload && totalSquares > 0) {
+      const handloadCost = (laborRates.handloadRate || 15) * totalSquares * (1 + wasteFactor); // Default 15/sq
+      calculated_labor_cost += handloadCost;
+      console.log(`[calculateFinalCosts] Added Handload: $${handloadCost.toFixed(2)}`);
+  }
+
+  // Add Dumpsters
+  // Use stored count/rate if available, otherwise calculate
+  const dumpsterCount = laborRates.dumpsterCount || (totalSquares > 0 ? Math.max(1, Math.ceil(totalSquares / 20)) : 0); 
+  if (dumpsterCount > 0) {
+      const dumpsterRate = laborRates.dumpsterRate || (laborRates.dumpsterLocation === "orlando" ? 400 : 500); // Defaults
+      const dumpsterTotalCost = dumpsterCount * dumpsterRate;
+      calculated_labor_cost += dumpsterTotalCost;
+      console.log(`[calculateFinalCosts] Added Dumpsters (${dumpsterCount}): $${dumpsterTotalCost.toFixed(2)}`);
+  }
+
+  // Add Permits
+  if (laborRates.includePermits) {
+      const permitCount = laborRates.permitCount || 1;
+      const basePermitRate = laborRates.permitRate || (laborRates.dumpsterLocation === "orlando" ? 450 : 550); // Defaults
+      const additionalPermitRate = laborRates.permitAdditionalRate || basePermitRate; // Default additional to base rate
+      const permitTotalCost = basePermitRate + Math.max(0, permitCount - 1) * additionalPermitRate;
+      calculated_labor_cost += permitTotalCost;
+      console.log(`[calculateFinalCosts] Added Permits (${permitCount}): $${permitTotalCost.toFixed(2)}`);
+  }
+
+  // Add Gutters
+  if (laborRates.includeGutters && laborRates.gutterLinearFeet && laborRates.gutterLinearFeet > 0) {
+      const gutterCost = (laborRates.gutterRate || 8) * laborRates.gutterLinearFeet; // Default $8/ft
+      calculated_labor_cost += gutterCost;
+      console.log(`[calculateFinalCosts] Added Gutters (${laborRates.gutterLinearFeet} ft): $${gutterCost.toFixed(2)}`);
+  }
+
+  // Add Downspouts
+  if (laborRates.includeDownspouts && laborRates.downspoutCount && laborRates.downspoutCount > 0) {
+      const downspoutCost = (laborRates.downspoutRate || 75) * laborRates.downspoutCount; // Default $75 each
+      calculated_labor_cost += downspoutCost;
+      console.log(`[calculateFinalCosts] Added Downspouts (${laborRates.downspoutCount}): $${downspoutCost.toFixed(2)}`);
+  }
+
+  // Add Detach/Reset Gutters 
+  if (laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet && laborRates.detachResetGutterLinearFeet > 0) {
+      const detachCost = (laborRates.detachResetGutterRate || 1) * laborRates.detachResetGutterLinearFeet; // Default $1/ft
+      calculated_labor_cost += detachCost;
+      console.log(`[calculateFinalCosts] Added Detach/Reset Gutters (${laborRates.detachResetGutterLinearFeet} ft): $${detachCost.toFixed(2)}`);
+  }
+
+  // --- Subtotal and Profit --- 
+  const calculated_subtotal = calculated_material_cost + calculated_labor_cost;
+  const calculated_profit_amount = calculated_subtotal * (profitMargin / 100);
+  const calculated_total = calculated_subtotal + calculated_profit_amount;
+
+  console.log("[calculateFinalCosts] Calculated values:", { calculated_material_cost, calculated_labor_cost, calculated_subtotal, calculated_profit_amount });
+
+  return {
+    calculated_material_cost,
+    calculated_labor_cost,
+    calculated_subtotal,
+    calculated_profit_amount,
+    calculated_total 
+  };
+};
+
+// --- Modified Function: markEstimateAsSold --- 
+export const markEstimateAsSold = async (
+  estimateId: string, 
+  jobType: 'Retail' | 'Insurance', 
+  insuranceCompany?: string 
+): Promise<Estimate> => {
+  if (!isSupabaseConfigured) {
+    throw new Error("Supabase is not configured.");
+  }
+  if (!estimateId) {
+    throw new Error("Estimate ID is required.");
+  }
+  if (!jobType) {
+      throw new Error("Job Type (Retail/Insurance) is required.");
+  }
+  if (jobType === 'Insurance' && !insuranceCompany) {
+      throw new Error("Insurance Company name is required when Job Type is Insurance.");
+  }
+
+  // 1. Fetch the raw estimate data
+  const { data: rawEstimateData, error: fetchError } = await supabase
+    .from('estimates')
+    .select('*') 
+    .eq('id', estimateId)
+    .single();
+
+  if (fetchError || !rawEstimateData) {
+    console.error("Error fetching estimate for 'Mark as Sold':", fetchError);
+    throw new Error(`Estimate not found or error fetching: ${fetchError?.message}`);
+  }
+
+  // Parse JSON
+  let parsedEstimateData: Estimate;
+  try {
+      parsedEstimateData = {
+        ...rawEstimateData,
+        materials: JSON.parse(rawEstimateData.materials || "{}"),
+        quantities: JSON.parse(rawEstimateData.quantities || "{}"),
+        labor_rates: JSON.parse(rawEstimateData.labor_rates || "{}"),
+        measurements: JSON.parse(rawEstimateData.measurements || "{}")
+      } as Estimate;
+      console.log("[markEstimateAsSold] Parsed estimate data successfully:", parsedEstimateData);
+  } catch (parseError) {
+      console.error("[markEstimateAsSold] Error parsing estimate JSON fields:", parseError);
+      throw new Error("Failed to parse estimate data.");
+  }
+  
+  // 2. Recalculate costs 
+  console.log("[markEstimateAsSold] Calling calculateFinalCosts...");
+  const finalCosts = calculateFinalCosts(parsedEstimateData); 
+  console.log("[markEstimateAsSold] Calculated final costs:", finalCosts);
+
+  // 3. Prepare update data
+  const updatePayload: Partial<Estimate> = {
+      is_sold: true,
+      sold_at: new Date().toISOString(),
+      status: 'Sold', 
+      job_type: jobType,
+      insurance_company: jobType === 'Insurance' ? insuranceCompany : null, 
+      calculated_material_cost: finalCosts.calculated_material_cost,
+      calculated_labor_cost: finalCosts.calculated_labor_cost,
+      calculated_subtotal: finalCosts.calculated_subtotal,
+      calculated_profit_amount: finalCosts.calculated_profit_amount,
+  };
+  console.log("[markEstimateAsSold] Prepared update payload:", updatePayload);
+
+  // 4. Update the estimate record
+  const { data: updatedEstimate, error: updateError } = await supabase
+    .from('estimates')
+    .update(updatePayload)
+    .eq('id', estimateId)
+    .select() 
+    .single(); 
+
+  if (updateError) {
+    console.error("Error updating estimate to 'Sold':", updateError);
+    throw new Error(`Failed to mark estimate as sold: ${updateError.message}`);
+  }
+
+  if (!updatedEstimate) {
+     throw new Error("Failed to update estimate and retrieve the updated record.");
+  }
+
+  return updatedEstimate as Estimate; 
+};
+
+// --- New Function: getSoldEstimates --- (ADD EXPORT)
+// Define the structure expected by the Accounting Report page
+interface SoldEstimateReportData {
+  id: string;
+  customer_name?: string; // Adjust based on your actual customer fields
+  address_street?: string;
+  address_city?: string;
+  address_state?: string;
+  address_zip?: string;
+  sold_at: string | null;
+  calculated_material_cost: number | null;
+  calculated_labor_cost: number | null;
+  calculated_subtotal: number | null;
+  profit_margin: number | null;
+  calculated_profit_amount: number | null;
+  total_amount: number | null;
+}
+
+export const getSoldEstimates = async (filters?: { startDate?: string, endDate?: string }): Promise<SoldEstimateReportData[]> => {
+  // ... existing function body ...
+};
+
+// --- Ensure deleteEstimate is exported if used --- 
+// Example: If you have a deleteEstimate function, make sure it's exported:
+// export const deleteEstimate = async (id: string): Promise<...> => { ... };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -15,8 +15,31 @@ import { EstimateSummaryTab } from "@/components/estimates/pricing/EstimateSumma
 import { ParsedMeasurements } from "@/api/measurements";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { saveEstimate, calculateEstimateTotal, getEstimateById, Estimate as EstimateType } from "@/api/estimates";
+import { saveEstimate, calculateEstimateTotal, getEstimateById, Estimate as EstimateType, markEstimateAsSold, getEstimates } from "@/api/estimates";
 import { getMeasurementById } from "@/api/measurements";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Estimate } from "@/api/estimates";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
 
 // Convert ParsedMeasurements to MeasurementValues format
 const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): MeasurementValues => {
@@ -116,6 +139,8 @@ const Estimates = () => {
   const [quantities, setQuantities] = useState<{[key: string]: number}>({});
   const [laborRates, setLaborRates] = useState<LaborRates>({
     laborRate: 85,
+    tearOff: 0,
+    installation: 0,
     isHandload: false,
     handloadRate: 15,
     dumpsterLocation: "orlando",
@@ -123,8 +148,19 @@ const Estimates = () => {
     dumpsterRate: 400,
     includePermits: true,
     permitRate: 550,
+    permitCount: 1,
+    permitAdditionalRate: 450,
     pitchRates: {},
-    wastePercentage: 12
+    wastePercentage: 12,
+    includeGutters: false,
+    gutterLinearFeet: 0,
+    gutterRate: 8,
+    includeDownspouts: false,
+    downspoutCount: 0,
+    downspoutRate: 75,
+    includeDetachResetGutters: false,
+    detachResetGutterLinearFeet: 0,
+    detachResetGutterRate: 1
   });
   const [profitMargin, setProfitMargin] = useState(25);
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
@@ -134,6 +170,14 @@ const Estimates = () => {
   const [storedPdfData, setStoredPdfData] = useLocalStorage<ParsedMeasurements | null>("estimateExtractedPdfData", null);
   const [storedMeasurements, setStoredMeasurements] = useLocalStorage<MeasurementValues | null>("estimateMeasurements", null);
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
+  
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<{[key: string]: boolean}>({});
+  const [estimateToMarkSold, setEstimateToMarkSold] = useState<Estimate | null>(null);
+  const [isSoldConfirmDialogOpen, setIsSoldConfirmDialogOpen] = useState(false);
+  const [jobType, setJobType] = useState<'Retail' | 'Insurance'>('Retail');
+  const [insuranceCompany, setInsuranceCompany] = useState('');
   
   // Check if we're in view mode (estimateId is present) and fetch the estimate data
   useEffect(() => {
@@ -582,6 +626,8 @@ const Estimates = () => {
     setQuantities({});
     setLaborRates({
       laborRate: 85,
+      tearOff: 0,
+      installation: 0,
       isHandload: false,
       handloadRate: 15,
       dumpsterLocation: "orlando",
@@ -589,8 +635,19 @@ const Estimates = () => {
       dumpsterRate: 400,
       includePermits: true,
       permitRate: 550,
+      permitCount: 1,
+      permitAdditionalRate: 450,
       pitchRates: {},
-      wastePercentage: 12
+      wastePercentage: 12,
+      includeGutters: false,
+      gutterLinearFeet: 0,
+      gutterRate: 8,
+      includeDownspouts: false,
+      downspoutCount: 0,
+      downspoutRate: 75,
+      includeDetachResetGutters: false,
+      detachResetGutterLinearFeet: 0,
+      detachResetGutterRate: 1
     });
     setProfitMargin(25);
     
@@ -609,6 +666,103 @@ const Estimates = () => {
       title: "Started fresh",
       description: "All estimate data has been cleared.",
     });
+  };
+
+  const fetchEstimatesData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const { data, error: fetchError } = await getEstimates();
+      if (fetchError) {
+        throw fetchError;
+      }
+      setEstimates(data || []);
+    } catch (err: any) {
+      console.error("Error fetching estimates:", err);
+      setError("Failed to load estimates.");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Could not fetch estimates: ${err.message}`,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    fetchEstimatesData();
+  }, [fetchEstimatesData]);
+
+  const handleApprove = async (id: string) => {
+    // ... existing approve logic ...
+  };
+
+  const handleReject = async (id: string) => {
+    // ... existing reject logic ...
+  };
+
+  const handleOpenSoldDialog = (estimate: Estimate) => {
+    setEstimateToMarkSold(estimate);
+    setJobType('Retail'); // Reset to default
+    setInsuranceCompany(''); // Reset insurance company
+    setIsSoldConfirmDialogOpen(true);
+  };
+
+  const handleConfirmSale = async () => {
+    if (!estimateToMarkSold) return;
+
+    const estimateId = estimateToMarkSold.id;
+    if (!estimateId) {
+        toast({ variant: "destructive", title: "Error", description: "Estimate ID missing." });
+        return;
+    }
+
+    // Basic validation
+    if (jobType === 'Insurance' && !insuranceCompany.trim()) {
+        toast({ variant: "destructive", title: "Validation Error", description: "Please enter the Insurance Company name." });
+        return;
+    }
+
+    setIsSubmitting(prev => ({ ...prev, [estimateId]: true }));
+    setIsSoldConfirmDialogOpen(false); // Close dialog optimisticly or after API call?
+
+    try {
+      // Call the modified API function
+      const updatedEstimate = await markEstimateAsSold(estimateId, jobType, insuranceCompany.trim());
+      
+      // Update local state
+      setEstimates(prevEstimates =>
+        prevEstimates.map(est =>
+          est.id === estimateId
+            ? { 
+                ...est, 
+                is_sold: true, 
+                status: 'Sold', 
+                job_type: jobType, 
+                insurance_company: jobType === 'Insurance' ? insuranceCompany.trim() : null 
+              }
+            : est
+        )
+      );
+      toast({
+        title: "Success",
+        description: `Estimate #${estimateId.substring(0, 8)} marked as ${jobType} Sale.`,
+      });
+      setEstimateToMarkSold(null); // Clear selected estimate
+
+    } catch (err: any) {
+      console.error("Error marking estimate as sold:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to mark estimate as sold: ${err.message}`,
+      });
+      // Optional: Re-open dialog on error? depends on desired UX
+      // setIsSoldConfirmDialogOpen(true); 
+    } finally {
+      setIsSubmitting(prev => ({ ...prev, [estimateId]: false }));
+    }
   };
 
   return (
@@ -891,6 +1045,61 @@ const Estimates = () => {
           </Card>
         </div>
       </div>
+
+      <Dialog open={isSoldConfirmDialogOpen} onOpenChange={setIsSoldConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Sale Details</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             {/* Display estimate ID/Address if needed */}
+             {estimateToMarkSold && 
+                <p className="text-sm text-muted-foreground">
+                    Estimate ID: {estimateToMarkSold.id?.substring(0,8)}... <br/>
+                    Address: {estimateToMarkSold.customer_address}
+                </p> 
+             }
+
+             <div className="space-y-2">
+                <Label>Job Type</Label>
+                <RadioGroup value={jobType} onValueChange={(value: 'Retail' | 'Insurance') => setJobType(value)} className="flex space-x-4">
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Retail" id="r1" />
+                    <Label htmlFor="r1">Retail</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Insurance" id="r2" />
+                    <Label htmlFor="r2">Insurance</Label>
+                  </div>
+                </RadioGroup>
+             </div>
+
+             {jobType === 'Insurance' && (
+                <div className="space-y-2 animate-fade-in"> {/* Simple fade-in */} 
+                  <Label htmlFor="insurance-company">Insurance Company Name</Label>
+                  <Input 
+                    id="insurance-company" 
+                    value={insuranceCompany} 
+                    onChange={(e) => setInsuranceCompany(e.target.value)} 
+                    placeholder="Enter company name" 
+                  />
+                </div>
+             )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+               <Button type="button" variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button 
+               type="button" 
+               onClick={handleConfirmSale}
+               disabled={isSubmitting[estimateToMarkSold?.id || ''] || (jobType === 'Insurance' && !insuranceCompany.trim())}
+            >
+               {isSubmitting[estimateToMarkSold?.id || ''] ? "Confirming..." : "Confirm Sale"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 };
