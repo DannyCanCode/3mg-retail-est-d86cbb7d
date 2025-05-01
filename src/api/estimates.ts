@@ -666,11 +666,10 @@ export const markEstimateAsSold = async (
   return updatedEstimate as Estimate; 
 };
 
-// --- New Function: getSoldEstimates --- (ADD EXPORT)
-// Define the structure expected by the Accounting Report page
+// --- New Function: getSoldEstimates --- 
 interface SoldEstimateReportData {
   id: string;
-  customer_name?: string; // Adjust based on your actual customer fields
+  customer_name?: string; 
   address_street?: string;
   address_city?: string;
   address_state?: string;
@@ -685,7 +684,56 @@ interface SoldEstimateReportData {
 }
 
 export const getSoldEstimates = async (filters?: { startDate?: string, endDate?: string }): Promise<SoldEstimateReportData[]> => {
-  // ... existing function body ...
+  if (!isSupabaseConfigured) {
+    // It's better to throw an error here so the calling code knows something is wrong
+    console.error("[getSoldEstimates] Supabase is not configured.");
+    throw new Error("Supabase is not configured.");
+  }
+
+  let query = supabase
+    .from('estimates')
+    .select(`
+      id,
+      customer_name,
+      address_street,
+      address_city,
+      address_state,
+      address_zip,
+      sold_at,
+      calculated_material_cost,
+      calculated_labor_cost,
+      calculated_subtotal,
+      profit_margin, 
+      calculated_profit_amount,
+      total_amount
+    `) // Select the specific columns needed for the report
+    .eq('is_sold', true);
+
+  // Apply date filters
+  if (filters?.startDate) {
+    query = query.gte('sold_at', filters.startDate);
+  }
+  // Important: Apply endDate filter ONLY if startDate is also present for range filtering
+  if (filters?.startDate && filters.endDate) {
+    query = query.lte('sold_at', filters.endDate);
+  }
+
+  // Order by sold date descending
+  query = query.order('sold_at', { ascending: false });
+
+  // Execute the query
+  const { data, error } = await query;
+
+  // Handle potential errors
+  if (error) {
+    console.error("[getSoldEstimates] Error fetching sold estimates:", error);
+    // Throw the error so the calling component can handle it (e.g., show error message)
+    throw new Error(`Failed to fetch sold estimates: ${error.message}`);
+  }
+
+  // Log success and return the data (or an empty array)
+  console.log("[getSoldEstimates] Successfully fetched data:", data);
+  return (data || []) as SoldEstimateReportData[]; 
 };
 
 // --- Ensure deleteEstimate is exported if used --- 
