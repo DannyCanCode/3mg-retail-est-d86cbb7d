@@ -732,6 +732,65 @@ export const getSoldEstimates = async (filters?: { startDate?: string, endDate?:
   return (data || []) as SoldEstimateReportData[]; 
 };
 
+/**
+ * Update customer details for a specific estimate
+ */
+export const updateEstimateCustomerDetails = async (
+  id: string,
+  details: {
+    customer_name?: string | null;
+    customer_email?: string | null;
+    customer_phone?: string | null;
+  }
+): Promise<{ data: Estimate | null; error: Error | null }> => {
+  if (!isSupabaseConfigured) {
+    console.error("[updateEstimateCustomerDetails] Supabase not configured.");
+    throw new Error("Supabase not configured.");
+  }
+  if (!id) {
+    throw new Error("Estimate ID is required.");
+  }
+
+  // Prepare only non-empty fields for update
+  const updateData: Partial<Estimate> = {};
+  if (details.customer_name !== undefined) updateData.customer_name = details.customer_name;
+  if (details.customer_email !== undefined) updateData.customer_email = details.customer_email;
+  if (details.customer_phone !== undefined) updateData.customer_phone = details.customer_phone;
+  updateData.updated_at = new Date().toISOString();
+
+  if (Object.keys(updateData).length <= 1) { // Only updated_at
+      console.warn("[updateEstimateCustomerDetails] No details provided to update.");
+      // Optionally fetch and return the current estimate data if needed
+      return getEstimateById(id); 
+  }
+
+  console.log(`[updateEstimateCustomerDetails] Updating estimate ${id} with:`, updateData);
+
+  const { data, error } = await supabase
+    .from("estimates")
+    .update(updateData)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[updateEstimateCustomerDetails] Error updating details:", error);
+    throw new Error(`Failed to update customer details: ${error.message}`);
+  }
+
+  console.log("[updateEstimateCustomerDetails] Update successful:", data);
+  // Ensure returned data is parsed correctly if needed elsewhere
+  const parsedData = data ? {
+      ...data,
+      materials: JSON.parse(data.materials || "{}"),
+      quantities: JSON.parse(data.quantities || "{}"),
+      labor_rates: JSON.parse(data.labor_rates || "{}"),
+      measurements: JSON.parse(data.measurements || "{}")
+  } : null;
+
+  return { data: parsedData as Estimate | null, error: null };
+};
+
 // --- Ensure deleteEstimate is exported if used --- 
 // Example: If you have a deleteEstimate function, make sure it's exported:
 // export const deleteEstimate = async (id: string): Promise<...> => { ... };

@@ -10,7 +10,7 @@ import {
 import { EstimateCard } from "@/components/ui/EstimateCard";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { getEstimates, EstimateStatus, Estimate, updateEstimateStatus, generateEstimatePdf, markEstimateAsSold } from "@/api/estimates";
+import { getEstimates, EstimateStatus, Estimate, updateEstimateStatus, generateEstimatePdf, markEstimateAsSold, updateEstimateCustomerDetails } from "@/api/estimates";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -54,6 +54,15 @@ export function RecentEstimates() {
   const [isSoldConfirmDialogOpen, setIsSoldConfirmDialogOpen] = useState(false);
   const [jobType, setJobType] = useState<'Retail' | 'Insurance'>('Retail');
   const [insuranceCompany, setInsuranceCompany] = useState('');
+  // --- End State --- 
+
+  // --- State for Add Customer Info Dialog --- 
+  const [isCustomerInfoDialogOpen, setIsCustomerInfoDialogOpen] = useState(false);
+  const [estimateForCustomerInfo, setEstimateForCustomerInfo] = useState<Estimate | null>(null);
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [isSavingCustomerInfo, setIsSavingCustomerInfo] = useState(false);
   // --- End State --- 
 
   useEffect(() => {
@@ -129,23 +138,93 @@ export function RecentEstimates() {
     }
   };
 
-  const handleGeneratePdf = async (id: string) => {
-    setGeneratingPdfId(id);
+  const handleGeneratePdf = async (estimate: Estimate) => {
+    if (!estimate || !estimate.id) return;
+
+    // Check for required customer info
+    if (!estimate.customer_name || !estimate.customer_email || !estimate.customer_phone) {
+      console.log("Customer info missing for estimate:", estimate.id);
+      // Set state for the dialog
+      setEstimateForCustomerInfo(estimate);
+      setCustomerName(estimate.customer_name || '');
+      setCustomerEmail(estimate.customer_email || '');
+      setCustomerPhone(estimate.customer_phone || '');
+      setIsCustomerInfoDialogOpen(true);
+      toast({ title: "Missing Info", description: "Please add customer details before generating the PDF." }); 
+      return; // Stop here, open dialog instead
+    }
+
+    // If info exists, proceed with PDF generation (current mock/broken logic)
+    console.log("Customer info found, proceeding to generate PDF for estimate:", estimate.id);
+    setGeneratingPdfId(estimate.id);
     try {
-      const { data, error } = await generateEstimatePdf(id);
+      // !!! This generateEstimatePdf is likely the mock one, will be replaced later !!!
+      const { data, error } = await generateEstimatePdf(estimate.id);
       if (error) throw error;
       if (data?.url) {
         toast({ title: "PDF Generated", description: "Opening PDF..." });
         window.open(data.url, '_blank'); // Open in new tab
       } else {
-        throw new Error("PDF URL not returned.");
+        // This likely happens now because the mock URL logic might be flawed or path changed
+        console.error("PDF URL not returned from mock function.", data);
+        throw new Error("PDF URL not returned."); 
       }
     } catch (err: any) {
-      toast({ title: "Error", description: `Failed to generate PDF: ${err.message}`, variant: "destructive" });
+      console.error("Error in handleGeneratePdf:", err);
+      // Display the actual error message, which might be the 404
+      toast({ title: "Error Generating PDF", description: `Failed: ${err.message}`, variant: "destructive" });
     } finally {
       setGeneratingPdfId(null);
     }
   };
+
+  // --- New Handler: Saves customer details --- 
+  const handleSaveCustomerDetails = async () => {
+    if (!estimateForCustomerInfo?.id) return;
+    const estimateId = estimateForCustomerInfo.id;
+
+    // Simple validation
+    if (!customerName.trim() || !customerEmail.trim() || !customerPhone.trim()) {
+      toast({ title: "Validation Error", description: "Please fill in all customer details.", variant: "destructive" });
+      return;
+    }
+
+    setIsSavingCustomerInfo(true);
+    try {
+      const { data: updatedEstimateData, error } = await updateEstimateCustomerDetails(estimateId, {
+        customer_name: customerName.trim(),
+        customer_email: customerEmail.trim(),
+        customer_phone: customerPhone.trim(),
+      });
+
+      if (error) throw error;
+
+      // Update local estimates state
+      setEstimates(prev => prev.map(est => est.id === estimateId ? { ...est, ...updatedEstimateData } : est));
+      
+      toast({ title: "Success", description: "Customer details updated." });
+      setIsCustomerInfoDialogOpen(false);
+      setEstimateForCustomerInfo(null);
+
+      // Optional: Automatically trigger PDF generation again now that details are saved
+      // Find the updated estimate data to pass to the function
+      const updatedEstimate = estimates.find(est => est.id === estimateId);
+      if (updatedEstimate) {
+         console.log("Retrying PDF generation after saving customer info...");
+         // Use setTimeout to allow state updates to potentially settle, though may not be needed
+         setTimeout(() => handleGeneratePdf(updatedEstimate), 100); 
+      } else {
+         console.warn("Could not find updated estimate in state to re-trigger PDF gen.");
+      }
+
+    } catch (err: any) {
+      console.error("Error saving customer details:", err);
+      toast({ title: "Error", description: `Failed to save details: ${err.message}`, variant: "destructive" });
+    } finally {
+      setIsSavingCustomerInfo(false);
+    }
+  };
+  // --- End New Handler --- 
 
   // --- New Handlers for Mark as Sold --- 
   const handleOpenSoldDialog = (estimate: Estimate) => {
@@ -300,7 +379,7 @@ export function RecentEstimates() {
                     )}
                     {estimate.status === 'approved' && !estimate.is_sold && (
                       <>
-                        <Button variant="outline" size="sm" onClick={() => handleGeneratePdf(estimate.id!)} disabled={generatingPdfId === estimate.id}>{generatingPdfId === estimate.id ? 'Generating...' : 'Generate PDF'}</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleGeneratePdf(estimate)} disabled={generatingPdfId === estimate.id}>{generatingPdfId === estimate.id ? 'Generating...' : 'Generate PDF'}</Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="secondary" size="sm" disabled={isSubmitting[estimate.id || '']}>
@@ -392,6 +471,60 @@ export function RecentEstimates() {
                disabled={isSubmitting[estimateToMarkSold?.id || ''] || (jobType === 'Insurance' && !insuranceCompany.trim())}
             >
                {isSubmitting[estimateToMarkSold?.id || ''] ? "Confirming..." : "Confirm Sale"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isCustomerInfoDialogOpen} onOpenChange={setIsCustomerInfoDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Customer Information</DialogTitle>
+            <DialogDescription>
+              Customer name, email, and phone are required to generate the estimate PDF.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="customer-name">Customer Name</Label>
+              <Input 
+                id="customer-name" 
+                value={customerName} 
+                onChange={(e) => setCustomerName(e.target.value)} 
+                placeholder="Enter full name"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="customer-email">Customer Email</Label>
+              <Input 
+                id="customer-email" 
+                type="email"
+                value={customerEmail} 
+                onChange={(e) => setCustomerEmail(e.target.value)} 
+                placeholder="Enter email address"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="customer-phone">Customer Phone</Label>
+              <Input 
+                id="customer-phone" 
+                type="tel"
+                value={customerPhone} 
+                onChange={(e) => setCustomerPhone(e.target.value)} 
+                placeholder="Enter phone number"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button 
+              type="button" 
+              onClick={handleSaveCustomerDetails}
+              disabled={isSavingCustomerInfo || !customerName.trim() || !customerEmail.trim() || !customerPhone.trim()} 
+            >
+              {isSavingCustomerInfo ? "Saving..." : "Save & Generate PDF"}
             </Button>
           </DialogFooter>
         </DialogContent>
