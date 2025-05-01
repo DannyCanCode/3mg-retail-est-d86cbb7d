@@ -10,7 +10,7 @@ import {
 import { EstimateCard } from "@/components/ui/EstimateCard";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { getEstimates, EstimateStatus, Estimate, updateEstimateStatus, generateEstimatePdf, markEstimateAsSold, updateEstimateCustomerDetails } from "@/api/estimates";
+import { getEstimates, EstimateStatus, Estimate, updateEstimateStatus, markEstimateAsSold, updateEstimateCustomerDetails } from "@/api/estimates";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
 
 export function RecentEstimates() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
@@ -140,6 +141,7 @@ export function RecentEstimates() {
 
   const handleGeneratePdf = async (estimate: Estimate) => {
     if (!estimate || !estimate.id) return;
+    const estimateId = estimate.id;
 
     // Check for required customer info
     if (!estimate.customer_name || !estimate.customer_email || !estimate.customer_phone) {
@@ -154,24 +156,31 @@ export function RecentEstimates() {
       return; // Stop here, open dialog instead
     }
 
-    // If info exists, proceed with PDF generation (current mock/broken logic)
-    console.log("Customer info found, proceeding to generate PDF for estimate:", estimate.id);
-    setGeneratingPdfId(estimate.id);
+    // If info exists, invoke the Edge Function
+    console.log("Invoking Edge Function generate-client-pdf for estimate:", estimateId);
+    setGeneratingPdfId(estimateId);
     try {
-      // !!! This generateEstimatePdf is likely the mock one, will be replaced later !!!
-      const { data, error } = await generateEstimatePdf(estimate.id);
-      if (error) throw error;
+      // Invoke the Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('generate-client-pdf', {
+         body: { estimateId: estimateId },
+      });
+
+      if (error) throw error; // Handle function invocation error
+      
+      // The function itself might return an error object in the data if generation failed
+      if (data?.error) { 
+          throw new Error(data.error);
+      }
+
       if (data?.url) {
         toast({ title: "PDF Generated", description: "Opening PDF..." });
-        window.open(data.url, '_blank'); // Open in new tab
+        window.open(data.url, '_blank'); // Open the REAL URL from storage
       } else {
-        // This likely happens now because the mock URL logic might be flawed or path changed
-        console.error("PDF URL not returned from mock function.", data);
-        throw new Error("PDF URL not returned."); 
+        console.error("PDF URL not returned from Edge Function.", data);
+        throw new Error("PDF URL not returned from generation function."); 
       }
     } catch (err: any) {
-      console.error("Error in handleGeneratePdf:", err);
-      // Display the actual error message, which might be the 404
+      console.error("Error invoking generate-client-pdf function:", err);
       toast({ title: "Error Generating PDF", description: `Failed: ${err.message}`, variant: "destructive" });
     } finally {
       setGeneratingPdfId(null);
