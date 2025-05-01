@@ -26,7 +26,7 @@ interface SoldEstimateReportData {
   calculated_subtotal: number | null;
   profit_margin: number | null; // The percentage
   calculated_profit_amount: number | null; // The dollar amount
-  total_amount: number | null;
+  total_price: number | null; // Changed from total_amount
 }
 
 const AccountingReport: React.FC = () => {
@@ -120,7 +120,7 @@ const AccountingReport: React.FC = () => {
        'Subtotal': est.calculated_subtotal ?? 0,
        'Profit Margin (%)': est.profit_margin ?? 0,
        'Profit Amount ($': est.calculated_profit_amount ?? 0,
-       'Total Amount': est.total_amount ?? 0,
+       'Total Amount': est.total_price ?? 0, // Use total_price
      }));
 
      const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -222,7 +222,7 @@ const AccountingReport: React.FC = () => {
                                  <TableCell className="text-right">{formatCurrency(est.calculated_subtotal)}</TableCell>
                                  <TableCell className="text-right">{est.profit_margin !== null ? `${est.profit_margin}%` : 'N/A'}</TableCell>
                                  <TableCell className="text-right">{formatCurrency(est.calculated_profit_amount)}</TableCell>
-                                 <TableCell className="text-right font-semibold">{formatCurrency(est.total_amount)}</TableCell>
+                                 <TableCell className="text-right font-semibold">{formatCurrency(est.total_price)}</TableCell>
                               </TableRow>
                            ))
                         )}

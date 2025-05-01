@@ -682,7 +682,7 @@ interface SoldEstimateReportData {
   calculated_subtotal: number | null;
   profit_margin: number | null;
   calculated_profit_amount: number | null;
-  total_amount: number | null;
+  total_price: number | null;
 }
 
 export const getSoldEstimates = async (filters?: { startDate?: string, endDate?: string }): Promise<SoldEstimateReportData[]> => {
@@ -703,7 +703,7 @@ export const getSoldEstimates = async (filters?: { startDate?: string, endDate?:
       calculated_subtotal,
       profit_margin, 
       calculated_profit_amount,
-      total_amount
+      total_price
     `) 
     .eq('is_sold', true);
 
