@@ -18,12 +18,8 @@ import { Label } from "@/components/ui/label"; // Import Label
 // Define an interface for the structure of sold estimate data
 interface SoldEstimateReportData {
   id: string;
-  // customer fields (adjust based on your actual data structure)
   customer_name?: string;
-  address_street?: string;
-  address_city?: string;
-  address_state?: string;
-  address_zip?: string;
+  customer_address?: string; // Changed to single field
   sold_at: string | null;
   calculated_material_cost: number | null;
   calculated_labor_cost: number | null;
@@ -116,8 +112,8 @@ const AccountingReport: React.FC = () => {
      // Prepare data for export
      const exportData = soldEstimates.map(est => ({
        'Estimate ID': est.id,
-       'Customer': est.customer_name || 'N/A', // Combine address fields as needed
-       'Address': `${est.address_street || ''}, ${est.address_city || ''}, ${est.address_state || ''} ${est.address_zip || ''}`,
+       'Customer': est.customer_name || 'N/A', 
+       'Address': est.customer_address || '', // Use the single address field
        'Sold Date': formatDate(est.sold_at),
        'Material Cost': est.calculated_material_cost ?? 0, // Provide default for sheetjs
        'Labor Cost': est.calculated_labor_cost ?? 0,
@@ -213,13 +209,11 @@ const AccountingReport: React.FC = () => {
                         ) : (
                            soldEstimates.map((est) => (
                               <TableRow key={est.id}>
-                                 <TableCell className="font-medium">{est.id.substring(0, 8)}...</TableCell> {/* Shorten ID if needed */}
+                                 <TableCell className="font-medium">{est.id.substring(0, 8)}...</TableCell>
                                  <TableCell>
                                    <div>{est.customer_name || 'N/A'}</div>
                                    <div className="text-xs text-muted-foreground">
-                                      {est.address_street || ''}{est.address_street ? ', ' : ''}
-                                      {est.address_city || ''}{est.address_city ? ', ' : ''}
-                                      {est.address_state || ''} {est.address_zip || ''}
+                                      {est.customer_address || 'Address N/A'}
                                    </div>
                                  </TableCell>
                                  <TableCell>{formatDate(est.sold_at)}</TableCell>
