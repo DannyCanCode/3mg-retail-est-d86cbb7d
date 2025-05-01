@@ -17,7 +17,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 const navigationItems = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Estimates", href: "/estimates", icon: FileText },
-  { name: "Measurements", href: "/measurements", icon: Database },
   { name: "Pricing", href: "/pricing", icon: DollarSign },
   { name: "Accounting", href: "/accounting-report", icon: FileSpreadsheet },
   { name: "Settings", href: "/settings", icon: Settings },

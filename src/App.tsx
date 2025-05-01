@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import Estimates from '@/pages/Estimates';
-import Measurements from '@/pages/Measurements';
+// import Measurements from '@/pages/Measurements'; // Remove this import
 import Pricing from '@/pages/Pricing';
 import Index from '@/pages/Index'; // Assuming this is your Dashboard
 import NotFound from '@/pages/NotFound'; // Assuming you have a 404 component
@@ -20,7 +20,7 @@ function App() {
         <Route path="/" element={<Index />} />
         <Route path="/estimates" element={<Estimates />} />
         <Route path="/estimates/:estimateId" element={<Estimates />} /> {/* Route for viewing/editing specific estimate */}
-        <Route path="/measurements" element={<Measurements />} />
+        {/* <Route path="/measurements" element={<Measurements />} /> */}{/* Remove this route */}
         <Route path="/pricing" element={<Pricing />} />
         {/* <Route path="/settings" element={<Settings />} /> */}{/* Comment out: File does not exist */}
         
