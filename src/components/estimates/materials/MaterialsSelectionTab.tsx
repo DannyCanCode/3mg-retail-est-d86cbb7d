@@ -928,42 +928,58 @@ export function MaterialsSelectionTab({
     return materialName.includes('Required') && materialName.includes('cannot be removed');
   };
 
+  // --- State for managing temporary display quantities (e.g., Squares for Timberline) --- 
+  const [displayQuantities, setDisplayQuantities] = useState<Record<string, string>>({});
+
+  // Initialize/Update displayQuantities when main quantities change
+  useEffect(() => {
+    const initialDisplayQtys: Record<string, string> = {};
+    for (const materialId in quantities) {
+        const bundleQuantity = quantities[materialId] || 0;
+        const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
+        initialDisplayQtys[materialId] = isGafTimberline 
+            ? (bundleQuantity / 3).toFixed(1) 
+            : bundleQuantity.toString();
+    }
+    setDisplayQuantities(initialDisplayQtys);
+  }, [quantities]); // Rerun when quantities prop changes
+  // --- End Display Quantity State --- 
+
   // Render a selected material row with quantity
   const renderSelectedMaterial = (materialId: string, material: Material) => {
     const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
-    const bundleQuantity = quantities[materialId] || 0;
+    const bundleQuantity = quantities[materialId] || 0; // Still get bundle qty from props
     const isMandatory = isMandatoryMaterial(material.name);
-    const initialSquares = isGafTimberline ? (bundleQuantity / 3).toFixed(1) : bundleQuantity.toString();
-    const [displayQuantity, setDisplayQuantity] = useState(initialSquares);
+    
+    // Get the display quantity from state
+    const displayQuantity = displayQuantities[materialId] || (isGafTimberline ? '0.0' : '0');
 
-    // ADD LOGS HERE
+    // Log for Timberline
     if (isGafTimberline) {
-        console.log(`[renderSelectedMaterial - ${materialId}] IS Timberline! BundleQty: ${bundleQuantity}, InitialSquares: ${initialSquares}, CurrentDisplayQty: ${displayQuantity}`);
+        console.log(`[renderSelectedMaterial - ${materialId}] IS Timberline! BundleQty: ${bundleQuantity}, DisplayQty (Squares): ${displayQuantity}`);
     }
 
-    useEffect(() => {
-      const newDisplay = isGafTimberline ? (bundleQuantity / 3).toFixed(1) : bundleQuantity.toString();
-      // Only update if it *really* changed to avoid cursor jumps
-      if (newDisplay !== displayQuantity) {
-           setDisplayQuantity(newDisplay);
-      }
-    }, [bundleQuantity, isGafTimberline]);
-    
-    const handleSquareQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // --- Handler for Input change (updates local display state AND calls global update) ---
+    const handleDisplayQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const rawValue = e.target.value;
-        setDisplayQuantity(rawValue); // Update display immediately
+        // Update local display state immediately
+        setDisplayQuantities(prev => ({...prev, [materialId]: rawValue})); 
 
-        const newSquares = parseFloat(rawValue);
-        if (!isNaN(newSquares) && newSquares >= 0) {
-             // Convert Squares back to Bundles (round up)
-             const newBundles = Math.ceil(newSquares * 3);
-             // Call the original update function with BUNDLES
-             updateQuantity(materialId, newBundles);
-        } else if (rawValue === '') {
-             // Handle empty input - set bundles to 0?
-             updateQuantity(materialId, 0);
+        if (isGafTimberline) {
+            const newSquares = parseFloat(rawValue);
+            if (!isNaN(newSquares) && newSquares >= 0) {
+                 const newBundles = Math.ceil(newSquares * 3);
+                 updateQuantity(materialId, newBundles); // Update global state with bundles
+            } else if (rawValue === '') {
+                 updateQuantity(materialId, 0);
+            }
+        } else {
+            // Handle non-timberline (direct bundle/unit update)
+            const newQuantity = parseInt(rawValue) || 0;
+            updateQuantity(materialId, newQuantity);
         }
     };
+    // --- End handler ---
 
     let baseName = material.name;
     let requirementText = "";
@@ -977,7 +993,7 @@ export function MaterialsSelectionTab({
 
     let explanation = '';
     try {
-      // Pass the correct quantity (bundles or squares) to the explainer
+      // Pass the correct quantity to the explainer
       const quantityForExplanation = isGafTimberline ? parseFloat(displayQuantity) || 0 : bundleQuantity;
       explanation = getCalculationExplanation(material, quantityForExplanation);
     } catch (error) {
@@ -1035,8 +1051,10 @@ export function MaterialsSelectionTab({
                  <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} 
                     onClick={() => { 
                        const currentSq = parseFloat(displayQuantity) || 0;
-                       const nextSq = Math.max(0, currentSq - 0.1); // Decrement by 0.1 squares
-                       setDisplayQuantity(nextSq.toFixed(1));
+                       const nextSq = Math.max(0, currentSq - 0.1); 
+                       // Update local state first
+                       setDisplayQuantities(prev => ({...prev, [materialId]: nextSq.toFixed(1)})); 
+                       // Update global state with bundles
                        updateQuantity(materialId, Math.ceil(nextSq * 3));
                     }} 
                     aria-label={`Decrease quantity for ${baseName}`}>
@@ -1046,8 +1064,8 @@ export function MaterialsSelectionTab({
                     type="number" 
                     min="0" 
                     step="0.1"
-                    value={displayQuantity} 
-                    onChange={handleSquareQuantityChange} 
+                    value={displayQuantity} // Use state variable
+                    onChange={handleDisplayQuantityChange} // Use combined handler
                     className={`h-8 w-20 rounded-none text-center`} // Wider input?
                     aria-label={`Quantity in Squares for ${baseName}`} 
                   />
@@ -1055,7 +1073,9 @@ export function MaterialsSelectionTab({
                     onClick={() => { 
                        const currentSq = parseFloat(displayQuantity) || 0;
                        const nextSq = currentSq + 0.1;
-                       setDisplayQuantity(nextSq.toFixed(1));
+                       // Update local state first
+                       setDisplayQuantities(prev => ({...prev, [materialId]: nextSq.toFixed(1)}));
+                       // Update global state with bundles
                        updateQuantity(materialId, Math.ceil(nextSq * 3));
                     }} 
                     aria-label={`Increase quantity for ${baseName}`}>
@@ -1068,8 +1088,8 @@ export function MaterialsSelectionTab({
                  <Input 
                     type="number" 
                     min="0" 
-                    value={bundleQuantity} 
-                    onChange={(e) => updateQuantity(materialId, parseInt(e.target.value) || 0)} 
+                    value={displayQuantity} // Use state variable for consistency 
+                    onChange={handleDisplayQuantityChange} // Use combined handler
                     className={`h-8 w-16 rounded-none text-center`} 
                     aria-label={`Quantity for ${baseName}`}
                   />

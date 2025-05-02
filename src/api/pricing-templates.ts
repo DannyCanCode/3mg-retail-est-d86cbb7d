@@ -1,20 +1,42 @@
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
 import { Material } from "@/components/estimates/materials/types";
+import type { Database } from "@/integrations/supabase/database.types"; // Import DB types
+import type { Json } from "@/integrations/supabase/database.types"; // Import Json type
 
-// Pricing template type
-export interface PricingTemplate {
-  id?: string;
-  name: string;
-  description: string;
-  materials: {[key: string]: Material};
-  quantities: {[key: string]: number};
-  labor_rates: LaborRates;
-  profit_margin: number;
-  created_at?: string;
-  updated_at?: string;
-  is_default?: boolean;
+// Define the specific table type alias
+type PricingTemplatesTable = Database['public']['Tables']['pricing_templates']
+type PricingTemplateRow = PricingTemplatesTable['Row']
+type PricingTemplateInsert = PricingTemplatesTable['Insert']
+type PricingTemplateUpdate = PricingTemplatesTable['Update']
+
+// Pricing template type using Row type + parsed fields
+export interface PricingTemplate extends Omit<PricingTemplateRow, 'materials' | 'quantities' | 'labor_rates'> {
+  materials: {[key: string]: Material}; // Keep parsed type
+  quantities: {[key: string]: number}; // Keep parsed type
+  labor_rates: LaborRates; // Keep parsed type
 }
+
+// Function to safely parse potentially already parsed JSON
+// Updated to accept Supabase Json type
+const safeJsonParse = (field: Json | null | undefined): object => {
+    if (!field) return {};
+    if (typeof field === 'object' && field !== null && !Array.isArray(field)) { // Check if it's a non-array object
+        // Already likely a parsed object or needs no parsing
+        return field as object; 
+    } 
+    if (typeof field === 'string') {
+        try {
+            return JSON.parse(field);
+        } catch (e) {
+            console.error("Failed to parse JSON string field:", e, field);
+            return {}; // Return empty object on string parse error
+        }
+    }
+    // If it's an array, number, boolean, or null, it's not the expected object structure
+    console.warn("Unexpected type for JSON field, returning empty object:", typeof field, field);
+    return {}; 
+};
 
 /**
  * Get all pricing templates
@@ -45,22 +67,15 @@ export const getPricingTemplates = async (): Promise<{
 
     console.log(`API: Retrieved ${data?.length || 0} templates`);
 
-    // Parse JSONB fields
-    const parsedData = data.map(template => {
-      try {
-        return {
-          ...template,
-          materials: JSON.parse(template.materials || "{}"),
-          quantities: JSON.parse(template.quantities || "{}"),
-          labor_rates: JSON.parse(template.labor_rates || "{}")
-        };
-      } catch (parseError) {
-        console.error("Error parsing template data:", parseError, template);
-        return template; // Return unparsed data rather than failing
+    // Map using the Row type initially
+    const parsedData = (data as PricingTemplateRow[] | null)?.map(template => ({
+        ...template,
+        materials: safeJsonParse(template.materials),
+        quantities: safeJsonParse(template.quantities),
+        labor_rates: safeJsonParse(template.labor_rates)
       }
-    });
-
-    return { data: parsedData, error: null };
+    ));
+    return { data: parsedData as PricingTemplate[] || [], error: null };
   } catch (error) {
     console.error("Error fetching pricing templates:", error);
     return {
@@ -99,20 +114,16 @@ export const getPricingTemplateById = async (id: string): Promise<{
 
     console.log(`API: Retrieved template: ${data?.name}`);
 
-    // Parse JSONB fields
-    try {
-      const parsedData = {
-        ...data,
-        materials: JSON.parse(data.materials || "{}"),
-        quantities: JSON.parse(data.quantities || "{}"),
-        labor_rates: JSON.parse(data.labor_rates || "{}")
-      };
+    const rowData = data as PricingTemplateRow | null;
+    if (!rowData) return { data: null, error: null };
 
-      return { data: parsedData, error: null };
-    } catch (parseError) {
-      console.error("Error parsing template data:", parseError, data);
-      return { data: null, error: new Error("Error parsing template data") };
-    }
+    const parsedData: PricingTemplate = {
+        ...rowData,
+        materials: safeJsonParse(rowData.materials) as Record<string, Material>,
+        quantities: safeJsonParse(rowData.quantities) as Record<string, number>,
+        labor_rates: safeJsonParse(rowData.labor_rates) as LaborRates
+    };
+    return { data: parsedData, error: null };
   } catch (error) {
     console.error(`Error fetching pricing template with ID ${id}:`, error);
     return {
@@ -125,12 +136,12 @@ export const getPricingTemplateById = async (id: string): Promise<{
 /**
  * Create a new pricing template
  */
-export const createPricingTemplate = async (template: PricingTemplate): Promise<{
+export const createPricingTemplate = async (templateData: Omit<PricingTemplate, 'id' | 'created_at' | 'updated_at'>): Promise<{
   data: PricingTemplate | null;
   error: Error | null;
 }> => {
   try {
-    console.log("API: Creating new pricing template:", template.name);
+    console.log("API: Creating new pricing template:", templateData.name);
     
     // Check if Supabase is configured
     if (!isSupabaseConfigured()) {
@@ -139,7 +150,7 @@ export const createPricingTemplate = async (template: PricingTemplate): Promise<
     }
 
     // If this is a default template, we need to unset any existing defaults
-    if (template.is_default) {
+    if (templateData.is_default) {
       console.log("API: Template is marked as default, unsetting other defaults");
       
       const { error: updateError } = await supabase
@@ -153,45 +164,39 @@ export const createPricingTemplate = async (template: PricingTemplate): Promise<
     }
 
     // Prepare template for database insertion
-    try {
-      const templateToInsert = {
-        ...template,
-        // Convert objects to JSON strings for Supabase
-        materials: JSON.stringify(template.materials || {}),
-        quantities: JSON.stringify(template.quantities || {}),
-        labor_rates: JSON.stringify(template.labor_rates || {}),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
+    const templateToInsert: PricingTemplateInsert = {
+        ...templateData,
+        materials: JSON.stringify(templateData.materials || {}),
+        quantities: JSON.stringify(templateData.quantities || {}),
+        labor_rates: JSON.stringify(templateData.labor_rates || {})
+        // created_at/updated_at are handled by DB or omitted if defaulted
+    };
 
-      console.log("API: Inserting template into database");
+    console.log("API: Inserting template into database");
 
-      const { data, error } = await supabase
-        .from("pricing_templates")
-        .insert(templateToInsert)
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from("pricing_templates")
+      .insert(templateToInsert)
+      .select()
+      .single();
 
-      if (error) {
-        console.error("Supabase error creating template:", error);
-        throw error;
-      }
-
-      console.log(`API: Template created with ID: ${data.id}`);
-
-      // Parse JSONB fields for return
-      const parsedData = {
-        ...data,
-        materials: JSON.parse(data.materials || "{}"),
-        quantities: JSON.parse(data.quantities || "{}"),
-        labor_rates: JSON.parse(data.labor_rates || "{}")
-      };
-
-      return { data: parsedData, error: null };
-    } catch (jsonError) {
-      console.error("Error stringifying template data:", jsonError);
-      return { data: null, error: new Error("Error preparing template data") };
+    if (error) {
+      console.error("Supabase error creating template:", error);
+      throw error;
     }
+
+    console.log(`API: Template created with ID: ${data.id}`);
+
+    const rowData = data as PricingTemplateRow | null;
+    if (!rowData) throw new Error("Failed to retrieve created template");
+    // Parse back for return
+    const parsedData: PricingTemplate = {
+      ...rowData,
+      materials: safeJsonParse(rowData.materials) as Record<string, Material>,
+      quantities: safeJsonParse(rowData.quantities) as Record<string, number>,
+      labor_rates: safeJsonParse(rowData.labor_rates) as LaborRates
+    };
+    return { data: parsedData, error: null };
   } catch (error) {
     console.error("Error creating pricing template:", error);
     return {
@@ -239,45 +244,42 @@ export const updatePricingTemplate = async (template: PricingTemplate): Promise<
     }
 
     // Prepare template for database update
-    try {
-      const templateToUpdate = {
-        ...template,
-        // Convert objects to JSON strings for Supabase
-        materials: JSON.stringify(template.materials || {}),
-        quantities: JSON.stringify(template.quantities || {}),
-        labor_rates: JSON.stringify(template.labor_rates || {}),
-        updated_at: new Date().toISOString()
-      };
+    const templateToUpdate: PricingTemplateUpdate = {
+      ...template,
+      id: undefined, // Don't include id in update payload
+      created_at: undefined, // Don't include created_at
+      materials: JSON.stringify(template.materials || {}),
+      quantities: JSON.stringify(template.quantities || {}),
+      labor_rates: JSON.stringify(template.labor_rates || {}),
+      updated_at: new Date().toISOString()
+    };
 
-      console.log("API: Updating template in database");
+    console.log("API: Updating template in database");
 
-      const { data, error } = await supabase
-        .from("pricing_templates")
-        .update(templateToUpdate)
-        .eq("id", template.id)
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from("pricing_templates")
+      .update(templateToUpdate)
+      .eq("id", template.id)
+      .select()
+      .single();
 
-      if (error) {
-        console.error("Supabase error updating template:", error);
-        throw error;
-      }
-
-      console.log(`API: Template updated: ${data.name}`);
-
-      // Parse JSONB fields for return
-      const parsedData = {
-        ...data,
-        materials: JSON.parse(data.materials || "{}"),
-        quantities: JSON.parse(data.quantities || "{}"),
-        labor_rates: JSON.parse(data.labor_rates || "{}")
-      };
-
-      return { data: parsedData, error: null };
-    } catch (jsonError) {
-      console.error("Error stringifying template data:", jsonError);
-      return { data: null, error: new Error("Error preparing template data") };
+    if (error) {
+      console.error("Supabase error updating template:", error);
+      throw error;
     }
+
+    console.log(`API: Template updated: ${data.name}`);
+
+    const rowData = data as PricingTemplateRow | null;
+    if (!rowData) throw new Error("Failed to retrieve updated template");
+    // Parse back for return
+    const parsedData: PricingTemplate = {
+      ...rowData,
+      materials: safeJsonParse(rowData.materials) as Record<string, Material>,
+      quantities: safeJsonParse(rowData.quantities) as Record<string, number>,
+      labor_rates: safeJsonParse(rowData.labor_rates) as LaborRates
+    };
+    return { data: parsedData, error: null };
   } catch (error) {
     console.error(`Error updating pricing template with ID ${template.id}:`, error);
     return {
@@ -356,20 +358,16 @@ export const getDefaultPricingTemplate = async (): Promise<{
 
     console.log(`API: Retrieved default template: ${data.name}`);
 
-    // Parse JSONB fields
-    try {
-      const parsedData = {
-        ...data,
-        materials: JSON.parse(data.materials || "{}"),
-        quantities: JSON.parse(data.quantities || "{}"),
-        labor_rates: JSON.parse(data.labor_rates || "{}")
-      };
-
-      return { data: parsedData, error: null };
-    } catch (parseError) {
-      console.error("Error parsing default template data:", parseError, data);
-      return { data: null, error: new Error("Error parsing template data") };
-    }
+    const rowData = data as PricingTemplateRow | null;
+    if (!rowData) return { data: null, error: null };
+    // Parse back for return
+    const parsedData: PricingTemplate = {
+      ...rowData,
+      materials: safeJsonParse(rowData.materials) as Record<string, Material>,
+      quantities: safeJsonParse(rowData.quantities) as Record<string, number>,
+      labor_rates: safeJsonParse(rowData.labor_rates) as LaborRates
+    };
+    return { data: parsedData, error: null };
   } catch (error) {
     console.error("Error fetching default pricing template:", error);
     return {
