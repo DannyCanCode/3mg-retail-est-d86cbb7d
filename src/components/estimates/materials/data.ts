@@ -53,10 +53,10 @@ export const ROOFING_MATERIALS: Material[] = [
     id: "oc-hip-ridge",
     name: "OC Hip & Ridge",
     category: MaterialCategory.SHINGLES,
-    price: 108.89,
-    unit: "Roll",
+    price: 84.44,
+    unit: "Bundle",
     coverageRule: {
-      description: "25 LF/Roll",
+      description: "25 LF/Bundle",
       calculation: "(Ridge Length + Hip Length) ÷ 25, rounded up",
     }
   },
@@ -112,12 +112,12 @@ export const ROOFING_MATERIALS: Material[] = [
     id: "gaf-feltbuster-synthetic-underlayment",
     name: "GAF FeltBuster Synthetic Underlayment (10 sq)",
     category: MaterialCategory.UNDERLAYMENTS,
-    price: 77.78,
+    price: 108.89,
     unit: "Roll",
-    approxPerSquare: 17.28,
+    approxPerSquare: 10.89,
     coverageRule: {
-      description: "4.5 Squares/Roll (450 sq ft)",
-      calculation: "Total Roof Area ÷ 4.5, rounded up",
+      description: "10 Squares/Roll (1,000 sq ft)",
+      calculation: "Total Roof Area ÷ 10, rounded up",
     }
   },
   // Adding more underlayments from Excel
