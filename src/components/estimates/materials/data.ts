@@ -1,6 +1,6 @@
 import { Material, MaterialCategory } from "./types";
 
-// Define ALL materials first
+// Re-generated list based on user provided details
 export const ALL_ROOFING_MATERIALS: Material[] = [
   // SHINGLES
   {
@@ -10,10 +10,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 42.82,
     unit: "Bundle",
     approxPerSquare: 128.46,
-    coverageRule: {
-      description: "3 Bundles/Square (33.3 sq ft per bundle)",
-      calculation: "Total Area / 33.3 rounded up",
-    }
+    coverageRule: { description: "3 Bundles/Square (33.3 sq ft per bundle)", calculation: "Steep Slope Area / 33.3 rounded up" }
   },
   {
     id: "gaf-seal-a-ridge",
@@ -21,10 +18,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.SHINGLES,
     price: 70.56,
     unit: "Bundle",
-    coverageRule: {
-      description: "20 LF/Bundle",
-      calculation: "(Ridge Length + Hip Length) ÷ 20, rounded up",
-    }
+    coverageRule: { description: "20 LF/Bundle", calculation: "(Ridge Length + Hip Length) * (1 + Waste%) / 20 rounded up" }
   },
   {
     id: "gaf-prostart-starter-shingle-strip",
@@ -32,12 +26,8 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.SHINGLES,
     price: 67.22,
     unit: "Bundle",
-    coverageRule: {
-      description: "110 LF/Bundle",
-      calculation: "Eaves LF ÷ 110, rounded up",
-    }
+    coverageRule: { description: "110 LF/Bundle", calculation: "Eaves LF * (1 + Waste%) / 110 rounded up" } // Note: Rule adjusted from static data
   },
-  // Adding OC Shingles from Excel
   {
     id: "oc-oakridge",
     name: "OC Oakridge",
@@ -45,21 +35,15 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 38.33,
     unit: "Bundle",
     approxPerSquare: 114.99,
-    coverageRule: {
-      description: "3 Bundles/Square (33.3 sq ft per bundle)",
-      calculation: "Total Area / 33.3 rounded up",
-    }
+    coverageRule: { description: "3 Bundles/Square (33.3 sq ft per bundle)", calculation: "Steep Slope Area / 33.3 rounded up" }
   },
-  {
+   {
     id: "oc-hip-ridge",
     name: "OC Hip & Ridge",
     category: MaterialCategory.SHINGLES,
     price: 84.44,
     unit: "Bundle",
-    coverageRule: {
-      description: "25 LF/Bundle",
-      calculation: "(Ridge Length + Hip Length) ÷ 25, rounded up",
-    }
+    coverageRule: { description: "25 LF/Bundle", calculation: "(Ridge Length + Hip Length) * (1 + Waste%) / 25 rounded up" }
   },
   {
     id: "oc-starter",
@@ -67,22 +51,16 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.SHINGLES,
     price: 70.56,
     unit: "Bundle",
-    coverageRule: {
-      description: "120 LF/Bundle",
-      calculation: "(Eave Length + Rake Length) ÷ 120, rounded up",
-    }
+    coverageRule: { description: "120 LF/Bundle", calculation: "(Eave Length + Rake Length) * (1 + Waste%) / 120 rounded up" }
   },
   {
     id: "oc-duration",
     name: "OC Duration",
     category: MaterialCategory.SHINGLES,
-    price: 41.3,
+    price: 41.30,
     unit: "Bundle",
     approxPerSquare: 123.90,
-    coverageRule: {
-      description: "3 Bundles/Square (33.3 sq ft per bundle)",
-      calculation: "Total Area / 33.3 rounded up",
-    }
+    coverageRule: { description: "3 Bundles/Square (33.3 sq ft per bundle)", calculation: "Steep Slope Area / 33.3 rounded up" }
   },
   // UNDERLAYMENTS
   {
@@ -92,10 +70,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 87.88,
     unit: "Roll",
     approxPerSquare: 19.53,
-    coverageRule: {
-      description: "4.5 Squares/Roll (450 sq ft)",
-      calculation: "Total Roof Area ÷ 4.5, rounded up",
-    }
+    coverageRule: { description: "4.5 Squares/Roll (450 sq ft)", calculation: "Steep Slope Area / 4.5 rounded up" } // Applied to Steep Slope only
   },
   {
     id: "gaf-weatherwatch-ice-water-shield",
@@ -104,47 +79,25 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 101.11,
     unit: "Roll",
     approxPerSquare: 50.56,
-    coverageRule: {
-      description: "1.5 Squares/Roll (150 sq ft)",
-      calculation: "Total Area ÷ 1.5, rounded up",
-    }
+    coverageRule: { description: "1.5 Squares/Roll (150 sq ft)", calculation: "Valley Length / 45.5 rounded up" } // Specific rule for valleys
   },
   {
     id: "gaf-feltbuster-synthetic-underlayment",
     name: "GAF FeltBuster Synthetic Underlayment (10 sq)",
     category: MaterialCategory.UNDERLAYMENTS,
-    price: 108.89,
+    price: 108.89, // Updated Price
     unit: "Roll",
-    approxPerSquare: 10.89,
-    coverageRule: {
-      description: "10 Squares/Roll (1,000 sq ft)",
-      calculation: "Total Roof Area ÷ 10, rounded up",
-    }
+    approxPerSquare: 10.89, // Updated Approx
+    coverageRule: { description: "10 Squares/Roll (1,000 sq ft)", calculation: "Total Area / 10 rounded up" } // Covers total area
   },
-  // Adding more underlayments from Excel
   {
     id: "maxfelt-nc",
     name: "MaxFelt NC",
     category: MaterialCategory.UNDERLAYMENTS,
-    price: 65.56,
+    price: 65.56, // Updated Price
     unit: "Roll",
-    approxPerSquare: 6.56,
-    coverageRule: {
-      description: "10 Squares/Roll (1,000 sq ft)",
-      calculation: "Ceiling(Total Squares ÷ 10)",
-    }
-  },
-  {
-    id: "gaf-poly-iso-4x8",
-    name: "GAF Poly ISO 4X8",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 90.0,
-    unit: "Roll",
-    approxPerSquare: 90.0,
-    coverageRule: {
-      description: "For 0/12 pitch areas only",
-      calculation: "0/12 pitch area square footage × 1.12 ÷ 100, rounded up",
-    }
+    approxPerSquare: 6.56, // Updated Approx
+    coverageRule: { description: "10 Squares/Roll (1,000 sq ft)", calculation: "Ceiling(Total Squares / 10)" }
   },
   {
     id: "rhino-synthetic",
@@ -153,10 +106,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 67.65,
     unit: "Roll",
     approxPerSquare: 6.77,
-    coverageRule: {
-      description: "10 Squares/Roll (1,000 sq ft)",
-      calculation: "Ceiling(Total Squares ÷ 10)",
-    }
+    coverageRule: { description: "10 Squares/Roll (1,000 sq ft)", calculation: "Ceiling(Total Squares / 10)" }
   },
   {
     id: "poly-glass-irxe",
@@ -165,10 +115,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 67.65,
     unit: "Roll",
     approxPerSquare: 33.83,
-    coverageRule: {
-      description: "2 Squares/Roll (200 sq ft)",
-      calculation: "Ceiling(Total Squares ÷ 2)",
-    }
+    coverageRule: { description: "2 Squares/Roll (200 sq ft)", calculation: "Ceiling(Total Squares / 2)" } 
   },
   {
     id: "rhino-g-ps",
@@ -177,11 +124,18 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 110.73,
     unit: "Roll",
     approxPerSquare: 55.37,
-    coverageRule: {
-      description: "2 Squares/Roll (200 sq ft)",
-      calculation: "Valley Length (ft) ÷ 3 × 0.167 + Eave Length (ft) ÷ 3 × 0.167",
-    }
+    coverageRule: { description: "2 Squares/Roll (200 sq ft)", calculation: "Valley Length + Eave Length related calc" } // Placeholder for complex calc
   },
+  {
+    id: "full-peel-stick-system",
+    name: "Full W.W Peel & Stick System Add-on",
+    category: MaterialCategory.UNDERLAYMENTS,
+    price: 0,
+    unit: "Roll",
+    approxPerSquare: 0,
+    coverageRule: { description: "1.5 Squares Steep Area / Roll (Cost: $60/sq extra)", calculation: "Steep Slope Area / 1.5 rounded up" }
+  },
+  // LOW SLOPE
   {
     id: "polyglass-elastoflex-sbs",
     name: "Polyglass Elastoflex SA-V SBS Base Sheet (2 sq)",
@@ -189,10 +143,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 142.22,
     unit: "Roll",
     approxPerSquare: 177.78,
-    coverageRule: {
-      description: "1.60 Rolls per Square (0.625 sq/roll)",
-      calculation: "1/12 or 2/12 Pitch Area ÷ 0.625, rounded up",
-    }
+    coverageRule: { description: "1.60 Rolls per Square (0.625 sq/roll)", calculation: "Low Slope Area (0-2 pitch) / 0.625 rounded up" }
   },
   {
     id: "polyglass-polyflex-app",
@@ -201,102 +152,25 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 132.22,
     unit: "Roll",
     approxPerSquare: 165.28,
-    coverageRule: {
-      description: "1.25 Rolls per Square (0.8 sq/roll)",
-      calculation: "1/12 or 2/12 Pitch Area ÷ 0.8, rounded up",
-    }
+    coverageRule: { description: "1.25 Rolls per Square (0.8 sq/roll)", calculation: "Low Slope Area (0-2 pitch) / 0.8 rounded up" }
   },
-  // --- ADDING PSEUDO-MATERIAL FOR FULL PEEL & STICK SYSTEM ---
   {
-    id: "full-peel-stick-system",
-    name: "Full W.W Peel & Stick System Add-on",
-    category: MaterialCategory.UNDERLAYMENTS, // Or ACCESSORIES?
-    price: 0, // Cost is handled separately ($60/sq)
-    unit: "Roll", // Based on user rule 1.5 sq = 1 roll
-    approxPerSquare: 0, // Cost is separate
-    coverageRule: {
-      description: "1.5 Squares Steep Area / Roll (Cost: $60/sq extra)",
-      calculation: "Steep Slope Area (>= 3/12) ÷ 1.5, rounded up",
-    }
+    id: "gaf-poly-iso-4x8",
+    name: "GAF Poly ISO 4X8",
+    category: MaterialCategory.LOW_SLOPE,
+    price: 90.0,
+    unit: "Roll", // Should this be Sheet?
+    approxPerSquare: 90.0, 
+    coverageRule: { description: "For 0/12 pitch areas only (32 sq ft/unit)", calculation: "0/12 pitch area * 1.12 / 32 rounded up" }
   },
-  // --- END ADDITION ---
-  // METAL - Keep all except those explicitly removed below
-  {
-    id: "drip-edge-26ga",
-    name: "Drip Edge 26GA Galvalume (2.5\" Face, Painted)",
-    category: MaterialCategory.METAL,
-    price: 13.33,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Drip Edge ÷ 10, rounded up",
-    }
-  },
+  // METAL
   {
     id: "millennium-galvanized-drip-edge",
     name: "Millennium Galvanized Steel Drip Edge - 26GA - 6\" (10')",
     category: MaterialCategory.METAL,
     price: 13.30,
     unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Drip Edge ÷ 10, rounded up",
-    }
-  },
-  {
-    id: "millennium-galvanized-rake-edge",
-    name: "Millennium Galvanized Steel Rake Edge - 26GA - 6\" (10')",
-    category: MaterialCategory.METAL,
-    price: 13.33,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Rake Edge ÷ 10, rounded up",
-    }
-  },
-   {
-    id: "millennium-galvanized-wall-flashing",
-    name: "Millennium Galvanized Steel Wall Flashing - 26GA - 6\" (10')",
-    category: MaterialCategory.METAL,
-    price: 15.00,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Wall Flashing ÷ 10, rounded up",
-    }
-  },
-  {
-    id: "millennium-galvanized-step-flashing",
-    name: "Millennium Galvanized Steel Step Flashing - 26GA - 8\" × 8\" (100/bx)",
-    category: MaterialCategory.METAL,
-    price: 83.33,
-    unit: "Box",
-    coverageRule: {
-      description: "100/bx",
-      calculation: "Count of step flashing boxes",
-    }
-  },
-  {
-    id: "millennium-galvanized-counter-flashing",
-    name: "Millennium Galvanized Steel Counter Flashing - 26GA - 6\" (10')",
-    category: MaterialCategory.METAL,
-    price: 15.00,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Counter Flashing ÷ 10, rounded up",
-    }
-  },
-  {
-    id: "millennium-galvanized-valley-metal",
-    name: "Millennium Galvanized Steel Valley Metal - 26GA - 20\" (10')",
-    category: MaterialCategory.METAL,
-    price: 91.67,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Valley Metal ÷ 10, rounded up",
-    }
+    coverageRule: { description: "10'/Piece", calculation: "Eave Length + Rake Length / 10 rounded up" }
   },
   {
     id: "aluminum-eave-drip-edge",
@@ -304,43 +178,23 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.METAL,
     price: 16.00,
     unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Eave Length ÷ 10, rounded up",
-    }
-  },
-  {
-    id: "valley-metal-26ga",
-    name: "Valley Metal 26GA Galvalume 16\" × 55'",
-    category: MaterialCategory.METAL,
-    price: 91.67,
-    unit: "Roll",
-    coverageRule: {
-      description: "55'/Roll",
-      calculation: "Valley Length ÷ 55, rounded up",
-    }
+    coverageRule: { description: "10'/Piece", calculation: "Ceiling(Eave Length / 10)" }
   },
   {
     id: "tamco-roof-to-wall-flashing",
-     name: "TAMCO Galvalume Roof to Wall Flashing - 26GA - 4\"x5\" (10')",
+    name: "TAMCO Galvalume Roof to Wall Flashing - 26GA - 4\"x5\" (10')",
     category: MaterialCategory.METAL,
     price: 17.20,
     unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "(Step Flashing LF + Wall Flashing LF) ÷ 10, rounded up",
-    }
+    coverageRule: { description: "10'/Piece", calculation: "(Step Flashing LF + Wall Flashing LF) / 10 rounded up" }
   },
   {
     id: "acm-counter-flashing",
-     name: "ACM Galvalume Counter Flashing - 3\"x10\" (per PC)",
+    name: "ACM Galvalume Counter Flashing - 3\"x10\" (per PC)",
     category: MaterialCategory.METAL,
     price: 14.85,
     unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Manual quantity selection",
-    }
+    coverageRule: { description: "10'/Piece", calculation: "Manual quantity selection" }
   },
   {
     id: "galvanized-steel-roll-valley",
@@ -348,77 +202,40 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.METAL,
     price: 81.00,
     unit: "Roll",
-    coverageRule: {
-      description: "50'/Roll",
-      calculation: "Valley Length ÷ 50, rounded up",
-    }
+    coverageRule: { description: "50'/Roll", calculation: "Valley Length / 50 rounded up" }
   },
-  // VENTILATION & BOOTS - Keep all except those explicitly removed
-  {
-    id: "gaf-cobra-ridge-vent",
-    name: "GAF Cobra Shingle Over Ridge Vent (12\")",
-    category: MaterialCategory.VENTILATION,
-    price: 22.31,
-    unit: "Piece",
-    coverageRule: {
-      description: "12'/Piece",
-      calculation: "Ridge Length ÷ 12, rounded up",
-    }
-  },
+  // VENTILATION & BOOTS
   {
     id: "gaf-cobra-rigid-vent",
     name: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent w/ Nails - 11-1/2\" (4')",
     category: MaterialCategory.VENTILATION,
     price: 22.31,
     unit: "Piece",
-    coverageRule: {
-      description: "4'/Piece",
-      calculation: "Ridges LF ÷ 4, rounded up",
-    }
+    coverageRule: { description: "4'/Piece", calculation: "Ridges LF / 4 rounded up" }
   },
-  {
+   {
     id: "galvanized-steel-off-ridge-vent",
     name: "Galvanized Steel Off Ridge Vent (4') - w/ Diverter",
     category: MaterialCategory.VENTILATION,
     price: 71.25,
     unit: "Piece",
-    coverageRule: {
-      description: "4'/Piece",
-      calculation: "Ridges LF ÷ 4, rounded up",
-    }
+    coverageRule: { description: "4'/Piece", calculation: "Count needed based on ventilation requirements" }
   },
   {
     id: "galvanized-gooseneck-4inch",
     name: "Galvanized Steel Gooseneck Exhaust Vent - 4\" - w/ Damper",
     category: MaterialCategory.VENTILATION,
-    price: 44.44,
+    price: 44.44, // User price: 44.44
     unit: "Each",
-    coverageRule: {
-      description: "1 per vent penetration",
-      calculation: "Count of 4\" vent penetrations",
-    }
+    coverageRule: { description: "1 per vent penetration", calculation: "Count of 4\" vent penetrations" }
   },
   {
     id: "galvanized-gooseneck-10inch",
     name: "Galvanized Steel Gooseneck Exhaust Vent - 10\" - w/ Damper",
     category: MaterialCategory.VENTILATION,
-    price: 55.56,
+    price: 55.56, // User price: 55.56
     unit: "Each",
-    coverageRule: {
-      description: "1 per vent penetration",
-      calculation: "Count of 10\" vent penetrations",
-    }
-  },
-  {
-    id: "lead-boot-4inch",
-    name: "Lead Boot 4\"",
-    category: MaterialCategory.VENTILATION,
-    price: 27.78,
-    unit: "Each",
-    coverageRule: {
-      description: "1 per 4\" pipe penetration",
-      calculation: "Count of 4\" pipe penetrations",
-    }
+    coverageRule: { description: "1 per vent penetration", calculation: "Count of 10\" vent penetrations" }
   },
   {
     id: "bullet-boot-1-5inch",
@@ -426,10 +243,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.VENTILATION,
     price: 22.50,
     unit: "Each",
-    coverageRule: {
-      description: "1 per pipe penetration",
-      calculation: "Count of 1.5\" pipe penetrations",
-    }
+    coverageRule: { description: "1 per pipe penetration", calculation: "Count of 1.5\" pipe penetrations" }
   },
   {
     id: "bullet-boot-2inch",
@@ -437,10 +251,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.VENTILATION,
     price: 24.97,
     unit: "Each",
-    coverageRule: {
-      description: "1 per pipe penetration",
-      calculation: "Count of 2\" pipe penetrations",
-    }
+    coverageRule: { description: "1 per pipe penetration", calculation: "Count of 2\" pipe penetrations" }
   },
   {
     id: "bullet-boot-3inch",
@@ -448,10 +259,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.VENTILATION,
     price: 27.78,
     unit: "Each",
-    coverageRule: {
-      description: "1 per pipe penetration",
-      calculation: "Count of 3\" pipe penetrations",
-    }
+    coverageRule: { description: "1 per pipe penetration", calculation: "Count of 3\" pipe penetrations" }
   },
   {
     id: "bullet-boot-4inch",
@@ -459,10 +267,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.VENTILATION,
     price: 43.49,
     unit: "Each",
-    coverageRule: {
-      description: "1 per pipe penetration",
-      calculation: "Count of 4\" pipe penetrations",
-    }
+    coverageRule: { description: "1 per pipe penetration", calculation: "Count of 4\" pipe penetrations" }
   },
   {
     id: "adjustable-lead-pipe-flashing-1-5inch",
@@ -470,10 +275,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.VENTILATION,
     price: 19.44,
     unit: "Each",
-    coverageRule: {
-      description: "1 per pipe penetration",
-      calculation: "Count of 1.5\" pipe penetrations",
-    }
+    coverageRule: { description: "1 per pipe penetration", calculation: "Count of 1.5\" pipe penetrations" }
   },
   {
     id: "adjustable-lead-pipe-flashing-2inch",
@@ -481,10 +283,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.VENTILATION,
     price: 20.56,
     unit: "Each",
-    coverageRule: {
-      description: "1 per pipe penetration",
-      calculation: "Count of 2\" pipe penetrations",
-    }
+    coverageRule: { description: "1 per pipe penetration", calculation: "Count of 2\" pipe penetrations" }
   },
   {
     id: "adjustable-lead-pipe-flashing-3inch",
@@ -492,21 +291,15 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.VENTILATION,
     price: 24.44,
     unit: "Each",
-    coverageRule: {
-      description: "1 per pipe penetration",
-      calculation: "Count of 3\" pipe penetrations",
-    }
+    coverageRule: { description: "1 per pipe penetration", calculation: "Count of 3\" pipe penetrations" }
   },
   {
     id: "adjustable-lead-pipe-flashing-4inch",
     name: "Adjustable Lead Pipe Flashing - 2.5# - 4\" (12\"x12\"x12\")",
     category: MaterialCategory.VENTILATION,
-    price: 30.00,
+    price: 30.00, // User price: 30
     unit: "Each",
-    coverageRule: {
-      description: "1 per pipe penetration",
-      calculation: "Count of 4\" pipe penetrations",
-    }
+    coverageRule: { description: "1 per pipe penetration", calculation: "Count of 4\" pipe penetrations" } 
   },
   {
     id: "golden-rule-zipseal-mast-flashing",
@@ -514,66 +307,16 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.VENTILATION,
     price: 28.25,
     unit: "Each",
-    coverageRule: {
-      description: "1 per mast penetration",
-      calculation: "Count of mast penetrations",
-    }
+    coverageRule: { description: "1 per mast penetration", calculation: "Count of mast penetrations" }
   },
-  // ACCESSORIES - Keep all except those explicitly removed
-  {
-    id: "211-plastic-cement",
-    name: "211 Plastic Cement (5gal)",
-    category: MaterialCategory.ACCESSORIES,
-    price: 48.33,
-    unit: "Bucket",
-    coverageRule: {
-      description: "1 bucket per 300 LF of flashings",
-      calculation: "Ceiling((Valley Length + Drip Edge + Wall Flashing + Step Flashing) ÷ 300)",
-    }
-  },
+  // ACCESSORIES
   {
     id: "1inch-plastic-cap-nails",
     name: "1\" Plastic Cap Nails (3000/pail)",
     category: MaterialCategory.ACCESSORIES,
     price: 39.48,
     unit: "Pail",
-    coverageRule: {
-      description: "1 pail per 10 squares of synthetic underlayment",
-      calculation: "Ceiling(Total Squares ÷ 10)",
-    }
-  },
-  {
-    id: "shingle-nails",
-    name: "Shingle Nails",
-    category: MaterialCategory.ACCESSORIES,
-    price: 53.89,
-    unit: "Box",
-    coverageRule: {
-      description: "1 box per 1000 nails",
-      calculation: "Ceiling(Total Nails ÷ 1000)",
-    }
-  },
-  {
-    id: "decking-nails",
-    name: "Decking Nails",
-    category: MaterialCategory.ACCESSORIES,
-    price: 66.67,
-    unit: "Box",
-    coverageRule: {
-      description: "1 box per 1000 nails",
-      calculation: "Ceiling(Total Nails ÷ 1000)",
-    }
-  },
-  {
-    id: "karnak-19",
-    name: "Karnak 19",
-    category: MaterialCategory.ACCESSORIES,
-    price: 64.81,
-    unit: "Tube",
-    coverageRule: {
-      description: "1 tube per 300 LF of flashings",
-      calculation: "Ceiling((Valley Length + Drip Edge + Wall Flashing + Step Flashing) ÷ 300)",
-    }
+    coverageRule: { description: "1 pail per 10 squares of synthetic underlayment", calculation: "Ceiling(Total Squares / 10)" }
   },
   {
     id: "master-sealant",
@@ -581,21 +324,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 11.76,
     unit: "Each",
-    coverageRule: {
-      description: "1 can per 1000 sq ft of roof area",
-      calculation: "Ceiling(Total Squares ÷ 100)",
-    }
-  },
-  {
-    id: "orv-screws",
-    name: "ORV Screws",
-    category: MaterialCategory.ACCESSORIES,
-    price: 23.99,
-    unit: "Pack",
-    coverageRule: {
-      description: "1 pack per 100 screws",
-      calculation: "Ceiling(Total Screws ÷ 100)",
-    }
+    coverageRule: { description: "1 tube per 10 squares", calculation: "Ceiling(Total Squares / 10)" }
   },
   {
     id: "round-metal-cap-nails",
@@ -603,10 +332,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 79.99,
     unit: "Box",
-    coverageRule: {
-      description: "1 box per 25 lbs of nails",
-      calculation: "Ceiling(Total Lbs ÷ 25)",
-    }
+    coverageRule: { description: "1 box per 50 squares", calculation: "Ceiling(Total Squares / 50)" }
   },
   {
     id: "abc-electro-galvanized-coil-nails",
@@ -614,10 +340,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 57.22,
     unit: "Box",
-    coverageRule: {
-      description: "1 box per 7200 nails",
-      calculation: "Ceiling(Total Nails ÷ 7200)",
-    }
+    coverageRule: { description: "1 box per 10 squares", calculation: "Ceiling(Total Squares / 10)" }
   },
   {
     id: "coil-nails-ring-shank",
@@ -625,21 +348,15 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 68.89,
     unit: "Box",
-    coverageRule: {
-      description: "1 box per 5000 nails",
-      calculation: "Ceiling(Total Nails ÷ 5000)",
-    }
+    coverageRule: { description: "1 box per 30 squares", calculation: "Ceiling(Total Squares / 30)" }
   },
   {
     id: "wood-zip-screws",
     name: "DIRECT #10X1-1/2 WOODZIP MILL (250 ct)",
     category: MaterialCategory.ACCESSORIES,
     price: 23.99,
-    unit: "Each",
-    coverageRule: {
-      description: "1 each per 250 screws",
-      calculation: "Ceiling(Total Screws ÷ 250)",
-    }
+    unit: "Each", // Unit assumed 'Each' based on 'ct'
+    coverageRule: { description: "1 box per roof", calculation: "Manual quantity selection" }
   },
   {
     id: "zamac-masonry-fastener",
@@ -647,32 +364,23 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 23.99,
     unit: "Box",
-    coverageRule: {
-      description: "1 box per 100 fasteners",
-      calculation: "Ceiling(Total Count ÷ 100)",
-    }
+    coverageRule: { description: "1 box per roof (if needed)", calculation: "Manual quantity selection" }
   },
-  {
+   {
     id: "karnak-asphalt-primer-spray",
     name: "Karnak #108 Asphalt Primer Spray (14 oz)",
     category: MaterialCategory.ACCESSORIES,
     price: 20.00,
     unit: "Each",
-    coverageRule: {
-      description: "1 can per 1000 sq ft of roof area",
-      calculation: "Ceiling(Total Squares ÷ 100)",
-    }
+    coverageRule: { description: "1 per 10 squares of low slope area", calculation: "Ceiling(Low Slope Area / 10)" }
   },
   {
     id: "karnak-flashing-cement",
     name: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)",
     category: MaterialCategory.ACCESSORIES,
     price: 70.37,
-    unit: "Each",
-    coverageRule: {
-      description: "1 bucket per 300 LF of flashings",
-      calculation: "Ceiling((Valley Length + Drip Edge + Wall Flashing + Step Flashing) ÷ 300)",
-    }
+    unit: "Each", // Unit was 'Each' but content is 5 Gal? Clarify if 'Bucket'
+    coverageRule: { description: "1 bucket per 300 LF of flashings", calculation: "Ceiling((Valley Length + Drip Edge + Wall Flashing + Step Flashing) / 300)" }
   },
   {
     id: "kennedy-skylight-small",
@@ -680,10 +388,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 225.00,
     unit: "Each",
-    coverageRule: {
-      description: "1 per skylight",
-      calculation: "Count of skylights",
-    }
+    coverageRule: { description: "1 per skylight", calculation: "Count of skylights" }
   },
   {
     id: "kennedy-skylight-large",
@@ -691,10 +396,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 300.00,
     unit: "Each",
-    coverageRule: {
-      description: "1 per skylight",
-      calculation: "Count of skylights",
-    }
+    coverageRule: { description: "1 per skylight", calculation: "Count of skylights" }
   },
   {
     id: "rustoleum-protective-enamel",
@@ -702,82 +404,16 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 11.67,
     unit: "Each",
-    coverageRule: {
-      description: "1 can per 1000 sq ft of roof area",
-      calculation: "Ceiling(Total Squares ÷ 100)",
-    }
+    coverageRule: { description: "1 can per 1000 sq ft of roof area", calculation: "Ceiling(Total Squares / 100)" }
   },
-  // LOW SLOPE section (Add full definitions back before filtering)
-  {
-    id: "modified-base-sheet",
-    name: "Modified Base Sheet",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 65.92,
-    unit: "Roll",
-    approxPerSquare: 32.96,
-    coverageRule: {
-      description: "2 Squares/Roll (200 sq ft)",
-      calculation: "Ceiling(Low Slope Area ÷ 200)",
-    }
-  },
-  {
-    id: "modified-cap-sheet",
-    name: "Modified Cap Sheet",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 103.42,
-    unit: "Roll",
-    approxPerSquare: 103.42,
-    coverageRule: {
-      description: "1 Square/Roll (100 sq ft)",
-      calculation: "Ceiling(Low Slope Area ÷ 100)",
-    }
-  },
-  {
-    id: "gaf-liberty-self-adhering-membrane",
-    name: "GAF Liberty Self-Adhering Membrane",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 132.22, 
-    unit: "Roll",
-    approxPerSquare: 132.22,
-    coverageRule: {
-      description: "1 Square/Roll (100 sq ft)",
-      calculation: "Total Low Slope Area ÷ 1, rounded up",
-    }
-  },
-  {
-    id: "gaf-ruberoid-torch-granular",
-    name: "GAF Ruberoid Torch Granular",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 132.22,
-    unit: "Roll",
-    approxPerSquare: 132.22,
-    coverageRule: {
-      description: "1 Square/Roll (100 sq ft)",
-      calculation: "Total Low Slope Area ÷ 1, rounded up",
-    }
-  },
-  // Add wood material section - Keep only those NOT removed
-  {
-    id: "decking-plywood-cdx-4x8-half-inch",
-    name: "Decking Plywood CDX 4×8 1/2\"",
-    category: MaterialCategory.ACCESSORIES,
-    price: 45.99,
-    unit: "Sheet",
-    coverageRule: {
-      description: "32 sq ft per sheet",
-      calculation: "Repair Area ÷ 32, rounded up",
-    }
-  },
+  // Wood section from original list (excluding removed items)
   {
     id: "decking-plywood-cdx-4x8-five-eighth-inch",
     name: "Decking Plywood CDX 4×8 5/8\"",
     category: MaterialCategory.ACCESSORIES,
     price: 53.99,
     unit: "Sheet",
-    coverageRule: {
-      description: "32 sq ft per sheet",
-      calculation: "Repair Area ÷ 32, rounded up",
-    }
+    coverageRule: { description: "32 sq ft per sheet", calculation: "Repair Area / 32, rounded up" }
   },
   {
     id: "lumber-1x4-8ft",
@@ -785,21 +421,15 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 4.99,
     unit: "Piece",
-    coverageRule: {
-      description: "8 ft per piece",
-      calculation: "Count of repair sections",
-    }
+    coverageRule: { description: "8 ft per piece", calculation: "Count of repair sections" }
   },
-  {
+    {
     id: "lumber-2x6-8ft",
     name: "Lumber 2×6×8'",
     category: MaterialCategory.ACCESSORIES,
     price: 9.99,
     unit: "Piece",
-    coverageRule: {
-      description: "8 ft per piece",
-      calculation: "Count of repair sections",
-    }
+    coverageRule: { description: "8 ft per piece", calculation: "Count of repair sections" }
   },
   {
     id: "lumber-2x8-8ft",
@@ -807,55 +437,30 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 12.99,
     unit: "Piece",
-    coverageRule: {
-      description: "8 ft per piece",
-      calculation: "Count of repair sections",
-    }
+    coverageRule: { description: "8 ft per piece", calculation: "Count of repair sections" }
   },
   {
     id: "cdx-plywood",
     name: "1/2\"x4'x8' CDX Plywood - 4-Ply",
     category: MaterialCategory.ACCESSORIES,
     price: 70.00,
-    unit: "Board",
-    coverageRule: {
-      description: "32 sq ft per sheet",
-      calculation: "Repair Area ÷ 32, rounded up",
-    }
+    unit: "Board", // Was 'Board' - confirm if 'Sheet' is better
+    coverageRule: { description: "32 sq ft per sheet", calculation: "Repair Area / 32, rounded up" }
+  },
+  {
+    id: "karnak-19", // Added back based on user list
+    name: "Karnak 19",
+    category: MaterialCategory.ACCESSORIES,
+    price: 64.81,
+    unit: "Tube",
+    coverageRule: { description: "1 tube per 20 squares", calculation: "Ceiling(Total Squares / 20)" }
   },
 ];
 
-// IDs to remove (Keep this list as is)
-const idsToRemove = new Set([
-  "modified-base-sheet",
-  "modified-cap-sheet",
-  "gaf-liberty-self-adhering-membrane",
-  "gaf-ruberoid-torch-granular",
-  "drip-edge-26ga",
-  "millennium-galvanized-rake-edge",
-  "millennium-galvanized-wall-flashing",
-  "millennium-galvanized-step-flashing",
-  "millennium-galvanized-counter-flashing",
-  "millennium-galvanized-valley-metal",
-  "valley-metal-26ga",
-  "gaf-cobra-ridge-vent", // Ventilation
-  "lead-boot-4inch",      // Ventilation
-  "211-plastic-cement", // Accessory
-  "shingle-nails",      // Accessory
-  "decking-nails",      // Accessory
-  "karnak-19",          // Accessory
-  "orv-screws",         // Accessory
-  "decking-plywood-cdx-4x8-half-inch", // Accessory/Wood
-  "lumber-2x4-8ft",     // Accessory/Wood
-]);
+// Define the final list directly - no filtering needed now
+export const ROOFING_MATERIALS: Material[] = ALL_ROOFING_MATERIALS;
 
-// Filtered list for export (Keep this logic as is)
-export const ROOFING_MATERIALS: Material[] = ALL_ROOFING_MATERIALS.filter(
-  material => !idsToRemove.has(material.id)
-);
-
-// Optional: Log removed items during development
+// Optional: Log counts for verification
 if (process.env.NODE_ENV === 'development') {
-    const removedItems = ALL_ROOFING_MATERIALS.filter(material => idsToRemove.has(material.id));
-    console.log("Removed the following materials from data.ts:", removedItems.map(m => m.name));
+    console.log(`Exporting ${ROOFING_MATERIALS.length} materials from data.ts`);
 }
