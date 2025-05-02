@@ -144,14 +144,23 @@ export const calculateMaterialQuantity = (
       return 0;
     }
     
+    // Function to safely parse pitch and get the rise value
+    const getPitchRise = (pitchString: string): number => {
+      if (!pitchString) return 0;
+      const parts = pitchString.split(/[:\/]/);
+      return parseInt(parts[0] || '0');
+    };
+
+    // Calculate low slope area (<= 2/12)
+    // Ensure this calculation correctly includes 0, 1, and 2 pitches.
     const lowSlopeArea = measurements.areasByPitch
-      .filter(area => {
-        const pitch = area.pitch.toLowerCase();
-        return pitch === "0:12" || pitch === "1:12" || pitch === "2:12" || 
-               pitch === "0/12" || pitch === "1/12" || pitch === "2/12";
-      })
-      .reduce((total, area) => total + area.area, 0);
-    
+        ?.filter(area => {
+           const rise = getPitchRise(area.pitch);
+           return !isNaN(rise) && rise >= 0 && rise <= 2; // Explicitly include 0, 1, 2
+        })
+        .reduce((sum, area) => sum + (area.area || 0), 0) || 0;
+    const lowSlopeSquares = lowSlopeArea / 100;
+
     if (lowSlopeArea <= 0) {
       console.log(`[CalcQuantity] Low slope area is 0, returning 0.`);
       return 0;

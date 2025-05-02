@@ -53,10 +53,10 @@ export const ROOFING_MATERIALS: Material[] = [
     id: "oc-hip-ridge",
     name: "OC Hip & Ridge",
     category: MaterialCategory.SHINGLES,
-    price: 84.44,
-    unit: "Bundle",
+    price: 108.89,
+    unit: "Roll",
     coverageRule: {
-      description: "25 LF/Bundle",
+      description: "25 LF/Roll",
       calculation: "(Ridge Length + Hip Length) ÷ 25, rounded up",
     }
   },
@@ -125,9 +125,9 @@ export const ROOFING_MATERIALS: Material[] = [
     id: "maxfelt-nc",
     name: "MaxFelt NC",
     category: MaterialCategory.UNDERLAYMENTS,
-    price: 70.5,
+    price: 65.56,
     unit: "Roll",
-    approxPerSquare: 7.05,
+    approxPerSquare: 6.56,
     coverageRule: {
       description: "10 Squares/Roll (1,000 sq ft)",
       calculation: "Ceiling(Total Squares ÷ 10)",

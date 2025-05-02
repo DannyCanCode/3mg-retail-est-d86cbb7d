@@ -19,6 +19,7 @@ import PackageSelector from "../packages/PackageSelector";
 import WarrantySelector from "../warranties/WarrantySelector";
 import LowSlopeOptions from "../lowslope/LowSlopeOptions";
 import { toast } from "@/hooks/use-toast";
+import { formatPrice } from "@/lib/utils";
 
 // *** ADD UNIQUE LOG HERE ***
 console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: April 19th 1:15 PM"); 
@@ -108,106 +109,96 @@ export function MaterialsSelectionTab({
     }
     
     // Auto-detect special low pitch areas and add required materials
-    const has0Pitch = measurements.areasByPitch.some(
-      area => ["0:12", "0/12"].includes(area.pitch)
+    // Check for 0/12, 1/12, OR 2/12 pitch
+    const hasLowPitch = measurements.areasByPitch.some(
+      area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
     );
+    const has0Pitch = measurements.areasByPitch.some(area => ["0:12", "0/12"].includes(area.pitch));
     
-    const has1or2Pitch = measurements.areasByPitch.some(
-      area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch)
-    );
-    
-    // Auto-select special materials based on pitch detection
     const newSelectedMaterials = { ...selectedMaterials };
     const newQuantities = { ...quantities };
+    let materialsUpdated = false; // Flag to track if updates were made
     
     // Add GAF Poly ISO for 0/12 pitch
     if (has0Pitch) {
       const polyIsoMaterial = ROOFING_MATERIALS.find(m => m.id === "gaf-poly-iso-4x8");
       if (polyIsoMaterial) {
-        // Calculate area with 0/12 pitch
-        const zeroPitchArea = measurements.areasByPitch
-          .filter(area => ["0:12", "0/12"].includes(area.pitch))
-          .reduce((total, area) => total + area.area, 0);
-        
-        // Calculate quantity with 12% waste
-        const squaresNeeded = zeroPitchArea / 100;
-        const quantityNeeded = Math.ceil(squaresNeeded * 1.12);
-        
-        // Add to materials with a note that it's mandatory
-        const mandatoryMaterial = { 
-          ...polyIsoMaterial,
-          name: `${polyIsoMaterial.name} (Required for 0/12 pitch - cannot be removed)`
-        };
-        
-        newSelectedMaterials["gaf-poly-iso-4x8"] = mandatoryMaterial;
-        newQuantities["gaf-poly-iso-4x8"] = quantityNeeded;
-        
-        // Show notification if this is a new addition
-        if (!selectedMaterials["gaf-poly-iso-4x8"]) {
-          toast({
-            title: "Material Auto-Selected",
-            description: `GAF Poly ISO 4X8 has been automatically added because your roof has 0/12 pitch areas (${zeroPitchArea.toFixed(1)} sq ft).`,
-          });
-        }
-      }
+          const zeroPitchArea = measurements.areasByPitch
+              .filter(area => ["0:12", "0/12"].includes(area.pitch))
+              .reduce((total, area) => total + (area.area || 0), 0);
+          if (zeroPitchArea > 0) {
+              const squaresNeeded = zeroPitchArea / 100;
+              const quantityNeeded = Math.ceil(squaresNeeded * 1.12);
+              const currentQty = newQuantities["gaf-poly-iso-4x8"] || 0;
+              if (!newSelectedMaterials["gaf-poly-iso-4x8"] || currentQty !== quantityNeeded) {
+                  console.log(`[useEffect Auto Add] Adding/Updating GAF Poly ISO. Qty: ${quantityNeeded}`);
+                  const mandatoryMaterial = { 
+                      ...polyIsoMaterial,
+                      name: `${polyIsoMaterial.name} (Required for 0/12 pitch - cannot be removed)`
+                  };
+                  newSelectedMaterials["gaf-poly-iso-4x8"] = mandatoryMaterial;
+                  newQuantities["gaf-poly-iso-4x8"] = quantityNeeded;
+                  materialsUpdated = true;
+              }
+          }
+      } 
     }
     
-    // Add Polyglass Base and Cap sheets if 1/12 or 2/12 pitch exists
-    if (has1or2Pitch) { 
+    // Add Polyglass Base and Cap sheets if 0/12, 1/12 OR 2/12 pitch exists
+    if (hasLowPitch) { // Changed condition to check for any low pitch (0, 1, or 2)
       const baseSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
       const capSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
       
       if (baseSheetMaterial && capSheetMaterial) {
-        // Calculate area with 1/12 or 2/12 pitch
+        // Calculate area with 0/12, 1/12 or 2/12 pitch
         const lowPitchArea = measurements.areasByPitch
-          .filter(area => ["1:12", "2:12", "1/12", "2/12"].includes(area.pitch))
+          .filter(area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch))
           .reduce((total, area) => total + (area.area || 0), 0);
         
-        // --- FIX: Calculate quantity based on lowPitchArea --- 
         if (lowPitchArea > 0) {
           const squaresNeeded = lowPitchArea / 100;
-          // Ensure waste factor is applied to low slope areas as well
-          const wasteFactorForLowSlope = wasteFactor / 100; // Use the general waste factor
+          const wasteFactorForLowSlope = wasteFactor / 100; 
           const squaresWithWaste = squaresNeeded * (1 + wasteFactorForLowSlope);
-          const baseQuantity = Math.ceil(squaresWithWaste / 0.8); // Apply to squares with waste
-          const capQuantity = Math.ceil(squaresWithWaste / 0.8); // Apply to squares with waste
-          console.log(`[useEffect] Calculated Polyglass quantities: Area=${lowPitchArea.toFixed(1)}, Squares=${squaresNeeded.toFixed(2)}, Waste=${wasteFactor}%, SqWaste=${squaresWithWaste.toFixed(2)}, BaseQ=${baseQuantity}, CapQ=${capQuantity}`);
+          const baseQuantity = Math.ceil(squaresWithWaste / 0.625); // Correct divisor for base
+          const capQuantity = Math.ceil(squaresWithWaste / 0.8); // Correct divisor for cap
+          
+          // Check if update is needed for Base sheet
+          const currentBaseQty = newQuantities["polyglass-elastoflex-sbs"] || 0;
+          if (!newSelectedMaterials["polyglass-elastoflex-sbs"] || currentBaseQty !== baseQuantity) {
+              console.log(`[useEffect Auto Add] Adding/Updating Polyglass Base. Qty: ${baseQuantity}`);
+              const mandatoryBaseSheet = {
+                ...baseSheetMaterial,
+                name: `${baseSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
+              };
+              newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBaseSheet;
+              newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
+              materialsUpdated = true;
+          }
 
-          // Add to materials with a note that they're mandatory
-          const mandatoryBaseSheet = {
-            ...baseSheetMaterial,
-            name: `${baseSheetMaterial.name} (Required for 1/12 or 2/12 pitch - cannot be removed)`
-          };
-          
-          const mandatoryCapSheet = {
-            ...capSheetMaterial,
-            name: `${capSheetMaterial.name} (Required for 1/12 or 2/12 pitch - cannot be removed)`
-          };
-          
-          newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBaseSheet;
-          newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCapSheet;
-          newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
-          newQuantities["polyglass-polyflex-app"] = capQuantity;
-          
-          // Show notification if these are new additions
-          if (!selectedMaterials["polyglass-elastoflex-sbs"] || !selectedMaterials["polyglass-polyflex-app"]) {
-            toast({
-              title: "Low Slope Materials Auto-Selected",
-              description: `Polyglass Base and Cap sheets automatically added because your roof has 1/12 or 2/12 pitch areas (${lowPitchArea.toFixed(1)} sq ft).`,
-            });
+          // Check if update is needed for Cap sheet
+          const currentCapQty = newQuantities["polyglass-polyflex-app"] || 0;
+           if (!newSelectedMaterials["polyglass-polyflex-app"] || currentCapQty !== capQuantity) {
+              console.log(`[useEffect Auto Add] Adding/Updating Polyglass Cap. Qty: ${capQuantity}`);
+              const mandatoryCapSheet = {
+                ...capSheetMaterial,
+                name: `${capSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
+              };
+              newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCapSheet;
+              newQuantities["polyglass-polyflex-app"] = capQuantity;
+              materialsUpdated = true;
           }
         } else {
-            console.log("[useEffect] lowPitchArea is 0, skipping Polyglass quantity calculation.");
+            console.log("[useEffect] lowPitchArea (0/12, 1/12, 2/12) is 0, skipping Polyglass quantity calculation.");
         }
-        // --- END FIX --- 
       }
     }
     
-    // Update state if *any* materials were automatically added (0/12 OR 1/12-2/12)
-    if (has0Pitch || has1or2Pitch) {
+    // Update state only if materials were actually added or changed
+    if (materialsUpdated) {
+      console.log("[useEffect Auto Add] Calling onMaterialsUpdate due to changes.");
       onMaterialsUpdate({ selectedMaterials: newSelectedMaterials, quantities: newQuantities, peelStickPrice });
     }
-  }, [measurements, expandedCategories]);
+  }, [measurements, expandedCategories]); // Dependencies might need selectedMaterials/quantities if logic depends on current state
 
   // Update materials when package changes
   useEffect(() => {
@@ -377,7 +368,7 @@ export function MaterialsSelectionTab({
   
   // Add material to selection
   const addMaterial = (material: Material) => {
-    // Use GAF Timberline specific waste factor if this is GAF Timberline HDZ SG
+    // Use GAF Timberline specific waste factor if this is GAF Timberline HDZ
     const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
       gafTimberlineWasteFactor / 100 : 
       wasteFactor / 100;
@@ -603,14 +594,6 @@ export function MaterialsSelectionTab({
     return;
   };
   
-  // Format price to display as currency
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(price);
-  };
-  
   // Generate a human-readable explanation of the calculation for a material
   const getCalculationExplanation = (material: Material, quantity: number): string => {
     if (material.category === MaterialCategory.SHINGLES) {
@@ -654,9 +637,8 @@ export function MaterialsSelectionTab({
         const ridgeLength = measurements.ridgeLength || 0;
         const hipLength = measurements.hipLength || 0;
         const lfPerBundle = extractCoverageValue(material.coverageRule.description);
-        // Use the component's general wasteFactor state for length waste
         const totalLengthWithWaste = (ridgeLength + hipLength) * (1 + wasteFactor / 100);
-        return `Ridge (${ridgeLength} LF) + Hip (${hipLength} LF) = ${ridgeLength + hipLength} LF × (1 + ${wasteFactor}% waste) = ${totalLengthWithWaste.toFixed(1)} LF ÷ ${lfPerBundle} = ${quantity} bundles`;
+        return `Ridge (${ridgeLength} LF) + Hip (${hipLength} LF) = ${ridgeLength + hipLength} LF × (1 + ${wasteFactor}% waste) = ${totalLengthWithWaste.toFixed(1)} LF ÷ ${lfPerBundle} = ${quantity} ${material.unit.toLowerCase()}s`;
       }
       
       // --- Starter Shingles ---
@@ -890,9 +872,43 @@ export function MaterialsSelectionTab({
 
   // Render a selected material row with quantity
   const renderSelectedMaterial = (materialId: string, material: Material) => {
-    const quantity = quantities[materialId] || 0;
+    const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
+    const bundleQuantity = quantities[materialId] || 0;
     const isMandatory = isMandatoryMaterial(material.name);
+
+    // --- State specific to this rendered item for Square input ---
+    // Initialize with squares calculated from bundles, allow string for typing
+    const initialSquares = isGafTimberline ? (bundleQuantity / 3).toFixed(1) : bundleQuantity.toString();
+    const [displayQuantity, setDisplayQuantity] = useState(initialSquares);
+
+    // Update local display state if the global bundle quantity changes
+    useEffect(() => {
+      const newDisplay = isGafTimberline ? (bundleQuantity / 3).toFixed(1) : bundleQuantity.toString();
+      // Only update if it *really* changed to avoid cursor jumps
+      if (newDisplay !== displayQuantity) {
+           setDisplayQuantity(newDisplay);
+      }
+    }, [bundleQuantity, isGafTimberline]);
+    // --- End local state ---
     
+    // --- Handler for Square input change ---
+    const handleSquareQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const rawValue = e.target.value;
+        setDisplayQuantity(rawValue); // Update display immediately
+
+        const newSquares = parseFloat(rawValue);
+        if (!isNaN(newSquares) && newSquares >= 0) {
+             // Convert Squares back to Bundles (round up)
+             const newBundles = Math.ceil(newSquares * 3);
+             // Call the original update function with BUNDLES
+             updateQuantity(materialId, newBundles);
+        } else if (rawValue === '') {
+             // Handle empty input - set bundles to 0?
+             updateQuantity(materialId, 0);
+        }
+    };
+    // --- End handler ---
+
     let baseName = material.name;
     let requirementText = "";
     if (isMandatory) {
@@ -905,7 +921,9 @@ export function MaterialsSelectionTab({
 
     let explanation = '';
     try {
-      explanation = getCalculationExplanation(material, quantity);
+      // Pass the correct quantity (bundles or squares) to the explainer
+      const quantityForExplanation = isGafTimberline ? parseFloat(displayQuantity) || 0 : bundleQuantity;
+      explanation = getCalculationExplanation(material, quantityForExplanation);
     } catch (error) {
       console.error(`[Renderer] Error getting explanation for ${material.id}:`, error);
       explanation = 'Error generating calculation explanation.';
@@ -930,10 +948,16 @@ export function MaterialsSelectionTab({
             <p className="text-[11px] text-blue-700 mb-0.5">{requirementText}</p>
           )}
           <div className="text-sm text-muted-foreground">
-            {material.price > 0 && 
+            {/* --- Display Price Per Square for GAF Timberline --- */}
+            {isGafTimberline && material.approxPerSquare && (
+                 <>{formatPrice(material.approxPerSquare)} per Square</>
+            )}
+            {/* --- Display Original Price/Unit for others --- */}
+            {!isGafTimberline && material.price > 0 && 
               <>{formatPrice(material.price)} per {material.unit}</>
             }
-            {material.approxPerSquare && material.approxPerSquare > 0 && 
+            {/* --- Keep original approx per square for others --- */}
+            {!isGafTimberline && material.approxPerSquare && material.approxPerSquare > 0 && 
                <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
             }
             {material.id === 'full-peel-stick-system' && 
@@ -941,18 +965,66 @@ export function MaterialsSelectionTab({
             }
           </div>
           <div className="text-xs text-muted-foreground mt-1 break-words">
-            {explanation}
+            {explanation} {/* Calculation explanation */} 
           </div>
         </div>
   
         {/* Right side: Quantity Control and Delete Button */}
         <div className="flex items-center justify-between sm:justify-end space-x-2 shrink-0">
           <div className="flex items-center">
-            <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} onClick={() => updateQuantity(materialId, Math.max(0, quantity - 1))} aria-label={`Decrease quantity for ${baseName}`}>-</Button>
-            <Input type="number" min="0" value={quantity} onChange={(e) => updateQuantity(materialId, parseInt(e.target.value) || 0)} className={`h-8 w-16 rounded-none text-center`} aria-label={`Quantity for ${baseName}`} />
-            <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} onClick={() => updateQuantity(materialId, quantity + 1)} aria-label={`Increase quantity for ${baseName}`}>+</Button>
+            {/* --- Use Specific Handlers/Values for GAF Timberline --- */}
+            {isGafTimberline ? (
+              <>
+                <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} 
+                   onClick={() => { 
+                      const currentSq = parseFloat(displayQuantity) || 0;
+                      const nextSq = Math.max(0, currentSq - 0.1); // Decrement by 0.1 squares
+                      setDisplayQuantity(nextSq.toFixed(1));
+                      updateQuantity(materialId, Math.ceil(nextSq * 3));
+                   }} 
+                   aria-label={`Decrease quantity for ${baseName}`}>
+                   -
+                 </Button>
+                <Input 
+                   type="number" 
+                   min="0" 
+                   step="0.1" // Allow decimal input for squares
+                   value={displayQuantity} 
+                   onChange={handleSquareQuantityChange} 
+                   className={`h-8 w-20 rounded-none text-center`} // Wider input?
+                   aria-label={`Quantity in Squares for ${baseName}`} 
+                 />
+                <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} 
+                   onClick={() => { 
+                      const currentSq = parseFloat(displayQuantity) || 0;
+                      const nextSq = currentSq + 0.1;
+                      setDisplayQuantity(nextSq.toFixed(1));
+                      updateQuantity(materialId, Math.ceil(nextSq * 3));
+                   }} 
+                   aria-label={`Increase quantity for ${baseName}`}>
+                   +
+                 </Button>
+              </>
+            ) : (
+              <> { /* --- Original Buttons for other materials --- */}
+                <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} onClick={() => updateQuantity(materialId, Math.max(0, bundleQuantity - 1))} aria-label={`Decrease quantity for ${baseName}`}>-</Button>
+                <Input type="number" min="0" value={bundleQuantity} onChange={(e) => updateQuantity(materialId, parseInt(e.target.value) || 0)} className={`h-8 w-16 rounded-none text-center`} aria-label={`Quantity for ${baseName}`} />
+                <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} onClick={() => updateQuantity(materialId, bundleQuantity + 1)} aria-label={`Increase quantity for ${baseName}`}>+</Button>
+              </>
+            )}
           </div>
-          <Button type="button" variant="ghost" size="icon" onClick={() => removeMaterial(materialId)} className={`h-8 w-8 text-red-500 hover:bg-red-50`} aria-label={`Remove ${baseName}`}><Trash className="h-4 w-4" /></Button>
+          {/* Keep Delete Button, ensure isMandatory check prevents deletion */} 
+          <Button 
+             type="button" 
+             variant="ghost" 
+             size="icon" 
+             onClick={() => removeMaterial(materialId)} 
+             className={`h-8 w-8 text-red-500 hover:bg-red-50 ${isMandatory ? 'opacity-50 cursor-not-allowed' : ''}`} 
+             disabled={isMandatory} // Disable delete for mandatory
+             aria-label={`Remove ${baseName}`}
+           >
+             <Trash className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     );
