@@ -38,7 +38,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { saveAs } from 'file-saver';
 
 export function RecentEstimates() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
@@ -156,31 +157,135 @@ export function RecentEstimates() {
       return; // Stop here, open dialog instead
     }
 
-    // If info exists, invoke the Edge Function
-    console.log("Invoking Edge Function generate-client-pdf for estimate:", estimateId);
+    // If info exists, generate PDF client-side
+    console.log("Generating PDF client-side for estimate:", estimateId);
     setGeneratingPdfId(estimateId);
+    
     try {
-      // Invoke the Supabase Edge Function
-      const { data, error } = await supabase.functions.invoke('generate-client-pdf', {
-         body: { estimateId: estimateId },
-      });
+      // --- PDF Generation Logic --- 
+      const pdfDoc = await PDFDocument.create();
+      let page = pdfDoc.addPage([612, 792]);
+      const { width, height } = page.getSize();
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const greenColor = rgb(0, 0.5, 0);
+      const margin = 50;
+      let currentY = height - margin;
 
-      if (error) throw error; // Handle function invocation error
+      // --- PDF Content (Mimic structure from Edge Function) --- 
+      // Header
+      page.drawText('3MG Roofing', { x: margin, y: currentY, font: boldFont, size: 16, color: greenColor });
+      currentY -= 15;
+      page.drawText('152 N. Hwy 17-92 Ste 100', { x: margin, y: currentY, font: font, size: 9 });
+      currentY -= 11;
+      page.drawText('Winter Park, FL 32789', { x: margin, y: currentY, font: font, size: 9 });
+      currentY -= 11;
+      page.drawText('Phone: 407-xxx-xxxx', { x: margin, y: currentY, font: font, size: 9 }); // TODO: Real phone
+
+      // Date and Job Type
+      const dateText = `Date: ${new Date(estimate.created_at || Date.now()).toLocaleDateString()}`;
+      const dateWidth = boldFont.widthOfTextAtSize(dateText, 10);
+      page.drawText(dateText, { x: width - margin - dateWidth, y: height - margin, font: boldFont, size: 10 });
+
+      const jobText = `Job Type: ${estimate.job_type || 'RETAIL'}`; // Use job_type if available from estimate data
+      const jobWidth = font.widthOfTextAtSize(jobText, 9);
+      page.drawText(jobText, { x: width - margin - jobWidth, y: height - margin - 15, font: font, size: 9 });
+
+      currentY -= 30;
+
+      // Customer Info
+      page.drawText('Customer Information', { x: margin, y: currentY, font: boldFont, size: 12, color: greenColor });
+      currentY -= 15;
+      page.drawText(estimate.customer_name || 'N/A', { x: margin, y: currentY, font: boldFont, size: 10 });
+      currentY -= 12;
+      page.drawText(estimate.customer_address || 'N/A', { x: margin + 5, y: currentY, font: font, size: 10 });
+      currentY -= 12;
+      page.drawText(`Email: ${estimate.customer_email || 'N/A'}`, { x: margin + 5, y: currentY, font: font, size: 10 });
+      currentY -= 12;
+      page.drawText(`Phone: ${estimate.customer_phone || 'N/A'}`, { x: margin + 5, y: currentY, font: font, size: 10 });
+
+      currentY -= 30;
+
+      // Itemized Section Header
+      page.drawText('3MG Roof Replacement Section', { x: margin, y: currentY, font: boldFont, size: 12, color: greenColor });
+      currentY -= 15;
+      const itemStartX = margin + 10;
+      const qtyX = width - 150;
+      const unitX = width - 100;
+
+      page.drawText('Item Description', { x: itemStartX, y: currentY, font: boldFont, size: 10 });
+      page.drawText('Qty', { x: qtyX, y: currentY, font: boldFont, size: 10 });
+      page.drawText('Unit', { x: unitX, y: currentY, font: boldFont, size: 10 });
+      currentY -= 5;
+      page.drawLine({ start: { x: margin, y: currentY }, end: { x: width - margin, y: currentY }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+      currentY -= 15;
+
+      // Materials List (No Prices)
+      const materials = estimate.materials as Record<string, { name: string; unit: string; price?: number; }>; // Type assertion
+      const quantities = estimate.quantities as Record<string, number>; 
+      if (materials && quantities) {
+        for (const materialId in quantities) {
+          const material = materials[materialId];
+          const quantity = quantities[materialId];
+          if (material && quantity > 0 && material.price !== 0) { 
+              // Basic word wrapping (same as before)
+              const maxLineWidth = qtyX - itemStartX - 10;
+              const words = material.name.split(' ');
+              let currentLine = '';
+              for (const word of words) {
+                  const testLine = currentLine + (currentLine ? ' ' : '') + word;
+                  if (font.widthOfTextAtSize(testLine, 10) > maxLineWidth) {
+                      page.drawText(currentLine, { x: itemStartX, y: currentY, font: font, size: 10 });
+                      currentY -= 12;
+                      currentLine = word;
+                  } else {
+                      currentLine = testLine;
+                  }
+              }
+              page.drawText(currentLine, { x: itemStartX, y: currentY, font: font, size: 10 });
+              
+              page.drawText(quantity.toString(), { x: qtyX, y: currentY, font: font, size: 10 });
+              page.drawText(material.unit, { x: unitX, y: currentY, font: font, size: 10 });
+              currentY -= 12; 
+              if (currentY < 150) { 
+                  page = pdfDoc.addPage([612, 792])
+                  currentY = height - margin; 
+              }
+          }
+        }
+      }
       
-      // The function itself might return an error object in the data if generation failed
-      if (data?.error) { 
-          throw new Error(data.error);
-      }
+      currentY -= 15;
+      page.drawLine({ start: { x: margin, y: currentY }, end: { x: width - margin, y: currentY }, thickness: 0.5, color: rgb(0.8, 0.8, 0.8) });
+      currentY -= 20;
 
-      if (data?.url) {
-        toast({ title: "PDF Generated", description: "Opening PDF..." });
-        window.open(data.url, '_blank'); // Open the REAL URL from storage
-      } else {
-        console.error("PDF URL not returned from Edge Function.", data);
-        throw new Error("PDF URL not returned from generation function."); 
-      }
+      // Total Section
+      const totalLabel = 'TOTAL';
+      const totalValue = (estimate.total_price ?? 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+      const totalLabelWidth = boldFont.widthOfTextAtSize(totalLabel, 12);
+      const totalValueWidth = boldFont.widthOfTextAtSize(totalValue, 12);
+      page.drawText(totalLabel, { x: width - margin - totalValueWidth - totalLabelWidth - 10, y: currentY, font: boldFont, size: 12 });
+      page.drawText(totalValue, { x: width - margin - totalValueWidth, y: currentY, font: boldFont, size: 12 });
+
+      currentY -= 40;
+
+      // TODO: Add Static Text Sections (Terms, Warnings, Signatures) here
+      // This will require copying the text and drawing it, likely spanning multiple pages.
+      page.drawText('GENERAL TERMS AND CONDITIONS - PLACEHOLDER', { x: margin, y: currentY, font: boldFont, size: 10 });
+      // ... more drawText calls ...
+
+      // --- End PDF Content ---
+
+      // Save PDF to bytes
+      const pdfBytes = await pdfDoc.save();
+
+      // Trigger download using file-saver
+      saveAs(new Blob([pdfBytes], { type: 'application/pdf' }), `3MG-Estimate-${estimateId.substring(0,8)}.pdf`);
+
+      toast({ title: "PDF Generated", description: "Download started." });
+
     } catch (err: any) {
-      console.error("Error invoking generate-client-pdf function:", err);
+      console.error("Error generating PDF client-side:", err);
       toast({ title: "Error Generating PDF", description: `Failed: ${err.message}`, variant: "destructive" });
     } finally {
       setGeneratingPdfId(null);
