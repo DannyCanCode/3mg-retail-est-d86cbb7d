@@ -945,6 +945,16 @@ export function MaterialsSelectionTab({
   }, [quantities]); // Rerun when quantities prop changes
   // --- End Display Quantity State --- 
 
+  // --- ADD formatPrice helper function here ---
+  const formatPrice = (price: number | null | undefined): string => {
+    if (price === null || price === undefined || isNaN(price)) return 'N/A'; // Handle null/undefined/NaN
+    return price.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    });
+  };
+  // --- END formatPrice helper ---
+
   // Render a selected material row with quantity
   const renderSelectedMaterial = (materialId: string, material: Material) => {
     const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
