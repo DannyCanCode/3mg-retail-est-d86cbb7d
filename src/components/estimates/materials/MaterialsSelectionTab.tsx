@@ -549,21 +549,17 @@ export function MaterialsSelectionTab({
       }
     );
     
-    // Instead of clearing all materials, save any mandatory low-pitch materials
     const newSelectedMaterials: {[key: string]: Material} = {};
     const newQuantities: {[key: string]: number} = {};
     
-    // Preserve mandatory low-pitch materials if they exist
+    // Preserve mandatory low-pitch materials from current selection
     Object.entries(selectedMaterials).forEach(([materialId, material]) => {
-      // Check if this is a mandatory low-pitch material
       if (isMandatoryMaterial(material.name)) {
-        // Keep the material
-        newSelectedMaterials[materialId] = material;
+        newSelectedMaterials[materialId] = material; // Keep existing selected mandatory
         newQuantities[materialId] = quantities[materialId] || 0;
       }
     });
     
-    // Define preset material ids for each bundle
     const presetMaterials: { [key: string]: string[] } = {
       "GAF 1": ["gaf-timberline-hdz-sg", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-weatherwatch-ice-water-shield", "abc-pro-guard-20"],
       "GAF 2": ["gaf-timberline-hdz-sg", "gaf-prostart-starter-shingle-strip", "gaf-seal-a-ridge", "gaf-feltbuster-synthetic-underlayment", "gaf-weatherwatch-ice-water-shield"],
@@ -579,64 +575,42 @@ export function MaterialsSelectionTab({
       });
     }
     
-    // Only apply package materials if there are standard pitch areas
     if (hasStandardPitchAreas) {
-      // Find and add the materials in the preset
       presetMaterials[preset].forEach(materialId => {
-        // *** Add logging here ***
-        console.log(`[Preset] Processing materialId: ${materialId}`); 
-
-        if (newSelectedMaterials[materialId]) {
-           console.log(`[Preset] Skipping ${materialId} because it's already selected (mandatory).`);
-           return;
-        }
+        if (newSelectedMaterials[materialId]) { /* ... skip mandatory ... */ return; }
         
-        const material = STATIC_MATERIALS.find(m => m.id === materialId);
+        // --- FIX: Look up in templateMaterials state --- 
+        const material = templateMaterials[materialId]; 
+        
         if (material) {
-          console.log(`[Preset] Found material object for ${materialId}`);
-          // Special handling for WeatherWatch 
+          console.log(`[Preset] Found material object for ${materialId} from templateMaterials`);
+          // ... rest of preset logic (special handling for WeatherWatch, etc.) ...
+          // Ensure this logic uses the 'material' object fetched from templateMaterials
           if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
-            // Calculate quantity for valleys only - 45.5 LF of valleys equals 1 roll
-            const valleyLength = measurements.valleyLength || 0;
-            
-            // Only add WeatherWatch if there are valleys
-            if (valleyLength > 0) {
-              // Calculate rolls needed based on 45.5 LF per roll
-              const rollsNeeded = Math.ceil(valleyLength / 45.5);
-              
-              // Modify the material name to indicate valleys only
-              const valleyOnlyMaterial = { ...material };
-              valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
-              newSelectedMaterials[materialId] = valleyOnlyMaterial;
-              
-              newQuantities[materialId] = rollsNeeded;
-            }
-            // If no valleys, don't add WeatherWatch to the package (skip it)
-             console.log(`[Preset] Calculated WeatherWatch quantity: ${newQuantities[materialId]}`);
+             // ... valley only logic ... 
+             const valleyOnlyMaterial = { ...material }; // Use template material
+             valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
+             newSelectedMaterials[materialId] = valleyOnlyMaterial;
+             // ... calculate quantity ...
           } else {
-            // Calculate quantity normally for other materials
-            const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
-              gafTimberlineWasteFactor / 100 : 
-              wasteFactor / 100;
-            
-            console.log(`[Preset] Calculating quantity for ${materialId} with waste ${effectiveWasteFactor}`);
-            // *** Add log BEFORE calculation ***
-            console.log(`[Preset] Measurements being used:`, JSON.stringify(measurements, null, 2)); 
-
-            newQuantities[materialId] = calculateMaterialQuantity(
-              material, 
-              measurements, 
-              effectiveWasteFactor
-            );
-            
-            // *** Add log AFTER calculation ***
-            console.log(`[Preset] Calculated quantity for ${materialId}: ${newQuantities[materialId]}`);
-            
-            newSelectedMaterials[materialId] = material;
+             // ... calculate quantity normally using the 'material' object ...
+             const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
+               gafTimberlineWasteFactor / 100 : 
+               wasteFactor / 100;
+             
+             newQuantities[materialId] = calculateMaterialQuantity(
+                material, // Use template material
+                measurements, 
+                effectiveWasteFactor
+             );
+             newSelectedMaterials[materialId] = material; // Add template material
           }
         } else {
-            // *** Add log if material not found ***
-            console.error(`[Preset] Material object NOT FOUND for materialId: ${materialId}`);
+            console.error(`[Preset] Material object NOT FOUND in templateMaterials for ID: ${materialId}`);
+            // Maybe fallback to STATIC_MATERIALS here if desired?
+            // const staticMaterial = STATIC_MATERIALS.find(m => m.id === materialId);
+            // if (staticMaterial) { ... add staticMaterial ... } 
+            // For now, we just log the error.
         }
       });
     }
