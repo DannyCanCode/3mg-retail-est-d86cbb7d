@@ -875,13 +875,14 @@ export function MaterialsSelectionTab({
     const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
     const bundleQuantity = quantities[materialId] || 0;
     const isMandatory = isMandatoryMaterial(material.name);
-
-    // --- State specific to this rendered item for Square input ---
-    // Initialize with squares calculated from bundles, allow string for typing
     const initialSquares = isGafTimberline ? (bundleQuantity / 3).toFixed(1) : bundleQuantity.toString();
     const [displayQuantity, setDisplayQuantity] = useState(initialSquares);
 
-    // Update local display state if the global bundle quantity changes
+    // ADD LOGS HERE
+    if (isGafTimberline) {
+        console.log(`[renderSelectedMaterial - ${materialId}] IS Timberline! BundleQty: ${bundleQuantity}, InitialSquares: ${initialSquares}, CurrentDisplayQty: ${displayQuantity}`);
+    }
+
     useEffect(() => {
       const newDisplay = isGafTimberline ? (bundleQuantity / 3).toFixed(1) : bundleQuantity.toString();
       // Only update if it *really* changed to avoid cursor jumps
@@ -889,9 +890,7 @@ export function MaterialsSelectionTab({
            setDisplayQuantity(newDisplay);
       }
     }, [bundleQuantity, isGafTimberline]);
-    // --- End local state ---
     
-    // --- Handler for Square input change ---
     const handleSquareQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const rawValue = e.target.value;
         setDisplayQuantity(rawValue); // Update display immediately
@@ -907,7 +906,6 @@ export function MaterialsSelectionTab({
              updateQuantity(materialId, 0);
         }
     };
-    // --- End handler ---
 
     let baseName = material.name;
     let requirementText = "";
@@ -948,21 +946,21 @@ export function MaterialsSelectionTab({
             <p className="text-[11px] text-blue-700 mb-0.5">{requirementText}</p>
           )}
           <div className="text-sm text-muted-foreground">
-            {/* --- Display Price Per Square for GAF Timberline --- */}
-            {isGafTimberline && material.approxPerSquare && (
+             {/* ADD LOGS HERE */}
+             {console.log(`[renderSelectedMaterial - ${materialId}] Rendering Price. IsTimberline: ${isGafTimberline}, ApproxPerSq: ${material.approxPerSquare}, Price: ${material.price}`)}
+             {isGafTimberline && material.approxPerSquare && (
                  <>{formatPrice(material.approxPerSquare)} per Square</>
-            )}
-            {/* --- Display Original Price/Unit for others --- */}
-            {!isGafTimberline && material.price > 0 && 
-              <>{formatPrice(material.price)} per {material.unit}</>
-            }
-            {/* --- Keep original approx per square for others --- */}
-            {!isGafTimberline && material.approxPerSquare && material.approxPerSquare > 0 && 
-               <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
-            }
-            {material.id === 'full-peel-stick-system' && 
-                <span className="italic"> (Cost included in Add-on Price)</span>
-            }
+             )}
+             {!isGafTimberline && material.price > 0 && 
+               <>{formatPrice(material.price)} per {material.unit}</>
+             }
+             {/* --- Keep original approx per square for others --- */}
+             {!isGafTimberline && material.approxPerSquare && material.approxPerSquare > 0 && 
+                <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
+             }
+             {material.id === 'full-peel-stick-system' && 
+                 <span className="italic"> (Cost included in Add-on Price)</span>
+             }
           </div>
           <div className="text-xs text-muted-foreground mt-1 break-words">
             {explanation} {/* Calculation explanation */} 
@@ -972,46 +970,54 @@ export function MaterialsSelectionTab({
         {/* Right side: Quantity Control and Delete Button */}
         <div className="flex items-center justify-between sm:justify-end space-x-2 shrink-0">
           <div className="flex items-center">
-            {/* --- Use Specific Handlers/Values for GAF Timberline --- */}
-            {isGafTimberline ? (
-              <>
-                <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} 
-                   onClick={() => { 
-                      const currentSq = parseFloat(displayQuantity) || 0;
-                      const nextSq = Math.max(0, currentSq - 0.1); // Decrement by 0.1 squares
-                      setDisplayQuantity(nextSq.toFixed(1));
-                      updateQuantity(materialId, Math.ceil(nextSq * 3));
-                   }} 
-                   aria-label={`Decrease quantity for ${baseName}`}>
-                   -
-                 </Button>
-                <Input 
-                   type="number" 
-                   min="0" 
-                   step="0.1" // Allow decimal input for squares
-                   value={displayQuantity} 
-                   onChange={handleSquareQuantityChange} 
-                   className={`h-8 w-20 rounded-none text-center`} // Wider input?
-                   aria-label={`Quantity in Squares for ${baseName}`} 
-                 />
-                <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} 
-                   onClick={() => { 
-                      const currentSq = parseFloat(displayQuantity) || 0;
-                      const nextSq = currentSq + 0.1;
-                      setDisplayQuantity(nextSq.toFixed(1));
-                      updateQuantity(materialId, Math.ceil(nextSq * 3));
-                   }} 
-                   aria-label={`Increase quantity for ${baseName}`}>
-                   +
-                 </Button>
-              </>
-            ) : (
-              <> { /* --- Original Buttons for other materials --- */}
-                <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} onClick={() => updateQuantity(materialId, Math.max(0, bundleQuantity - 1))} aria-label={`Decrease quantity for ${baseName}`}>-</Button>
-                <Input type="number" min="0" value={bundleQuantity} onChange={(e) => updateQuantity(materialId, parseInt(e.target.value) || 0)} className={`h-8 w-16 rounded-none text-center`} aria-label={`Quantity for ${baseName}`} />
-                <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} onClick={() => updateQuantity(materialId, bundleQuantity + 1)} aria-label={`Increase quantity for ${baseName}`}>+</Button>
-              </>
-            )}
+             {/* ADD LOGS HERE */}
+             {console.log(`[renderSelectedMaterial - ${materialId}] Rendering Quantity Input. IsTimberline: ${isGafTimberline}, DisplayQty: ${displayQuantity}, BundleQty: ${bundleQuantity}`)}
+             {isGafTimberline ? (
+               <> {/* Timberline Input (Squares) */}
+                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} 
+                    onClick={() => { 
+                       const currentSq = parseFloat(displayQuantity) || 0;
+                       const nextSq = Math.max(0, currentSq - 0.1); // Decrement by 0.1 squares
+                       setDisplayQuantity(nextSq.toFixed(1));
+                       updateQuantity(materialId, Math.ceil(nextSq * 3));
+                    }} 
+                    aria-label={`Decrease quantity for ${baseName}`}>
+                    -
+                  </Button>
+                 <Input 
+                    type="number" 
+                    min="0" 
+                    step="0.1"
+                    value={displayQuantity} 
+                    onChange={handleSquareQuantityChange} 
+                    className={`h-8 w-20 rounded-none text-center`} // Wider input?
+                    aria-label={`Quantity in Squares for ${baseName}`} 
+                  />
+                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} 
+                    onClick={() => { 
+                       const currentSq = parseFloat(displayQuantity) || 0;
+                       const nextSq = currentSq + 0.1;
+                       setDisplayQuantity(nextSq.toFixed(1));
+                       updateQuantity(materialId, Math.ceil(nextSq * 3));
+                    }} 
+                    aria-label={`Increase quantity for ${baseName}`}>
+                    +
+                  </Button>
+               </>
+             ) : (
+               <> {/* Other Material Input (Bundles/Units) */}
+                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} onClick={() => updateQuantity(materialId, Math.max(0, bundleQuantity - 1))} aria-label={`Decrease quantity for ${baseName}`}>-</Button>
+                 <Input 
+                    type="number" 
+                    min="0" 
+                    value={bundleQuantity} 
+                    onChange={(e) => updateQuantity(materialId, parseInt(e.target.value) || 0)} 
+                    className={`h-8 w-16 rounded-none text-center`} 
+                    aria-label={`Quantity for ${baseName}`}
+                  />
+                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} onClick={() => updateQuantity(materialId, bundleQuantity + 1)} aria-label={`Increase quantity for ${baseName}`}>+</Button>
+               </>
+             )}
           </div>
           {/* Keep Delete Button, ensure isMandatory check prevents deletion */} 
           <Button 
