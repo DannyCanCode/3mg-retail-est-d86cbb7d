@@ -1,6 +1,6 @@
 import { Material, MaterialCategory } from "./types";
 
-export const ROOFING_MATERIALS: Material[] = [
+export const ALL_ROOFING_MATERIALS: Material[] = [
   // SHINGLES
   {
     id: "gaf-timberline-hdz-sg",
@@ -221,17 +221,6 @@ export const ROOFING_MATERIALS: Material[] = [
   // --- END ADDITION ---
   // METAL
   {
-    id: "drip-edge-26ga",
-    name: "Drip Edge 26GA Galvalume (2.5\" Face, Painted)",
-    category: MaterialCategory.METAL,
-    price: 13.33,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Ceiling((Eave Length + Rake Length) ÷ 10)",
-    }
-  },
-  {
     id: "millennium-galvanized-drip-edge",
     name: "Millennium Galvanized Steel Drip Edge - 26GA - 6\" (10')",
     category: MaterialCategory.METAL,
@@ -243,61 +232,6 @@ export const ROOFING_MATERIALS: Material[] = [
     }
   },
   {
-    id: "millennium-galvanized-rake-edge",
-    name: "Millennium Galvanized Steel Rake Edge - 26GA - 6\" (10')",
-    category: MaterialCategory.METAL,
-    price: 13.33,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Rake Length ÷ 10, rounded up",
-    }
-  },
-  {
-    id: "millennium-galvanized-wall-flashing",
-    name: "Millennium Galvanized Steel Wall Flashing - 26GA - 6\" (10')",
-    category: MaterialCategory.METAL,
-    price: 15.00,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Wall Length ÷ 10, rounded up",
-    }
-  },
-  {
-    id: "millennium-galvanized-step-flashing",
-    name: "Millennium Galvanized Steel Step Flashing - 26GA - 8\" × 8\" (100/bx)",
-    category: MaterialCategory.METAL,
-    price: 83.33,
-    unit: "Box",
-    coverageRule: {
-      description: "100 pieces/Box",
-      calculation: "Wall Length ÷ 0.5, rounded up, divided by 100",
-    }
-  },
-  {
-    id: "millennium-galvanized-counter-flashing",
-    name: "Millennium Galvanized Steel Counter Flashing - 26GA - 6\" (10')",
-    category: MaterialCategory.METAL,
-    price: 15.00,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Wall Length ÷ 10, rounded up",
-    }
-  },
-  {
-    id: "millennium-galvanized-valley-metal",
-    name: "Millennium Galvanized Steel Valley Metal - 26GA - 20\" (10')",
-    category: MaterialCategory.METAL,
-    price: 91.67,
-    unit: "Piece",
-    coverageRule: {
-      description: "10'/Piece",
-      calculation: "Valley Length ÷ 10, rounded up",
-    }
-  },
-  {
     id: "aluminum-eave-drip-edge",
     name: "Aluminum Eave Drip Edge",
     category: MaterialCategory.METAL,
@@ -306,17 +240,6 @@ export const ROOFING_MATERIALS: Material[] = [
     coverageRule: {
       description: "10'/Piece",
       calculation: "Ceiling(Eave Length ÷ 10)",
-    }
-  },
-  {
-    id: "valley-metal-26ga",
-    name: "Valley Metal 26GA Galvalume 16\" × 55'",
-    category: MaterialCategory.METAL,
-    price: 91.67,
-    unit: "Roll",
-    coverageRule: {
-      description: "55'/Roll",
-      calculation: "Ceiling(Valley Length ÷ 55)",
     }
   },
   {
@@ -354,17 +277,6 @@ export const ROOFING_MATERIALS: Material[] = [
   },
   // VENTILATION & BOOTS
   {
-    id: "gaf-cobra-ridge-vent",
-    name: "GAF Cobra Shingle Over Ridge Vent (12\")",
-    category: MaterialCategory.VENTILATION,
-    price: 22.31,
-    unit: "Piece",
-    coverageRule: {
-      description: "4'/Piece",
-      calculation: "Ceiling(Ridge Length ÷ 4)",
-    }
-  },
-  {
     id: "gaf-cobra-rigid-vent",
     name: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent w/ Nails - 11-1/2\" (4')",
     category: MaterialCategory.VENTILATION,
@@ -373,17 +285,6 @@ export const ROOFING_MATERIALS: Material[] = [
     coverageRule: {
       description: "4'/Piece",
       calculation: "Ridges LF ÷ 4, rounded up",
-    }
-  },
-  {
-    id: "galvanized-steel-off-ridge-vent",
-    name: "Galvanized Steel Off Ridge Vent (4') - w/ Diverter",
-    category: MaterialCategory.VENTILATION,
-    price: 71.25,
-    unit: "Piece",
-    coverageRule: {
-      description: "4'/Piece",
-      calculation: "Count needed based on ventilation requirements",
     }
   },
   {
@@ -406,17 +307,6 @@ export const ROOFING_MATERIALS: Material[] = [
     coverageRule: {
       description: "1 per vent penetration",
       calculation: "Count of 10\" vent penetrations",
-    }
-  },
-  {
-    id: "lead-boot-4inch",
-    name: "Lead Boot 4\"",
-    category: MaterialCategory.VENTILATION,
-    price: 27.78,
-    unit: "Each",
-    coverageRule: {
-      description: "1 per pipe penetration",
-      calculation: "Count of 4\" pipe penetrations",
     }
   },
   // Adding boot flashing items from screenshots
@@ -521,17 +411,6 @@ export const ROOFING_MATERIALS: Material[] = [
   },
   // ACCESSORIES
   {
-    id: "211-plastic-cement",
-    name: "211 Plastic Cement (5gal)",
-    category: MaterialCategory.ACCESSORIES,
-    price: 48.33,
-    unit: "Bucket",
-    coverageRule: {
-      description: "1 bucket per 10-15 squares",
-      calculation: "Ceiling(Total Squares ÷ 15)",
-    }
-  },
-  {
     id: "1inch-plastic-cap-nails",
     name: "1\" Plastic Cap Nails (3000/pail)",
     category: MaterialCategory.ACCESSORIES,
@@ -543,116 +422,6 @@ export const ROOFING_MATERIALS: Material[] = [
     }
   },
   // Adding more accessories from Excel
-  {
-    id: "shingle-nails",
-    name: "Shingle Nails",
-    category: MaterialCategory.ACCESSORIES,
-    price: 53.89,
-    unit: "Box",
-    coverageRule: {
-      description: "1 box per 30 squares",
-      calculation: "Ceiling(Total Squares ÷ 30)",
-    }
-  },
-  {
-    id: "decking-nails",
-    name: "Decking Nails",
-    category: MaterialCategory.ACCESSORIES,
-    price: 66.67,
-    unit: "Box",
-    coverageRule: {
-      description: "1 box per roof repair area",
-      calculation: "Count of repair sections",
-    }
-  },
-  {
-    id: "karnak-19",
-    name: "Karnak 19",
-    category: MaterialCategory.ACCESSORIES,
-    price: 64.81,
-    unit: "Tube",
-    coverageRule: {
-      description: "1 tube per 20 squares",
-      calculation: "Ceiling(Total Squares ÷ 20)",
-    }
-  },
-  {
-    id: "master-sealant",
-    name: "Master Builders MasterSeal NP1 Sealant (10.1 oz)",
-    category: MaterialCategory.ACCESSORIES,
-    price: 11.76,
-    unit: "Each",
-    coverageRule: {
-      description: "1 tube per 10 squares",
-      calculation: "Ceiling(Total Squares ÷ 10)",
-    }
-  },
-  {
-    id: "orv-screws",
-    name: "ORV Screws",
-    category: MaterialCategory.ACCESSORIES,
-    price: 23.99,
-    unit: "Pack",
-    coverageRule: {
-      description: "1 pack per ridge vent installation",
-      calculation: "Ceiling(Ridge Length ÷ 50)",
-    }
-  },
-  {
-    id: "round-metal-cap-nails",
-    name: "Round Metal Cap Nails - 1\" (25 lb)",
-    category: MaterialCategory.ACCESSORIES,
-    price: 79.99,
-    unit: "Box",
-    coverageRule: {
-      description: "1 box per 50 squares",
-      calculation: "Ceiling(Total Squares ÷ 50)",
-    }
-  },
-  {
-    id: "abc-electro-galvanized-coil-nails",
-    name: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)",
-    category: MaterialCategory.ACCESSORIES,
-    price: 57.22,
-    unit: "Box",
-    coverageRule: {
-      description: "1 box per 10 squares",
-      calculation: "Ceiling(Total Squares ÷ 10)",
-    }
-  },
-  {
-    id: "coil-nails-ring-shank",
-    name: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)",
-    category: MaterialCategory.ACCESSORIES,
-    price: 68.89,
-    unit: "Box",
-    coverageRule: {
-      description: "1 box per 30 squares",
-      calculation: "Ceiling(Total Squares ÷ 30)",
-    }
-  },
-  {
-    id: "wood-zip-screws",
-    name: "DIRECT #10X1-1/2 WOODZIP MILL (250 ct)",
-    category: MaterialCategory.ACCESSORIES,
-    price: 23.99,
-    unit: "Each",
-    coverageRule: {
-      description: "1 box per roof",
-      calculation: "Manual quantity selection",
-    }
-  },
-  {
-    id: "zamac-masonry-fastener",
-    name: "Zamac Masonry Fastener - 1 1/4\"x1/4\" (100 Cnt)",
-    category: MaterialCategory.ACCESSORIES,
-    price: 23.99,
-    unit: "Box",
-    coverageRule: {
-      description: "1 box per roof (if needed)",
-      calculation: "Manual quantity selection",
-    }
-  },
   {
     id: "karnak-asphalt-primer-spray",
     name: "Karnak #108 Asphalt Primer Spray (14 oz)",
@@ -710,66 +479,6 @@ export const ROOFING_MATERIALS: Material[] = [
   },
   // LOW SLOPE section
   {
-    id: "modified-base-sheet",
-    name: "Modified Base Sheet",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 65.92,
-    unit: "Roll",
-    approxPerSquare: 32.96,
-    coverageRule: {
-      description: "2 Squares/Roll (200 sq ft)",
-      calculation: "Ceiling(Low Slope Area ÷ 200)",
-    }
-  },
-  {
-    id: "modified-cap-sheet",
-    name: "Modified Cap Sheet",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 103.42,
-    unit: "Roll",
-    approxPerSquare: 103.42,
-    coverageRule: {
-      description: "1 Square/Roll (100 sq ft)",
-      calculation: "Ceiling(Low Slope Area ÷ 100)",
-    }
-  },
-  {
-    id: "gaf-liberty-self-adhering-membrane",
-    name: "GAF Liberty Self-Adhering Membrane",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 132.22, 
-    unit: "Roll",
-    approxPerSquare: 132.22,
-    coverageRule: {
-      description: "1 Square/Roll (100 sq ft)",
-      calculation: "Total Low Slope Area ÷ 1, rounded up",
-    }
-  },
-  {
-    id: "gaf-ruberoid-torch-granular",
-    name: "GAF Ruberoid Torch Granular",
-    category: MaterialCategory.LOW_SLOPE,
-    price: 132.22,
-    unit: "Roll",
-    approxPerSquare: 132.22,
-    coverageRule: {
-      description: "1 Square/Roll (100 sq ft)",
-      calculation: "Total Low Slope Area ÷ 1, rounded up",
-    }
-  },
-  // Add wood material section
-  {
-    id: "decking-plywood-cdx-4x8-half-inch",
-    name: "Decking Plywood CDX 4×8 1/2\"",
-    category: MaterialCategory.ACCESSORIES,
-    price: 45.99,
-    unit: "Sheet",
-    coverageRule: {
-      description: "32 sq ft per sheet",
-      calculation: "Repair Area ÷ 32, rounded up",
-    }
-  },
-  {
     id: "decking-plywood-cdx-4x8-five-eighth-inch",
     name: "Decking Plywood CDX 4×8 5/8\"",
     category: MaterialCategory.ACCESSORIES,
@@ -781,43 +490,10 @@ export const ROOFING_MATERIALS: Material[] = [
     }
   },
   {
-    id: "lumber-2x4-8ft",
-    name: "Lumber 2×4×8'",
-    category: MaterialCategory.ACCESSORIES,
-    price: 7.99,
-    unit: "Piece",
-    coverageRule: {
-      description: "8 ft per piece",
-      calculation: "Count of repair sections",
-    }
-  },
-  {
     id: "lumber-1x4-8ft",
     name: "Lumber 1×4×8'",
     category: MaterialCategory.ACCESSORIES,
     price: 4.99,
-    unit: "Piece",
-    coverageRule: {
-      description: "8 ft per piece",
-      calculation: "Count of repair sections",
-    }
-  },
-  {
-    id: "lumber-2x6-8ft",
-    name: "Lumber 2×6×8'",
-    category: MaterialCategory.ACCESSORIES,
-    price: 9.99,
-    unit: "Piece",
-    coverageRule: {
-      description: "8 ft per piece",
-      calculation: "Count of repair sections",
-    }
-  },
-  {
-    id: "lumber-2x8-8ft",
-    name: "Lumber 2×8×8'",
-    category: MaterialCategory.ACCESSORIES,
-    price: 12.99,
     unit: "Piece",
     coverageRule: {
       description: "8 ft per piece",
@@ -836,3 +512,38 @@ export const ROOFING_MATERIALS: Material[] = [
     }
   },
 ];
+
+// IDs to remove
+const idsToRemove = new Set([
+  "modified-base-sheet",
+  "modified-cap-sheet",
+  "gaf-liberty-self-adhering-membrane",
+  "gaf-ruberoid-torch-granular",
+  "drip-edge-26ga",
+  "millennium-galvanized-rake-edge",
+  "millennium-galvanized-wall-flashing",
+  "millennium-galvanized-step-flashing",
+  "millennium-galvanized-counter-flashing",
+  "millennium-galvanized-valley-metal",
+  "valley-metal-26ga",
+  "gaf-cobra-ridge-vent",
+  "lead-boot-4inch",
+  "211-plastic-cement",
+  "shingle-nails",
+  "decking-nails",
+  "karnak-19",
+  "orv-screws",
+  "decking-plywood-cdx-4x8-half-inch", // Removing specific plywood
+  "lumber-2x4-8ft", // Removing specific lumber
+]);
+
+// Filtered list for export
+export const ROOFING_MATERIALS: Material[] = ALL_ROOFING_MATERIALS.filter(
+  material => !idsToRemove.has(material.id)
+);
+
+// Optional: Log removed items during development
+if (process.env.NODE_ENV === 'development') {
+    const removedItems = ALL_ROOFING_MATERIALS.filter(material => idsToRemove.has(material.id));
+    console.log("Removed the following materials from data.ts:", removedItems.map(m => m.name));
+}

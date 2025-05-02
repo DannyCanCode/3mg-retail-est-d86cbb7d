@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen } from "lucide-react";
 import { MeasurementValues } from "../measurement/types";
-import { ROOFING_MATERIALS } from "./data";
+import { ROOFING_MATERIALS as STATIC_MATERIALS } from "./data";
 import { Material, MaterialCategory } from "./types";
 import { calculateMaterialQuantity, calculateMaterialTotal, groupMaterialsByCategory } from "./utils";
 import {
@@ -20,6 +20,7 @@ import WarrantySelector from "../warranties/WarrantySelector";
 import LowSlopeOptions from "../lowslope/LowSlopeOptions";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/utils";
+import { getDefaultPricingTemplate, PricingTemplate } from "@/api/pricing-templates";
 
 // *** ADD UNIQUE LOG HERE ***
 console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: April 19th 1:15 PM"); 
@@ -84,8 +85,57 @@ export function MaterialsSelectionTab({
   const [includeIso, setIncludeIso] = useState<boolean>(false);
   const [peelStickPrice, setPeelStickPrice] = useState<string>("0.00");
   
+  // State for the loaded template materials
+  const [templateMaterials, setTemplateMaterials] = useState<Record<string, Material>>({});
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(true);
+
+  // Fetch default template on mount
+  useEffect(() => {
+    const loadDefaultTemplate = async () => {
+      setIsLoadingTemplate(true);
+      try {
+        const { data: defaultTemplate, error } = await getDefaultPricingTemplate();
+        if (error) {
+          console.error("Error loading default template:", error);
+          toast({ title: "Error", description: "Could not load default material pricing.", variant: "destructive" });
+          // Fallback to static data if template fails?
+          setTemplateMaterials(STATIC_MATERIALS.reduce((acc, mat) => { acc[mat.id] = mat; return acc; }, {} as Record<string, Material>));
+        } else if (defaultTemplate?.materials) {
+          console.log("Loaded default template materials from DB:", defaultTemplate.materials);
+          setTemplateMaterials(defaultTemplate.materials);
+        } else {
+          console.warn("No default template found or template has no materials. Falling back to static data.");
+           // Fallback to static data if no default or no materials in default
+          setTemplateMaterials(STATIC_MATERIALS.reduce((acc, mat) => { acc[mat.id] = mat; return acc; }, {} as Record<string, Material>));
+        }
+      } catch (err) {
+        console.error("Unexpected error loading default template:", err);
+        toast({ title: "Error", description: "Could not load material pricing.", variant: "destructive" });
+        setTemplateMaterials(STATIC_MATERIALS.reduce((acc, mat) => { acc[mat.id] = mat; return acc; }, {} as Record<string, Material>));
+      } finally {
+        setIsLoadingTemplate(false);
+      }
+    };
+
+    // Only fetch if not readOnly and template materials aren't loaded yet
+    if (!readOnly && Object.keys(templateMaterials).length === 0) {
+       loadDefaultTemplate();
+    } else if (readOnly) {
+       // In readOnly mode, use the materials passed in via props
+       setTemplateMaterials(selectedMaterials || {});
+       setIsLoadingTemplate(false);
+    }
+
+  }, [readOnly, selectedMaterials]); // Rerun if readOnly changes
+
   // Group materials by category
-  const groupedMaterials = groupMaterialsByCategory(ROOFING_MATERIALS);
+  const groupedMaterials = useMemo(() => {
+      if (isLoadingTemplate || Object.keys(templateMaterials).length === 0) {
+          return {} as Record<MaterialCategory, Material[]>; // Return empty while loading or if empty
+      }
+      console.log("Grouping materials from fetched template data...");
+      return groupMaterialsByCategory(Object.values(templateMaterials));
+  }, [templateMaterials, isLoadingTemplate]);
   
   // Check if GAF Timberline HDZ is selected
   const isGafTimberlineSelected = Boolean(selectedMaterials["gaf-timberline-hdz-sg"]);
@@ -121,7 +171,7 @@ export function MaterialsSelectionTab({
     
     // Add GAF Poly ISO for 0/12 pitch
     if (has0Pitch) {
-      const polyIsoMaterial = ROOFING_MATERIALS.find(m => m.id === "gaf-poly-iso-4x8");
+      const polyIsoMaterial = STATIC_MATERIALS.find(m => m.id === "gaf-poly-iso-4x8");
       if (polyIsoMaterial) {
           const zeroPitchArea = measurements.areasByPitch
               .filter(area => ["0:12", "0/12"].includes(area.pitch))
@@ -146,8 +196,8 @@ export function MaterialsSelectionTab({
     
     // Add Polyglass Base and Cap sheets if 0/12, 1/12 OR 2/12 pitch exists
     if (hasLowPitch) { // Changed condition to check for any low pitch (0, 1, or 2)
-      const baseSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
-      const capSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
+      const baseSheetMaterial = STATIC_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
+      const capSheetMaterial = STATIC_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
       
       if (baseSheetMaterial && capSheetMaterial) {
         // Calculate area with 0/12, 1/12 or 2/12 pitch
@@ -221,7 +271,7 @@ export function MaterialsSelectionTab({
   useEffect(() => {
     const systemMaterialId = "full-peel-stick-system";
     const peelStickCostPerSquare = 60;
-    const systemMaterial = ROOFING_MATERIALS.find(m => m.id === systemMaterialId);
+    const systemMaterial = STATIC_MATERIALS.find(m => m.id === systemMaterialId);
     let newPeelStickCost = 0;
     let needsUpdate = false;
     let updatedMaterials = { ...selectedMaterials };
@@ -367,15 +417,22 @@ export function MaterialsSelectionTab({
   };
   
   // Add material to selection
-  const addMaterial = (material: Material) => {
-    // Use GAF Timberline specific waste factor if this is GAF Timberline HDZ
-    const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
+  const addMaterial = (materialToAdd: Material) => {
+    // Find the definitive data from the loaded template (or static fallback)
+    const definitiveMaterial = templateMaterials[materialToAdd.id];
+    
+    if (!definitiveMaterial) {
+        console.error(`Cannot add material ${materialToAdd.id}, not found in loaded template or static data.`);
+        toast({ title: "Error", description: "Material data not found.", variant: "destructive"});
+        return;
+    }
+
+    const effectiveWasteFactor = definitiveMaterial.id === "gaf-timberline-hdz-sg" ? 
       gafTimberlineWasteFactor / 100 : 
       wasteFactor / 100;
     
-    // Calculate suggested quantity based on measurements
     const suggestedQuantity = calculateMaterialQuantity(
-      material, 
+      definitiveMaterial, 
       measurements, 
       effectiveWasteFactor
     );
@@ -383,11 +440,11 @@ export function MaterialsSelectionTab({
     onMaterialsUpdate({
       selectedMaterials: {
         ...selectedMaterials,
-        [material.id]: material
+        [definitiveMaterial.id]: definitiveMaterial // Use the definitive data
       },
       quantities: {
         ...quantities,
-        [material.id]: suggestedQuantity
+        [definitiveMaterial.id]: suggestedQuantity
       },
       peelStickPrice
     });
@@ -451,7 +508,7 @@ export function MaterialsSelectionTab({
     // Recalculate all quantities with new waste factor
     const newQuantities = { ...quantities };
     Object.keys(selectedMaterials).forEach(materialId => {
-      // Skip GAF Timberline HDZ SG as it has its own waste factor
+      // Skip GAF Timberline HDZ as it has its own waste factor
       if (materialId === "gaf-timberline-hdz-sg") return;
       
       newQuantities[materialId] = calculateMaterialQuantity(
@@ -533,7 +590,7 @@ export function MaterialsSelectionTab({
            return;
         }
         
-        const material = ROOFING_MATERIALS.find(m => m.id === materialId);
+        const material = STATIC_MATERIALS.find(m => m.id === materialId);
         if (material) {
           console.log(`[Preset] Found material object for ${materialId}`);
           // Special handling for WeatherWatch 
@@ -1094,36 +1151,42 @@ export function MaterialsSelectionTab({
              
              {/* Materials Accordion */}
              <Accordion type="multiple" defaultValue={[MaterialCategory.SHINGLES]} className="w-full">
-               {Object.entries(groupedMaterials).map(([category, materials]) => {
-                 if (category === MaterialCategory.LOW_SLOPE && !showLowSlope) return null;
-                 return (
-                   <AccordionItem key={category} value={category}>
-                     <AccordionTrigger className="text-lg font-semibold py-3">
-                       {category}
-                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-yellow-600 border-yellow-300 bg-yellow-50">Flat/Low-Slope Required</Badge>)}
-                     </AccordionTrigger>
-                     <AccordionContent>
-                       <div className="space-y-2 pt-2">
-                         {materials.map(material => (
-                           <div key={material.id} className="flex justify-between items-center p-3 rounded-md border hover:bg-secondary/20">
-                             <div className="space-y-1">
-                               <div className="font-medium">{material.name}</div>
-                               <div className="text-sm text-muted-foreground">
-                                 {material.price > 0 && <>{material.price} per {material.unit}</>}
-                                 {material.approxPerSquare && material.approxPerSquare > 0 && ` (~${formatPrice(material.approxPerSquare)}/square)`}
+               {isLoadingTemplate ? (
+                 <p>Loading material list...</p>
+               ) : Object.keys(groupedMaterials).length === 0 ? (
+                 <p>No materials found in template.</p>
+               ) : (
+                 Object.entries(groupedMaterials).map(([category, materials]) => {
+                   if (category === MaterialCategory.LOW_SLOPE && !showLowSlope) return null;
+                   return (
+                     <AccordionItem key={category} value={category}>
+                       <AccordionTrigger className="text-lg font-semibold py-3">
+                         {category}
+                         {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-yellow-600 border-yellow-300 bg-yellow-50">Flat/Low-Slope Required</Badge>)}
+                       </AccordionTrigger>
+                       <AccordionContent>
+                         <div className="space-y-2 pt-2">
+                           {materials.map(material => (
+                             <div key={material.id} className="flex justify-between items-center p-3 rounded-md border hover:bg-secondary/20">
+                               <div className="space-y-1">
+                                 <div className="font-medium">{material.name}</div>
+                                 <div className="text-sm text-muted-foreground">
+                                   {material.price > 0 && <>{material.price} per {material.unit}</>}
+                                   {material.approxPerSquare && material.approxPerSquare > 0 && ` (~${formatPrice(material.approxPerSquare)}/square)`}
+                                 </div>
+                                 <div className="text-xs text-muted-foreground">{material.coverageRule.description}</div>
                                </div>
-                               <div className="text-xs text-muted-foreground">{material.coverageRule.description}</div>
+                               <Button size="sm" variant={selectedMaterials[material.id] ? "secondary" : "outline"} onClick={() => { selectedMaterials[material.id] ? removeMaterial(material.id) : addMaterial(material); }} className="min-w-24">
+                                 {selectedMaterials[material.id] ? <><Check className="mr-1 h-4 w-4" />Selected</> : <><Plus className="mr-1 h-4 w-4" />Add</>}
+                               </Button>
                              </div>
-                             <Button size="sm" variant={selectedMaterials[material.id] ? "secondary" : "outline"} onClick={() => { selectedMaterials[material.id] ? removeMaterial(material.id) : addMaterial(material); }} className="min-w-24">
-                               {selectedMaterials[material.id] ? <><Check className="mr-1 h-4 w-4" />Selected</> : <><Plus className="mr-1 h-4 w-4" />Add</>}
-                             </Button>
-                           </div>
-                         ))}
-                       </div>
-                     </AccordionContent>
-                   </AccordionItem>
-                 );
-               })}
+                           ))}
+                         </div>
+                       </AccordionContent>
+                     </AccordionItem>
+                   );
+                 })
+               )}
              </Accordion>
           </CardContent>
           <CardFooter className="flex justify-between">
