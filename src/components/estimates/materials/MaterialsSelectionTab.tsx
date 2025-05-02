@@ -85,13 +85,14 @@ export function MaterialsSelectionTab({
   const [includeIso, setIncludeIso] = useState<boolean>(false);
   const [peelStickPrice, setPeelStickPrice] = useState<string>("0.00");
   
-  // State for the loaded template materials
+  // Start with empty template materials and trigger loading immediately
   const [templateMaterials, setTemplateMaterials] = useState<Record<string, Material>>({});
-  const [isLoadingTemplate, setIsLoadingTemplate] = useState(true);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(true); // Start loading
 
-  // Fetch default template on mount
+  // Fetch default template on mount - SIMPLIFIED TRIGGER
   useEffect(() => {
     const loadDefaultTemplate = async () => {
+      console.log("[MaterialsSelectionTab] Attempting to load default template..."); // Add log
       setIsLoadingTemplate(true);
       try {
         const { data: defaultTemplate, error } = await getDefaultPricingTemplate();
@@ -117,16 +118,17 @@ export function MaterialsSelectionTab({
       }
     };
 
-    // Only fetch if not readOnly and template materials aren't loaded yet
-    if (!readOnly && Object.keys(templateMaterials).length === 0) {
+    // Always try to load if not in readOnly mode
+    if (!readOnly) {
        loadDefaultTemplate();
-    } else if (readOnly) {
-       // In readOnly mode, use the materials passed in via props
+    } else { 
+       // Handle readOnly mode
        setTemplateMaterials(selectedMaterials || {});
        setIsLoadingTemplate(false);
     }
 
-  }, [readOnly, selectedMaterials]); // Rerun if readOnly changes
+    // Remove dependencies causing potential re-runs for now, focus on initial load
+  }, [readOnly]); // Only re-run if readOnly mode changes
 
   // Group materials by category
   const groupedMaterials = useMemo(() => {
