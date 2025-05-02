@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MainLayout } from '@/components/layout/MainLayout'; // Import layout if needed
 import { format, subDays, startOfDay, endOfDay } from 'date-fns'; // Import date functions
-// import * as XLSX from 'xlsx'; // Comment out: Package uninstalled
+import * as XLSX from 'xlsx'; // Uncomment import
 import { 
   Select, 
   SelectContent, 
@@ -106,26 +106,25 @@ const AccountingReport: React.FC = () => {
     }
   };
 
-  // --- Comment out handleExport function --- 
-  /*
+  // --- Uncomment handleExport function --- 
   const handleExport = () => {
      // Prepare data for export
      const exportData = soldEstimates.map(est => ({
        'Estimate ID': est.id,
        'Customer': est.customer_name || 'N/A', 
-       'Address': est.customer_address || '', // Use the single address field
+       'Address': est.customer_address || '', 
        'Sold Date': formatDate(est.sold_at),
-       'Material Cost': est.calculated_material_cost ?? 0, // Provide default for sheetjs
+       'Material Cost': est.calculated_material_cost ?? 0, 
        'Labor Cost': est.calculated_labor_cost ?? 0,
        'Subtotal': est.calculated_subtotal ?? 0,
        'Profit Margin (%)': est.profit_margin ?? 0,
        'Profit Amount ($': est.calculated_profit_amount ?? 0,
-       'Total Amount': est.total_price ?? 0, // Use total_price
+       'Total Amount': est.total_price ?? 0, 
      }));
 
      const worksheet = XLSX.utils.json_to_sheet(exportData);
 
-     // Optional: Set column widths (example)
+     // Optional: Set column widths 
      worksheet['!cols'] = [
         { wch: 15 }, // Estimate ID
         { wch: 25 }, // Customer
@@ -139,16 +138,11 @@ const AccountingReport: React.FC = () => {
         { wch: 18 }, // Total Amount
      ];
 
-     // Format currency columns (example - requires SheetJS Pro or careful formatting)
-     // This basic example just writes numbers, Excel usually auto-detects
-     // For explicit formatting, you might need to set cell types (`t:'n'`, `z:'$#,##0.00'`)
-
      const workbook = XLSX.utils.book_new();
      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sold Estimates');
      XLSX.writeFile(workbook, `Sold_Estimates_Report_${selectedPeriod}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
   };
-  */
-  // --- End Comment out --- 
+  // --- End Uncomment --- 
 
   return (
     <MainLayout> { /* Wrap content in MainLayout if needed */}
@@ -175,9 +169,8 @@ const AccountingReport: React.FC = () => {
                  </div>
                  {/* --- End Date Range Selector --- */} 
                  <Button 
-                    /* onClick={handleExport} // Comment out handler */ 
-                    disabled={true} /* Disable button */
-                    title="Export functionality temporarily disabled" /* Add tooltip */
+                    onClick={handleExport} // Re-enable handler
+                    disabled={soldEstimates.length === 0 || isLoading} // Enable when data exists
                  >
                     Export to Excel
                  </Button>
