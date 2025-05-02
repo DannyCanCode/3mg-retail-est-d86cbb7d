@@ -19,7 +19,6 @@ import PackageSelector from "../packages/PackageSelector";
 import WarrantySelector from "../warranties/WarrantySelector";
 import LowSlopeOptions from "../lowslope/LowSlopeOptions";
 import { toast } from "@/hooks/use-toast";
-import { formatPrice } from "@/lib/utils";
 import { getDefaultPricingTemplate, PricingTemplate } from "@/api/pricing-templates";
 
 // *** ADD UNIQUE LOG HERE ***
