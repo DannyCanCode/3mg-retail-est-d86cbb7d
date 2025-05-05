@@ -453,13 +453,23 @@ const Estimates = () => {
     // Update measurements state first
     setMeasurements(savedMeasurements);
     
+    // Check for low-slope areas in the measurements
+    const hasLowPitch = savedMeasurements.areasByPitch?.some(
+      area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
+    );
+    
+    // If there are low-slope areas, we'll display a special message in the toast
+    const lowSlopeMessage = hasLowPitch ? 
+      " Required materials for low-slope areas will be automatically added." : 
+      "";
+    
     // Add a small delay to ensure state is updated before navigation and toast
     setTimeout(() => {
       handleGoToMaterials();
       
       toast({
         title: "Measurements saved",
-        description: "Now you can select materials for your estimate.",
+        description: `Now you can select materials for your estimate.${lowSlopeMessage}`,
       });
     }, 100);
   };
