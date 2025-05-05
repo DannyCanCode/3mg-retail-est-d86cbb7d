@@ -255,12 +255,19 @@ export function MaterialsSelectionTab({
 
   // Update materials when package changes
   useEffect(() => {
-    if (selectedPackage === 'gaf-1') {
-      applyPresetBundle("GAF 1");
-    } else if (selectedPackage === 'gaf-2') {
-      applyPresetBundle("GAF 2");
+    // Ensure template is loaded and measurements exist before applying preset
+    if (!isLoadingTemplate && Object.keys(templateMaterials).length > 0 && measurements) {
+      console.log(`[useEffect Preset] Template loaded, applying preset for package: ${selectedPackage}`);
+      if (selectedPackage === 'gaf-1') {
+        applyPresetBundle("GAF 1");
+      } else if (selectedPackage === 'gaf-2') {
+        applyPresetBundle("GAF 2");
+      } // Add other presets if necessary
+    } else {
+      console.log("[useEffect Preset] Skipping preset application - template not ready or no measurements.");
     }
-  }, [selectedPackage]);
+    // Depend on template loading status and selected package
+  }, [selectedPackage, isLoadingTemplate, templateMaterials, measurements]); // Added dependencies
   
   // Reset warranty if needed when package changes
   useEffect(() => {
