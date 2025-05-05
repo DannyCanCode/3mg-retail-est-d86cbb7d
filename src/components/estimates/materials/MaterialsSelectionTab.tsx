@@ -134,9 +134,14 @@ export function MaterialsSelectionTab({
       if (isLoadingTemplate || Object.keys(templateMaterials).length === 0) {
           return {} as Record<MaterialCategory, Material[]>; 
       }
-      console.log("Grouping materials from fetched template data...", templateMaterials); // Log the input data
-      const groups = groupMaterialsByCategory(Object.values(templateMaterials));
-      console.log("Result of grouping:", groups); // Log the output
+      console.log("Grouping materials from fetched template data...", templateMaterials); 
+      
+      // Log the array being passed to the grouping function
+      const materialsArray = Object.values(templateMaterials);
+      console.log("[useMemo] Array passed to groupMaterialsByCategory:", materialsArray);
+
+      const groups = groupMaterialsByCategory(materialsArray);
+      console.log("Result of grouping:", groups); 
       return groups;
   }, [templateMaterials, isLoadingTemplate]);
   
