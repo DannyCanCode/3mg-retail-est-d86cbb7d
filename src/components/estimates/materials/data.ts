@@ -380,7 +380,7 @@ export const ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.ACCESSORIES,
     price: 70.37,
     unit: "Each", 
-    coverageRule: { description: "1 bucket per 300 LF of flashings", calculation: "Ceiling((Valley Length + Drip Edge + Wall Flashing + Step Flashing) / 300)" }
+    coverageRule: { description: "1 bucket per 300 LF of flashings", calculation: "Ceiling((Valley Length + Drip Edge Length + Wall Flashing Length + Step Flashing Length) / 300)" }
   },
   {
     id: "kennedy-skylight-small",
