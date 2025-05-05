@@ -249,7 +249,28 @@ export function MaterialsSelectionTab({
     // Check specifically for 0/12 pitch
     const has0Pitch = measurements.areasByPitch.some(area => ["0:12", "0/12"].includes(area.pitch));
     
+    // Calculate the total low slope area (<= 2/12)
+    let lowSlopeArea = 0;
+    if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+      lowSlopeArea = measurements.areasByPitch
+        .filter(area => {
+          const pitchParts = area.pitch.split(/[:\\/]/);
+          const rise = parseInt(pitchParts[0] || '0');
+          return !isNaN(rise) && rise <= 2;
+        })
+        .reduce((sum, area) => sum + (area.area || 0), 0);
+    }
+    
+    // Calculate the 0/12 pitch area specifically
+    let zeroPitchArea = 0;
+    if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+      zeroPitchArea = measurements.areasByPitch
+        .filter(area => ["0:12", "0/12"].includes(area.pitch))
+        .reduce((sum, area) => sum + (area.area || 0), 0);
+    }
+    
     console.log(`[MaterialsSelectionTab] Roof contains low-slope areas: ${hasLowPitch}, 0/12 pitch: ${has0Pitch}`);
+    console.log(`[MaterialsSelectionTab] Low slope area (<=2/12): ${lowSlopeArea.toFixed(1)} sq ft, 0/12 area: ${zeroPitchArea.toFixed(1)} sq ft`);
     
     // Skip adding materials if there are no low-slope areas
     if (!hasLowPitch) {
@@ -263,31 +284,34 @@ export function MaterialsSelectionTab({
     let materialsUpdated = false; // Flag to track if updates were made
     
     // Add GAF Poly ISO for 0/12 pitch
-    if (has0Pitch) {
+    if (has0Pitch && zeroPitchArea > 0) {
       console.log("[MaterialsSelectionTab] Adding Poly ISO for 0/12 pitch areas");
       const polyIsoMaterial = ROOFING_MATERIALS.find(m => m.id === "gaf-poly-iso-4x8");
       if (polyIsoMaterial) {
-        const zeroPitchArea = measurements.areasByPitch
-          .filter(area => ["0:12", "0/12"].includes(area.pitch))
-          .reduce((total, area) => total + (area.area || 0), 0);
+        // Calculate board quantity:
+        // 1) 0/12 area in sq ft with waste factor
+        // 2) Divide by 32 sq ft per board (4' x 8')
+        // 3) Round up
+        const squareFtPerBoard = 32; // 4x8 = 32 sq ft per board  
+        const wasteFactorForISO = wasteFactor / 100;
+        const boardsNeeded = Math.ceil((zeroPitchArea * (1 + wasteFactorForISO)) / squareFtPerBoard);
+        
+        // Make sure we have at least 1 board even for very small areas
+        const finalQuantity = Math.max(1, boardsNeeded);
+        
+        // Only update if different from current quantity
+        const currentQty = newQuantities["gaf-poly-iso-4x8"] || 0;
+        if (!newSelectedMaterials["gaf-poly-iso-4x8"] || currentQty !== finalQuantity) {
+          const mandatoryMaterial = { 
+            ...polyIsoMaterial,
+            name: `${polyIsoMaterial.name} (Required for 0/12 pitch - cannot be removed)`
+          };
           
-        if (zeroPitchArea > 0) {
-          console.log(`[MaterialsSelectionTab] 0/12 pitch area: ${zeroPitchArea.toFixed(2)} sq ft`);
-          const squaresNeeded = zeroPitchArea / 100;
-          const quantityNeeded = Math.ceil(squaresNeeded * 1.12);
-          const currentQty = newQuantities["gaf-poly-iso-4x8"] || 0;
-          
-          if (!newSelectedMaterials["gaf-poly-iso-4x8"] || currentQty !== quantityNeeded) {
-            const mandatoryMaterial = { 
-              ...polyIsoMaterial,
-              name: `${polyIsoMaterial.name} (Required for 0/12 pitch - cannot be removed)`
-            };
-            newSelectedMaterials["gaf-poly-iso-4x8"] = mandatoryMaterial;
-            newQuantities["gaf-poly-iso-4x8"] = quantityNeeded;
-            newDisplayQuantities["gaf-poly-iso-4x8"] = quantityNeeded.toString();
-            materialsUpdated = true;
-            console.log(`[MaterialsSelectionTab] Added Poly ISO with quantity ${quantityNeeded}`);
-          }
+          newSelectedMaterials["gaf-poly-iso-4x8"] = mandatoryMaterial;
+          newQuantities["gaf-poly-iso-4x8"] = finalQuantity;
+          newDisplayQuantities["gaf-poly-iso-4x8"] = finalQuantity.toString();
+          materialsUpdated = true;
+          console.log(`[MaterialsSelectionTab] Added Poly ISO with quantity ${finalQuantity} (${zeroPitchArea.toFixed(1)} sq ft area)`);
         }
       } else {
         console.warn("[MaterialsSelectionTab] Could not find gaf-poly-iso-4x8 in ROOFING_MATERIALS");
@@ -295,74 +319,80 @@ export function MaterialsSelectionTab({
     }
     
     // Add Polyglass Base and Cap sheets if 0/12, 1/12 OR 2/12 pitch exists
-    if (hasLowPitch) {
+    if (hasLowPitch && lowSlopeArea > 0) {
       console.log("[MaterialsSelectionTab] Adding Polyglass Base and Cap Sheets for low-slope areas");
       const baseSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
       const capSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
       
-      if (baseSheetMaterial && capSheetMaterial) {
-        // Calculate area with 0/12, 1/12 or 2/12 pitch
-        const lowPitchArea = measurements.areasByPitch
-          .filter(area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch))
-          .reduce((total, area) => total + (area.area || 0), 0);
+      if (baseSheetMaterial && capSheetMaterial) {        
+        // Calculate rolls needed:
+        // 1) Low slope area in squares with waste factor
+        // 2) Divide by square coverage per roll
+        // 3) Round up
+        const squaresNeeded = lowSlopeArea / 100; // convert to squares
+        const wasteFactorForLowSlope = wasteFactor / 100;
+        const squaresWithWaste = squaresNeeded * (1 + wasteFactorForLowSlope);
         
-        if (lowPitchArea > 0) {
-          console.log(`[MaterialsSelectionTab] Low-slope area (<=2/12): ${lowPitchArea.toFixed(2)} sq ft`);
-          const squaresNeeded = lowPitchArea / 100;
-          const wasteFactorForLowSlope = wasteFactor / 100; 
-          const squaresWithWaste = squaresNeeded * (1 + wasteFactorForLowSlope);
-          const baseQuantity = Math.ceil(squaresWithWaste / 0.625);
-          const capQuantity = Math.ceil(squaresWithWaste / 0.8);
+        // Base sheet coverage is 0.625 sq per roll
+        const baseQuantity = Math.ceil(squaresWithWaste / 0.625);
+        // Cap sheet coverage is 0.8 sq per roll
+        const capQuantity = Math.ceil(squaresWithWaste / 0.8);
+        
+        // Ensure minimum quantities - even for very small areas
+        const finalBaseQuantity = Math.max(1, baseQuantity);
+        const finalCapQuantity = Math.max(1, capQuantity);
 
-          // Check if update is needed for Base sheet
-          const currentBaseQty = newQuantities["polyglass-elastoflex-sbs"] || 0;
-          if (!newSelectedMaterials["polyglass-elastoflex-sbs"] || currentBaseQty !== baseQuantity) {
-            const mandatoryBaseSheet = {
-              ...baseSheetMaterial,
-              name: `${baseSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
-            };
-            newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBaseSheet;
-            newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
-            newDisplayQuantities["polyglass-elastoflex-sbs"] = baseQuantity.toString();
-            materialsUpdated = true;
-            console.log(`[MaterialsSelectionTab] Added Polyglass Base Sheet with quantity ${baseQuantity}`);
-          }
+        // Check if update is needed for Base sheet
+        const currentBaseQty = newQuantities["polyglass-elastoflex-sbs"] || 0;
+        if (!newSelectedMaterials["polyglass-elastoflex-sbs"] || currentBaseQty !== finalBaseQuantity) {
+          const mandatoryBaseSheet = {
+            ...baseSheetMaterial,
+            name: `${baseSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
+          };
+          newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBaseSheet;
+          newQuantities["polyglass-elastoflex-sbs"] = finalBaseQuantity;
+          newDisplayQuantities["polyglass-elastoflex-sbs"] = finalBaseQuantity.toString();
+          materialsUpdated = true;
+          console.log(`[MaterialsSelectionTab] Added Polyglass Base Sheet with quantity ${finalBaseQuantity} (${lowSlopeArea.toFixed(1)} sq ft area)`);
+        }
+        
+        // Check if update is needed for Cap sheet
+        const currentCapQty = newQuantities["polyglass-polyflex-app"] || 0;
+        if (!newSelectedMaterials["polyglass-polyflex-app"] || currentCapQty !== finalCapQuantity) {
+          const mandatoryCapSheet = {
+            ...capSheetMaterial,
+            name: `${capSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
+          };
+          newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCapSheet;
+          newQuantities["polyglass-polyflex-app"] = finalCapQuantity;
+          newDisplayQuantities["polyglass-polyflex-app"] = finalCapQuantity.toString();
+          materialsUpdated = true;
+          console.log(`[MaterialsSelectionTab] Added Polyglass Cap Sheet with quantity ${finalCapQuantity} (${lowSlopeArea.toFixed(1)} sq ft area)`);
+        }
           
-          // Check if update is needed for Cap sheet
-          const currentCapQty = newQuantities["polyglass-polyflex-app"] || 0;
-          if (!newSelectedMaterials["polyglass-polyflex-app"] || currentCapQty !== capQuantity) {
-            const mandatoryCapSheet = {
-              ...capSheetMaterial,
-              name: `${capSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
-            };
-            newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCapSheet;
-            newQuantities["polyglass-polyflex-app"] = capQuantity;
-            newDisplayQuantities["polyglass-polyflex-app"] = capQuantity.toString();
-            materialsUpdated = true;
-            console.log(`[MaterialsSelectionTab] Added Polyglass Cap Sheet with quantity ${capQuantity}`);
-          }
-          
-          // Add necessary accessories for low-slope installs
+        // Add necessary accessories for low-slope installs
+        // Only add if low slope area is significant (at least 50 sq ft)
+        if (lowSlopeArea >= 50) {
           const karnak19 = ROOFING_MATERIALS.find(m => m.id === "karnak-19");
           if (karnak19 && (!newSelectedMaterials["karnak-19"])) {
-            // Add Karnak 19 flashing cement for low slope
-            const karnakQuantity = Math.ceil(lowPitchArea / 500); // 1 bucket per ~500 sq ft
+            // Add Karnak 19 flashing cement for low slope - 1 bucket per ~500 sq ft with minimum of 1
+            const karnakQuantity = Math.max(1, Math.ceil(lowSlopeArea / 500));
             newSelectedMaterials["karnak-19"] = karnak19;
-            newQuantities["karnak-19"] = Math.max(2, karnakQuantity); // Minimum 2
-            newDisplayQuantities["karnak-19"] = Math.max(2, karnakQuantity).toString();
+            newQuantities["karnak-19"] = karnakQuantity;
+            newDisplayQuantities["karnak-19"] = karnakQuantity.toString();
             materialsUpdated = true;
-            console.log(`[MaterialsSelectionTab] Added Karnak 19 with quantity ${Math.max(2, karnakQuantity)}`);
+            console.log(`[MaterialsSelectionTab] Added Karnak 19 with quantity ${karnakQuantity}`);
           }
           
-          // Add Karnak spray primer
+          // Add Karnak spray primer - 4 cans for large areas, 2 for smaller areas
           const karnakSpray = ROOFING_MATERIALS.find(m => m.id === "karnak-asphalt-primer-spray");
           if (karnakSpray && (!newSelectedMaterials["karnak-asphalt-primer-spray"])) {
-            // 4 cans minimum for low slope
+            const sprayQuantity = lowSlopeArea > 200 ? 4 : 2;
             newSelectedMaterials["karnak-asphalt-primer-spray"] = karnakSpray;
-            newQuantities["karnak-asphalt-primer-spray"] = 4;
-            newDisplayQuantities["karnak-asphalt-primer-spray"] = "4";
+            newQuantities["karnak-asphalt-primer-spray"] = sprayQuantity;
+            newDisplayQuantities["karnak-asphalt-primer-spray"] = sprayQuantity.toString();
             materialsUpdated = true;
-            console.log(`[MaterialsSelectionTab] Added Karnak Spray Primer with quantity 4`);
+            console.log(`[MaterialsSelectionTab] Added Karnak Spray Primer with quantity ${sprayQuantity}`);
           }
         }
       } else {
@@ -383,7 +413,7 @@ export function MaterialsSelectionTab({
       // Display toast notification to inform user
       toast({
         title: "Low-Slope Materials Added",
-        description: "Required materials for low-slope areas have been automatically added to your estimate.",
+        description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.`,
       });
     }
   }, [measurements, wasteFactor, ROOFING_MATERIALS, toast]);
@@ -470,7 +500,7 @@ export function MaterialsSelectionTab({
       setLocalQuantities(updatedQuantities);
     }
   }, [isPeelStickSelected, measurements, wasteFactor]);
-
+  
   // Add material to selection
   const addMaterial = (materialToAdd: Material) => {
     console.log(`Adding material: ${materialToAdd.id}`);
@@ -543,7 +573,7 @@ export function MaterialsSelectionTab({
     
     setLocalQuantities(prev => ({
       ...prev,
-      [materialId]: newQuantity
+        [materialId]: newQuantity
     }));
     
     // Update display quantity for Timberline
@@ -707,13 +737,13 @@ export function MaterialsSelectionTab({
     
     materialsToAdd.forEach(({ id: materialId, description }) => {
       // Skip if the material was already added (e.g., mandatory materials)
-      if (newSelectedMaterials[materialId]) {
+        if (newSelectedMaterials[materialId]) {
         console.log(`Material ${materialId} (${description}) already selected, skipping`);
-        return;
-      }
-      
+           return;
+        }
+        
       // Find the material in ROOFING_MATERIALS
-      const material = ROOFING_MATERIALS.find(m => m.id === materialId);
+        const material = ROOFING_MATERIALS.find(m => m.id === materialId);
       
       if (!material) {
         console.error(`Material with ID ${materialId} (${description}) not found in ROOFING_MATERIALS`);
@@ -727,18 +757,18 @@ export function MaterialsSelectionTab({
         wasteFactor / 100;
       
       // Special handling for WeatherWatch (valleys only)
-      if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
-        const valleyLength = measurements.valleyLength || 0;
-        if (valleyLength > 0) {
-          const rollsNeeded = Math.ceil(valleyLength / 45.5);
-          
-          const valleyOnlyMaterial = { ...material }; 
-          valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
-          newSelectedMaterials[materialId] = valleyOnlyMaterial;
-          newQuantities[materialId] = rollsNeeded;
+          if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
+            const valleyLength = measurements.valleyLength || 0;
+            if (valleyLength > 0) {
+              const rollsNeeded = Math.ceil(valleyLength / 45.5);
+              
+              const valleyOnlyMaterial = { ...material };
+              valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
+              newSelectedMaterials[materialId] = valleyOnlyMaterial;
+              newQuantities[materialId] = rollsNeeded;
           newDisplayQuantities[materialId] = rollsNeeded.toString();
           console.log(`Added valley-only material ${materialId} (${description}) with quantity ${rollsNeeded}`);
-        } else {
+          } else {
           console.log(`Skipping ${materialId} (${description}) as there's no valley length`);
         }
       } 
@@ -751,11 +781,11 @@ export function MaterialsSelectionTab({
       else {
         // Standard calculation for other materials
         const quantity = calculateMaterialQuantity(
-          material, 
-          measurements, 
-          effectiveWasteFactor
-        );
-        
+              material, 
+              measurements, 
+              effectiveWasteFactor
+            );
+            
         // Only skip if the quantity is zero AND it's not a material that might be manually entered
         if (quantity <= 0 && !materialId.includes('karnak') && !materialId.includes('sealant') && !materialId.includes('pipe-flashing')) {
           console.log(`Calculated quantity for ${materialId} (${description}) is ${quantity}, skipping`);
@@ -915,6 +945,76 @@ export function MaterialsSelectionTab({
       calculationText = calculationText.replace("Total Roof Area", `Total Roof Area (${measurements.totalArea || 0} sq ft)`);
     }
     
+    // Special calculation for low slope areas - used by Polyglass materials and ISO board
+    if (material.id === "polyglass-elastoflex-sbs" || material.id === "polyglass-polyflex-app") {
+      // Calculate low slope area (<= 2/12)
+      let lowSlopeArea = 0;
+      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+        lowSlopeArea = measurements.areasByPitch
+          .filter(area => {
+            const pitchParts = area.pitch.split(/[:\\/]/);
+            const rise = parseInt(pitchParts[0] || '0');
+            return !isNaN(rise) && rise <= 2;
+          })
+          .reduce((sum, area) => sum + (area.area || 0), 0);
+      }
+      
+      // Create a replacement for the calculation text that shows the actual math
+      const squaresNeeded = lowSlopeArea / 100;
+      const wasteFactorForLowSlope = wasteFactor / 100;
+      const squaresWithWaste = squaresNeeded * (1 + wasteFactorForLowSlope);
+      
+      if (material.id === "polyglass-elastoflex-sbs") {
+        const coveragePerRoll = 0.625; // coverage per roll in squares
+        const rollsNeeded = Math.ceil(squaresWithWaste / coveragePerRoll);
+        
+        // Show detailed calculation
+        calculationText = `Low Slope Area (${lowSlopeArea.toFixed(1)} sq ft) ÷ 100 = ${squaresNeeded.toFixed(2)} squares`;
+        calculationText += ` → With ${wasteFactor}% waste: ${squaresWithWaste.toFixed(2)} squares`;
+        calculationText += ` → ${squaresWithWaste.toFixed(2)} squares ÷ ${coveragePerRoll} sq/roll = ${(squaresWithWaste / coveragePerRoll).toFixed(2)} rolls`;
+        calculationText += ` → ${rollsNeeded} rolls needed (rounded up)`;
+        
+        return calculationText;
+      }
+      
+      if (material.id === "polyglass-polyflex-app") {
+        const coveragePerRoll = 0.8; // coverage per roll in squares
+        const rollsNeeded = Math.ceil(squaresWithWaste / coveragePerRoll);
+        
+        // Show detailed calculation
+        calculationText = `Low Slope Area (${lowSlopeArea.toFixed(1)} sq ft) ÷ 100 = ${squaresNeeded.toFixed(2)} squares`;
+        calculationText += ` → With ${wasteFactor}% waste: ${squaresWithWaste.toFixed(2)} squares`;
+        calculationText += ` → ${squaresWithWaste.toFixed(2)} squares ÷ ${coveragePerRoll} sq/roll = ${(squaresWithWaste / coveragePerRoll).toFixed(2)} rolls`;
+        calculationText += ` → ${rollsNeeded} rolls needed (rounded up)`;
+        
+        return calculationText;
+      }
+    }
+    
+    // Special calculation for GAF Poly ISO
+    if (material.id === "gaf-poly-iso-4x8") {
+      // Calculate only 0/12 pitch area
+      let zeroPitchArea = 0;
+      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+        zeroPitchArea = measurements.areasByPitch
+          .filter(area => ["0:12", "0/12"].includes(area.pitch))
+          .reduce((sum, area) => sum + (area.area || 0), 0);
+      }
+      
+      // Create a replacement for the calculation text that shows the actual math
+      const squareFtPerBoard = 32; // 4x8 = 32 sq ft per board
+      const wasteFactorForISO = wasteFactor / 100;
+      const boardsNeeded = Math.ceil((zeroPitchArea * (1 + wasteFactorForISO)) / squareFtPerBoard);
+      
+      // Show detailed calculation
+      calculationText = `0/12 Pitch Area (${zeroPitchArea.toFixed(1)} sq ft)`;
+      calculationText += ` → With ${wasteFactor}% waste: ${(zeroPitchArea * (1 + wasteFactorForISO)).toFixed(1)} sq ft`;
+      calculationText += ` → ${(zeroPitchArea * (1 + wasteFactorForISO)).toFixed(1)} sq ft ÷ ${squareFtPerBoard} sq ft/board = ${((zeroPitchArea * (1 + wasteFactorForISO)) / squareFtPerBoard).toFixed(2)} boards`;
+      calculationText += ` → ${boardsNeeded} boards needed (rounded up)`;
+      
+      return calculationText;
+    }
+    
     if (calculationText.includes("Steep Slope Area")) {
       // Calculate steep slope area (>= 3/12)
       let steepSlopeArea = 0;
@@ -950,18 +1050,17 @@ export function MaterialsSelectionTab({
       gafTimberlineWasteFactor / 100 : 
       wasteFactor / 100;
       
+    const quantity = localQuantities[material.id] || 0;
     const estimatedQuantity = calculateMaterialQuantity(material, measurements, effectiveWasteFactor);
     
-    // Add a summary showing the calculated quantity
-    if (estimatedQuantity > 0) {
-      calculationText += ` → ${estimatedQuantity} ${material.unit}${estimatedQuantity > 1 ? 's' : ''} needed`;
-      
-      // For shingles that use bundles/squares, show square footage too
-      if (material.id === "gaf-timberline-hdz-sg" || 
-          material.category === MaterialCategory.SHINGLES && material.bundlesPerSquare) {
-        const squares = estimatedQuantity / (material.bundlesPerSquare || 3);
-        calculationText += ` (${squares.toFixed(1)} squares)`;
-      }
+    // Add a summary showing the calculated quantity that matches the displayed quantity
+    calculationText += ` → ${quantity} ${material.unit}${quantity !== 1 ? 's' : ''} needed`;
+    
+    // For shingles that use bundles/squares, show square footage too
+    if (material.id === "gaf-timberline-hdz-sg" || 
+        material.category === MaterialCategory.SHINGLES && material.bundlesPerSquare) {
+      const squares = quantity / (material.bundlesPerSquare || 3);
+      calculationText += ` (${squares.toFixed(1)} squares)`;
     }
     
     return calculationText;
@@ -1072,8 +1171,8 @@ export function MaterialsSelectionTab({
                  <>{formatPrice(material.approxPerSquare)} per Square</>
              )}
              {!isGafTimberline && material.price > 0 && 
-               <>{formatPrice(material.price)} per {material.unit}</>
-             }
+              <>{formatPrice(material.price)} per {material.unit}</>
+            }
              {!isGafTimberline && material.approxPerSquare && material.approxPerSquare > 0 && 
                 <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
              }
@@ -1086,12 +1185,12 @@ export function MaterialsSelectionTab({
           <div className="text-xs text-muted-foreground space-y-0.5">
             {/* Display price information */}
             <p>– Price: {formatPrice(material.price)} per {material.unit}
-              {material.approxPerSquare && material.approxPerSquare > 0 && 
-                <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
-              }
-              {material.id === 'full-peel-stick-system' && 
+            {material.approxPerSquare && material.approxPerSquare > 0 && 
+               <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
+            }
+            {material.id === 'full-peel-stick-system' && 
                 <span className="italic"> (Cost included in Add-on Price)</span>
-              }
+            }
             </p>
             
             {/* Display coverage rule */}
@@ -1259,7 +1358,7 @@ export function MaterialsSelectionTab({
                ) : (
                  Object.entries(materialsByCategory).map(([category, materials]) => {
                    // Skip LOW_SLOPE category if no low slope areas are found
-                   if (category === MaterialCategory.LOW_SLOPE && !showLowSlope) return null;
+                 if (category === MaterialCategory.LOW_SLOPE && !showLowSlope) return null;
                    
                    // Ensure materials array is valid
                    if (!Array.isArray(materials)) {
@@ -1270,30 +1369,30 @@ export function MaterialsSelectionTab({
                    // Skip categories with no materials
                    if (materials.length === 0) return null;
                    
-                   return (
-                     <AccordionItem key={category} value={category}>
-                       <AccordionTrigger className="text-lg font-semibold py-3">
-                         {category}
-                         {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-yellow-600 border-yellow-300 bg-yellow-50">Flat/Low-Slope Required</Badge>)}
-                       </AccordionTrigger>
-                       <AccordionContent>
-                         <div className="space-y-2 pt-2">
-                           {materials.map(material => (
-                             <div key={material.id} className="flex justify-between items-center p-3 rounded-md border hover:bg-secondary/20">
-                               <div className="space-y-1">
-                                 <div className="font-medium">{material.name}</div>
+                 return (
+                   <AccordionItem key={category} value={category}>
+                     <AccordionTrigger className="text-lg font-semibold py-3">
+                       {category}
+                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-yellow-600 border-yellow-300 bg-yellow-50">Flat/Low-Slope Required</Badge>)}
+                     </AccordionTrigger>
+                     <AccordionContent>
+                       <div className="space-y-2 pt-2">
+                         {materials.map(material => (
+                           <div key={material.id} className="flex justify-between items-center p-3 rounded-md border hover:bg-secondary/20">
+                             <div className="space-y-1">
+                               <div className="font-medium">{material.name}</div>
                                  {/* Price information with square footage estimate if available */}
-                                 <div className="text-sm text-muted-foreground">
+                               <div className="text-sm text-muted-foreground">
                                    – Price: {formatPrice(material.price)} per {material.unit}
                                    {material.approxPerSquare && material.approxPerSquare > 0 && 
                                      <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
                                    }
-                                 </div>
+                               </div>
                                  {/* Coverage rule */}
                                  {material.coverageRule?.description && (
                                    <div className="text-xs text-muted-foreground">
                                      – Coverage Rule: {material.coverageRule.description}
-                                   </div>
+                             </div>
                                  )}
                                  {/* Calculation logic */}
                                  {material.coverageRule?.calculation && (
@@ -1320,15 +1419,15 @@ export function MaterialsSelectionTab({
                                      className="min-w-24"
                                    >
                                      {isSelected ? <><Check className="mr-1 h-4 w-4" />Selected</> : <><Plus className="mr-1 h-4 w-4" />Add</>}
-                                   </Button>
+                             </Button>
                                  );
                                })()}
-                             </div>
-                           ))}
-                         </div>
-                       </AccordionContent>
-                     </AccordionItem>
-                   );
+                           </div>
+                         ))}
+                       </div>
+                     </AccordionContent>
+                   </AccordionItem>
+                 );
                  })
                )}
              </Accordion>
