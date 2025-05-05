@@ -41,6 +41,8 @@ import { Input } from "@/components/ui/input";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { saveAs } from 'file-saver';
 
+const INITIAL_VISIBLE_COUNT = 12; // Show 12 estimates initially
+
 export function RecentEstimates() {
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [filteredEstimates, setFilteredEstimates] = useState<Estimate[]>([]);
@@ -66,6 +68,10 @@ export function RecentEstimates() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [isSavingCustomerInfo, setIsSavingCustomerInfo] = useState(false);
   // --- End State --- 
+
+  // --- State for Load More --- 
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_COUNT);
+  // --- End State ---
 
   useEffect(() => {
     fetchEstimates();
@@ -374,6 +380,15 @@ export function RecentEstimates() {
   };
   // --- End New Handlers --- 
 
+  // --- Handler for Load More --- 
+  const handleLoadMore = () => {
+      // Option 1: Show all remaining
+      setVisibleCount(filteredEstimates.length);
+      // Option 2: Load next batch (e.g., 12 more)
+      // setVisibleCount(prev => prev + INITIAL_VISIBLE_COUNT);
+  };
+  // --- End Handler --- 
+
   return (
     <>
       <Card className="animate-slide-in-up" style={{ animationDelay: "0.2s" }}>
@@ -437,8 +452,8 @@ export function RecentEstimates() {
               ))}
             </div>
           ) : filteredEstimates.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredEstimates.map((estimate) => (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              {filteredEstimates.slice(0, visibleCount).map((estimate) => (
                 <Card key={estimate.id} className="overflow-hidden">
                   <CardHeader className="p-4">
                     <div className="flex justify-between items-start">
@@ -476,7 +491,16 @@ export function RecentEstimates() {
                       <span>{formatCurrency(estimate.total_price || 0)}</span>
                     </div>
                   </CardContent>
-                  <CardFooter className="bg-muted/50 p-3 flex gap-2 justify-end">
+                  <CardFooter className="bg-muted/50 p-3 flex flex-wrap gap-2 justify-end">
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/estimates/${estimate.id}`)}>View Details</Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleGeneratePdf(estimate)} 
+                      disabled={generatingPdfId === estimate.id}
+                    >
+                      {generatingPdfId === estimate.id ? 'Generating...' : 'Generate PDF'}
+                    </Button>
                     {estimate.status === 'pending' && (
                       <>
                         <Button variant="outline" size="sm" onClick={() => handleStatusUpdate(estimate.id!, 'approved')} disabled={isSubmitting[estimate.id!]}>Approve</Button>
@@ -493,7 +517,6 @@ export function RecentEstimates() {
                     )}
                     {estimate.status === 'approved' && !estimate.is_sold && (
                       <>
-                        <Button variant="outline" size="sm" onClick={() => handleGeneratePdf(estimate)} disabled={generatingPdfId === estimate.id}>{generatingPdfId === estimate.id ? 'Generating...' : 'Generate PDF'}</Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button variant="secondary" size="sm" disabled={isSubmitting[estimate.id || '']}>
@@ -517,9 +540,6 @@ export function RecentEstimates() {
                         </AlertDialog>
                       </>
                     )}
-                    {(estimate.status === 'rejected' || estimate.status === 'Sold') && (
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/estimates/${estimate.id}`)}>View Details</Button>
-                    )}
                   </CardFooter>
                 </Card>
               ))}
@@ -532,6 +552,15 @@ export function RecentEstimates() {
               </Button>
             </div>
           )}
+
+          {/* --- Load More Button --- */} 
+          {!isLoading && filteredEstimates.length > visibleCount && (
+              <div className="mt-6 text-center">
+                  <Button variant="outline" onClick={handleLoadMore}>Load More</Button>
+              </div>
+          )}
+          {/* --- End Load More Button --- */} 
+
         </CardContent>
       </Card>
 
