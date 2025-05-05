@@ -1,7 +1,7 @@
 import { Material, MaterialCategory } from "./types";
 
-// Re-generated list based on user provided details
-export const ALL_ROOFING_MATERIALS: Material[] = [
+// Final corrected list based on user input and required removals/updates
+export const ROOFING_MATERIALS: Material[] = [
   // SHINGLES
   {
     id: "gaf-timberline-hdz-sg",
@@ -26,7 +26,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.SHINGLES,
     price: 67.22,
     unit: "Bundle",
-    coverageRule: { description: "110 LF/Bundle", calculation: "Eaves LF * (1 + Waste%) / 110 rounded up" } // Note: Rule adjusted from static data
+    coverageRule: { description: "110 LF/Bundle", calculation: "Eaves LF * (1 + Waste%) / 110 rounded up" }
   },
   {
     id: "oc-oakridge",
@@ -70,7 +70,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 87.88,
     unit: "Roll",
     approxPerSquare: 19.53,
-    coverageRule: { description: "4.5 Squares/Roll (450 sq ft)", calculation: "Steep Slope Area / 4.5 rounded up" } // Applied to Steep Slope only
+    coverageRule: { description: "4.5 Squares/Roll (450 sq ft)", calculation: "Steep Slope Area / 4.5 rounded up" } 
   },
   {
     id: "gaf-weatherwatch-ice-water-shield",
@@ -79,24 +79,24 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 101.11,
     unit: "Roll",
     approxPerSquare: 50.56,
-    coverageRule: { description: "1.5 Squares/Roll (150 sq ft)", calculation: "Valley Length / 45.5 rounded up" } // Specific rule for valleys
+    coverageRule: { description: "1.5 Squares/Roll (150 sq ft)", calculation: "Valley Length / 45.5 rounded up" } 
   },
   {
     id: "gaf-feltbuster-synthetic-underlayment",
     name: "GAF FeltBuster Synthetic Underlayment (10 sq)",
     category: MaterialCategory.UNDERLAYMENTS,
-    price: 108.89, // Updated Price
+    price: 108.89, 
     unit: "Roll",
-    approxPerSquare: 10.89, // Updated Approx
-    coverageRule: { description: "10 Squares/Roll (1,000 sq ft)", calculation: "Total Area / 10 rounded up" } // Covers total area
+    approxPerSquare: 10.89, 
+    coverageRule: { description: "10 Squares/Roll (1,000 sq ft)", calculation: "Total Area / 10 rounded up" } 
   },
   {
     id: "maxfelt-nc",
     name: "MaxFelt NC",
     category: MaterialCategory.UNDERLAYMENTS,
-    price: 65.56, // Updated Price
+    price: 65.56, 
     unit: "Roll",
-    approxPerSquare: 6.56, // Updated Approx
+    approxPerSquare: 6.56,
     coverageRule: { description: "10 Squares/Roll (1,000 sq ft)", calculation: "Ceiling(Total Squares / 10)" }
   },
   {
@@ -124,7 +124,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     price: 110.73,
     unit: "Roll",
     approxPerSquare: 55.37,
-    coverageRule: { description: "2 Squares/Roll (200 sq ft)", calculation: "Valley Length + Eave Length related calc" } // Placeholder for complex calc
+    coverageRule: { description: "2 Squares/Roll (200 sq ft)", calculation: "Valley Length + Eave Length related calc" } 
   },
   {
     id: "full-peel-stick-system",
@@ -159,7 +159,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     name: "GAF Poly ISO 4X8",
     category: MaterialCategory.LOW_SLOPE,
     price: 90.0,
-    unit: "Roll", // Should this be Sheet?
+    unit: "Roll", 
     approxPerSquare: 90.0, 
     coverageRule: { description: "For 0/12 pitch areas only (32 sq ft/unit)", calculation: "0/12 pitch area * 1.12 / 32 rounded up" }
   },
@@ -225,7 +225,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     id: "galvanized-gooseneck-4inch",
     name: "Galvanized Steel Gooseneck Exhaust Vent - 4\" - w/ Damper",
     category: MaterialCategory.VENTILATION,
-    price: 44.44, // User price: 44.44
+    price: 44.44,
     unit: "Each",
     coverageRule: { description: "1 per vent penetration", calculation: "Count of 4\" vent penetrations" }
   },
@@ -233,7 +233,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     id: "galvanized-gooseneck-10inch",
     name: "Galvanized Steel Gooseneck Exhaust Vent - 10\" - w/ Damper",
     category: MaterialCategory.VENTILATION,
-    price: 55.56, // User price: 55.56
+    price: 55.56,
     unit: "Each",
     coverageRule: { description: "1 per vent penetration", calculation: "Count of 10\" vent penetrations" }
   },
@@ -297,7 +297,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     id: "adjustable-lead-pipe-flashing-4inch",
     name: "Adjustable Lead Pipe Flashing - 2.5# - 4\" (12\"x12\"x12\")",
     category: MaterialCategory.VENTILATION,
-    price: 30.00, // User price: 30
+    price: 30.00,
     unit: "Each",
     coverageRule: { description: "1 per pipe penetration", calculation: "Count of 4\" pipe penetrations" } 
   },
@@ -355,7 +355,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     name: "DIRECT #10X1-1/2 WOODZIP MILL (250 ct)",
     category: MaterialCategory.ACCESSORIES,
     price: 23.99,
-    unit: "Each", // Unit assumed 'Each' based on 'ct'
+    unit: "Each", 
     coverageRule: { description: "1 box per roof", calculation: "Manual quantity selection" }
   },
   {
@@ -379,7 +379,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     name: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)",
     category: MaterialCategory.ACCESSORIES,
     price: 70.37,
-    unit: "Each", // Unit was 'Each' but content is 5 Gal? Clarify if 'Bucket'
+    unit: "Each", 
     coverageRule: { description: "1 bucket per 300 LF of flashings", calculation: "Ceiling((Valley Length + Drip Edge + Wall Flashing + Step Flashing) / 300)" }
   },
   {
@@ -444,7 +444,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
     name: "1/2\"x4'x8' CDX Plywood - 4-Ply",
     category: MaterialCategory.ACCESSORIES,
     price: 70.00,
-    unit: "Board", // Was 'Board' - confirm if 'Sheet' is better
+    unit: "Board", 
     coverageRule: { description: "32 sq ft per sheet", calculation: "Repair Area / 32, rounded up" }
   },
   {
@@ -457,10 +457,7 @@ export const ALL_ROOFING_MATERIALS: Material[] = [
   },
 ];
 
-// Define the final list directly - no filtering needed now
-export const ROOFING_MATERIALS: Material[] = ALL_ROOFING_MATERIALS;
-
 // Optional: Log counts for verification
-if (process.env.NODE_ENV === 'development') {
-    console.log(`Exporting ${ROOFING_MATERIALS.length} materials from data.ts`);
-}
+// if (process.env.NODE_ENV === 'development') {
+//     console.log(`Exporting ${ROOFING_MATERIALS.length} materials from data.ts`);
+// }
