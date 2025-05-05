@@ -132,10 +132,12 @@ export function MaterialsSelectionTab({
   // Group materials by category
   const groupedMaterials = useMemo(() => {
       if (isLoadingTemplate || Object.keys(templateMaterials).length === 0) {
-          return {} as Record<MaterialCategory, Material[]>; // Return empty while loading or if empty
+          return {} as Record<MaterialCategory, Material[]>; 
       }
-      console.log("Grouping materials from fetched template data...");
-      return groupMaterialsByCategory(Object.values(templateMaterials));
+      console.log("Grouping materials from fetched template data...", templateMaterials); // Log the input data
+      const groups = groupMaterialsByCategory(Object.values(templateMaterials));
+      console.log("Result of grouping:", groups); // Log the output
+      return groups;
   }, [templateMaterials, isLoadingTemplate]);
   
   // Check if GAF Timberline HDZ is selected
@@ -577,45 +579,44 @@ export function MaterialsSelectionTab({
     
     if (hasStandardPitchAreas) {
       presetMaterials[preset].forEach(materialId => {
-        if (newSelectedMaterials[materialId]) { /* ... skip mandatory ... */ return; }
+        if (newSelectedMaterials[materialId]) return; // Skip mandatory already present
         
         // --- FIX: Look up in templateMaterials state --- 
-        const material = templateMaterials[materialId]; 
+        const material = templateMaterials[materialId]; // Use the state loaded from DB
         
         if (material) {
           console.log(`[Preset] Found material object for ${materialId} from templateMaterials`);
-          // ... rest of preset logic (special handling for WeatherWatch, etc.) ...
-          // Ensure this logic uses the 'material' object fetched from templateMaterials
+          // --- Ensure subsequent logic USES this 'material' object --- 
           if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
-             // ... valley only logic ... 
-             const valleyOnlyMaterial = { ...material }; // Use template material
-             valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
-             newSelectedMaterials[materialId] = valleyOnlyMaterial;
-             // ... calculate quantity ...
+             const valleyLength = measurements.valleyLength || 0;
+             if (valleyLength > 0) {
+               const rollsNeeded = Math.ceil(valleyLength / 45.5);
+               // Use the material object fetched from templateMaterials
+               const valleyOnlyMaterial = { ...material }; 
+               valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
+               newSelectedMaterials[materialId] = valleyOnlyMaterial;
+               newQuantities[materialId] = rollsNeeded;
+             }
+             console.log(`[Preset] Calculated WeatherWatch quantity: ${newQuantities[materialId]}`);
           } else {
-             // ... calculate quantity normally using the 'material' object ...
              const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
                gafTimberlineWasteFactor / 100 : 
                wasteFactor / 100;
              
+             // Pass the correct material object from templateMaterials
              newQuantities[materialId] = calculateMaterialQuantity(
-                material, // Use template material
+                material, 
                 measurements, 
                 effectiveWasteFactor
              );
-             newSelectedMaterials[materialId] = material; // Add template material
+             newSelectedMaterials[materialId] = material; // Add the material from templateMaterials
           }
         } else {
             console.error(`[Preset] Material object NOT FOUND in templateMaterials for ID: ${materialId}`);
-            // Maybe fallback to STATIC_MATERIALS here if desired?
-            // const staticMaterial = STATIC_MATERIALS.find(m => m.id === materialId);
-            // if (staticMaterial) { ... add staticMaterial ... } 
-            // For now, we just log the error.
         }
       });
     }
     
-    // Update state with new bundle + preserved mandatory materials
     onMaterialsUpdate({ selectedMaterials: newSelectedMaterials, quantities: newQuantities, peelStickPrice });
   };
   
@@ -1159,10 +1160,17 @@ export function MaterialsSelectionTab({
                {isLoadingTemplate ? (
                  <p>Loading material list...</p>
                ) : Object.keys(groupedMaterials).length === 0 ? (
-                 <p>No materials found in template.</p>
+                 <p>No materials found in template or grouping failed.</p>
                ) : (
                  Object.entries(groupedMaterials).map(([category, materials]) => {
+                   // Add log to see what's being rendered per category
+                   console.log(`Rendering category: ${category}, Material Count: ${materials.length}`);
                    if (category === MaterialCategory.LOW_SLOPE && !showLowSlope) return null;
+                   // Ensure materials array is valid
+                   if (!Array.isArray(materials)) {
+                      console.warn(`Materials for category ${category} is not an array:`, materials);
+                      return null;
+                   }
                    return (
                      <AccordionItem key={category} value={category}>
                        <AccordionTrigger className="text-lg font-semibold py-3">
