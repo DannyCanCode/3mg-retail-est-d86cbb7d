@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronRight, RefreshCw, ArrowLeft } from "lucide-react";
+import { Plus, ChevronRight, RefreshCw, ArrowLeft, Loader2 } from "lucide-react";
 import { MeasurementForm } from "@/components/estimates/MeasurementForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaterialsSelectionTab } from "@/components/estimates/materials/MaterialsSelectionTab";
@@ -18,28 +18,22 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { saveEstimate, calculateEstimateTotal, getEstimateById, Estimate as EstimateType, markEstimateAsSold, getEstimates } from "@/api/estimates";
 import { getMeasurementById } from "@/api/measurements";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Estimate } from "@/api/estimates";
-import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogClose
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getPricingTemplates, getPricingTemplateById, PricingTemplate, saveTemplateAsNew, createPricingTemplate, updatePricingTemplate } from "@/api/pricing-templates";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ROOFING_MATERIALS } from "@/components/estimates/materials/data";
+import { calculateMaterialQuantity } from "@/components/estimates/materials/utils";
 
 // Convert ParsedMeasurements to MeasurementValues format
 const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): MeasurementValues => {
@@ -166,18 +160,49 @@ const Estimates = () => {
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
   const [peelStickAddonCost, setPeelStickAddonCost] = useState<string>("0.00");
   
+  // NEW STATE: Pricing Templates
+  const [templates, setTemplates] = useState<PricingTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [selectedTemplateData, setSelectedTemplateData] = useState<PricingTemplate | null>(null);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [lastTemplateApplied, setLastTemplateApplied] = useState<string | null>(null);
+  
   // Add localStorage hooks to persist state across refreshes and tabs
   const [storedPdfData, setStoredPdfData] = useLocalStorage<ParsedMeasurements | null>("estimateExtractedPdfData", null);
   const [storedMeasurements, setStoredMeasurements] = useLocalStorage<MeasurementValues | null>("estimateMeasurements", null);
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
   
-  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [estimates, setEstimates] = useState<EstimateType[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<{[key: string]: boolean}>({});
-  const [estimateToMarkSold, setEstimateToMarkSold] = useState<Estimate | null>(null);
+  const [estimateToMarkSold, setEstimateToMarkSold] = useState<EstimateType | null>(null);
   const [isSoldConfirmDialogOpen, setIsSoldConfirmDialogOpen] = useState(false);
   const [jobType, setJobType] = useState<'Retail' | 'Insurance'>('Retail');
   const [insuranceCompany, setInsuranceCompany] = useState('');
+  
+  // NEW STATE: Template Edit Dialog
+  const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+  const [templateDialogMode, setTemplateDialogMode] = useState<'create' | 'edit' | 'copy'>('create');
+  const [isSubmittingTemplate, setIsSubmittingTemplate] = useState(false);
+  const [templateFormData, setTemplateFormData] = useState<{
+    name: string;
+    description: string;
+    is_default: boolean;
+    saveAsNew?: boolean;
+    materials: Record<string, Material>;
+    quantities: Record<string, number>;
+    usePresetPackage: boolean;
+    presetPackageType: string;
+  }>({
+    name: '',
+    description: '',
+    is_default: false,
+    saveAsNew: false,
+    materials: {},
+    quantities: {},
+    usePresetPackage: false,
+    presetPackageType: ''
+  });
   
   // Check if we're in view mode (estimateId is present) and fetch the estimate data
   useEffect(() => {
@@ -702,7 +727,7 @@ const Estimates = () => {
     // ... existing reject logic ...
   };
 
-  const handleOpenSoldDialog = (estimate: Estimate) => {
+  const handleOpenSoldDialog = (estimate: EstimateType) => {
     setEstimateToMarkSold(estimate);
     setJobType('Retail'); // Reset to default
     setInsuranceCompany(''); // Reset insurance company
@@ -762,6 +787,474 @@ const Estimates = () => {
       // setIsSoldConfirmDialogOpen(true); 
     } finally {
       setIsSubmitting(prev => ({ ...prev, [estimateId]: false }));
+    }
+  };
+
+  // NEW EFFECT: Fetch pricing templates when component mounts
+  useEffect(() => {
+    const fetchPricingTemplates = async () => {
+      if (isViewMode) return; // Don't fetch templates in view mode
+      
+      setIsLoadingTemplates(true);
+      try {
+        const { data, error } = await getPricingTemplates();
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data && data.length > 0) {
+          setTemplates(data);
+          
+          // Find the default template to set as initial selected template
+          const defaultTemplate = data.find(template => template.is_default);
+          if (defaultTemplate) {
+            setSelectedTemplateId(defaultTemplate.id);
+            setSelectedTemplateData(defaultTemplate);
+          } else {
+            // If no default, select the first template
+            setSelectedTemplateId(data[0].id);
+            setSelectedTemplateData(data[0]);
+          }
+        } else {
+          toast({
+            title: "No Templates Found",
+            description: "No pricing templates are available. Please create a template first.",
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching pricing templates:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load pricing templates",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingTemplates(false);
+      }
+    };
+    
+    if (!isViewMode) {
+      fetchPricingTemplates();
+    }
+  }, [isViewMode, toast]);
+  
+  // NEW EFFECT: Fetch selected template data when template ID changes
+  useEffect(() => {
+    const fetchTemplateData = async () => {
+      if (!selectedTemplateId || isViewMode) return;
+      
+      setIsLoadingTemplates(true);
+      try {
+        const { data, error } = await getPricingTemplateById(selectedTemplateId);
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (data) {
+          setSelectedTemplateData(data);
+          // Don't automatically update selectedMaterials here - let the user decide when to apply the template
+        } else {
+          toast({
+            title: "Template Not Found",
+            description: "The selected pricing template could not be found.",
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching template with ID ${selectedTemplateId}:`, error);
+        toast({
+          title: "Error",
+          description: "Failed to load the selected template",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingTemplates(false);
+      }
+    };
+    
+    if (selectedTemplateId && !isViewMode) {
+      fetchTemplateData();
+    }
+  }, [selectedTemplateId, isViewMode, toast]);
+  
+  // NEW FUNCTION: Handle applying the selected template
+  const handleApplyTemplate = () => {
+    if (!selectedTemplateData || !selectedTemplateData.materials) {
+      toast({
+        title: "No Template Selected",
+        description: "Please select a valid pricing template first.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    console.log("Applying template:", {
+      templateName: selectedTemplateData.name,
+      materialsCount: Object.keys(selectedTemplateData.materials || {}).length,
+      quantitiesCount: Object.keys(selectedTemplateData.quantities || {}).length
+    });
+    
+    // Apply the template's materials and quantities
+    const templateMaterials = selectedTemplateData.materials || {};
+    const templateQuantities = selectedTemplateData.quantities || {};
+    
+    // Check if this is a predefined package template
+    const isGafBasicPackage = selectedTemplateData.name.toLowerCase().includes("gaf 1") || 
+                             selectedTemplateData.name.toLowerCase().includes("basic package");
+    
+    const isPremiumGafPackage = selectedTemplateData.name.toLowerCase().includes("premium gaf") || 
+                               selectedTemplateData.name.toLowerCase().includes("enhanced protection");
+    
+    if (isGafBasicPackage || isPremiumGafPackage) {
+      // This is a special package template, so we'll auto-populate specific materials
+      // based on the package type instead of using stored materials from the template
+      const newMaterials: Record<string, Material> = {};
+      const newQuantities: Record<string, number> = {};
+      
+      // Find materials from ROOFING_MATERIALS based on IDs
+      let packageMaterialIds: string[] = [];
+      
+      if (isGafBasicPackage) {
+        // GAF 1 Basic Package materials
+        packageMaterialIds = [
+          "gaf-timberline-hdz-sg",           // GAF Timberline HDZ
+          "gaf-seal-a-ridge",                // GAF Seal-A-Ridge
+          "gaf-prostart-starter-shingle-strip", // GAF ProStart Starter
+          "abc-pro-guard-20",                // Underlayment
+          "gaf-weatherwatch-ice-water-shield" // Ice & Water (valleys only)
+        ];
+      } else if (isPremiumGafPackage) {
+        // Premium GAF Package materials
+        packageMaterialIds = [
+          "gaf-timberline-hdz-sg",           // GAF Timberline HDZ
+          "gaf-seal-a-ridge",                // GAF Seal-A-Ridge
+          "gaf-prostart-starter-shingle-strip", // GAF ProStart Starter
+          "gaf-feltbuster-synthetic-underlayment", // GAF FeltBuster
+          "gaf-weatherwatch-ice-water-shield" // Ice & Water (valleys only)
+        ];
+      }
+      
+      // Calculate quantities based on measurements for each material
+      if (measurements) {
+        const effectiveWasteFactorGeneral = 0.1; // 10% waste factor
+        const effectiveWasteFactorTimberline = 0.12; // 12% waste factor for Timberline HDZ
+
+        packageMaterialIds.forEach(materialId => {
+          const material = ROOFING_MATERIALS.find(m => m.id === materialId);
+          
+          if (material) {
+            // Calculate quantity with appropriate waste factor
+            const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
+              effectiveWasteFactorTimberline : effectiveWasteFactorGeneral;
+              
+            let quantity = 0;
+            
+            // Special handling for WeatherWatch in valleys only
+            if (materialId === "gaf-weatherwatch-ice-water-shield") {
+              const valleyLength = measurements.valleyLength || 0;
+              if (valleyLength > 0) {
+                // Modify the name to indicate "valleys only"
+                const modifiedMaterial = { 
+                  ...material,
+                  name: "GAF WeatherWatch Ice & Water Shield (valleys only)"
+                };
+                
+                // Calculate based on valley length
+                quantity = Math.ceil(valleyLength / 45.5);
+                newMaterials[materialId] = modifiedMaterial;
+                newQuantities[materialId] = quantity;
+              }
+            } else {
+              // Standard calculation for other materials
+              quantity = calculateMaterialQuantity(material, measurements, effectiveWasteFactor);
+              newMaterials[materialId] = material;
+              newQuantities[materialId] = quantity;
+            }
+          }
+        });
+        
+        // Check for low slope areas and add required materials if needed
+        const hasLowSlopeAreas = measurements.areasByPitch?.some(
+          area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
+        );
+        
+        if (hasLowSlopeAreas) {
+          // Add low slope materials (e.g., Polyglass SBS Base and APP Cap)
+          const baseMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
+          const capMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
+          
+          if (baseMaterial && capMaterial) {
+            // Calculate low slope area
+            const lowSlopeArea = measurements.areasByPitch
+              ?.filter(area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch))
+              .reduce((sum, area) => sum + (area.area || 0), 0) || 0;
+              
+            if (lowSlopeArea > 0) {
+              const squaresNeeded = lowSlopeArea / 100;
+              const squaresWithWaste = squaresNeeded * 1.1; // 10% waste
+              
+              // Add base sheet
+              const baseQuantity = Math.ceil(squaresWithWaste / 0.625);
+              const mandatoryBase = {
+                ...baseMaterial,
+                name: `${baseMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
+              };
+              newMaterials["polyglass-elastoflex-sbs"] = mandatoryBase;
+              newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
+              
+              // Add cap sheet
+              const capQuantity = Math.ceil(squaresWithWaste / 0.8);
+              const mandatoryCap = {
+                ...capMaterial,
+                name: `${capMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
+              };
+              newMaterials["polyglass-polyflex-app"] = mandatoryCap;
+              newQuantities["polyglass-polyflex-app"] = capQuantity;
+            }
+          }
+        }
+        
+        // Set the calculated materials and quantities
+        setSelectedMaterials(newMaterials);
+        setQuantities(newQuantities);
+      } else {
+        // No measurements available, just use the materials list without quantities
+        toast({
+          title: "Warning",
+          description: "No measurements available. Materials added without quantities.",
+          variant: "destructive"
+        });
+        
+        // Use empty quantities or defaults
+        setSelectedMaterials(templateMaterials);
+        setQuantities(templateQuantities);
+      }
+    } else {
+      // Standard template (not a predefined package)
+      // Just use the materials and quantities stored in the template
+      setSelectedMaterials(templateMaterials);
+      setQuantities(templateQuantities);
+    }
+    
+    // Force a complete re-render of the MaterialsSelectionTab by setting a timestamp
+    setLastTemplateApplied(Date.now().toString());
+    
+    // If the template has labor rates, apply those too
+    if (selectedTemplateData.labor_rates) {
+      setLaborRates({...selectedTemplateData.labor_rates});
+    }
+    
+    toast({
+      title: "Template Applied",
+      description: `${selectedTemplateData.name} has been applied to your estimate.`,
+    });
+  };
+
+  // NEW FUNCTION: Open the template dialog in create/edit/copy mode
+  const handleOpenTemplateDialog = (mode: 'create' | 'edit' | 'copy') => {
+    setTemplateDialogMode(mode);
+    
+    if (mode === 'create') {
+      // Initialize with empty template data for creation
+      setTemplateFormData({
+        name: '',
+        description: '',
+        is_default: false,
+        saveAsNew: false,
+        materials: {},
+        quantities: {},
+        usePresetPackage: false,
+        presetPackageType: ''
+      });
+    } else if (mode === 'edit' && selectedTemplateData) {
+      // Populate form with selected template data for editing
+      setTemplateFormData({
+        name: selectedTemplateData.name,
+        description: selectedTemplateData.description || '',
+        is_default: selectedTemplateData.is_default || false,
+        saveAsNew: false,
+        materials: selectedTemplateData.materials || {},
+        quantities: selectedTemplateData.quantities || {},
+        usePresetPackage: false,
+        presetPackageType: ''
+      });
+    } else if (mode === 'copy' && selectedTemplateData) {
+      // Populate form with selected template data for copying, but with different name
+      setTemplateFormData({
+        name: `Copy of ${selectedTemplateData.name}`,
+        description: selectedTemplateData.description || '',
+        is_default: false, // Copies are never default by default
+        saveAsNew: false,
+        materials: selectedTemplateData.materials || {},
+        quantities: selectedTemplateData.quantities || {},
+        usePresetPackage: false,
+        presetPackageType: ''
+      });
+    }
+    
+    setIsTemplateDialogOpen(true);
+  };
+  
+  // NEW FUNCTION: Handle saving the template
+  const handleSaveTemplate = async () => {
+    // Validate template data
+    if (!templateFormData.name.trim()) {
+      toast({
+        title: "Missing Name",
+        description: "Please provide a name for your template.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSubmittingTemplate(true);
+    
+    try {
+      // Determine if we need to create or update based on the mode and form state
+      const isCreating = templateDialogMode === 'create';
+      const isCopying = templateDialogMode === 'copy';
+      const isSavingAsNew = templateDialogMode === 'edit' && templateFormData.saveAsNew;
+      
+      // Prepare template data to save
+      let templateToSave: Partial<PricingTemplate> = {
+        name: templateFormData.name.trim(),
+        description: templateFormData.description.trim(),
+        is_default: templateFormData.is_default
+      };
+      
+      // Handle predefined packages for new templates
+      if (isCreating && templateFormData.usePresetPackage && templateFormData.presetPackageType) {
+        // Create a template with predefined materials based on the package type
+        let packageMaterialIds: string[] = [];
+        
+        if (templateFormData.presetPackageType === 'gaf-basic') {
+          // GAF 1 Basic Package materials
+          packageMaterialIds = [
+            "gaf-timberline-hdz-sg",
+            "gaf-seal-a-ridge",
+            "gaf-prostart-starter-shingle-strip",
+            "abc-pro-guard-20",
+            "gaf-weatherwatch-ice-water-shield"
+          ];
+        } else if (templateFormData.presetPackageType === 'gaf-premium') {
+          // Premium GAF materials
+          packageMaterialIds = [
+            "gaf-timberline-hdz-sg",
+            "gaf-seal-a-ridge",
+            "gaf-prostart-starter-shingle-strip",
+            "gaf-feltbuster-synthetic-underlayment",
+            "gaf-weatherwatch-ice-water-shield"
+          ];
+        }
+        
+        // Get material objects for each ID and create materials & quantities objects
+        const materials: Record<string, Material> = {};
+        const quantities: Record<string, number> = {};
+        
+        packageMaterialIds.forEach(id => {
+          const material = ROOFING_MATERIALS.find(m => m.id === id);
+          if (material) {
+            materials[id] = material;
+            quantities[id] = 1; // Set default quantity (will be recalculated when applied to an estimate)
+          }
+        });
+        
+        templateToSave.materials = materials;
+        templateToSave.quantities = quantities;
+      }
+      else if (isCreating) {
+        // Creating a new template from scratch - start with current materials if any
+        templateToSave.materials = selectedMaterials;
+        templateToSave.quantities = quantities;
+      }
+      else if (templateDialogMode === 'edit' || templateDialogMode === 'copy') {
+        // Editing or copying should maintain existing materials
+        if (selectedTemplateData) {
+          templateToSave.materials = selectedTemplateData.materials;
+          templateToSave.quantities = selectedTemplateData.quantities;
+          
+          if (selectedTemplateData.labor_rates) {
+            templateToSave.labor_rates = selectedTemplateData.labor_rates;
+          }
+        }
+      }
+      
+      // Execute the appropriate API call based on mode
+      let result;
+      
+      if (isCopying || isSavingAsNew) {
+        // Save as new
+        result = await saveTemplateAsNew(
+          selectedTemplateData!,
+          templateFormData.name.trim(),
+          templateFormData.is_default
+        );
+      } else if (isCreating) {
+        // Create new
+        result = await createPricingTemplate(templateToSave as PricingTemplate);
+      } else {
+        // Update existing - fix the function call with the proper parameters
+        if (!selectedTemplateData?.id) {
+          throw new Error("Missing template ID for update");
+        }
+        
+        // Combine the template ID with the update data
+        const templateWithId = {
+          ...templateToSave,
+          id: selectedTemplateData.id
+        };
+        
+        result = await updatePricingTemplate(templateWithId as PricingTemplate);
+      }
+      
+      if (result.error) {
+        throw result.error;
+      }
+      
+      // Success - refresh templates list and update state
+      const { data: refreshedTemplates, error: refreshError } = await getPricingTemplates();
+      
+      if (refreshError) {
+        console.error("Error refreshing templates after save:", refreshError);
+        // Continue anyway, as the save was successful
+      }
+      
+      if (refreshedTemplates) {
+        setTemplates(refreshedTemplates);
+        
+        // If we just created or updated the default template, select it
+        if (templateFormData.is_default) {
+          const newDefaultTemplate = refreshedTemplates.find(t => t.is_default);
+          if (newDefaultTemplate) {
+            setSelectedTemplateId(newDefaultTemplate.id);
+            setSelectedTemplateData(newDefaultTemplate);
+          }
+        }
+        // Otherwise if we just created a new template, select it
+        else if (result.data) {
+          setSelectedTemplateId(result.data.id);
+          setSelectedTemplateData(result.data);
+        }
+      }
+      
+      // Close dialog and show success message
+      setIsTemplateDialogOpen(false);
+      toast({
+        title: isCreating ? "Template Created" : "Template Updated",
+        description: `The template "${templateFormData.name}" has been ${isCreating ? 'created' : 'updated'} successfully.`,
+      });
+    } catch (error) {
+      console.error("Error saving template:", error);
+      toast({
+        title: "Error",
+        description: `Failed to save the template: ${(error as Error).message}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmittingTemplate(false);
     }
   };
 
@@ -959,13 +1452,89 @@ const Estimates = () => {
                         );
                       } else {
                         return (
-                          <MaterialsSelectionTab
-                            measurements={measurements}
-                            selectedMaterials={selectedMaterials}
-                            quantities={quantities}
-                            onMaterialsUpdate={handleMaterialsUpdate}
-                            readOnly={isViewMode}
-                          />
+                          <>
+                            {/* UPDATED: Template Selector Card with Management Options */}
+                            {!isViewMode && (
+                              <Card className="mb-6">
+                                <CardHeader>
+                                  <CardTitle>Select Pricing Template</CardTitle>
+                                  <CardDescription>Choose a pricing template to apply to this estimate</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                  <div className="flex items-end gap-4">
+                                    <div className="flex-1">
+                                      <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
+                                      <Select
+                                        value={selectedTemplateId || undefined}
+                                        onValueChange={setSelectedTemplateId}
+                                        disabled={isLoadingTemplates || templates.length === 0}
+                                      >
+                                        <SelectTrigger id="template-select" className="w-full">
+                                          <SelectValue placeholder="Select a template" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {templates.map(template => (
+                                            <SelectItem key={template.id} value={template.id}>
+                                              {template.name} {template.is_default && "(Default)"}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    
+                                    {/* Template Action Buttons */}
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        onClick={handleApplyTemplate} 
+                                        disabled={!selectedTemplateId || isLoadingTemplates}
+                                      >
+                                        Apply Template
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        onClick={() => handleOpenTemplateDialog('edit')}
+                                        disabled={!selectedTemplateId || isLoadingTemplates}
+                                      >
+                                        Edit
+                                      </Button>
+                                      <Button 
+                                        variant="secondary" 
+                                        onClick={() => handleOpenTemplateDialog('create')}
+                                        disabled={isLoadingTemplates}
+                                      >
+                                        New Template
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  {isLoadingTemplates && (
+                                    <div className="flex items-center justify-center py-2">
+                                      <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
+                                      <p className="text-sm text-muted-foreground">Loading template data...</p>
+                                    </div>
+                                  )}
+                                  {selectedTemplateData && (
+                                    <div className="text-sm text-muted-foreground">
+                                      <p>Template: <span className="font-medium">{selectedTemplateData.name}</span></p>
+                                      <p>Materials: {selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</p>
+                                      {selectedTemplateData.description && (
+                                        <p>Description: {selectedTemplateData.description}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
+                            
+                            {/* MaterialsSelectionTab component remains the same */}
+                            <MaterialsSelectionTab
+                              key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
+                              measurements={measurements}
+                              selectedMaterials={selectedMaterials}
+                              quantities={quantities}
+                              onMaterialsUpdate={handleMaterialsUpdate}
+                              readOnly={isViewMode}
+                            />
+                          </>
                         );
                       }
                     })()}
@@ -1096,6 +1665,130 @@ const Estimates = () => {
                disabled={isSubmitting[estimateToMarkSold?.id || ''] || (jobType === 'Insurance' && !insuranceCompany.trim())}
             >
                {isSubmitting[estimateToMarkSold?.id || ''] ? "Confirming..." : "Confirm Sale"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Editor/Creator Dialog */}
+      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>
+              {templateDialogMode === 'create' ? 'Create New Template' : 
+              templateDialogMode === 'edit' ? 'Edit Template' : 'Save Template As...'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="templateName">Template Name</Label>
+              <Input
+                id="templateName"
+                value={templateFormData.name} 
+                onChange={(e) => setTemplateFormData({...templateFormData, name: e.target.value})}
+                placeholder="e.g., ABC Shingle Template"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="templateDescription">Description (Optional)</Label>
+              <Input
+                id="templateDescription"
+                value={templateFormData.description} 
+                onChange={(e) => setTemplateFormData({...templateFormData, description: e.target.value})}
+                placeholder="e.g., Standard package with GAF materials"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="isDefault" 
+                checked={templateFormData.is_default}
+                onCheckedChange={(checked) => 
+                  setTemplateFormData({...templateFormData, is_default: !!checked})
+                }
+              />
+              <Label htmlFor="isDefault">
+                Set as default template for new estimates
+              </Label>
+            </div>
+            
+            {templateDialogMode === 'create' && (
+              <div className="space-y-4 border-t pt-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="usePresetPackage" 
+                    checked={templateFormData.usePresetPackage}
+                    onCheckedChange={(checked) => 
+                      setTemplateFormData({...templateFormData, usePresetPackage: !!checked})
+                    }
+                  />
+                  <Label htmlFor="usePresetPackage">
+                    Create from predefined package
+                  </Label>
+                </div>
+                
+                {templateFormData.usePresetPackage && (
+                  <div className="space-y-2 pl-6">
+                    <Label htmlFor="presetPackageType">Select Package Type</Label>
+                    <Select 
+                      value={templateFormData.presetPackageType} 
+                      onValueChange={(value) => setTemplateFormData({
+                        ...templateFormData, 
+                        presetPackageType: value,
+                        name: value === 'gaf-basic' ? 'GAF 1 Basic Package' : 
+                              value === 'gaf-premium' ? 'Premium GAF materials with enhanced protection' : 
+                              templateFormData.name
+                      })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a predefined package" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gaf-basic">GAF 1 Basic Package</SelectItem>
+                        <SelectItem value="gaf-premium">Premium GAF materials with enhanced protection</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Selecting a predefined package will auto-populate standard materials.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {templateDialogMode === 'edit' && (
+              <div className="border-t pt-4">
+                <p className="text-sm">
+                  <strong>Current Materials:</strong> {Object.keys(selectedTemplateData?.materials || {}).length || 0} items
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Changes to this template will apply to any new estimates created using it.
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsTemplateDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveTemplate} 
+              disabled={isSubmittingTemplate || !templateFormData.name.trim()}
+            >
+              {isSubmittingTemplate ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Template'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
