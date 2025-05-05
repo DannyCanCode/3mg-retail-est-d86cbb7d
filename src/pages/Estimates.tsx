@@ -30,7 +30,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getPricingTemplates, getPricingTemplateById, PricingTemplate, saveTemplateAsNew, createPricingTemplate, updatePricingTemplate } from "@/api/pricing-templates";
+import { getPricingTemplates, getPricingTemplateById, PricingTemplate, createPricingTemplate, updatePricingTemplate } from "@/api/pricing-templates";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ROOFING_MATERIALS } from "@/components/estimates/materials/data";
 import { calculateMaterialQuantity } from "@/components/estimates/materials/utils";
@@ -1187,13 +1187,6 @@ const Estimates = () => {
       
       if (isCopying || isSavingAsNew) {
         // Save as new
-        result = await saveTemplateAsNew(
-          selectedTemplateData!,
-          templateFormData.name.trim(),
-          templateFormData.is_default
-        );
-      } else if (isCreating) {
-        // Create new
         result = await createPricingTemplate(templateToSave as PricingTemplate);
       } else {
         // Update existing - fix the function call with the proper parameters
