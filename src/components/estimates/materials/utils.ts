@@ -237,8 +237,9 @@ export function calculateMaterialTotal(quantity: number, price: number): number 
 }
 
 // Group materials by category for display
-export function groupMaterialsByCategory(materials: Material[]): Record<MaterialCategory, Material[]> {
-  const groupedMaterials: Record<MaterialCategory, Material[]> = {
+export function groupMaterialsByCategory(materials: Material[]): Record<string, Material[]> {
+  // Initialize with all known categories explicitly
+  const groupedMaterials: Record<string, Material[]> = {
     [MaterialCategory.SHINGLES]: [],
     [MaterialCategory.UNDERLAYMENTS]: [],
     [MaterialCategory.LOW_SLOPE]: [],
@@ -248,8 +249,17 @@ export function groupMaterialsByCategory(materials: Material[]): Record<Material
   };
   
   materials.forEach(material => {
-    groupedMaterials[material.category].push(material);
+    // Check if the material has a valid category known to the enum
+    if (material.category && groupedMaterials.hasOwnProperty(material.category)) {
+      groupedMaterials[material.category].push(material);
+    } else {
+      console.warn(`Material "${material.name}" (ID: ${material.id}) has unknown or missing category: ${material.category}. Skipping grouping.`);
+      // Optionally, add to a default/unknown category if needed:
+      // groupedMaterials["UNKNOWN"] = groupedMaterials["UNKNOWN"] || [];
+      // groupedMaterials["UNKNOWN"].push(material);
+    }
   });
   
+  // Return the grouped object
   return groupedMaterials;
 }
