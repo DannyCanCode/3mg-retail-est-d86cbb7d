@@ -337,6 +337,18 @@ export function EstimateSummaryTab({
   const subtotal = totalMaterialCost + totalLaborCost;
   const profitAmount = subtotal * (profitMargin / 100);
   const total = subtotal + profitAmount;
+  
+  // Log the discrepancy for debugging
+  console.log("EstimateSummaryTab calculation:", {
+    totalMaterialCost,
+    totalLaborCost,
+    subtotal,
+    profitMargin,
+    profitAmount,
+    calculatedTotal: total,
+    passedTotalAmount: totalAmount,
+    difference: Math.abs(total - totalAmount)
+  });
 
   return (
     <>
@@ -476,7 +488,7 @@ export function EstimateSummaryTab({
                   </tr>
                   <tr className="bg-muted/30">
                     <td className="py-2 px-4 font-semibold">Total Estimate</td>
-                    <td className="text-right py-2 px-4 font-semibold text-lg">${totalAmount.toFixed(2)}</td>
+                    <td className="text-right py-2 px-4 font-semibold text-lg">${total.toFixed(2)}</td>
                   </tr>
                 </tbody>
               </table>

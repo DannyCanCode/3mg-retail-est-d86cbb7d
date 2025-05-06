@@ -424,9 +424,20 @@ export const calculateEstimateTotal = (
   // Calculate subtotal
   const subtotal = materialCost + laborCost;
 
-  // Apply profit margin
-  const profitMultiplier = 1 + (profitMargin / 100);
-  const total = subtotal * profitMultiplier;
+  // Apply profit margin - FIXED CALCULATION
+  // Previously: total = subtotal * profitMultiplier (INCORRECT - multiplies by 1.25 for 25%)
+  // Now: total = subtotal + profit (CORRECT - add 25% of subtotal to the subtotal)
+  const profitAmount = subtotal * (profitMargin / 100);
+  const total = subtotal + profitAmount;
+
+  console.log("Calculate Estimate Total:", {
+    materialCost,
+    laborCost,
+    subtotal,
+    profitMargin,
+    profitAmount,
+    total
+  });
 
   return Math.round(total); // Round to nearest dollar
 };
