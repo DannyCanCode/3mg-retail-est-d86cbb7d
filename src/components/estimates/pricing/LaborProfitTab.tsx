@@ -503,11 +503,11 @@ export function LaborProfitTab({
             >
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="orlando" id="orlando" />
-                <Label htmlFor="orlando">Orlando (${laborRates.dumpsterLocation === "orlando" ? "400" : "500"} per dumpster)</Label>
+                <Label htmlFor="orlando">Orlando ($400 per dumpster)</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="outside" id="outside" />
-                <Label htmlFor="outside">Outside Orlando (${laborRates.dumpsterLocation === "outside" ? "500" : "400"} per dumpster)</Label>
+                <Label htmlFor="outside">Outside Orlando ($500 per dumpster)</Label>
               </div>
             </RadioGroup>
             

@@ -337,7 +337,7 @@ export function EstimateSummaryTab({
   const subtotal = totalMaterialCost + totalLaborCost;
   const profitAmount = subtotal * (profitMargin / 100);
   const total = subtotal + profitAmount;
-  
+
   // Log the discrepancy for debugging
   console.log("EstimateSummaryTab calculation:", {
     totalMaterialCost,
