@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 
 interface WarrantySelectorProps {
   selectedPackage: string;
@@ -51,7 +52,10 @@ const WarrantySelector = ({
           className={`border p-3 rounded-md cursor-pointer ${selectedWarranty === 'silver-pledge' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
           onClick={() => onWarrantySelect('silver-pledge')}
         >
-          <h4 className="font-medium">Silver Pledge Warranty</h4>
+          <div className="flex justify-between items-start">
+            <h4 className="font-medium">Silver Pledge Warranty</h4>
+            <Badge className="bg-green-600 text-white">Available</Badge>
+          </div>
           <p className="text-sm text-gray-600 mt-1">Standard GAF warranty coverage</p>
           <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
             <li>10-year workmanship coverage</li>
@@ -67,10 +71,10 @@ const WarrantySelector = ({
         >
           <div className="flex justify-between items-start">
             <h4 className="font-medium">Gold Pledge Warranty</h4>
-            {!isGoldPledgeAvailable && (
-              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
-                Requires GAF 2 Package
-              </span>
+            {isGoldPledgeAvailable ? (
+              <Badge className="bg-green-600 text-white">Available</Badge>
+            ) : (
+              <Badge className="bg-yellow-500 text-white">Unavailable</Badge>
             )}
           </div>
           <p className="text-sm text-gray-600 mt-1">Premium GAF warranty with enhanced coverage</p>
@@ -113,8 +117,9 @@ const WarrantySelector = ({
       
       {selectedWarranty === 'gold-pledge' && !isGoldPledgeAvailable && (
         <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded-md text-sm text-yellow-700">
-          Gold Pledge Warranty requires the GAF 2 Package selection, which includes GAF Cobra ventilation.
-          Please select GAF 2 Package to enable this warranty option.
+          <p className="font-medium">Gold Pledge Warranty Unavailable</p>
+          <p>Gold Pledge Warranty requires the GAF 2 Premium Package, which includes GAF Cobra ventilation.
+          Please select GAF 2 Package to enable this warranty option.</p>
         </div>
       )}
     </div>

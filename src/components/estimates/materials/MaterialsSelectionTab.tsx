@@ -1454,6 +1454,21 @@ export function MaterialsSelectionTab({
     );
   };
 
+  // Update warranty selection when package changes
+  useEffect(() => {
+    // If changing from GAF 2 to GAF 1 and Gold Pledge is selected, reset to Silver Pledge
+    if (selectedPackage === 'gaf-1' && selectedWarranty === 'gold-pledge') {
+      console.log("Changing warranty from Gold Pledge to Silver Pledge because GAF 1 Basic Package was selected");
+      setSelectedWarranty('silver-pledge');
+      toast({
+        title: "Warranty Changed",
+        description: "Silver Pledge warranty selected because GAF 1 Basic Package does not support Gold Pledge.",
+        duration: 4000,
+        variant: "default"
+      });
+    }
+  }, [selectedPackage, selectedWarranty, toast]);
+
   // Main return structure
   return (
     <div key={`materials-tab-${measurements?.totalArea || 'default'}-${Date.now()}`} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1463,17 +1478,20 @@ export function MaterialsSelectionTab({
         <Card>
            <CardHeader><CardTitle>GAF Package & Warranty Selection</CardTitle></CardHeader>
            <CardContent className="space-y-4">
-             <PackageSelector selectedPackage={selectedPackage} onPackageSelect={setSelectedPackage} />
+             <PackageSelector 
+               selectedPackage={selectedPackage} 
+               onPackageSelect={setSelectedPackage} 
+             />
              <WarrantySelector 
-                selectedPackage={selectedPackage}
-                selectedWarranty={selectedWarranty}
-                onWarrantySelect={setSelectedWarranty}
-                isPeelStickSelected={isPeelStickSelected}
-                onPeelStickToggle={setIsPeelStickSelected}
-              />
-              {showLowSlope && (
-                <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
-              )}
+               selectedPackage={selectedPackage}
+               selectedWarranty={selectedWarranty}
+               onWarrantySelect={setSelectedWarranty}
+               isPeelStickSelected={isPeelStickSelected}
+               onPeelStickToggle={setIsPeelStickSelected}
+             />
+             {showLowSlope && (
+               <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
+             )}
            </CardContent>
         </Card>
         

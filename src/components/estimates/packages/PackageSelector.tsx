@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import React from 'react';
+import { Badge } from "@/components/ui/badge";
 
 interface PackageSelectorProps {
   selectedPackage: string;
@@ -15,7 +16,9 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           className={`border p-3 rounded-md cursor-pointer ${selectedPackage === 'gaf-1' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
           onClick={() => onPackageSelect('gaf-1')}
         >
-          <h4 className="font-medium">GAF 1 - Basic Package</h4>
+          <div className="flex justify-between">
+            <h4 className="font-medium">GAF 1 - Basic Package</h4>
+          </div>
           <p className="text-sm text-gray-600 mt-1">Standard GAF materials for quality installation</p>
           <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
             <li>GAF ProStart Starter Shingle Strip (120')</li>
@@ -24,14 +27,21 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             <li>GAF WeatherWatch Ice & Water Shield (valleys only)</li>
             <li>ABC Pro Guard 20 (Rhino)</li>
           </ul>
-          <p className="text-sm font-medium mt-2">Silver Pledge Warranty Eligible</p>
+          <div className="mt-3 flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="border-green-500 text-green-700 font-medium bg-green-50">Silver Pledge Eligible</Badge>
+            </div>
+            <p className="text-xs text-gray-600 italic">This package only supports Silver Pledge warranty.</p>
+          </div>
         </div>
         
         <div 
           className={`border p-3 rounded-md cursor-pointer ${selectedPackage === 'gaf-2' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
           onClick={() => onPackageSelect('gaf-2')}
         >
-          <h4 className="font-medium">GAF 2 - Premium Package</h4>
+          <div className="flex justify-between">
+            <h4 className="font-medium">GAF 2 - Premium Package</h4>
+          </div>
           <p className="text-sm text-gray-600 mt-1">Premium GAF materials with enhanced protection</p>
           <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
             <li>GAF Timberline HDZ</li>
@@ -40,7 +50,13 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             <li>GAF FeltBuster Synthetic Underlayment (10 sq)</li>
             <li>GAF WeatherWatch Ice & Water Shield (valleys only)</li>
           </ul>
-          <p className="text-sm font-medium mt-2 text-green-600">Gold Pledge Warranty Eligible</p>
+          <div className="mt-3 flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="border-green-500 text-green-700 font-medium bg-green-50">Silver Pledge Eligible</Badge>
+              <Badge variant="outline" className="border-blue-500 text-blue-700 font-medium bg-blue-50">Gold Pledge Eligible</Badge>
+            </div>
+            <p className="text-xs text-gray-600 italic">This package supports both Silver and Gold Pledge warranties.</p>
+          </div>
         </div>
       </div>
     </div>
