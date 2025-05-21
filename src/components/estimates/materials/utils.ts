@@ -13,10 +13,41 @@ const DEFAULT_WASTE_FACTORS: Partial<Record<MaterialCategory, number>> = {
 
 const GENERAL_DEFAULT_WASTE_FACTOR = 0.10; // Default for categories not listed or if no override
 
+// Interface for fetched database waste percentages
+export interface MaterialWastePercentages {
+  [materialId: string]: number; // material_id to waste_percentage mapping
+}
+
+// Function to determine waste factor based on material, considering DB values
+export const determineWasteFactor = (
+  material: Material, 
+  overrideWasteFactor?: number,
+  dbWastePercentages?: MaterialWastePercentages
+): number => {
+  // If explicit override from UI (per-material or GAF), use that
+  if (overrideWasteFactor !== undefined) {
+    return overrideWasteFactor;
+  }
+  
+  // If we have database values and this material has a specific override
+  if (dbWastePercentages && dbWastePercentages[material.id] !== undefined) {
+    return dbWastePercentages[material.id] / 100; // Convert from percentage to decimal
+  }
+  
+  // Fall back to category defaults
+  if (material.category === MaterialCategory.VENTILATION || material.category === MaterialCategory.ACCESSORIES) {
+    return 0; // Hard-coded 0% for these categories
+  }
+  
+  // Use category default
+  return DEFAULT_WASTE_FACTORS[material.category] ?? GENERAL_DEFAULT_WASTE_FACTOR;
+};
+
 export const calculateMaterialQuantity = (
   material: Material,
   measurements: MeasurementValues,
-  overrideWasteFactor?: number // This comes from the UI (global or GAF-specific)
+  overrideWasteFactor?: number, // This comes from the UI (global or GAF-specific)
+  dbWastePercentages?: MaterialWastePercentages // Optional database waste percentages
 ): { quantity: number; actualWasteFactor: number } => {
   console.log(`[CalcQuantity] Calculating for: ${material.id} (${material.name})`);
   console.log(`[CalcQuantity] Received Measurements:`, JSON.stringify(measurements, null, 2));
@@ -28,25 +59,9 @@ export const calculateMaterialQuantity = (
   }
 
   let quantity = 0;
-  let actualWasteFactor: number;
-
-  // Determine the waste factor to use
-  if (material.id === "gaf-timberline-hdz-sg") {
-    // For GAF Timberline, an override (from its specific UI or a direct per-material setting) takes precedence.
-    // Otherwise, it defaults to the SHINGLES category default.
-    actualWasteFactor = overrideWasteFactor !== undefined 
-        ? overrideWasteFactor 
-        : (DEFAULT_WASTE_FACTORS[MaterialCategory.SHINGLES] ?? GENERAL_DEFAULT_WASTE_FACTOR);
-  } else if (material.category === MaterialCategory.VENTILATION || material.category === MaterialCategory.ACCESSORIES) {
-    actualWasteFactor = 0; // Hardcoded 0% for these categories
-  } else if (overrideWasteFactor !== undefined) {
-    // For other materials, if an override is explicitly passed, use it.
-    // This now represents a per-material override set by the user from the tab.
-    actualWasteFactor = overrideWasteFactor;
-  } else {
-    // No specific UI override passed. Use category-specific defaults (e.g., 12% for SHINGLES).
-    actualWasteFactor = DEFAULT_WASTE_FACTORS[material.category] ?? GENERAL_DEFAULT_WASTE_FACTOR;
-  }
+  
+  // Determine the waste factor to use with our helper function
+  const actualWasteFactor = determineWasteFactor(material, overrideWasteFactor, dbWastePercentages);
   
   console.log(`[CalcQuantity] Material: ${material.id}, Category: ${material.category}, UI Override: ${overrideWasteFactor}, Determined actualWasteFactor: ${actualWasteFactor}`);
 

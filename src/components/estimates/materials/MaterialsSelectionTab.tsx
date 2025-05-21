@@ -7,7 +7,7 @@ import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen, I
 import { MeasurementValues } from "../measurement/types";
 import { ROOFING_MATERIALS } from "./data";
 import { Material, MaterialCategory } from "./types";
-import { calculateMaterialQuantity, calculateMaterialTotal, groupMaterialsByCategory } from "./utils";
+import { calculateMaterialQuantity, calculateMaterialTotal, groupMaterialsByCategory, MaterialWastePercentages } from "./utils";
 import {
   Accordion,
   AccordionContent,
@@ -26,6 +26,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getAllMaterialWastePercentages, updateMaterialWastePercentage } from "@/lib/supabase/material-waste";
 
 // *** UPDATED LOG HERE ***
 console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: TEMPLATE SELECTION UPDATE v3"); 
@@ -118,6 +119,28 @@ export function MaterialsSelectionTab({
 
   // Get toast function
   const { toast } = useToast();
+
+  // New state for database waste percentages
+  const [dbWastePercentages, setDbWastePercentages] = useState<MaterialWastePercentages>({});
+  const [isDbWasteLoading, setIsDbWasteLoading] = useState(false);
+  
+  // Load database waste percentages on component mount
+  useEffect(() => {
+    const loadDbWastePercentages = async () => {
+      setIsDbWasteLoading(true);
+      try {
+        const dbWaste = await getAllMaterialWastePercentages();
+        setDbWastePercentages(dbWaste);
+        console.log("Loaded waste percentages from DB:", dbWaste);
+      } catch (error) {
+        console.error("Error loading waste percentages:", error);
+      } finally {
+        setIsDbWasteLoading(false);
+      }
+    };
+    
+    loadDbWastePercentages();
+  }, []);
 
   // Reset function to completely reset state from props
   const resetStateFromProps = useCallback(() => {
@@ -630,7 +653,8 @@ export function MaterialsSelectionTab({
     const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
       materialToAdd,
       measurements,
-      overrideWaste
+      overrideWaste,
+      dbWastePercentages // Pass database waste percentages
     );
 
     console.log(`Adding material: ${materialToAdd.name}, Calculated Qty: ${newQuantity}, Actual WF: ${actualWasteFactor}`);
@@ -764,7 +788,8 @@ export function MaterialsSelectionTab({
         const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
           material,
           measurements,
-          overrideForCalc 
+          overrideForCalc,
+          dbWastePercentages // Pass database waste percentages
         );
         updatedQuantities[materialId] = newQuantity;
         updatedMaterialWasteFactors[materialId] = actualWasteFactor; 
@@ -793,7 +818,8 @@ export function MaterialsSelectionTab({
       const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
         localSelectedMaterials[materialId],
         measurements,
-        newWasteFactor / 100 // Pass the new GAF-specific waste factor
+        newWasteFactor / 100, // Pass the new GAF-specific waste factor
+        dbWastePercentages // Pass database waste percentages
       );
       
       setLocalQuantities(prev => ({
@@ -924,7 +950,8 @@ export function MaterialsSelectionTab({
       let calculatedQuantityData = calculateMaterialQuantity(
         material,
         measurements,
-        overrideWaste
+        overrideWaste,
+        dbWastePercentages // Pass database waste percentages
       );
       
       let finalQuantity = calculatedQuantityData.quantity;
@@ -1194,8 +1221,24 @@ export function MaterialsSelectionTab({
         const { quantity: updatedQuantity, actualWasteFactor: finalWasteFactor } = calculateMaterialQuantity(
           material,
           measurements,
-          newWasteDecimal // Pass the new per-material waste as override
+          newWasteDecimal, // Pass the new per-material waste as override
+          dbWastePercentages // Pass database waste percentages
         );
+
+        // Save the waste factor to the database
+        updateMaterialWastePercentage(materialId, newWaste)
+          .then(success => {
+            if (success) {
+              console.log(`Updated waste percentage for ${materialId} in database: ${newWaste}%`);
+              // Update local state with the new value
+              setDbWastePercentages(prev => ({ ...prev, [materialId]: newWaste }));
+            } else {
+              console.error(`Failed to update waste percentage for ${materialId} in database`);
+            }
+          })
+          .catch(error => {
+            console.error(`Error updating waste percentage in database:`, error);
+          });
 
         setLocalQuantities(prev => ({ ...prev, [materialId]: updatedQuantity }));
         // Ensure materialWasteFactors is updated with the actualWasteFactor used, which should be newWasteDecimal
