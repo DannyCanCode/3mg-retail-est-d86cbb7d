@@ -347,7 +347,7 @@ export function MaterialsSelectionTab({
   // Check for flat/low-slope areas and add required materials
   useEffect(() => {
     // Temporarily commented out for debugging navigation issue
-    /*
+    
     console.log("[MaterialsSelectionTab] Checking for low-slope areas in measurements");
     
     if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
@@ -481,7 +481,7 @@ export function MaterialsSelectionTab({
                      ` Actual waste factors applied have been stored.`,
       });
     }
-    */
+    
   }, [measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
 
   // Group materials by category using the complete ROOFING_MATERIALS list
@@ -495,7 +495,7 @@ export function MaterialsSelectionTab({
   // Handle Peel & Stick system add-on
   useEffect(() => {
     // Temporarily commented out for debugging navigation issue
-    /*
+    
     const systemMaterialId = "full-peel-stick-system";
     const peelStickCostPerSquare = 60;
     const systemMaterial = ROOFING_MATERIALS.find(m => m.id === systemMaterialId);
@@ -574,7 +574,7 @@ export function MaterialsSelectionTab({
       setMaterialWasteFactors(updatedMaterialWasteFactors); 
       setUserOverriddenWaste(updatedUserOverriddenWaste); 
     }
-    */
+    
   }, [isPeelStickSelected, measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
   
   // Calculate and set warranty details
