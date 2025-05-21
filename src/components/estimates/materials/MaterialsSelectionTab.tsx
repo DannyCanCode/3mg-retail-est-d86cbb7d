@@ -666,17 +666,25 @@ export function MaterialsSelectionTab({
 
     console.log(`Adding material: ${materialToAdd.name}, Calculated Qty: ${newQuantity}, Actual WF: ${actualWasteFactor}`);
 
-    if (newQuantity > 0) {
+    // For ventilation and accessories, we should allow quantity 0 and set to 1 as default
+    // because these are often manually specified and not tied to roof measurements
+    let finalQuantity = newQuantity;
+    if (finalQuantity <= 0 && (materialToAdd.category === MaterialCategory.VENTILATION || 
+                              materialToAdd.category === MaterialCategory.ACCESSORIES)) {
+      finalQuantity = 1; // Set minimum quantity to 1 for these categories
+    }
+
+    if (finalQuantity > 0) {
       isInternalChange.current = true;
       setLocalSelectedMaterials(prev => ({ ...prev, [materialToAdd.id]: materialToAdd }));
-      setLocalQuantities(prev => ({ ...prev, [materialToAdd.id]: newQuantity }));
+      setLocalQuantities(prev => ({ ...prev, [materialToAdd.id]: finalQuantity }));
       setMaterialWasteFactors(prev => ({ ...prev, [materialToAdd.id]: actualWasteFactor })); // Store actual waste factor
       
       // Update display quantity
       if (materialToAdd.id === "gaf-timberline-hdz-sg") {
-        setDisplayQuantities(prev => ({ ...prev, [materialToAdd.id]: (newQuantity / 3).toFixed(1) }));
+        setDisplayQuantities(prev => ({ ...prev, [materialToAdd.id]: (finalQuantity / 3).toFixed(1) }));
       } else {
-        setDisplayQuantities(prev => ({ ...prev, [materialToAdd.id]: newQuantity.toString() }));
+        setDisplayQuantities(prev => ({ ...prev, [materialToAdd.id]: finalQuantity.toString() }));
       }
       
       // Ensure category remains expanded by explicitly setting the expanded categories
