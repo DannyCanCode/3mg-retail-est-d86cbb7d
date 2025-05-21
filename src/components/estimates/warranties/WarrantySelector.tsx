@@ -47,7 +47,25 @@ const WarrantySelector = ({
     <div className="bg-white p-4 rounded-md shadow-sm mt-4">
       <h3 className="text-lg font-medium mb-3">GAF Warranty Options</h3>
       
-      <div className="flex flex-col md:grid md:grid-cols-2 gap-4 mb-4">
+      <div className="flex flex-col md:grid md:grid-cols-3 gap-4 mb-4">
+        {/* No Warranty Option */}
+        <div 
+          className={`border p-3 rounded-md cursor-pointer ${selectedWarranty === 'none' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+          onClick={() => onWarrantySelect('none')}
+        >
+          <div className="flex justify-between items-start">
+            <h4 className="font-medium">No Warranty</h4>
+            <Badge className="bg-gray-600 text-white">Optional</Badge>
+          </div>
+          <p className="text-sm text-gray-600 mt-1">No additional GAF warranty</p>
+          <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
+            <li>Standard manufacturer warranty only</li>
+            <li>No additional cost</li>
+          </ul>
+          <p className="text-sm font-medium mt-2">Basic manufacturer protection only</p>
+        </div>
+        
+        {/* Silver Pledge Option */}
         <div 
           className={`border p-3 rounded-md cursor-pointer ${selectedWarranty === 'silver-pledge' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
           onClick={() => onWarrantySelect('silver-pledge')}
@@ -65,6 +83,7 @@ const WarrantySelector = ({
           <p className="text-sm font-medium mt-2">Basic protection for your roof</p>
         </div>
         
+        {/* Gold Pledge Option */}
         <div 
           className={`border p-3 rounded-md ${!isGoldPledgeAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${selectedWarranty === 'gold-pledge' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
           onClick={() => isGoldPledgeAvailable && onWarrantySelect('gold-pledge')}

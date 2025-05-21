@@ -587,6 +587,13 @@ export function MaterialsSelectionTab({
       return;
     }
 
+    // If no warranty is selected, set warrantyDetails to null
+    if (selectedWarranty === 'none') {
+      console.log("[WarrantyEffect] No warranty selected, setting warrantyDetails to null.");
+      setWarrantyDetails(null);
+      return;
+    }
+
     const steepSlopeAreaSqFt = measurements.areasByPitch
       .filter(area => {
         const pitchParts = area.pitch.split(/[:\\/]/);
@@ -849,6 +856,27 @@ export function MaterialsSelectionTab({
     let newMaterialWasteFactors: { [key: string]: number } = { ...materialWasteFactors };
     
     let atLeastOneMaterialAddedOrChanged = false;
+
+    // Auto-select corresponding package based on preset
+    if (preset.startsWith('GAF 1') && selectedPackage !== 'gaf-1') {
+      setSelectedPackage('gaf-1');
+      if (selectedWarranty === 'gold-pledge') {
+        setSelectedWarranty('silver-pledge');
+      }
+    } else if (preset.startsWith('GAF 2') && selectedPackage !== 'gaf-2') {
+      setSelectedPackage('gaf-2');
+    } else if ((preset.startsWith('OC 1') || preset.startsWith('OC 2')) && selectedPackage === 'none') {
+      // For Owens Corning presets, we don't need to set a GAF package
+      // but if no package is selected, we ensure warranty is appropriate
+      if (selectedWarranty === 'gold-pledge' || selectedWarranty === 'silver-pledge') {
+        setSelectedWarranty('none');
+        toast({
+          title: "Warranty Changed",
+          description: "GAF warranties are unavailable with Owens Corning materials without a GAF package.",
+          duration: 4000,
+        });
+      }
+    }
 
     // Define preset package materials
     const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
@@ -1456,6 +1484,11 @@ export function MaterialsSelectionTab({
 
   // Update warranty selection when package changes
   useEffect(() => {
+    // If package is set to none, we keep the current warranty selection
+    if (selectedPackage === 'none') {
+      return;
+    }
+    
     // If changing from GAF 2 to GAF 1 and Gold Pledge is selected, reset to Silver Pledge
     if (selectedPackage === 'gaf-1' && selectedWarranty === 'gold-pledge') {
       console.log("Changing warranty from Gold Pledge to Silver Pledge because GAF 1 Basic Package was selected");

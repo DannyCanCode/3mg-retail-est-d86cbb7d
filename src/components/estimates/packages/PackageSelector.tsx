@@ -13,6 +13,27 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
       
       <div className="flex flex-col md:flex-row gap-4">
         <div 
+          className={`border p-3 rounded-md cursor-pointer ${selectedPackage === 'none' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+          onClick={() => onPackageSelect('none')}
+        >
+          <div className="flex justify-between">
+            <h4 className="font-medium">No Package</h4>
+          </div>
+          <p className="text-sm text-gray-600 mt-1">Custom material selection without a GAF package</p>
+          <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
+            <li>Select individual materials as needed</li>
+            <li>Full flexibility in material choices</li>
+            <li>Materials can still be added individually</li>
+          </ul>
+          <div className="mt-3 flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="border-gray-500 text-gray-700 font-medium bg-gray-50">No Warranty Included</Badge>
+            </div>
+            <p className="text-xs text-gray-600 italic">Warranties can still be added separately if desired.</p>
+          </div>
+        </div>
+        
+        <div 
           className={`border p-3 rounded-md cursor-pointer ${selectedPackage === 'gaf-1' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
           onClick={() => onPackageSelect('gaf-1')}
         >
