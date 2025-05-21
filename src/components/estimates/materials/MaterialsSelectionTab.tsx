@@ -611,7 +611,7 @@ export function MaterialsSelectionTab({
 
     console.log("[WarrantyEffect] Adjusted Steep Slope Squares (with 12% waste):", adjustedSteepSlopeSquares);
 
-    if (selectedWarranty === "silver-pledge" && selectedPackage !== "gaf-2") {
+    if (selectedWarranty === "silver-pledge") {
       warrantyName = "Silver Pledge Warranty";
       const costPerBlock = 150;
       const squaresPerBlock = 50;
