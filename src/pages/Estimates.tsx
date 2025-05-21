@@ -477,30 +477,29 @@ const Estimates = () => {
   const handleMaterialsUpdate = (update: { 
     selectedMaterials: {[key: string]: Material}, 
     quantities: {[key: string]: number},
-    peelStickPrice: string
+    peelStickPrice: string;
+    isNavigatingBack?: boolean;
   }) => {
-    console.log("handleMaterialsUpdate called, setting materials/quantities/price:", Object.keys(update.selectedMaterials).length, update.peelStickPrice);
+    console.log("handleMaterialsUpdate called with update:", update);
     
-    // Check if this is the "Back" button 
-    if (Object.keys(update.selectedMaterials).length === 0 && Object.keys(update.quantities).length === 0 && update.peelStickPrice === "0.00") {
-      console.log("Back button clicked in Materials Tab, setting activeTab to 'measurements'");
-      setPeelStickAddonCost("0.00"); // Reset cost
+    // Check if this is an explicit navigation back to measurements
+    if (update.isNavigatingBack) {
+      console.log("Navigation back to measurements tab initiated from Materials Tab.");
+      // Reset relevant material states if needed, or rely on MaterialsSelectionTab to send cleared values
+      // For now, just navigate. MaterialsSelectionTab sends empty/default values when its back button is clicked.
+      setPeelStickAddonCost("0.00"); 
       setSelectedMaterials({});
       setQuantities({});
       setActiveTab("measurements");
       return;
     }
     
-    // Update state with all received data
+    // Regular update of materials, quantities, and costs from MaterialsSelectionTab
     setSelectedMaterials(update.selectedMaterials);
     setQuantities(update.quantities);
-    setPeelStickAddonCost(update.peelStickPrice); // Store the addon cost
+    setPeelStickAddonCost(update.peelStickPrice); 
     
-    // Save the materials but DON'T navigate automatically
-    console.log("Materials/Cost updated, but NOT navigating automatically");
-    
-    // Optional: Show toast only if materials actually changed?
-    // toast({ ... });
+    console.log("Materials/Cost updated in Estimates.tsx. Quantities count:", Object.keys(update.quantities).length);
   };
 
   const handleLaborProfitContinue = (laborRates: LaborRates, profitMargin: number) => {
@@ -979,7 +978,8 @@ const Estimates = () => {
               }
             } else {
               // Standard calculation for other materials
-              quantity = calculateMaterialQuantity(material, measurements, effectiveWasteFactor);
+              const { quantity: newQty } = calculateMaterialQuantity(material, measurements, effectiveWasteFactor);
+              quantity = newQty;
               newMaterials[materialId] = material;
               newQuantities[materialId] = quantity;
             }

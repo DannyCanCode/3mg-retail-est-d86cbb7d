@@ -1,4 +1,3 @@
-
 export interface MaterialCoverageRule {
   description: string;
   calculation: string;
@@ -14,6 +13,8 @@ export interface Material {
   coverageAmount?: number;
   // For display purposes
   approxPerSquare?: number;
+  bundlesPerSquare?: number;
+  coveragePerUnit?: number;
 }
 
 export enum MaterialCategory {

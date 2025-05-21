@@ -3,11 +3,11 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen } from "lucide-react";
+import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen, Info } from "lucide-react";
 import { MeasurementValues } from "../measurement/types";
 import { ROOFING_MATERIALS } from "./data";
 import { Material, MaterialCategory } from "./types";
-import { calculateMaterialQuantity, calculateMaterialTotal, groupMaterialsByCategory } from "./utils";
+import { calculateMaterialQuantity, calculateMaterialTotal, groupMaterialsByCategory, MaterialWastePercentages } from "./utils";
 import {
   Accordion,
   AccordionContent,
@@ -20,6 +20,13 @@ import WarrantySelector from "../warranties/WarrantySelector";
 import LowSlopeOptions from "../lowslope/LowSlopeOptions";
 import { useToast } from "@/hooks/use-toast";
 import { getDefaultPricingTemplate, PricingTemplate } from "@/api/pricing-templates";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { getAllMaterialWastePercentages, updateMaterialWastePercentage } from "@/lib/supabase/material-waste";
 
 // *** UPDATED LOG HERE ***
 console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: TEMPLATE SELECTION UPDATE v3"); 
@@ -31,9 +38,19 @@ interface MaterialsSelectionTabProps {
   onMaterialsUpdate: (update: { 
     selectedMaterials: {[key: string]: Material}, 
     quantities: {[key: string]: number},
-    peelStickPrice: string // Add the calculated price
+    peelStickPrice: string,
+    warrantyCost: number,
+    warrantyDetails?: WarrantyDetails | null;
+    isNavigatingBack?: boolean; // New optional flag
   }) => void;
   readOnly?: boolean;
+}
+
+// Interface for warranty details
+interface WarrantyDetails {
+  name: string;
+  price: number;
+  calculation: string;
 }
 
 export function MaterialsSelectionTab({
@@ -62,7 +79,7 @@ export function MaterialsSelectionTab({
           <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
         </CardContent>
         <CardFooter>
-          <Button onClick={() => onMaterialsUpdate({ selectedMaterials: {}, quantities: {}, peelStickPrice: "0.00" }) } variant="outline">Back to Measurements</Button>
+          <Button onClick={() => onMaterialsUpdate({ selectedMaterials: {}, quantities: {}, peelStickPrice: "0.00", warrantyCost: 0, warrantyDetails: null, isNavigatingBack: true })} variant="outline">Back to Measurements</Button>
         </CardFooter>
       </Card>
     );
@@ -71,6 +88,8 @@ export function MaterialsSelectionTab({
   // Local state for managing selected materials
   const [localSelectedMaterials, setLocalSelectedMaterials] = useState<{[key: string]: Material}>(selectedMaterials);
   const [localQuantities, setLocalQuantities] = useState<{[key: string]: number}>(quantities);
+  const [materialWasteFactors, setMaterialWasteFactors] = useState<Record<string, number>>({}); // New state
+  const [userOverriddenWaste, setUserOverriddenWaste] = useState<Record<string, boolean>>({}); // Tracks user per-item overrides
   const [wasteFactor, setWasteFactor] = useState(10); // Default 10% waste
   const [expandedCategories, setExpandedCategories] = useState<string[]>([
     MaterialCategory.SHINGLES
@@ -85,6 +104,7 @@ export function MaterialsSelectionTab({
   const [isPeelStickSelected, setIsPeelStickSelected] = useState<boolean>(false);
   const [includeIso, setIncludeIso] = useState<boolean>(false);
   const [peelStickPrice, setPeelStickPrice] = useState<string>("0.00");
+  const [warrantyDetails, setWarrantyDetails] = useState<WarrantyDetails | null>(null);
   
   // State for display quantities (e.g., Squares for Timberline)
   const [displayQuantities, setDisplayQuantities] = useState<Record<string, string>>({});
@@ -100,119 +120,211 @@ export function MaterialsSelectionTab({
   // Get toast function
   const { toast } = useToast();
 
+  // New state for database waste percentages
+  const [dbWastePercentages, setDbWastePercentages] = useState<MaterialWastePercentages>({});
+  const [isDbWasteLoading, setIsDbWasteLoading] = useState(false);
+  
+  // Load database waste percentages on component mount
+  useEffect(() => {
+    const loadDbWastePercentages = async () => {
+      setIsDbWasteLoading(true);
+      try {
+        const dbWaste = await getAllMaterialWastePercentages();
+        setDbWastePercentages(dbWaste);
+        console.log("Loaded waste percentages from DB:", dbWaste);
+      } catch (error) {
+        console.error("Error loading waste percentages:", error);
+      } finally {
+        setIsDbWasteLoading(false);
+      }
+    };
+    
+    loadDbWastePercentages();
+  }, []);
+
   // Reset function to completely reset state from props
   const resetStateFromProps = useCallback(() => {
+    // Temporarily DRASTICALLY SIMPLIFIED for debugging navigation issue
+    console.log("resetStateFromProps was called - SIMPLIFIED");
+    /* --- Original body commented out ---
     console.log("Resetting state from props", {
       materials: Object.keys(selectedMaterials).length,
       quantities: Object.keys(quantities).length
     });
     
-    // Temporarily stop parent updates while we reset state
     skipNextParentUpdate.current = true;
     
-    // Create fresh copies to ensure React detects changes
     const materialsCopy = {...selectedMaterials};
     const quantitiesCopy = {...quantities};
     
     setLocalSelectedMaterials(materialsCopy);
     setLocalQuantities(quantitiesCopy);
     
-    // Initialize display quantities
     const initialDisplayQtys: Record<string, string> = {};
+    const initialWasteFactors: Record<string, number> = {};
+    const initialUserOverrides: Record<string, boolean> = {};
+
     for (const materialId in quantitiesCopy) {
-      const bundleQuantity = quantitiesCopy[materialId] || 0;
-      const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
-      initialDisplayQtys[materialId] = isGafTimberline 
-          ? (bundleQuantity / 3).toFixed(1) 
-          : bundleQuantity.toString();
+      const material = materialsCopy[materialId];
+      if (material && measurements) { 
+        const overrideWaste = material.id === "gaf-timberline-hdz-sg" 
+          ? gafTimberlineWasteFactor / 100 
+          : wasteFactor / 100;
+        const { quantity: calculatedQty, actualWasteFactor } = calculateMaterialQuantity(
+          material,
+          measurements,
+          overrideWaste 
+        );
+        initialWasteFactors[materialId] = actualWasteFactor;
+        initialUserOverrides[materialId] = false; 
+        
+        const bundleQuantity = quantitiesCopy[materialId] || 0; 
+        const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
+        initialDisplayQtys[materialId] = isGafTimberline 
+            ? (bundleQuantity / 3).toFixed(1) 
+            : bundleQuantity.toString();
+      }
     }
     setDisplayQuantities(initialDisplayQtys);
-  }, [selectedMaterials, quantities]);
+    setMaterialWasteFactors(initialWasteFactors); 
+    setUserOverriddenWaste(initialUserOverrides); 
+    */
+  }, []); // DRASTICALLY SIMPLIFIED DEPENDENCY ARRAY FOR DIAGNOSTICS
 
   // Update local state when props change
   useEffect(() => {
+    // Restoring logic
     console.log("MaterialsSelectionTab: Props changed", {
       selectedMaterialsCount: Object.keys(selectedMaterials).length,
       localSelectedMaterialsCount: Object.keys(localSelectedMaterials).length,
       isInternalChange: isInternalChange.current
     });
     
-    // Skip updating if this was triggered by our own internal state change
     if (isInternalChange.current) {
       console.log("Skipping prop update since it was triggered by internal change");
       isInternalChange.current = false;
       return;
     }
     
-    // Check if materials count has changed significantly (indicates template application)
     const selectedMaterialsCount = Object.keys(selectedMaterials).length;
     const localMaterialsCount = Object.keys(localSelectedMaterials).length;
-    const significantChange = Math.abs(selectedMaterialsCount - localMaterialsCount) > 1;
-    
-    if (significantChange) {
-      console.log("Significant change in materials count, resetting state from props");
-      skipNextParentUpdate.current = true; // Skip the next parent update to break the loop
+    let propsChanged = false;
+    if (selectedMaterialsCount !== localMaterialsCount) {
+        propsChanged = true;
+    } else {
+        for (const key in selectedMaterials) {
+            if (!localSelectedMaterials[key] || selectedMaterials[key].id !== localSelectedMaterials[key].id) {
+                propsChanged = true;
+                break;
+            }
+        }
+    }
+
+    if (propsChanged) {
+      console.log("Props for selectedMaterials or quantities changed, resetting state from props");
+      skipNextParentUpdate.current = true; 
       resetStateFromProps();
+      prevSelectedMaterialsCount.current = selectedMaterialsCount;
       return;
     }
     
-    // Only update if the selectedMaterials prop actually contains data
-    // This prevents wiping out local state if an empty object is passed accidentally
-    if (Object.keys(selectedMaterials).length > 0 || Object.keys(localSelectedMaterials).length === 0) {
-      skipNextParentUpdate.current = true; // Skip the next parent update
-      setLocalSelectedMaterials(selectedMaterials);
+    // This part of the original useEffect for handling only quantity changes might be redundant 
+    // if resetStateFromProps correctly handles all scenarios based on selectedMaterials and quantities.
+    // However, to be safe and restore previous more granular logic if needed:
+    if (quantities && Object.keys(quantities).length > 0 && Object.keys(quantities).length !== Object.keys(localQuantities).length) {
+        let quantitiesActuallyChanged = false;
+        for(const key in quantities) {
+            if (quantities[key] !== localQuantities[key]) {
+                quantitiesActuallyChanged = true;
+                break;
+            }
+        }
+        if (Object.keys(quantities).length !== Object.keys(localQuantities).length) quantitiesActuallyChanged = true;
+
+        if (quantitiesActuallyChanged) {
+            console.log("Only quantities from props seem to have changed, updating selectively.");
+            skipNextParentUpdate.current = true;
+            const initialWasteFactors: Record<string, number> = {};
+            const initialDisplayQtys: Record<string, string> = {};
+            // We don't reset userOverriddenWaste here as materials themselves didn't change
+
+            for (const materialId in quantities) {
+                const material = localSelectedMaterials[materialId] || selectedMaterials[materialId];
+                if (material && measurements) {
+                    const overrideWaste = material.id === "gaf-timberline-hdz-sg" 
+                        ? gafTimberlineWasteFactor / 100 
+                        : wasteFactor / 100;
+                    // If user has overridden waste for this item, that should be preserved unless material itself changes.
+                    // calculateMaterialQuantity will use this if it's passed, otherwise default.
+                    // The question is, what override to pass here if only quantity prop changes?
+                    // Let's assume the existing materialWasteFactors[materialId] is still the source of truth for an override.
+                    const currentOverride = userOverriddenWaste[materialId] ? materialWasteFactors[materialId] : overrideWaste;
+                    
+                    const { actualWasteFactor } = calculateMaterialQuantity(material, measurements, currentOverride);
+                    initialWasteFactors[materialId] = actualWasteFactor;
+                }
+                const bundleQuantity = quantities[materialId] || 0;
+                const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
+                initialDisplayQtys[materialId] = isGafTimberline 
+                    ? (bundleQuantity / 3).toFixed(1) 
+                    : bundleQuantity.toString();
+            }
+            setLocalQuantities(quantities); // Set to new quantities from props
+            setDisplayQuantities(initialDisplayQtys); // Update display based on new quantities
+            setMaterialWasteFactors(prev => ({...prev, ...initialWasteFactors})); // Update waste factors
+        }
     }
     
-    if (Object.keys(quantities).length > 0 || Object.keys(localQuantities).length === 0) {
-      skipNextParentUpdate.current = true; // Skip the next parent update
-      setLocalQuantities(quantities);
-      
-      // Initialize display quantities
-      const initialDisplayQtys: Record<string, string> = {};
-      for (const materialId in quantities) {
-        const bundleQuantity = quantities[materialId] || 0;
-        const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
-        initialDisplayQtys[materialId] = isGafTimberline 
-            ? (bundleQuantity / 3).toFixed(1) 
-            : bundleQuantity.toString();
-      }
-      setDisplayQuantities(initialDisplayQtys);
-    }
-    
-    // Update the previous count
     prevSelectedMaterialsCount.current = selectedMaterialsCount;
-  }, [selectedMaterials, quantities, resetStateFromProps, localSelectedMaterials]);
+  }, [selectedMaterials, quantities, resetStateFromProps]); // Corrected dependency array
   
   // Notify parent of changes when local state changes
   useEffect(() => {
+    console.log("[NotifyParentEffect] Hook triggered. Deps:", {
+      localSelectedMaterials: Object.keys(localSelectedMaterials).length,
+      localQuantities: Object.keys(localQuantities).length,
+      // materialWasteFactors is not sent to parent, so not listed here
+      peelStickPrice,
+      warrantyDetails,
+      selectedMaterialsProp: Object.keys(selectedMaterials).length,
+      quantitiesProp: Object.keys(quantities).length,
+    });
+
     // Don't notify parent if we just updated from parent props
     if (skipNextParentUpdate.current) {
-      console.log("Skipping parent notification due to prop-initiated update");
-      skipNextParentUpdate.current = false;
+      console.log("[NotifyParentEffect] Skipping parent notification: skipNextParentUpdate is true.");
+      skipNextParentUpdate.current = false; // Reset for next potential update
       return;
     }
     
-    // Only notify if values actually changed
-    const materialsChanged = JSON.stringify(localSelectedMaterials) !== JSON.stringify(selectedMaterials);
-    const quantitiesChanged = JSON.stringify(localQuantities) !== JSON.stringify(quantities);
-    
-    if (materialsChanged || quantitiesChanged) {
-      console.log("Notifying parent of material changes", {
-        materialsCount: Object.keys(localSelectedMaterials).length,
-        quantitiesCount: Object.keys(localQuantities).length
-      });
-      
-      // Set flag to indicate this update came from internal state
-      isInternalChange.current = true;
-      
-      onMaterialsUpdate({
-        selectedMaterials: localSelectedMaterials,
-        quantities: localQuantities,
-        peelStickPrice
-      });
-    }
-  }, [localSelectedMaterials, localQuantities, onMaterialsUpdate, selectedMaterials, quantities, peelStickPrice]);
+    // We will call onMaterialsUpdate if this effect is triggered by a change
+    // in localSelectedMaterials, localQuantities, peelStickPrice or warrantyDetails.
+    // The isInternalChange.current flag helps prevent immediate re-runs from prop updates.
 
+    console.log("[NotifyParentEffect] Preparing to notify parent. isInternalChange (before set):", isInternalChange.current);
+    console.log("[NotifyParentEffect] Data to be sent:", {
+      selectedMaterials: localSelectedMaterials,
+      quantities: localQuantities,
+      peelStickPrice,
+      warrantyCost: warrantyDetails?.price || 0,
+      warrantyDetails,
+    });
+    
+    isInternalChange.current = true; // Mark that this change is internal BEFORE calling parent
+    
+    onMaterialsUpdate({
+      selectedMaterials: localSelectedMaterials,
+      quantities: localQuantities,
+      peelStickPrice,
+      warrantyCost: warrantyDetails?.price || 0,
+      warrantyDetails,
+      isNavigatingBack: false // Explicitly false for regular updates
+    });
+    console.log("[NotifyParentEffect] Parent notified. isInternalChange (after set):", isInternalChange.current);
+
+  }, [localSelectedMaterials, localQuantities, peelStickPrice, warrantyDetails, onMaterialsUpdate, selectedMaterials, quantities]); // Keep dependencies as they are
+  // materialWasteFactors removed from dependency array as it's not sent to parent
+  
   // Initialize expanded categories
   useEffect(() => {
     const initialExpandedCategories = [MaterialCategory.SHINGLES];
@@ -234,6 +346,8 @@ export function MaterialsSelectionTab({
 
   // Check for flat/low-slope areas and add required materials
   useEffect(() => {
+    // Temporarily commented out for debugging navigation issue
+    /*
     console.log("[MaterialsSelectionTab] Checking for low-slope areas in measurements");
     
     if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
@@ -241,15 +355,12 @@ export function MaterialsSelectionTab({
       return;
     }
     
-    // Check if we have any low-slope areas (0/12, 1/12, or 2/12 pitch)
     const hasLowPitch = measurements.areasByPitch.some(
       area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
     );
     
-    // Check specifically for 0/12 pitch
     const has0Pitch = measurements.areasByPitch.some(area => ["0:12", "0/12"].includes(area.pitch));
     
-    // Calculate the total low slope area (<= 2/12)
     let lowSlopeArea = 0;
     if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
       lowSlopeArea = measurements.areasByPitch
@@ -261,7 +372,6 @@ export function MaterialsSelectionTab({
         .reduce((sum, area) => sum + (area.area || 0), 0);
     }
     
-    // Calculate the 0/12 pitch area specifically
     let zeroPitchArea = 0;
     if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
       zeroPitchArea = measurements.areasByPitch
@@ -269,154 +379,110 @@ export function MaterialsSelectionTab({
         .reduce((sum, area) => sum + (area.area || 0), 0);
     }
     
-    console.log(`[MaterialsSelectionTab] Roof contains low-slope areas: ${hasLowPitch}, 0/12 pitch: ${has0Pitch}`);
-    console.log(`[MaterialsSelectionTab] Low slope area (<=2/12): ${lowSlopeArea.toFixed(1)} sq ft, 0/12 area: ${zeroPitchArea.toFixed(1)} sq ft`);
-    
-    // Skip adding materials if there are no low-slope areas
     if (!hasLowPitch) {
-      console.log("[MaterialsSelectionTab] No low-slope areas found, skipping auto-add");
       return;
     }
     
     const newSelectedMaterials = { ...localSelectedMaterials };
     const newQuantities = { ...localQuantities };
     const newDisplayQuantities = { ...displayQuantities };
-    let materialsUpdated = false; // Flag to track if updates were made
+    const newMaterialWasteFactors = { ...materialWasteFactors }; 
+    const newUserOverriddenWaste = { ...userOverriddenWaste }; 
+    let materialsUpdated = false; 
     
-    // Add GAF Poly ISO for 0/12 pitch
     if (has0Pitch && zeroPitchArea > 0) {
-      console.log("[MaterialsSelectionTab] Adding Poly ISO for 0/12 pitch areas");
       const polyIsoMaterial = ROOFING_MATERIALS.find(m => m.id === "gaf-poly-iso-4x8");
       if (polyIsoMaterial) {
-        // Calculate board quantity:
-        // 1) 0/12 area in sq ft with waste factor
-        // 2) Divide by 32 sq ft per board (4' x 8')
-        // 3) Round up
-        const squareFtPerBoard = 32; // 4x8 = 32 sq ft per board  
-        const wasteFactorForISO = wasteFactor / 100;
-        const boardsNeeded = Math.ceil((zeroPitchArea * (1 + wasteFactorForISO)) / squareFtPerBoard);
-        
-        // Make sure we have at least 1 board even for very small areas
+        const { quantity: boardsNeeded, actualWasteFactor: isoWasteFactor } = calculateMaterialQuantity(
+          polyIsoMaterial,
+          measurements,
+          wasteFactor / 100 
+        );
         const finalQuantity = Math.max(1, boardsNeeded);
-        
-        // Only update if different from current quantity
         const currentQty = newQuantities["gaf-poly-iso-4x8"] || 0;
         if (!newSelectedMaterials["gaf-poly-iso-4x8"] || currentQty !== finalQuantity) {
-          const mandatoryMaterial = { 
-            ...polyIsoMaterial,
-            name: `${polyIsoMaterial.name} (Required for 0/12 pitch - cannot be removed)`
-          };
-          
-          newSelectedMaterials["gaf-poly-iso-4x8"] = mandatoryMaterial;
+        const mandatoryMaterial = { 
+          ...polyIsoMaterial,
+          name: `${polyIsoMaterial.name} (Required for 0/12 pitch - cannot be removed)`
+        };
+        newSelectedMaterials["gaf-poly-iso-4x8"] = mandatoryMaterial;
           newQuantities["gaf-poly-iso-4x8"] = finalQuantity;
           newDisplayQuantities["gaf-poly-iso-4x8"] = finalQuantity.toString();
+          newMaterialWasteFactors["gaf-poly-iso-4x8"] = isoWasteFactor; 
+          newUserOverriddenWaste["gaf-poly-iso-4x8"] = false; 
           materialsUpdated = true;
-          console.log(`[MaterialsSelectionTab] Added Poly ISO with quantity ${finalQuantity} (${zeroPitchArea.toFixed(1)} sq ft area)`);
         }
-      } else {
-        console.warn("[MaterialsSelectionTab] Could not find gaf-poly-iso-4x8 in ROOFING_MATERIALS");
-      }
+      } 
     }
     
-    // Add Polyglass Base and Cap sheets if 0/12, 1/12 OR 2/12 pitch exists
     if (hasLowPitch && lowSlopeArea > 0) {
-      console.log("[MaterialsSelectionTab] Adding Polyglass Base and Cap Sheets for low-slope areas");
       const baseSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
       const capSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
-      
-      if (baseSheetMaterial && capSheetMaterial) {        
-        // Calculate rolls needed:
-        // 1) Low slope area in squares with waste factor
-        // 2) Divide by square coverage per roll
-        // 3) Round up
-        const squaresNeeded = lowSlopeArea / 100; // convert to squares
-        const wasteFactorForLowSlope = wasteFactor / 100;
-        const squaresWithWaste = squaresNeeded * (1 + wasteFactorForLowSlope);
-        
-        // Base sheet coverage is 0.625 sq per roll
-        const baseQuantity = Math.ceil(squaresWithWaste / 0.625);
-        // Cap sheet coverage is 0.8 sq per roll
-        const capQuantity = Math.ceil(squaresWithWaste / 0.8);
-        
-        // Ensure minimum quantities - even for very small areas
+      if (baseSheetMaterial && capSheetMaterial) {
+        const { quantity: baseQuantity, actualWasteFactor: baseWaste } = calculateMaterialQuantity( baseSheetMaterial, measurements, wasteFactor / 100 );
+        const { quantity: capQuantity, actualWasteFactor: capWaste } = calculateMaterialQuantity( capSheetMaterial, measurements, wasteFactor / 100 );
         const finalBaseQuantity = Math.max(1, baseQuantity);
         const finalCapQuantity = Math.max(1, capQuantity);
-
-        // Check if update is needed for Base sheet
         const currentBaseQty = newQuantities["polyglass-elastoflex-sbs"] || 0;
         if (!newSelectedMaterials["polyglass-elastoflex-sbs"] || currentBaseQty !== finalBaseQuantity) {
-          const mandatoryBaseSheet = {
-            ...baseSheetMaterial,
-            name: `${baseSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
-          };
+          const mandatoryBaseSheet = { ...baseSheetMaterial, name: `${baseSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)` };
           newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBaseSheet;
           newQuantities["polyglass-elastoflex-sbs"] = finalBaseQuantity;
           newDisplayQuantities["polyglass-elastoflex-sbs"] = finalBaseQuantity.toString();
+          newMaterialWasteFactors["polyglass-elastoflex-sbs"] = baseWaste; 
+          newUserOverriddenWaste["polyglass-elastoflex-sbs"] = false; 
           materialsUpdated = true;
-          console.log(`[MaterialsSelectionTab] Added Polyglass Base Sheet with quantity ${finalBaseQuantity} (${lowSlopeArea.toFixed(1)} sq ft area)`);
         }
-        
-        // Check if update is needed for Cap sheet
         const currentCapQty = newQuantities["polyglass-polyflex-app"] || 0;
         if (!newSelectedMaterials["polyglass-polyflex-app"] || currentCapQty !== finalCapQuantity) {
-          const mandatoryCapSheet = {
-            ...capSheetMaterial,
-            name: `${capSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
-          };
+          const mandatoryCapSheet = { ...capSheetMaterial, name: `${capSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)` };
           newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCapSheet;
           newQuantities["polyglass-polyflex-app"] = finalCapQuantity;
           newDisplayQuantities["polyglass-polyflex-app"] = finalCapQuantity.toString();
+          newMaterialWasteFactors["polyglass-polyflex-app"] = capWaste; 
+          newUserOverriddenWaste["polyglass-polyflex-app"] = false; 
           materialsUpdated = true;
-          console.log(`[MaterialsSelectionTab] Added Polyglass Cap Sheet with quantity ${finalCapQuantity} (${lowSlopeArea.toFixed(1)} sq ft area)`);
         }
-          
-        // Add necessary accessories for low-slope installs
-        // Only add if low slope area is significant (at least 50 sq ft)
         if (lowSlopeArea >= 50) {
           const karnak19 = ROOFING_MATERIALS.find(m => m.id === "karnak-19");
           if (karnak19 && (!newSelectedMaterials["karnak-19"])) {
-            // Add Karnak 19 flashing cement for low slope - 1 bucket per ~500 sq ft with minimum of 1
-            const karnakQuantity = Math.max(1, Math.ceil(lowSlopeArea / 500));
+            const { quantity: karnakQuantity, actualWasteFactor: karnakWaste } = calculateMaterialQuantity( karnak19, measurements, undefined );
             newSelectedMaterials["karnak-19"] = karnak19;
-            newQuantities["karnak-19"] = karnakQuantity;
-            newDisplayQuantities["karnak-19"] = karnakQuantity.toString();
+            newQuantities["karnak-19"] = Math.max(1, karnakQuantity); 
+            newDisplayQuantities["karnak-19"] = Math.max(1, karnakQuantity).toString();
+            newMaterialWasteFactors["karnak-19"] = karnakWaste; 
+            newUserOverriddenWaste["karnak-19"] = false; 
             materialsUpdated = true;
-            console.log(`[MaterialsSelectionTab] Added Karnak 19 with quantity ${karnakQuantity}`);
           }
-          
-          // Add Karnak spray primer - 4 cans for large areas, 2 for smaller areas
           const karnakSpray = ROOFING_MATERIALS.find(m => m.id === "karnak-asphalt-primer-spray");
           if (karnakSpray && (!newSelectedMaterials["karnak-asphalt-primer-spray"])) {
-            const sprayQuantity = lowSlopeArea > 200 ? 4 : 2;
+             const { quantity: sprayQuantityCalculated, actualWasteFactor: sprayWaste } = calculateMaterialQuantity( karnakSpray, measurements, undefined );
+            const sprayQuantity = Math.max(lowSlopeArea > 200 ? 2 : 1, sprayQuantityCalculated); 
             newSelectedMaterials["karnak-asphalt-primer-spray"] = karnakSpray;
             newQuantities["karnak-asphalt-primer-spray"] = sprayQuantity;
             newDisplayQuantities["karnak-asphalt-primer-spray"] = sprayQuantity.toString();
+            newMaterialWasteFactors["karnak-asphalt-primer-spray"] = sprayWaste; 
+            newUserOverriddenWaste["karnak-asphalt-primer-spray"] = false; 
             materialsUpdated = true;
-            console.log(`[MaterialsSelectionTab] Added Karnak Spray Primer with quantity ${sprayQuantity}`);
           }
         }
-      } else {
-        console.warn("[MaterialsSelectionTab] Could not find Polyglass materials in ROOFING_MATERIALS");
-      }
+      } 
     }
-    
-    // Update state only if materials were actually added or changed
     if (materialsUpdated) {
-      console.log("[MaterialsSelectionTab] Required low-slope materials were added");
-      
-      // Notify parent of changes
       isInternalChange.current = true;
       setLocalSelectedMaterials(newSelectedMaterials);
       setLocalQuantities(newQuantities);
       setDisplayQuantities(newDisplayQuantities);
-      
-      // Display toast notification to inform user
+      setMaterialWasteFactors(newMaterialWasteFactors); 
+      setUserOverriddenWaste(newUserOverriddenWaste); 
       toast({
         title: "Low-Slope Materials Added",
-        description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.`,
+        description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.` +
+                     ` Actual waste factors applied have been stored.`,
       });
     }
-  }, [measurements, wasteFactor, ROOFING_MATERIALS, toast]);
+    */
+  }, [measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
 
   // Group materials by category using the complete ROOFING_MATERIALS list
   const materialsByCategory = useMemo(() => {
@@ -428,6 +494,8 @@ export function MaterialsSelectionTab({
 
   // Handle Peel & Stick system add-on
   useEffect(() => {
+    // Temporarily commented out for debugging navigation issue
+    /*
     const systemMaterialId = "full-peel-stick-system";
     const peelStickCostPerSquare = 60;
     const systemMaterial = ROOFING_MATERIALS.find(m => m.id === systemMaterialId);
@@ -435,14 +503,15 @@ export function MaterialsSelectionTab({
     let needsUpdate = false;
     let updatedMaterials = { ...localSelectedMaterials };
     let updatedQuantities = { ...localQuantities };
+    let updatedDisplayQuantities = { ...displayQuantities }; 
+    let updatedMaterialWasteFactors = { ...materialWasteFactors }; 
+    let updatedUserOverriddenWaste = { ...userOverriddenWaste }; 
 
-    // Ensure we have necessary data
     if (!measurements?.totalArea || !systemMaterial) {
        setPeelStickPrice("0.00");
        return;
     }
     
-    // Calculate steep slope area (>= 3/12)
     let steepSlopeArea = 0;
     if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
       steepSlopeArea = measurements.areasByPitch
@@ -457,86 +526,165 @@ export function MaterialsSelectionTab({
     }
 
     if (isPeelStickSelected) {
-      // Peel & Stick is ON
       if (steepSlopeArea > 0) {
         const steepSlopeSquares = steepSlopeArea / 100;
         newPeelStickCost = steepSlopeSquares * peelStickCostPerSquare;
-        
-        const systemQuantity = Math.ceil((steepSlopeSquares * (1 + wasteFactor / 100)) / 1.5); 
-
-        // Check if update is needed
+        const { quantity: systemQuantity, actualWasteFactor: peelStickWaste } = calculateMaterialQuantity(
+          systemMaterial,
+          measurements,
+          wasteFactor / 100 
+        );
         const currentQuantity = updatedQuantities[systemMaterialId] || 0;
         if (!updatedMaterials[systemMaterialId] || currentQuantity !== systemQuantity) {
           updatedMaterials[systemMaterialId] = systemMaterial;
           updatedQuantities[systemMaterialId] = systemQuantity;
+          updatedDisplayQuantities[systemMaterialId] = systemQuantity.toString();
+          updatedMaterialWasteFactors[systemMaterialId] = peelStickWaste; 
+          updatedUserOverriddenWaste[systemMaterialId] = false; 
           needsUpdate = true;
         }
       } else {
         newPeelStickCost = 0;
-        // Remove system material if it exists
         if (updatedMaterials[systemMaterialId]) {
            delete updatedMaterials[systemMaterialId];
            delete updatedQuantities[systemMaterialId];
+           delete updatedDisplayQuantities[systemMaterialId];
+           delete updatedMaterialWasteFactors[systemMaterialId];
+           delete updatedUserOverriddenWaste[systemMaterialId]; 
            needsUpdate = true;
         }
       }
     } else {
-      // Peel & Stick is OFF
       newPeelStickCost = 0;
-      // Remove system material if it exists
       if (updatedMaterials[systemMaterialId]) {
         delete updatedMaterials[systemMaterialId];
         delete updatedQuantities[systemMaterialId];
+        delete updatedDisplayQuantities[systemMaterialId];
+        delete updatedMaterialWasteFactors[systemMaterialId];
+        delete updatedUserOverriddenWaste[systemMaterialId]; 
         needsUpdate = true;
       }
     }
-
-    // Update the cost state
     setPeelStickPrice(newPeelStickCost.toFixed(2));
-
-    // If materials/quantities changed, update state
     if (needsUpdate) {
+      isInternalChange.current = true;
       setLocalSelectedMaterials(updatedMaterials);
       setLocalQuantities(updatedQuantities);
+      setDisplayQuantities(updatedDisplayQuantities); 
+      setMaterialWasteFactors(updatedMaterialWasteFactors); 
+      setUserOverriddenWaste(updatedUserOverriddenWaste); 
     }
-  }, [isPeelStickSelected, measurements, wasteFactor]);
+    */
+  }, [isPeelStickSelected, measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
+  
+  // Calculate and set warranty details
+  useEffect(() => {
+    console.log("[WarrantyEffect] START - Selected Warranty:", selectedWarranty, "Selected Package:", selectedPackage, "Measurements:", measurements);
+
+    if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
+      console.log("[WarrantyEffect] No measurements or areasByPitch, setting warrantyDetails to null.");
+      setWarrantyDetails(null);
+      return;
+    }
+
+    const steepSlopeAreaSqFt = measurements.areasByPitch
+      .filter(area => {
+        const pitchParts = area.pitch.split(/[:\\/]/);
+        const rise = parseInt(pitchParts[0] || '0');
+        return !isNaN(rise) && rise >= 3;
+      })
+      .reduce((sum, area) => sum + (area.area || 0), 0);
+    console.log("[WarrantyEffect] Steep Slope Area (sq ft):", steepSlopeAreaSqFt);
+
+    if (steepSlopeAreaSqFt === 0) {
+      console.log("[WarrantyEffect] No steep slope area, setting warrantyDetails to null.");
+      setWarrantyDetails(null); // No warranty cost if no steep slope area
+      return;
+    }
+
+    const steepSlopeSquares = steepSlopeAreaSqFt / 100;
+    const warrantyWasteFactor = 0.12; // 12% waste for warranty calculations
+    const adjustedSteepSlopeSquares = steepSlopeSquares * (1 + warrantyWasteFactor);
+    let calculatedWarrantyCost = 0;
+    let warrantyName = "";
+    let calculationString = "";
+
+    console.log("[WarrantyEffect] Adjusted Steep Slope Squares (with 12% waste):", adjustedSteepSlopeSquares);
+
+    if (selectedWarranty === "silver-pledge" && selectedPackage !== "gaf-2") {
+      warrantyName = "Silver Pledge Warranty";
+      const costPerBlock = 150;
+      const squaresPerBlock = 50;
+      const numberOfBlocks = Math.ceil(adjustedSteepSlopeSquares / squaresPerBlock);
+      calculatedWarrantyCost = numberOfBlocks * costPerBlock;
+      calculationString = `Steep Slope: ${steepSlopeSquares.toFixed(2)} sq, With 12% Waste: ${adjustedSteepSlopeSquares.toFixed(2)} sq. \n      Cost: ${numberOfBlocks} block(s) of ${squaresPerBlock} sq @ $${costPerBlock.toFixed(2)}/block = $${calculatedWarrantyCost.toFixed(2)}.`;
+      console.log("[WarrantyEffect] Silver Pledge calculated:", { warrantyName, calculatedWarrantyCost, calculationString });
+
+    } else if (selectedWarranty === "gold-pledge") {
+      warrantyName = "Gold Pledge Warranty";
+      const costPerSquare = 15;
+      calculatedWarrantyCost = adjustedSteepSlopeSquares * costPerSquare;
+      calculationString = `Steep Slope: ${steepSlopeSquares.toFixed(2)} sq, With 12% Waste: ${adjustedSteepSlopeSquares.toFixed(2)} sq. \n      Cost: ${adjustedSteepSlopeSquares.toFixed(2)} sq @ $${costPerSquare.toFixed(2)}/sq = $${calculatedWarrantyCost.toFixed(2)}.`;
+      console.log("[WarrantyEffect] Gold Pledge calculated:", { warrantyName, calculatedWarrantyCost, calculationString });
+    } else {
+      console.log("[WarrantyEffect] No matching warranty selected or conditions not met.");
+    }
+
+    if (calculatedWarrantyCost > 0) {
+      console.log("[WarrantyEffect] Setting warrantyDetails:", { name: warrantyName, price: calculatedWarrantyCost, calculation: calculationString });
+      setWarrantyDetails({
+        name: warrantyName,
+        price: calculatedWarrantyCost,
+        calculation: calculationString,
+      });
+    } else {
+      console.log("[WarrantyEffect] Calculated warranty cost is 0 or less, setting warrantyDetails to null.");
+      setWarrantyDetails(null);
+    }
+  }, [selectedWarranty, selectedPackage, measurements, wasteFactor]);
   
   // Add material to selection
   const addMaterial = (materialToAdd: Material) => {
-    console.log(`Adding material: ${materialToAdd.id}`);
-    isInternalChange.current = true;
-    
-    const effectiveWasteFactor = materialToAdd.id === "gaf-timberline-hdz-sg" ? 
-      gafTimberlineWasteFactor / 100 : 
-      wasteFactor / 100;
-    
-    const suggestedQuantity = calculateMaterialQuantity(
-      materialToAdd, 
-      measurements, 
-      effectiveWasteFactor
+    // Determine the override waste factor
+    const overrideWaste = materialToAdd.id === "gaf-timberline-hdz-sg" 
+      ? gafTimberlineWasteFactor / 100 
+      : wasteFactor / 100;
+
+    const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
+      materialToAdd,
+      measurements,
+      overrideWaste,
+      dbWastePercentages // Pass database waste percentages
     );
-    
-    setLocalSelectedMaterials(prev => ({
-      ...prev,
-      [materialToAdd.id]: materialToAdd
-    }));
-    
-    setLocalQuantities(prev => ({
-      ...prev,
-      [materialToAdd.id]: suggestedQuantity
-    }));
-    
-    // Update display quantity for Timberline
-    if (materialToAdd.id === "gaf-timberline-hdz-sg") {
-      setDisplayQuantities(prev => ({
-        ...prev,
-        [materialToAdd.id]: (suggestedQuantity / 3).toFixed(1)
-      }));
+
+    console.log(`Adding material: ${materialToAdd.name}, Calculated Qty: ${newQuantity}, Actual WF: ${actualWasteFactor}`);
+
+    if (newQuantity > 0) {
+      isInternalChange.current = true;
+      setLocalSelectedMaterials(prev => ({ ...prev, [materialToAdd.id]: materialToAdd }));
+      setLocalQuantities(prev => ({ ...prev, [materialToAdd.id]: newQuantity }));
+      setMaterialWasteFactors(prev => ({ ...prev, [materialToAdd.id]: actualWasteFactor })); // Store actual waste factor
+      
+      // Update display quantity
+      if (materialToAdd.id === "gaf-timberline-hdz-sg") {
+        setDisplayQuantities(prev => ({ ...prev, [materialToAdd.id]: (newQuantity / 3).toFixed(1) }));
+      } else {
+        setDisplayQuantities(prev => ({ ...prev, [materialToAdd.id]: newQuantity.toString() }));
+      }
+      
+      // Expand category if not already expanded
+      if (!expandedCategories.includes(materialToAdd.category)) {
+        setExpandedCategories(prev => [...prev, materialToAdd.category]);
+      }
+      // Clear selected preset if a material is manually added
+      setSelectedPreset(null); 
+      
     } else {
-      setDisplayQuantities(prev => ({
-        ...prev,
-        [materialToAdd.id]: suggestedQuantity.toString()
-      }));
+      toast({
+        title: "Material Not Added",
+        description: `${materialToAdd.name} quantity calculated to zero or less. Not added.`,
+        variant: "destructive"
+      });
     }
   };
   
@@ -555,38 +703,34 @@ export function MaterialsSelectionTab({
     const newSelectedMaterials = { ...localSelectedMaterials };
     const newQuantities = { ...localQuantities };
     const newDisplayQuantities = { ...displayQuantities };
+    const newMaterialWasteFactors = { ...materialWasteFactors }; // Initialize for this scope
     
     delete newSelectedMaterials[materialId];
     delete newQuantities[materialId];
     delete newDisplayQuantities[materialId];
+    delete newMaterialWasteFactors[materialId];
     
     setLocalSelectedMaterials(newSelectedMaterials);
     setLocalQuantities(newQuantities);
     setDisplayQuantities(newDisplayQuantities);
+    setMaterialWasteFactors(newMaterialWasteFactors); // Set updated waste factors
+    // Clear selected preset if a material is manually removed
+    setSelectedPreset(null);
   };
   
   // Update quantity for a material
   const updateQuantity = (materialId: string, newQuantity: number) => {
-    if (newQuantity < 0) return;
-    
     isInternalChange.current = true;
-    
-    setLocalQuantities(prev => ({
-      ...prev,
-        [materialId]: newQuantity
-    }));
-    
-    // Update display quantity for Timberline
+    setLocalQuantities(prev => ({ ...prev, [materialId]: newQuantity }));
+    // Note: actualWasteFactor is not recalculated on direct quantity update via input field.
+    // It's set when the material is added or when global/GAF waste factors change.
+    // This means manual quantity adjustments won't reflect a change in the *displayed* waste factor for that item
+    // until a global waste factor change triggers a recalculation.
+    // For GAF Timberline, update display quantity (squares)
     if (materialId === "gaf-timberline-hdz-sg") {
-      setDisplayQuantities(prev => ({
-        ...prev,
-        [materialId]: (newQuantity / 3).toFixed(1)
-      }));
+      setDisplayQuantities(prev => ({ ...prev, [materialId]: (newQuantity / 3).toFixed(1) }));
     } else {
-      setDisplayQuantities(prev => ({
-        ...prev,
-        [materialId]: newQuantity.toString()
-      }));
+      setDisplayQuantities(prev => ({ ...prev, [materialId]: newQuantity.toString() }));
     }
   };
   
@@ -601,53 +745,94 @@ export function MaterialsSelectionTab({
   
   // Handle waste factor change
   const handleWasteFactorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseInt(e.target.value);
-    if (isNaN(value)) return;
-    
-    setWasteFactor(Math.max(0, Math.min(50, value))); // Limit between 0-50%
-    
-    // Recalculate quantities with new waste factor
-    const newQuantities = { ...localQuantities };
-    const newDisplayQuantities = { ...displayQuantities };
-    
-    Object.keys(localSelectedMaterials).forEach(materialId => {
-      // Skip GAF Timberline HDZ as it has its own waste factor
-      if (materialId === "gaf-timberline-hdz-sg") return;
+    const newGlobalWastePercentage = parseInt(e.target.value);
+    if (!isNaN(newGlobalWastePercentage) && newGlobalWastePercentage >= 0 && newGlobalWastePercentage <= 50) {
+      setWasteFactor(newGlobalWastePercentage);
+      isInternalChange.current = true;
       
-      const newQuantity = calculateMaterialQuantity(
-        localSelectedMaterials[materialId],
-        measurements,
-        value / 100
-      );
-      
-      newQuantities[materialId] = newQuantity;
-      newDisplayQuantities[materialId] = newQuantity.toString();
-    });
-    
-    setLocalQuantities(newQuantities);
-    setDisplayQuantities(newDisplayQuantities);
+      const newGlobalWasteDecimal = newGlobalWastePercentage / 100;
+      const updatedQuantities: { [key: string]: number } = {};
+      const updatedDisplayQuantities: { [key: string]: string } = {};
+      const updatedMaterialWasteFactors: { [key: string]: number } = {};
+      // User override flags are not changed by global waste factor changes
+
+      for (const materialId in localSelectedMaterials) {
+        const material = localSelectedMaterials[materialId];
+        
+        if (material.id === "gaf-timberline-hdz-sg") {
+          // GAF Timberline HDZ uses its own waste factor, skip it here
+          updatedQuantities[materialId] = localQuantities[materialId]; 
+          updatedDisplayQuantities[materialId] = displayQuantities[materialId]; 
+          updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
+          continue;
+        }
+
+        if (userOverriddenWaste[materialId]) {
+          // User has set a specific waste for this item, so global does not apply
+          updatedQuantities[materialId] = localQuantities[materialId];
+          updatedDisplayQuantities[materialId] = displayQuantities[materialId];
+          updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
+          continue;
+        }
+
+        let overrideForCalc: number | undefined = newGlobalWasteDecimal;
+        if (material.category === MaterialCategory.SHINGLES) {
+          // For non-GAF, non-overridden shingles, global does not set an override, 
+          // so they use their 12% default from utils.ts
+          overrideForCalc = undefined;
+        }
+        // For VENTILATION and ACCESSORIES, they default to 0% waste. 
+        // If global waste is applied, it will override this 0% unless they have a per-item override.
+        // This behavior is implicitly handled by calculateMaterialQuantity if overrideForCalc is passed.
+        
+        const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
+          material,
+          measurements,
+          overrideForCalc,
+          dbWastePercentages // Pass database waste percentages
+        );
+        updatedQuantities[materialId] = newQuantity;
+        updatedMaterialWasteFactors[materialId] = actualWasteFactor; 
+
+        if (material.id === "gaf-timberline-hdz-sg") { 
+          updatedDisplayQuantities[materialId] = (newQuantity / 3).toFixed(1);
+        } else {
+          updatedDisplayQuantities[materialId] = newQuantity.toString();
+        }
+      }
+      setLocalQuantities(updatedQuantities);
+      setDisplayQuantities(updatedDisplayQuantities);
+      setMaterialWasteFactors(updatedMaterialWasteFactors); 
+    }
   };
   
   // Handle GAF Timberline HDZ waste factor change
-  const handleGafTimberlineWasteFactorChange = (newWasteFactor: number) => {
+  const handleGafTimberlineWasteFactorChange = (newWasteFactorInput: number) => {
+    const newWasteFactor = Math.max(0, Math.min(50, newWasteFactorInput)); // Clamp between 0 and 50
     setGafTimberlineWasteFactor(newWasteFactor);
+    isInternalChange.current = true;
     
     // Only update GAF Timberline HDZ SG if it's selected
-    if (localSelectedMaterials["gaf-timberline-hdz-sg"]) {
-      const newQuantity = calculateMaterialQuantity(
-        localSelectedMaterials["gaf-timberline-hdz-sg"],
+    const materialId = "gaf-timberline-hdz-sg";
+    if (localSelectedMaterials[materialId]) {
+      const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
+        localSelectedMaterials[materialId],
         measurements,
-        newWasteFactor / 100
+        newWasteFactor / 100, // Pass the new GAF-specific waste factor
+        dbWastePercentages // Pass database waste percentages
       );
       
       setLocalQuantities(prev => ({
         ...prev,
-        ["gaf-timberline-hdz-sg"]: newQuantity
+        [materialId]: newQuantity
       }));
-      
+      setMaterialWasteFactors(prev => ({ // Store new actual waste factor
+        ...prev,
+        [materialId]: actualWasteFactor 
+      }));
       setDisplayQuantities(prev => ({
         ...prev,
-        ["gaf-timberline-hdz-sg"]: (newQuantity / 3).toFixed(1)
+        [materialId]: (newQuantity / 3).toFixed(1)
       }));
     }
   };
@@ -655,33 +840,18 @@ export function MaterialsSelectionTab({
   // Apply material preset bundle
   const applyPresetBundle = (preset: string) => {
     console.log(`Applying preset bundle: ${preset}`);
-    setSelectedPreset(preset); // Track the selected preset
     isInternalChange.current = true;
-    
-    // Check if the roof has any standard pitches (3/12 or higher)
-    const hasStandardPitchAreas = measurements.areasByPitch.some(
-      area => {
-        const pitchValue = parseInt(area.pitch.split(/[:\/]/)[0]) || 0;
-        return pitchValue >= 3;
-      }
-    );
-    
-    // Start with a fresh selection for preset packages
-    const newSelectedMaterials: {[key: string]: Material} = {};
-    const newQuantities: {[key: string]: number} = {};
-    const newDisplayQuantities: {[key: string]: string} = {};
-    
-    // Preserve mandatory low-pitch materials from current selection
-    Object.entries(localSelectedMaterials).forEach(([materialId, material]) => {
-      if (material.name && material.name.includes("cannot be removed")) {
-        newSelectedMaterials[materialId] = material;
-        newQuantities[materialId] = localQuantities[materialId] || 0;
-        newDisplayQuantities[materialId] = displayQuantities[materialId] || "0";
-      }
-    });
 
-    // UPDATED: Define preset package materials with correct material IDs and detailed descriptions
-    const presetMaterials: { [key: string]: { id: string, description: string }[] } = {
+    // Start with current selections to preserve mandatory/low-slope items
+    let newSelectedMaterials: { [key: string]: Material } = { ...localSelectedMaterials };
+    let newQuantities: { [key: string]: number } = { ...localQuantities };
+    let newDisplayQuantities: { [key: string]: string } = { ...displayQuantities };
+    let newMaterialWasteFactors: { [key: string]: number } = { ...materialWasteFactors };
+    
+    let atLeastOneMaterialAddedOrChanged = false;
+
+    // Define preset package materials
+    const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
       "GAF 1": [
         { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
         { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
@@ -703,14 +873,14 @@ export function MaterialsSelectionTab({
         { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
         { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
       ],
-      "OC 1": [
+      "OC 1": [ 
         { id: "oc-oakridge", description: "OC Oakridge (Shingles)" },
         { id: "oc-hip-ridge", description: "OC Hip & Ridge (Ridge Cap)" },
         { id: "oc-starter", description: "OC Starter Shingle Strip" },
         { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" }
       ],
-      "OC 2": [
+      "OC 2": [ 
         { id: "oc-duration", description: "OC Duration (Shingles)" },
         { id: "oc-hip-ridge", description: "OC Hip & Ridge (Ridge Cap)" },
         { id: "oc-starter", description: "OC Starter Shingle Strip" },
@@ -719,129 +889,133 @@ export function MaterialsSelectionTab({
       ]
     };
     
-    // Show notification if there are no standard pitch areas
-    if (!hasStandardPitchAreas) {
-      toast({
-        title: "Low-Slope Roof Detected",
-        description: `Your roof only has low-slope areas (0/12, 1/12, or 2/12). The ${preset} package will only apply to any standard pitch areas, while the special low-slope materials will be used for your low-slope areas.`,
-      });
+    // Clear out existing non-mandatory materials before applying preset
+    const clearedSelectedMaterials: { [key: string]: Material } = {};
+    const clearedQuantities: { [key: string]: number } = {};
+    const clearedDisplayQuantities: { [key: string]: string } = {};
+    const clearedMaterialWasteFactors: { [key: string]: number } = {};
+
+    Object.entries(localSelectedMaterials).forEach(([matId, mat]) => {
+        if (mat.name && mat.name.includes("cannot be removed")) {
+            clearedSelectedMaterials[matId] = mat;
+            clearedQuantities[matId] = localQuantities[matId] || 0;
+            clearedDisplayQuantities[matId] = displayQuantities[matId] || "0";
+            if (materialWasteFactors[matId] !== undefined) {
+                clearedMaterialWasteFactors[matId] = materialWasteFactors[matId];
+            }
+        }
+    });
+    newSelectedMaterials = clearedSelectedMaterials;
+    newQuantities = clearedQuantities;
+    newDisplayQuantities = clearedDisplayQuantities;
+    newMaterialWasteFactors = clearedMaterialWasteFactors;
+
+
+    const materialsToAddFromPreset = PRESET_BUNDLES[preset];
+    if (!materialsToAddFromPreset) {
+      console.error(`Preset ${preset} not found!`);
+      toast({ title: "Error", description: `Preset ${preset} not found.`, variant: "destructive" });
+      return;
     }
     
-    // Debug log
-    console.log("Preset materials to add:", presetMaterials[preset].map(m => m.id));
-    console.log("Finding materials in ROOFING_MATERIALS array with", ROOFING_MATERIALS.length, "items");
+    const hasStandardPitchAreas = measurements.areasByPitch.some(
+      area => {
+        const pitchParts = area.pitch.split(/[:\\/]/);
+        const rise = parseInt(pitchParts[0] || '0');
+        return !isNaN(rise) && rise >= 3;
+      }
+    );
     
-    // UPDATED: Always try to add materials even if no standard pitch areas
-    // This ensures materials like feltbuster that work on all pitches are still added
-    const materialsToAdd = presetMaterials[preset] || [];
+    if (!hasStandardPitchAreas && materialsToAddFromPreset.some(item => ROOFING_MATERIALS.find(m => m.id === item.id)?.category === MaterialCategory.SHINGLES)) {
+        toast({
+            title: "No Standard Pitch Areas",
+            description: "This preset includes shingles, but no standard pitch roof areas (>= 3/12) were found. Shingle quantities may be zero.",
+            variant: "default", 
+            duration: 7000,
+        });
+    }
     
-    materialsToAdd.forEach(({ id: materialId, description }) => {
-      // Skip if the material was already added (e.g., mandatory materials)
-        if (newSelectedMaterials[materialId]) {
-        console.log(`Material ${materialId} (${description}) already selected, skipping`);
-           return;
-        }
-        
-      // Find the material in ROOFING_MATERIALS
-        const material = ROOFING_MATERIALS.find(m => m.id === materialId);
-      
+    materialsToAddFromPreset.forEach(({ id: materialId, description }) => {
+      const material = ROOFING_MATERIALS.find(m => m.id === materialId);
       if (!material) {
-        console.error(`Material with ID ${materialId} (${description}) not found in ROOFING_MATERIALS`);
-        return;
+        console.error(`Material with ID ${materialId} (${description}) not found in ROOFING_MATERIALS for preset.`);
+        return; 
       }
       
-      console.log(`Found material: ${material.id} - ${material.name} (${description})`);
+      // Determine override waste factor for this material
+      const overrideWaste = material.id === "gaf-timberline-hdz-sg" 
+        ? gafTimberlineWasteFactor / 100 
+        : wasteFactor / 100;
+
+      let calculatedQuantityData = calculateMaterialQuantity(
+        material,
+        measurements,
+        overrideWaste,
+        dbWastePercentages // Pass database waste percentages
+      );
       
-      const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
-        gafTimberlineWasteFactor / 100 : 
-        wasteFactor / 100;
-      
-      // Special handling for WeatherWatch (valleys only)
-          if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
-            const valleyLength = measurements.valleyLength || 0;
-            if (valleyLength > 0) {
-              const rollsNeeded = Math.ceil(valleyLength / 45.5);
-              
-              const valleyOnlyMaterial = { ...material };
-              valleyOnlyMaterial.name = "GAF WeatherWatch Ice & Water Shield (valleys only)";
-              newSelectedMaterials[materialId] = valleyOnlyMaterial;
-              newQuantities[materialId] = rollsNeeded;
-          newDisplayQuantities[materialId] = rollsNeeded.toString();
-          console.log(`Added valley-only material ${materialId} (${description}) with quantity ${rollsNeeded}`);
-          } else {
-          console.log(`Skipping ${materialId} (${description}) as there's no valley length`);
-        }
-      } 
-      // For shingles and other materials, only add if there are standard pitch areas or if it's applicable to all pitches
-      else if (material.category === MaterialCategory.SHINGLES && !hasStandardPitchAreas) {
-        // Skip shingles if there are no standard pitch areas
-        console.log(`Skipping shingle ${materialId} (${description}) as there are no standard pitch areas`);
-        return;
-      }
-      else {
-        // Standard calculation for other materials
-        const quantity = calculateMaterialQuantity(
-              material, 
-              measurements, 
-              effectiveWasteFactor
-            );
-            
-        // Only skip if the quantity is zero AND it's not a material that might be manually entered
-        if (quantity <= 0 && !materialId.includes('karnak') && !materialId.includes('sealant') && !materialId.includes('pipe-flashing')) {
-          console.log(`Calculated quantity for ${materialId} (${description}) is ${quantity}, skipping`);
-          return; // Skip if quantity is zero or negative
-        }
-        
-        // For certain materials, provide a minimum quantity if calculation returns zero
-        let finalQuantity = quantity;
-        if (quantity <= 0) {
-          if (materialId.includes('sealant')) {
-            finalQuantity = 2; // Minimum 2 tubes of sealant
-          } else if (materialId.includes('karnak')) {
-            finalQuantity = 1; // Minimum 1 spray can
-          } else if (materialId.includes('pipe-flashing')) {
-            finalQuantity = 1; // Minimum 1 pipe flashing
-          }
-        }
-        
-        newSelectedMaterials[materialId] = material;
-        newQuantities[materialId] = finalQuantity;
-        
-        if (material.id === "gaf-timberline-hdz-sg") {
-          newDisplayQuantities[materialId] = (finalQuantity / 3).toFixed(1);
+      let finalQuantity = calculatedQuantityData.quantity;
+      const actualWasteFactorForMaterial = calculatedQuantityData.actualWasteFactor;
+
+      // Special handling for WeatherWatch in GAF presets (valleys only)
+      if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
+        const valleyLength = measurements.valleyLength || 0;
+        if (valleyLength > 0) {
+          // Recalculate specifically for valley, assuming a rule exists or it's handled in calculateMaterialQuantity
+          // For simplicity, we'll rely on calculateMaterialQuantity to correctly use valleyLength if the material ID indicates it
+          // No change needed here if calculateMaterialQuantity is robust.
+          // We might want a specific valley-only version if its calculation is very different and not covered by the generic one.
+          // For now, let's assume calculateMaterialQuantity is sufficient.
+          // The name modification should happen when displaying or storing.
         } else {
-          newDisplayQuantities[materialId] = finalQuantity.toString();
+          finalQuantity = 0; // No valley, no valley material
         }
-        
-        console.log(`Added material ${materialId} (${description}) with quantity ${finalQuantity}`);
       }
+      
+      if (material.category === MaterialCategory.SHINGLES && !hasStandardPitchAreas) {
+        finalQuantity = 0; // No standard pitch, no shingles
+      }
+      
+      if (finalQuantity <= 0) {
+        if (materialId.includes('sealant')) finalQuantity = 2;
+        else if (materialId.includes('karnak') && materialId.includes('spray')) finalQuantity = 1;
+        else if (materialId.includes('karnak') && !materialId.includes('spray')) finalQuantity = 1;
+        else if (materialId.includes('pipe-flashing')) finalQuantity = Math.max(1, measurements?.numPipeJack1 ?? 1);
+        // If still 0 after minimums, and not a typically manually-set item, skip it
+        if (finalQuantity <=0 && !materialId.includes('karnak') && !materialId.includes('sealant') && !materialId.includes('pipe-flashing')) {
+            console.log(`Preset material ${materialId} (${description}) quantity is ${finalQuantity}, skipping.`);
+            return; 
+        }
+      }
+      
+      const materialToStore = (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2") && (measurements.valleyLength || 0) > 0)
+        ? { ...material, name: `${material.name} (Valleys Only)` } 
+        : material;
+
+      newSelectedMaterials[materialId] = materialToStore;
+      newQuantities[materialId] = finalQuantity;
+      newMaterialWasteFactors[materialId] = actualWasteFactorForMaterial;
+      atLeastOneMaterialAddedOrChanged = true;
+
+      if (material.id === "gaf-timberline-hdz-sg") {
+        newDisplayQuantities[materialId] = (finalQuantity / 3).toFixed(1);
+      } else {
+        newDisplayQuantities[materialId] = finalQuantity.toString();
+      }
+      console.log(`Preset: Added/Updated ${materialId} (${description}) Qty: ${finalQuantity}, ActualWF: ${actualWasteFactorForMaterial}`);
     });
+
+    if (atLeastOneMaterialAddedOrChanged || Object.keys(newSelectedMaterials).length !== Object.keys(localSelectedMaterials).length) {
+        setLocalSelectedMaterials(newSelectedMaterials);
+        setLocalQuantities(newQuantities);
+        setDisplayQuantities(newDisplayQuantities);
+        setMaterialWasteFactors(newMaterialWasteFactors);
+    }
     
-    console.log("Final materials to set:", Object.keys(newSelectedMaterials));
-    console.log("Quantities:", newQuantities);
-    
-    // Update state with new materials and quantities
-    setLocalSelectedMaterials(newSelectedMaterials);
-    setLocalQuantities(newQuantities);
-    setDisplayQuantities(newDisplayQuantities);
-    
-    // Add a visual confirmation toast
-    const addedCount = Object.keys(newSelectedMaterials).length;
-    const materialNamesAdded = Object.values(newSelectedMaterials)
-      .map(m => m.name.split('(')[0].trim()) // Get just the base name without any parenthetical info
-      .sort((a, b) => a.localeCompare(b))
-      .join(", ");
-    
-    const toastDescription = addedCount > 0
-      ? `Added ${addedCount} materials: ${materialNamesAdded.length > 100 
-          ? materialNamesAdded.substring(0, 97) + '...' 
-          : materialNamesAdded}`
-      : "No new materials were added. All materials may already be selected or not applicable for this roof.";
-    
+    setSelectedPreset(preset); 
     toast({
-      title: `${preset} Package Applied`,
-      description: toastDescription,
-      variant: "default"
+      title: `Preset Applied: ${preset}`,
+      description: "Materials have been updated. Previously selected (non-mandatory) items were cleared.",
     });
   };
   
@@ -883,6 +1057,11 @@ export function MaterialsSelectionTab({
       const numericPeelStickPrice = parseFloat(peelStickPrice) || 0;
       materialsTotal += numericPeelStickPrice;
     }
+
+    // Add warranty cost
+    if (warrantyDetails && warrantyDetails.price > 0) {
+      materialsTotal += warrantyDetails.price;
+    }
     
     return materialsTotal;
   };
@@ -903,133 +1082,51 @@ export function MaterialsSelectionTab({
   
   // Format calculation logic with actual measurements and show estimated quantity
   const formatCalculationWithMeasurements = (material: Material): string => {
-    if (!material.coverageRule?.calculation || !measurements) return material.coverageRule?.calculation || "";
-    
-    let calculationText = material.coverageRule.calculation;
-    
-    // Replace generic terms with actual measurements
-    if (calculationText.includes("Ridge Length")) {
-      calculationText = calculationText.replace("Ridge Length", `Ridge Length (${measurements.ridgeLength || 0} ft)`);
+    if (!measurements || !material.coverageRule) {
+      return "Coverage rule or measurements not available.";
     }
+
+    // Prioritize material.coverageRule.calculation for a more detailed base string
+    let calculationText = material.coverageRule.calculation || material.coverageRule.description || "No calculation or description available.";
     
-    if (calculationText.includes("Hip Length")) {
-      calculationText = calculationText.replace("Hip Length", `Hip Length (${measurements.hipLength || 0} ft)`);
+    // If the chosen string is effectively empty or a placeholder for no rule, return a clearer message.
+    if (calculationText === "No calculation or description available." || calculationText.toLowerCase().includes("manual quantity selection")) {
+        // For manual selection, just state that, and then show the quantity and unit if available.
+        const quantity = localQuantities[material.id] || 0;
+        if (calculationText.toLowerCase().includes("manual quantity selection")) {
+            return `Manual quantity selection → ${quantity} ${material.unit}${quantity !== 1 ? 's' : ''} selected`;
+        }
+        return calculationText; // Returns "No calculation or description available."
     }
+
+    const currentActualWasteFactor = materialWasteFactors[material.id]; // Get from state
+
+    // Replace placeholders with actual measurement values
+    calculationText = calculationText.replace("Total Area", `Total Area (${measurements?.totalArea?.toFixed(1) || 'N/A'} sq ft)`);
+    calculationText = calculationText.replace("Total Roof Area", `Total Roof Area (${measurements?.totalArea?.toFixed(1) || 'N/A'} sq ft)`);
+    calculationText = calculationText.replace("Steep Slope Area", `Steep Slope Area (${measurements?.steepSlopeArea?.toFixed(1) ?? 'N/A'} sq ft)`);
+    calculationText = calculationText.replace("Eaves LF", `Eaves (${measurements?.eaveLength?.toFixed(1) || 'N/A'} LF)`);
+    calculationText = calculationText.replace("Eave Length", `Eave Length (${measurements?.eaveLength?.toFixed(1) || 'N/A'} LF)`);
+    calculationText = calculationText.replace("Rake Length", `Rake Length (${measurements?.rakeLength?.toFixed(1) || 'N/A'} LF)`);
+    calculationText = calculationText.replace("Ridge Length", `Ridge Length (${measurements?.ridgeLength?.toFixed(1) || 'N/A'} LF)`);
+    calculationText = calculationText.replace("Hip Length", `Hip Length (${measurements?.hipLength?.toFixed(1) || 'N/A'} LF)`);
+    calculationText = calculationText.replace("Valley Length", `Valley Length (${measurements?.valleyLength?.toFixed(1) || 'N/A'} LF)`);
+    calculationText = calculationText.replace("Step Flashing LF", `Step Flashing (${measurements?.stepFlashingLength?.toFixed(1) || 'N/A'} LF)`);
+    calculationText = calculationText.replace("Wall Flashing LF", `Wall Flashing (${measurements?.wallFlashingLength?.toFixed(1) ?? 'N/A'} LF)`);
+    calculationText = calculationText.replace("Ridges LF", `Ridges (${measurements?.ridgeLength?.toFixed(1) || 'N/A'} LF)`); // Assuming ridges = ridge length for vents
+    calculationText = calculationText.replace("Total Squares", `Total Squares (${((measurements?.totalArea ?? 0) / 100)?.toFixed(1) || 'N/A'})`);
     
-    if (calculationText.includes("Valley Length")) {
-      calculationText = calculationText.replace("Valley Length", `Valley Length (${measurements.valleyLength || 0} ft)`);
+    // Replace waste percentage placeholder if it exists
+    if (currentActualWasteFactor !== undefined) {
+        calculationText = calculationText.replace("Waste%", `${(currentActualWasteFactor * 100).toFixed(0)}% Waste`);
+    } else {
+        // Fallback if somehow not set, though it should be
+        const fallbackWaste = material.id === "gaf-timberline-hdz-sg" 
+            ? gafTimberlineWasteFactor 
+            : (material.category === MaterialCategory.VENTILATION || material.category === MaterialCategory.ACCESSORIES ? 0 : wasteFactor);
+        calculationText = calculationText.replace("Waste%", `${fallbackWaste.toFixed(0)}% Waste`);
     }
-    
-    if (calculationText.includes("Eave Length")) {
-      calculationText = calculationText.replace("Eave Length", `Eave Length (${measurements.eaveLength || 0} ft)`);
-    }
-    
-    if (calculationText.includes("Rake Length")) {
-      calculationText = calculationText.replace("Rake Length", `Rake Length (${measurements.rakeLength || 0} ft)`);
-    }
-    
-    if (calculationText.includes("Step Flashing Length")) {
-      calculationText = calculationText.replace("Step Flashing Length", `Step Flashing Length (${measurements.stepFlashingLength || 0} ft)`);
-    }
-    
-    if (calculationText.includes("Drip Edge Length")) {
-      calculationText = calculationText.replace("Drip Edge Length", `Drip Edge Length (${measurements.dripEdgeLength || 0} ft)`);
-    }
-    
-    if (calculationText.includes("Total Squares")) {
-      const totalSquares = (measurements.totalArea || 0) / 100;
-      calculationText = calculationText.replace("Total Squares", `Total Squares (${totalSquares.toFixed(1)})`);
-    }
-    
-    if (calculationText.includes("Total Roof Area")) {
-      calculationText = calculationText.replace("Total Roof Area", `Total Roof Area (${measurements.totalArea || 0} sq ft)`);
-    }
-    
-    // Special calculation for low slope areas - used by Polyglass materials and ISO board
-    if (material.id === "polyglass-elastoflex-sbs" || material.id === "polyglass-polyflex-app") {
-      // Calculate low slope area (<= 2/12)
-      let lowSlopeArea = 0;
-      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
-        lowSlopeArea = measurements.areasByPitch
-          .filter(area => {
-            const pitchParts = area.pitch.split(/[:\\/]/);
-            const rise = parseInt(pitchParts[0] || '0');
-            return !isNaN(rise) && rise <= 2;
-          })
-          .reduce((sum, area) => sum + (area.area || 0), 0);
-      }
-      
-      // Create a replacement for the calculation text that shows the actual math
-      const squaresNeeded = lowSlopeArea / 100;
-      const wasteFactorForLowSlope = wasteFactor / 100;
-      const squaresWithWaste = squaresNeeded * (1 + wasteFactorForLowSlope);
-      
-      if (material.id === "polyglass-elastoflex-sbs") {
-        const coveragePerRoll = 0.625; // coverage per roll in squares
-        const rollsNeeded = Math.ceil(squaresWithWaste / coveragePerRoll);
-        
-        // Show detailed calculation
-        calculationText = `Low Slope Area (${lowSlopeArea.toFixed(1)} sq ft) ÷ 100 = ${squaresNeeded.toFixed(2)} squares`;
-        calculationText += ` → With ${wasteFactor}% waste: ${squaresWithWaste.toFixed(2)} squares`;
-        calculationText += ` → ${squaresWithWaste.toFixed(2)} squares ÷ ${coveragePerRoll} sq/roll = ${(squaresWithWaste / coveragePerRoll).toFixed(2)} rolls`;
-        calculationText += ` → ${rollsNeeded} rolls needed (rounded up)`;
-        
-        return calculationText;
-      }
-      
-      if (material.id === "polyglass-polyflex-app") {
-        const coveragePerRoll = 0.8; // coverage per roll in squares
-        const rollsNeeded = Math.ceil(squaresWithWaste / coveragePerRoll);
-        
-        // Show detailed calculation
-        calculationText = `Low Slope Area (${lowSlopeArea.toFixed(1)} sq ft) ÷ 100 = ${squaresNeeded.toFixed(2)} squares`;
-        calculationText += ` → With ${wasteFactor}% waste: ${squaresWithWaste.toFixed(2)} squares`;
-        calculationText += ` → ${squaresWithWaste.toFixed(2)} squares ÷ ${coveragePerRoll} sq/roll = ${(squaresWithWaste / coveragePerRoll).toFixed(2)} rolls`;
-        calculationText += ` → ${rollsNeeded} rolls needed (rounded up)`;
-        
-        return calculationText;
-      }
-    }
-    
-    // Special calculation for GAF Poly ISO
-    if (material.id === "gaf-poly-iso-4x8") {
-      // Calculate only 0/12 pitch area
-      let zeroPitchArea = 0;
-      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
-        zeroPitchArea = measurements.areasByPitch
-          .filter(area => ["0:12", "0/12"].includes(area.pitch))
-          .reduce((sum, area) => sum + (area.area || 0), 0);
-      }
-      
-      // Create a replacement for the calculation text that shows the actual math
-      const squareFtPerBoard = 32; // 4x8 = 32 sq ft per board
-      const wasteFactorForISO = wasteFactor / 100;
-      const boardsNeeded = Math.ceil((zeroPitchArea * (1 + wasteFactorForISO)) / squareFtPerBoard);
-      
-      // Show detailed calculation
-      calculationText = `0/12 Pitch Area (${zeroPitchArea.toFixed(1)} sq ft)`;
-      calculationText += ` → With ${wasteFactor}% waste: ${(zeroPitchArea * (1 + wasteFactorForISO)).toFixed(1)} sq ft`;
-      calculationText += ` → ${(zeroPitchArea * (1 + wasteFactorForISO)).toFixed(1)} sq ft ÷ ${squareFtPerBoard} sq ft/board = ${((zeroPitchArea * (1 + wasteFactorForISO)) / squareFtPerBoard).toFixed(2)} boards`;
-      calculationText += ` → ${boardsNeeded} boards needed (rounded up)`;
-      
-      return calculationText;
-    }
-    
-    if (calculationText.includes("Steep Slope Area")) {
-      // Calculate steep slope area (>= 3/12)
-      let steepSlopeArea = 0;
-      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
-        steepSlopeArea = measurements.areasByPitch
-          .filter(area => {
-            const pitchParts = area.pitch.split(/[:\\/]/);
-            const rise = parseInt(pitchParts[0] || '0');
-            return !isNaN(rise) && rise >= 3;
-          })
-          .reduce((sum, area) => sum + (area.area || 0), 0);
-      }
-      calculationText = calculationText.replace("Steep Slope Area (>= 3/12)", `Steep Slope Area (${steepSlopeArea.toFixed(1)} sq ft)`);
-    }
-    
+
     if (calculationText.includes("Low Slope Area")) {
       // Calculate low slope area (<= 2/12)
       let lowSlopeArea = 0;
@@ -1043,24 +1140,44 @@ export function MaterialsSelectionTab({
           .reduce((sum, area) => sum + (area.area || 0), 0);
       }
       calculationText = calculationText.replace("Low Slope Area (<= 2/12)", `Low Slope Area (${lowSlopeArea.toFixed(1)} sq ft)`);
+      calculationText = calculationText.replace("Low Slope Area (0-2 pitch)", `Low Slope Area (0-2 pitch) (${lowSlopeArea.toFixed(1)} sq ft)`);
+    }
+    
+    if (calculationText.includes("0/12 pitch area")) {
+        let zeroPitchArea = 0;
+        if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+            zeroPitchArea = measurements.areasByPitch
+            .filter(area => ["0:12", "0/12"].includes(area.pitch))
+            .reduce((sum, area) => sum + (area.area || 0), 0);
+        }
+        calculationText = calculationText.replace("0/12 pitch area", `0/12 Area (${zeroPitchArea.toFixed(1)} sq ft)`);
     }
     
     // Calculate and add the estimated quantity
-    const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
-      gafTimberlineWasteFactor / 100 : 
-      wasteFactor / 100;
+    // const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
+    //   gafTimberlineWasteFactor / 100 : 
+    //   wasteFactor / 100;
       
+    // const quantity = localQuantities[material.id] || 0;
+    // const estimatedQuantity = calculateMaterialQuantity(material, measurements, effectiveWasteFactor);
+    // No longer need to recalculate here, use stored quantity and waste factor.
+    
     const quantity = localQuantities[material.id] || 0;
-    const estimatedQuantity = calculateMaterialQuantity(material, measurements, effectiveWasteFactor);
     
     // Add a summary showing the calculated quantity that matches the displayed quantity
     calculationText += ` → ${quantity} ${material.unit}${quantity !== 1 ? 's' : ''} needed`;
+    if (currentActualWasteFactor !== undefined && material.category !== MaterialCategory.VENTILATION && material.category !== MaterialCategory.ACCESSORIES) {
+        calculationText += ` (inc. ${(currentActualWasteFactor * 100).toFixed(0)}% waste)`;
+    }
     
     // For shingles that use bundles/squares, show square footage too
     if (material.id === "gaf-timberline-hdz-sg" || 
-        material.category === MaterialCategory.SHINGLES && material.bundlesPerSquare) {
-      const squares = quantity / (material.bundlesPerSquare || 3);
-      calculationText += ` (${squares.toFixed(1)} squares)`;
+        (material.category === MaterialCategory.SHINGLES && material.bundlesPerSquare)) {
+      const bundlesPerSq = material.bundlesPerSquare || (material.id === "gaf-timberline-hdz-sg" ? 3 : undefined);
+      if (bundlesPerSq) {
+        const squares = quantity / bundlesPerSq;
+        calculationText += ` (${squares.toFixed(1)} squares)`;
+      }
     }
     
     return calculationText;
@@ -1071,6 +1188,7 @@ export function MaterialsSelectionTab({
     const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
     const bundleQuantity = localQuantities[materialId] || 0;
     const isMandatory = material.name && isMandatoryMaterial(material.name);
+    const currentWasteFactorForMaterial = materialWasteFactors[materialId];
     
     const displayQuantity = displayQuantities[materialId] || (isGafTimberline ? '0.0' : '0');
 
@@ -1090,6 +1208,63 @@ export function MaterialsSelectionTab({
             const newQuantity = parseInt(rawValue) || 0;
             updateQuantity(materialId, newQuantity);
         }
+    };
+
+    const handlePerMaterialWasteChange = (materialId: string, newWastePercentage: string) => {
+      const newWaste = parseFloat(newWastePercentage);
+      if (!isNaN(newWaste) && newWaste >= 0 && newWaste <= 100) { // Allow 0-100% for per-item
+        isInternalChange.current = true;
+        const newWasteDecimal = newWaste / 100;
+        setMaterialWasteFactors(prev => ({ ...prev, [materialId]: newWasteDecimal }));
+
+        // Recalculate quantity for this material only
+        const { quantity: updatedQuantity, actualWasteFactor: finalWasteFactor } = calculateMaterialQuantity(
+          material,
+          measurements,
+          newWasteDecimal, // Pass the new per-material waste as override
+          dbWastePercentages // Pass database waste percentages
+        );
+
+        // Save the waste factor to the database
+        updateMaterialWastePercentage(materialId, newWaste)
+          .then(success => {
+            if (success) {
+              console.log(`Updated waste percentage for ${materialId} in database: ${newWaste}%`);
+              // Update local state with the new value
+              setDbWastePercentages(prev => ({ ...prev, [materialId]: newWaste }));
+            } else {
+              console.error(`Failed to update waste percentage for ${materialId} in database`);
+            }
+          })
+          .catch(error => {
+            console.error(`Error updating waste percentage in database:`, error);
+          });
+
+        setLocalQuantities(prev => ({ ...prev, [materialId]: updatedQuantity }));
+        // Ensure materialWasteFactors is updated with the actualWasteFactor used, which should be newWasteDecimal
+        setMaterialWasteFactors(prev => ({ ...prev, [materialId]: finalWasteFactor })); 
+
+        if (isGafTimberline) {
+          setDisplayQuantities(prev => ({ ...prev, [materialId]: (updatedQuantity / 3).toFixed(1) }));
+        } else {
+          setDisplayQuantities(prev => ({ ...prev, [materialId]: updatedQuantity.toString() }));
+        }
+        toast({ title: `${material.name} waste factor updated to ${newWaste.toFixed(0)}%`, duration: 2000 });
+      } else if (newWastePercentage === "") {
+        // If input is cleared, maybe reset to category default? For now, do nothing or set to 0?
+        // Let's set it to 0 if cleared, and recalculate.
+        isInternalChange.current = true;
+        setMaterialWasteFactors(prev => ({ ...prev, [materialId]: 0 }));
+        const { quantity: updatedQuantity, actualWasteFactor: finalWasteFactor } = calculateMaterialQuantity(material, measurements, 0);
+        setLocalQuantities(prev => ({ ...prev, [materialId]: updatedQuantity }));
+        setMaterialWasteFactors(prev => ({ ...prev, [materialId]: finalWasteFactor }));
+        if (isGafTimberline) {
+          setDisplayQuantities(prev => ({ ...prev, [materialId]: (updatedQuantity / 3).toFixed(1) }));
+        } else {
+          setDisplayQuantities(prev => ({ ...prev, [materialId]: updatedQuantity.toString() }));
+        }
+        toast({ title: `${material.name} waste factor set to 0%`, duration: 2000 });
+      }
     };
 
     let baseName = material.name || "";
@@ -1183,27 +1358,30 @@ export function MaterialsSelectionTab({
           
           {/* Add detailed material info */}
           <div className="text-xs text-muted-foreground space-y-0.5">
-            {/* Display price information */}
-            <p>– Price: {formatPrice(material.price)} per {material.unit}
+            {/* Display price information - This is now primarily handled by the summary price line above this section. */}
+            {/* <p>– Price: {formatPrice(material.price)} per {material.unit}
             {material.approxPerSquare && material.approxPerSquare > 0 && 
                <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
             }
             {material.id === 'full-peel-stick-system' && 
                 <span className="italic"> (Cost included in Add-on Price)</span>
             }
-            </p>
+            </p> */}
             
-            {/* Display coverage rule */}
-            {material.coverageRule?.description && (
+            {/* Display coverage rule - This is now incorporated into 'Calculation Details' */}
+            {/* {material.coverageRule?.description && (
               <p>– Coverage Rule: {material.coverageRule.description}</p>
+            )} */}
+            
+            {/* Consolidated Calculation Details */}
+            {material.coverageRule && ( // Show if any coverage rule exists
+              <p>– Calculation Details: {formatCalculationWithMeasurements(material)}</p>
             )}
             
-            {/* Display calculation logic */}
-            {material.coverageRule?.calculation && (
-              <p>– Calculation Logic: {formatCalculationWithMeasurements(material)}</p>
-            )}
-            
-            {/* Display bundle/square info for shingles if not already covered */}
+            {/* Display bundle/square info for shingles if not already covered (fallback) */}
+            {/* This condition might need review: show if no rule.description but getBundleInfo() is truthy? 
+                However, getBundleInfo is mostly for GAF timberline or items with bundlesPerSquare, 
+                which should have coverage rules. For now, this fallback remains as is. */}
             {!material.coverageRule?.description && getBundleInfo() && (
               <p>– {getBundleInfo()}</p>
             )}
@@ -1433,8 +1611,8 @@ export function MaterialsSelectionTab({
              </Accordion>
           </CardContent>
           <CardFooter className="flex justify-between">
-             <Button type="button" variant="outline" onClick={() => onMaterialsUpdate({ selectedMaterials: {}, quantities: {}, peelStickPrice: "0.00" })} className="flex items-center gap-2"><ChevronLeft className="h-4 w-4" />Back to Measurements</Button>
-             <Button onClick={() => onMaterialsUpdate({ selectedMaterials: localSelectedMaterials, quantities: localQuantities, peelStickPrice })} disabled={Object.keys(localSelectedMaterials).length === 0} className="flex items-center gap-2">Continue</Button>
+             <Button type="button" variant="outline" onClick={() => onMaterialsUpdate({ selectedMaterials: {}, quantities: {}, peelStickPrice: "0.00", warrantyCost: 0, warrantyDetails: null, isNavigatingBack: true })} className="flex items-center gap-2"><ChevronLeft className="h-4 w-4" />Back to Measurements</Button>
+             <Button onClick={() => onMaterialsUpdate({ selectedMaterials: localSelectedMaterials, quantities: localQuantities, peelStickPrice, warrantyCost: warrantyDetails?.price || 0, warrantyDetails, isNavigatingBack: false })} disabled={Object.keys(localSelectedMaterials).length === 0} className="flex items-center gap-2">Continue</Button>
            </CardFooter>
         </Card>
       </div>
@@ -1444,7 +1622,7 @@ export function MaterialsSelectionTab({
         <Card>
           <CardHeader><CardTitle>Selected Materials</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            {Object.keys(localSelectedMaterials).length === 0 ? (
+            {Object.keys(localSelectedMaterials).length === 0 && !warrantyDetails ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p>No materials selected yet</p>
                 <p className="text-sm mt-2">Select materials from the list</p>
@@ -1455,6 +1633,23 @@ export function MaterialsSelectionTab({
                    if (!material || !material.id) return null; 
                    return renderSelectedMaterial(materialId, material);
                  })}
+                {/* Display Warranty Details */}
+                {warrantyDetails && warrantyDetails.price > 0 && (
+                  <div className="p-3 rounded-md border border-purple-300 bg-purple-50">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-gray-800">{warrantyDetails.name}</span>
+                      <Badge variant="default" className="ml-2 bg-purple-600 text-white text-xs px-1.5 py-0.5">
+                        Warranty
+                      </Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-1">
+                      {formatPrice(warrantyDetails.price)}
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>– Calculation Logic: {warrantyDetails.calculation}</p>
+                    </div>
+                  </div>
+                )}
                  <div className="flex justify-between font-medium text-lg pt-2 border-t">
                    <span>Total:</span>
                    <span>{formatPrice(calculateEstimateTotal())}</span>

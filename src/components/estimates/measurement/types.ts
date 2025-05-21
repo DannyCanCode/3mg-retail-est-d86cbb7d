@@ -19,6 +19,11 @@ export interface MeasurementValues {
   predominantPitch: string;
   roofPitch?: string;
   
+  // Newly added optional properties based on usage in MaterialsSelectionTab
+  steepSlopeArea?: number; 
+  wallFlashingLength?: number;
+  numPipeJack1?: number;
+  
   // Count fields
   ridgeCount: number;
   hipCount: number;
