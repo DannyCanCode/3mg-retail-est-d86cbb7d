@@ -679,7 +679,7 @@ export function MaterialsSelectionTab({
         setDisplayQuantities(prev => ({ ...prev, [materialToAdd.id]: newQuantity.toString() }));
       }
       
-      // Expand category if not already expanded
+      // Ensure category remains expanded by explicitly setting the expanded categories
       if (!expandedCategories.includes(materialToAdd.category)) {
         setExpandedCategories(prev => [...prev, materialToAdd.category]);
       }
@@ -1595,7 +1595,11 @@ export function MaterialsSelectionTab({
              </div>
              
              {/* Materials Accordion */}
-             <Accordion type="multiple" defaultValue={[MaterialCategory.SHINGLES]} className="w-full">
+             <Accordion 
+               type="multiple" 
+               value={expandedCategories}
+               onValueChange={setExpandedCategories}
+               className="w-full">
                {Object.keys(materialsByCategory).length === 0 ? (
                  <p>No materials found in template or grouping failed.</p>
                ) : (
