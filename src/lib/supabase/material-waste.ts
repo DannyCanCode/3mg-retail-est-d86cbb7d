@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from '../../integrations/supabase/client';
 
 /**
  * Fetch material waste percentage for a specific material
