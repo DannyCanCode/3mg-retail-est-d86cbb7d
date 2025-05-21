@@ -99,8 +99,8 @@ export function MaterialsSelectionTab({
   const [gafTimberlineWasteFactor, setGafTimberlineWasteFactor] = useState(12); // Minimum 12%
   
   // State for GAF packages and warranty options
-  const [selectedPackage, setSelectedPackage] = useState<string>('gaf-1');
-  const [selectedWarranty, setSelectedWarranty] = useState<string>('silver-pledge');
+  const [selectedPackage, setSelectedPackage] = useState<string | null>('gaf-1');
+  const [selectedWarranty, setSelectedWarranty] = useState<string | null>('silver-pledge');
   const [isPeelStickSelected, setIsPeelStickSelected] = useState<boolean>(false);
   const [includeIso, setIncludeIso] = useState<boolean>(false);
   const [peelStickPrice, setPeelStickPrice] = useState<string>("0.00");
@@ -588,7 +588,7 @@ export function MaterialsSelectionTab({
     }
 
     // If no warranty is selected, set warrantyDetails to null
-    if (selectedWarranty === 'none') {
+    if (!selectedWarranty) {
       console.log("[WarrantyEffect] No warranty selected, setting warrantyDetails to null.");
       setWarrantyDetails(null);
       return;
@@ -865,14 +865,18 @@ export function MaterialsSelectionTab({
       }
     } else if (preset.startsWith('GAF 2') && selectedPackage !== 'gaf-2') {
       setSelectedPackage('gaf-2');
-    } else if ((preset.startsWith('OC 1') || preset.startsWith('OC 2')) && selectedPackage === 'none') {
-      // For Owens Corning presets, we don't need to set a GAF package
-      // but if no package is selected, we ensure warranty is appropriate
+    } else if ((preset.startsWith('OC 1') || preset.startsWith('OC 2'))) {
+      // For Owens Corning presets, we don't need a GAF package
+      if (selectedPackage) {
+        setSelectedPackage(null);
+      }
+      
+      // Clear any GAF warranties when selecting OC
       if (selectedWarranty === 'gold-pledge' || selectedWarranty === 'silver-pledge') {
-        setSelectedWarranty('none');
+        setSelectedWarranty(null);
         toast({
-          title: "Warranty Changed",
-          description: "GAF warranties are unavailable with Owens Corning materials without a GAF package.",
+          title: "Warranty Removed",
+          description: "GAF warranties aren't applicable with Owens Corning materials.",
           duration: 4000,
         });
       }
@@ -1484,8 +1488,18 @@ export function MaterialsSelectionTab({
 
   // Update warranty selection when package changes
   useEffect(() => {
-    // If package is set to none, we keep the current warranty selection
-    if (selectedPackage === 'none') {
+    // If no package is selected, we can't have a warranty
+    if (!selectedPackage) {
+      if (selectedWarranty) {
+        console.log("Removing warranty because no package is selected");
+        setSelectedWarranty(null);
+        toast({
+          title: "Warranty Removed",
+          description: "Warranties require a GAF package to be selected.",
+          duration: 4000,
+          variant: "default"
+        });
+      }
       return;
     }
     

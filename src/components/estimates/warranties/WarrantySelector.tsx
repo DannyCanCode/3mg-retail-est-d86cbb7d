@@ -5,9 +5,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 
 interface WarrantySelectorProps {
-  selectedPackage: string;
-  selectedWarranty: string;
-  onWarrantySelect: (warrantyId: string) => void;
+  selectedPackage: string | null;
+  selectedWarranty: string | null;
+  onWarrantySelect: (warrantyId: string | null) => void;
   onPeelStickPriceUpdate?: (price: string) => void;
   isPeelStickSelected?: boolean;
   onPeelStickToggle?: (selected: boolean) => void;
@@ -23,6 +23,20 @@ const WarrantySelector = ({
 }: WarrantySelectorProps) => {
   
   const isGoldPledgeAvailable = selectedPackage === 'gaf-2';
+  
+  // Handle warranty selection
+  const handleWarrantyClick = (warrantyId: string) => {
+    if (warrantyId === selectedWarranty) {
+      // If clicking on the currently selected warranty, deselect it
+      onWarrantySelect(null);
+    } else if (warrantyId === 'gold-pledge' && !isGoldPledgeAvailable) {
+      // Don't select Gold Pledge if it's not available
+      return;
+    } else {
+      // Otherwise select the warranty
+      onWarrantySelect(warrantyId);
+    }
+  };
   
   // State for the calculated peel & stick extra cost (passed from parent)
   const [displayPeelStickCost, setDisplayPeelStickCost] = useState<string>("0.00");
@@ -46,29 +60,13 @@ const WarrantySelector = ({
   return (
     <div className="bg-white p-4 rounded-md shadow-sm mt-4">
       <h3 className="text-lg font-medium mb-3">GAF Warranty Options</h3>
+      <p className="text-sm text-gray-600 mb-3">Select a warranty or click again to deselect</p>
       
-      <div className="flex flex-col md:grid md:grid-cols-3 gap-4 mb-4">
-        {/* No Warranty Option */}
-        <div 
-          className={`border p-3 rounded-md cursor-pointer ${selectedWarranty === 'none' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
-          onClick={() => onWarrantySelect('none')}
-        >
-          <div className="flex justify-between items-start">
-            <h4 className="font-medium">No Warranty</h4>
-            <Badge className="bg-gray-600 text-white">Optional</Badge>
-          </div>
-          <p className="text-sm text-gray-600 mt-1">No additional GAF warranty</p>
-          <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
-            <li>Standard manufacturer warranty only</li>
-            <li>No additional cost</li>
-          </ul>
-          <p className="text-sm font-medium mt-2">Basic manufacturer protection only</p>
-        </div>
-        
+      <div className="flex flex-col md:grid md:grid-cols-2 gap-4 mb-4">
         {/* Silver Pledge Option */}
         <div 
           className={`border p-3 rounded-md cursor-pointer ${selectedWarranty === 'silver-pledge' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
-          onClick={() => onWarrantySelect('silver-pledge')}
+          onClick={() => handleWarrantyClick('silver-pledge')}
         >
           <div className="flex justify-between items-start">
             <h4 className="font-medium">Silver Pledge Warranty</h4>
@@ -86,7 +84,7 @@ const WarrantySelector = ({
         {/* Gold Pledge Option */}
         <div 
           className={`border p-3 rounded-md ${!isGoldPledgeAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${selectedWarranty === 'gold-pledge' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
-          onClick={() => isGoldPledgeAvailable && onWarrantySelect('gold-pledge')}
+          onClick={() => handleWarrantyClick('gold-pledge')}
         >
           <div className="flex justify-between items-start">
             <h4 className="font-medium">Gold Pledge Warranty</h4>
