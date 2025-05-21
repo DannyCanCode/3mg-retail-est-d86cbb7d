@@ -99,8 +99,8 @@ export function MaterialsSelectionTab({
   const [gafTimberlineWasteFactor, setGafTimberlineWasteFactor] = useState(12); // Minimum 12%
   
   // State for GAF packages and warranty options
-  const [selectedPackage, setSelectedPackage] = useState<string>('gaf-1');
-  const [selectedWarranty, setSelectedWarranty] = useState<string>('silver-pledge');
+  const [selectedPackage, setSelectedPackage] = useState<string | null>('gaf-1');
+  const [selectedWarranty, setSelectedWarranty] = useState<string | null>('silver-pledge');
   const [isPeelStickSelected, setIsPeelStickSelected] = useState<boolean>(false);
   const [includeIso, setIncludeIso] = useState<boolean>(false);
   const [peelStickPrice, setPeelStickPrice] = useState<string>("0.00");
@@ -347,7 +347,7 @@ export function MaterialsSelectionTab({
   // Check for flat/low-slope areas and add required materials
   useEffect(() => {
     // Temporarily commented out for debugging navigation issue
-    /*
+    
     console.log("[MaterialsSelectionTab] Checking for low-slope areas in measurements");
     
     if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
@@ -481,7 +481,7 @@ export function MaterialsSelectionTab({
                      ` Actual waste factors applied have been stored.`,
       });
     }
-    */
+    
   }, [measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
 
   // Group materials by category using the complete ROOFING_MATERIALS list
@@ -495,7 +495,7 @@ export function MaterialsSelectionTab({
   // Handle Peel & Stick system add-on
   useEffect(() => {
     // Temporarily commented out for debugging navigation issue
-    /*
+    
     const systemMaterialId = "full-peel-stick-system";
     const peelStickCostPerSquare = 60;
     const systemMaterial = ROOFING_MATERIALS.find(m => m.id === systemMaterialId);
@@ -574,7 +574,7 @@ export function MaterialsSelectionTab({
       setMaterialWasteFactors(updatedMaterialWasteFactors); 
       setUserOverriddenWaste(updatedUserOverriddenWaste); 
     }
-    */
+    
   }, [isPeelStickSelected, measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
   
   // Calculate and set warranty details
@@ -583,6 +583,13 @@ export function MaterialsSelectionTab({
 
     if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
       console.log("[WarrantyEffect] No measurements or areasByPitch, setting warrantyDetails to null.");
+      setWarrantyDetails(null);
+      return;
+    }
+
+    // If no warranty is selected, set warrantyDetails to null
+    if (!selectedWarranty) {
+      console.log("[WarrantyEffect] No warranty selected, setting warrantyDetails to null.");
       setWarrantyDetails(null);
       return;
     }
@@ -611,7 +618,7 @@ export function MaterialsSelectionTab({
 
     console.log("[WarrantyEffect] Adjusted Steep Slope Squares (with 12% waste):", adjustedSteepSlopeSquares);
 
-    if (selectedWarranty === "silver-pledge" && selectedPackage !== "gaf-2") {
+    if (selectedWarranty === "silver-pledge") {
       warrantyName = "Silver Pledge Warranty";
       const costPerBlock = 150;
       const squaresPerBlock = 50;
@@ -672,7 +679,7 @@ export function MaterialsSelectionTab({
         setDisplayQuantities(prev => ({ ...prev, [materialToAdd.id]: newQuantity.toString() }));
       }
       
-      // Expand category if not already expanded
+      // Ensure category remains expanded by explicitly setting the expanded categories
       if (!expandedCategories.includes(materialToAdd.category)) {
         setExpandedCategories(prev => [...prev, materialToAdd.category]);
       }
@@ -849,6 +856,31 @@ export function MaterialsSelectionTab({
     let newMaterialWasteFactors: { [key: string]: number } = { ...materialWasteFactors };
     
     let atLeastOneMaterialAddedOrChanged = false;
+
+    // Auto-select corresponding package based on preset
+    if (preset.startsWith('GAF 1') && selectedPackage !== 'gaf-1') {
+      setSelectedPackage('gaf-1');
+      if (selectedWarranty === 'gold-pledge') {
+        setSelectedWarranty('silver-pledge');
+      }
+    } else if (preset.startsWith('GAF 2') && selectedPackage !== 'gaf-2') {
+      setSelectedPackage('gaf-2');
+    } else if ((preset.startsWith('OC 1') || preset.startsWith('OC 2'))) {
+      // For Owens Corning presets, we don't need a GAF package
+      if (selectedPackage) {
+        setSelectedPackage(null);
+      }
+      
+      // Clear any GAF warranties when selecting OC
+      if (selectedWarranty === 'gold-pledge' || selectedWarranty === 'silver-pledge') {
+        setSelectedWarranty(null);
+        toast({
+          title: "Warranty Removed",
+          description: "GAF warranties aren't applicable with Owens Corning materials.",
+          duration: 4000,
+        });
+      }
+    }
 
     // Define preset package materials
     const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
@@ -1454,6 +1486,36 @@ export function MaterialsSelectionTab({
     );
   };
 
+  // Update warranty selection when package changes
+  useEffect(() => {
+    // If no package is selected, we can't have a warranty
+    if (!selectedPackage) {
+      if (selectedWarranty) {
+        console.log("Removing warranty because no package is selected");
+        setSelectedWarranty(null);
+        toast({
+          title: "Warranty Removed",
+          description: "Warranties require a GAF package to be selected.",
+          duration: 4000,
+          variant: "default"
+        });
+      }
+      return;
+    }
+    
+    // If changing from GAF 2 to GAF 1 and Gold Pledge is selected, reset to Silver Pledge
+    if (selectedPackage === 'gaf-1' && selectedWarranty === 'gold-pledge') {
+      console.log("Changing warranty from Gold Pledge to Silver Pledge because GAF 1 Basic Package was selected");
+      setSelectedWarranty('silver-pledge');
+      toast({
+        title: "Warranty Changed",
+        description: "Silver Pledge warranty selected because GAF 1 Basic Package does not support Gold Pledge.",
+        duration: 4000,
+        variant: "default"
+      });
+    }
+  }, [selectedPackage, selectedWarranty, toast]);
+
   // Main return structure
   return (
     <div key={`materials-tab-${measurements?.totalArea || 'default'}-${Date.now()}`} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1463,17 +1525,20 @@ export function MaterialsSelectionTab({
         <Card>
            <CardHeader><CardTitle>GAF Package & Warranty Selection</CardTitle></CardHeader>
            <CardContent className="space-y-4">
-             <PackageSelector selectedPackage={selectedPackage} onPackageSelect={setSelectedPackage} />
+             <PackageSelector 
+               selectedPackage={selectedPackage} 
+               onPackageSelect={setSelectedPackage} 
+             />
              <WarrantySelector 
-                selectedPackage={selectedPackage}
-                selectedWarranty={selectedWarranty}
-                onWarrantySelect={setSelectedWarranty}
-                isPeelStickSelected={isPeelStickSelected}
-                onPeelStickToggle={setIsPeelStickSelected}
-              />
-              {showLowSlope && (
-                <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
-              )}
+               selectedPackage={selectedPackage}
+               selectedWarranty={selectedWarranty}
+               onWarrantySelect={setSelectedWarranty}
+               isPeelStickSelected={isPeelStickSelected}
+               onPeelStickToggle={setIsPeelStickSelected}
+             />
+             {showLowSlope && (
+               <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
+             )}
            </CardContent>
         </Card>
         
@@ -1530,7 +1595,11 @@ export function MaterialsSelectionTab({
              </div>
              
              {/* Materials Accordion */}
-             <Accordion type="multiple" defaultValue={[MaterialCategory.SHINGLES]} className="w-full">
+             <Accordion 
+               type="multiple" 
+               value={expandedCategories}
+               onValueChange={setExpandedCategories}
+               className="w-full">
                {Object.keys(materialsByCategory).length === 0 ? (
                  <p>No materials found in template or grouping failed.</p>
                ) : (
