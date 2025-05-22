@@ -1220,6 +1220,63 @@ export function MaterialsSelectionTab({
         calculationText = calculationText.replace("0/12 pitch area", `0/12 Area (${zeroPitchArea.toFixed(1)} sq ft)`);
     }
     
+    // Handle formulas with "Eaves LF" or "EavesLF" (for ProStart Starter Shingle)
+    if (calculationText.includes("Eaves LF") || calculationText.includes("EavesLF")) {
+      const eaveLength = measurements.eaveLength || 0;
+      calculationText = calculationText
+        .replace("Eaves LF", `Eaves LF (${eaveLength.toFixed(1)} ft)`)
+        .replace("EavesLF", `Eaves LF (${eaveLength.toFixed(1)} ft)`);
+    }
+    
+    // Handle combined Ridge+Hip length calculations
+    if (calculationText.includes("(Ridge Length") && calculationText.includes("Hip Length")) {
+      const ridgeLength = measurements.ridgeLength || 0;
+      const hipLength = measurements.hipLength || 0;
+      const totalLength = ridgeLength + hipLength;
+      calculationText = calculationText.replace(
+        /\(Ridge Length.*\+ Hip Length.*\)/,
+        `(Ridge Length (${ridgeLength.toFixed(1)} ft) + Hip Length (${hipLength.toFixed(1)} ft) = ${totalLength.toFixed(1)} ft)`
+      );
+    }
+
+    // Handle formulas with "Steep Slope Area"
+    if (calculationText.includes("Steep Slope Area")) {
+      let steepSlopeArea = 0;
+      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+        steepSlopeArea = measurements.areasByPitch
+          .filter(area => {
+            const pitchParts = area.pitch.split(/[:\\/]/);
+            const rise = parseInt(pitchParts[0] || '0');
+            return !isNaN(rise) && rise >= 3;
+          })
+          .reduce((sum, area) => sum + (area.area || 0), 0);
+      }
+      calculationText = calculationText.replace("Steep Slope Area", `Steep Slope Area (${steepSlopeArea.toFixed(1)} sq ft)`);
+    }
+    
+    // Handle formulas with waste percentage references
+    if (calculationText.includes("Waste%") || calculationText.includes("Waste %")) {
+      const wastePercent = material.id === "gaf-timberline-hdz-sg" 
+        ? gafTimberlineWasteFactor
+        : (currentActualWasteFactor !== undefined ? Math.round(currentActualWasteFactor * 100) : wasteFactor);
+      
+      calculationText = calculationText
+        .replace("Waste%", `Waste (${wastePercent}%)`)
+        .replace("Waste %", `Waste (${wastePercent}%)`);
+    }
+    
+    // Replace generic (1 + Waste%) pattern
+    if (calculationText.includes("(1 + Waste")) {
+      const wastePercent = material.id === "gaf-timberline-hdz-sg" 
+        ? gafTimberlineWasteFactor
+        : (currentActualWasteFactor !== undefined ? Math.round(currentActualWasteFactor * 100) : wasteFactor);
+      
+      calculationText = calculationText.replace(
+        /\(1 \+ Waste.*?\)/,
+        `(1 + Waste ${wastePercent}%)`
+      );
+    }
+    
     const quantity = localQuantities[material.id] || 0;
     
     // Add a summary showing the calculated quantity that matches the displayed quantity
