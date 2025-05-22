@@ -736,18 +736,29 @@ export function MaterialsSelectionTab({
   
   // Update quantity for a material
   const updateQuantity = (materialId: string, newQuantity: number) => {
+    // Preserve scroll position by avoiding unnecessary re-renders
+    // Set a flag to indicate this is an internal change to prevent parent updates
     isInternalChange.current = true;
-    setLocalQuantities(prev => ({ ...prev, [materialId]: newQuantity }));
-    // Note: actualWasteFactor is not recalculated on direct quantity update via input field.
-    // It's set when the material is added or when global/GAF waste factors change.
-    // This means manual quantity adjustments won't reflect a change in the *displayed* waste factor for that item
-    // until a global waste factor change triggers a recalculation.
-    // For GAF Timberline, update display quantity (squares)
-    if (materialId === "gaf-timberline-hdz-sg") {
-      setDisplayQuantities(prev => ({ ...prev, [materialId]: (newQuantity / 3).toFixed(1) }));
-    } else {
-      setDisplayQuantities(prev => ({ ...prev, [materialId]: newQuantity.toString() }));
-    }
+    
+    // Batch state updates to minimize renders
+    const updates = () => {
+      setLocalQuantities(prev => ({ ...prev, [materialId]: newQuantity }));
+      
+      // Note: actualWasteFactor is not recalculated on direct quantity update via input field.
+      // It's set when the material is added or when global/GAF waste factors change.
+      // This means manual quantity adjustments won't reflect a change in the *displayed* waste factor for that item
+      // until a global waste factor change triggers a recalculation.
+      
+      // For GAF Timberline, update display quantity (squares)
+      if (materialId === "gaf-timberline-hdz-sg") {
+        setDisplayQuantities(prev => ({ ...prev, [materialId]: (newQuantity / 3).toFixed(1) }));
+      } else {
+        setDisplayQuantities(prev => ({ ...prev, [materialId]: newQuantity.toString() }));
+      }
+    };
+    
+    // Use requestAnimationFrame to make updates smoother and prevent scroll jumps
+    window.requestAnimationFrame(updates);
   };
   
   // Toggle category expansion
@@ -1235,21 +1246,28 @@ export function MaterialsSelectionTab({
     const displayQuantity = displayQuantities[materialId] || (isGafTimberline ? '0.0' : '0');
 
     const handleDisplayQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Prevent scroll position reset
+        e.preventDefault();
+        
         const rawValue = e.target.value;
+        // Update display immediately for better user experience
         setDisplayQuantities(prev => ({...prev, [materialId]: rawValue})); 
 
-        if (isGafTimberline) {
-            const newSquares = parseFloat(rawValue);
-            if (!isNaN(newSquares) && newSquares >= 0) {
-                 const newBundles = Math.ceil(newSquares * 3);
-                 updateQuantity(materialId, newBundles);
-            } else if (rawValue === '') {
-                 updateQuantity(materialId, 0);
+        // Use setTimeout to defer the calculation slightly, preventing UI jumps
+        setTimeout(() => {
+            if (isGafTimberline) {
+                const newSquares = parseFloat(rawValue);
+                if (!isNaN(newSquares) && newSquares >= 0) {
+                     const newBundles = Math.ceil(newSquares * 3);
+                     updateQuantity(materialId, newBundles);
+                } else if (rawValue === '') {
+                     updateQuantity(materialId, 0);
+                }
+            } else {
+                const newQuantity = parseInt(rawValue) || 0;
+                updateQuantity(materialId, newQuantity);
             }
-        } else {
-            const newQuantity = parseInt(rawValue) || 0;
-            updateQuantity(materialId, newQuantity);
-        }
+        }, 10);
     };
 
     const handlePerMaterialWasteChange = (materialId: string, newWastePercentage: string) => {
@@ -1436,11 +1454,20 @@ export function MaterialsSelectionTab({
              {isGafTimberline ? (
                <> {/* Timberline Input (Squares) */}
                  <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} 
-                    onClick={() => { 
+                    onClick={(e) => { 
+                       // Prevent the default button behavior which might cause scroll
+                       e.preventDefault();
+                       
                        const currentSq = parseFloat(displayQuantity) || 0;
                        const nextSq = Math.max(0, currentSq - 0.1); 
+                       
+                       // Update display immediately
                        setDisplayQuantities(prev => ({...prev, [materialId]: nextSq.toFixed(1)})); 
-                       updateQuantity(materialId, Math.ceil(nextSq * 3));
+                       
+                       // Defer quantity update
+                       setTimeout(() => {
+                         updateQuantity(materialId, Math.ceil(nextSq * 3));
+                       }, 10);
                     }} 
                     aria-label={`Decrease quantity for ${baseName}`}>
                     -
@@ -1455,11 +1482,20 @@ export function MaterialsSelectionTab({
                     aria-label={`Quantity in Squares for ${baseName}`} 
                   />
                  <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} 
-                    onClick={() => { 
+                    onClick={(e) => { 
+                       // Prevent the default button behavior which might cause scroll
+                       e.preventDefault();
+                       
                        const currentSq = parseFloat(displayQuantity) || 0;
                        const nextSq = currentSq + 0.1;
+                       
+                       // Update display immediately
                        setDisplayQuantities(prev => ({...prev, [materialId]: nextSq.toFixed(1)}));
-                       updateQuantity(materialId, Math.ceil(nextSq * 3));
+                       
+                       // Defer quantity update
+                       setTimeout(() => {
+                         updateQuantity(materialId, Math.ceil(nextSq * 3));
+                       }, 10);
                     }} 
                     aria-label={`Increase quantity for ${baseName}`}>
                     +
@@ -1467,7 +1503,17 @@ export function MaterialsSelectionTab({
                </>
              ) : (
                <> {/* Other Material Input (Bundles/Units) */}
-                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} onClick={() => updateQuantity(materialId, Math.max(0, bundleQuantity - 1))} aria-label={`Decrease quantity for ${baseName}`}>-</Button>
+                 <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    className={`h-8 w-8 rounded-r-none`} 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTimeout(() => updateQuantity(materialId, Math.max(0, bundleQuantity - 1)), 10);
+                    }} 
+                    aria-label={`Decrease quantity for ${baseName}`}
+                  >-</Button>
                  <Input 
                     type="number" 
                     min="0" 
@@ -1476,7 +1522,17 @@ export function MaterialsSelectionTab({
                     className={`h-8 w-16 rounded-none text-center`} 
                     aria-label={`Quantity for ${baseName}`}
                   />
-                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} onClick={() => updateQuantity(materialId, bundleQuantity + 1)} aria-label={`Increase quantity for ${baseName}`}>+</Button>
+                 <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    className={`h-8 w-8 rounded-l-none`} 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTimeout(() => updateQuantity(materialId, bundleQuantity + 1), 10);
+                    }} 
+                    aria-label={`Increase quantity for ${baseName}`}
+                  >+</Button>
                </>
              )}
           </div>
