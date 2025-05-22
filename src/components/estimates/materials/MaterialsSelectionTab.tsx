@@ -1224,9 +1224,6 @@ export function MaterialsSelectionTab({
     
     // Add a summary showing the calculated quantity that matches the displayed quantity
     calculationText += ` → ${quantity} ${material.unit}${quantity !== 1 ? 's' : ''} needed`;
-    if (currentActualWasteFactor !== undefined && material.category !== MaterialCategory.VENTILATION && material.category !== MaterialCategory.ACCESSORIES) {
-        calculationText += ` (inc. ${(currentActualWasteFactor * 100).toFixed(0)}% waste)`;
-    }
     
     // For shingles that use bundles/squares, show square footage too
     if (material.id === "gaf-timberline-hdz-sg" || 
@@ -1423,30 +1420,59 @@ export function MaterialsSelectionTab({
           
           {/* Add detailed material info */}
           <div className="text-xs text-muted-foreground space-y-0.5">
-            {/* Display price information - This is now primarily handled by the summary price line above this section. */}
-            {/* <p>– Price: {formatPrice(material.price)} per {material.unit}
-            {material.approxPerSquare && material.approxPerSquare > 0 && 
-               <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
-            }
-            {material.id === 'full-peel-stick-system' && 
-                <span className="italic"> (Cost included in Add-on Price)</span>
-            }
-            </p> */}
-            
-            {/* Display coverage rule - This is now incorporated into 'Calculation Details' */}
-            {/* {material.coverageRule?.description && (
-              <p>– Coverage Rule: {material.coverageRule.description}</p>
-            )} */}
-            
             {/* Consolidated Calculation Details */}
             {material.coverageRule && ( // Show if any coverage rule exists
-              <p>– Calculation Details: {formatCalculationWithMeasurements(material)}</p>
+              <div>
+                <p>– Calculation Details: {formatCalculationWithMeasurements(material)}</p>
+                
+                {/* Add editable waste factor - only for materials that use waste */}
+                {currentWasteFactorForMaterial !== undefined && 
+                 material.category !== MaterialCategory.VENTILATION && 
+                 material.category !== MaterialCategory.ACCESSORIES && (
+                  <div className="flex items-center mt-1 ml-1">
+                    <span className="mr-1">– Waste Factor:</span>
+                    <div className="flex items-center relative">
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={(currentWasteFactorForMaterial * 100).toFixed(0)}
+                        onChange={(e) => handlePerMaterialWasteChange(materialId, e.target.value)}
+                        className="h-6 w-12 py-0 px-1 text-center text-xs"
+                        aria-label={`Waste factor for ${baseName}`}
+                      />
+                      <span className="text-xs ml-1">%</span>
+                      <div className="flex ml-2 space-x-1">
+                        {[0, 5, 10, 12, 15].map(presetValue => (
+                          <Button
+                            key={`waste-preset-${presetValue}`}
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className={`h-5 px-1 py-0 text-[10px] ${Math.round(currentWasteFactorForMaterial * 100) === presetValue ? 'bg-blue-100' : ''}`}
+                            onClick={() => handlePerMaterialWasteChange(materialId, presetValue.toString())}
+                          >
+                            {presetValue}%
+                          </Button>
+                        ))}
+                      </div>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground ml-2" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>Adjust waste factor for this material. Changes will update the quantity.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             
             {/* Display bundle/square info for shingles if not already covered (fallback) */}
-            {/* This condition might need review: show if no rule.description but getBundleInfo() is truthy? 
-                However, getBundleInfo is mostly for GAF timberline or items with bundlesPerSquare, 
-                which should have coverage rules. For now, this fallback remains as is. */}
             {!material.coverageRule?.description && getBundleInfo() && (
               <p>– {getBundleInfo()}</p>
             )}
