@@ -445,7 +445,7 @@ export function EstimateSummaryTab({
                   <tr className="border-b">
                     <th className="text-left py-2 px-4">Category</th>
                     <th className="text-right py-2 px-4">Rate</th>
-                    <th className="text-right py-2 px-4">Total</th>
+                    <th className="text-right py-2 px-4">Total (includes 12% waste)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -457,7 +457,7 @@ export function EstimateSummaryTab({
                     </tr>
                   ))}
                   <tr className="border-t bg-muted/30">
-                    <td colSpan={2} className="py-2 px-4 font-semibold">Labor Subtotal</td>
+                    <td colSpan={2} className="py-2 px-4 font-semibold">Labor Subtotal (includes 12% waste)</td>
                     <td className="text-right py-2 px-4 font-semibold">${totalLaborCost.toFixed(2)}</td>
                   </tr>
                 </tbody>
@@ -475,7 +475,7 @@ export function EstimateSummaryTab({
                     <td className="text-right py-2 px-4">${totalMaterialCost.toFixed(2)}</td>
                   </tr>
                   <tr className="border-b">
-                    <td className="py-2 px-4">Labor Subtotal</td>
+                    <td className="py-2 px-4">Labor Subtotal (includes 12% waste)</td>
                     <td className="text-right py-2 px-4">${totalLaborCost.toFixed(2)}</td>
                   </tr>
                   <tr className="border-b">
