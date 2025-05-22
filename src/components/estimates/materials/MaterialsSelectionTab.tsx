@@ -29,7 +29,7 @@ import {
 import { getAllMaterialWastePercentages, updateMaterialWastePercentage } from "@/lib/supabase/material-waste";
 
 // *** UPDATED LOG HERE ***
-console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: TEMPLATE SELECTION UPDATE v3"); 
+console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: WASTE FACTOR UPDATE v1"); 
 
 interface MaterialsSelectionTabProps {
   measurements: MeasurementValues;
@@ -88,7 +88,7 @@ export function MaterialsSelectionTab({
   // Local state for managing selected materials
   const [localSelectedMaterials, setLocalSelectedMaterials] = useState<{[key: string]: Material}>(selectedMaterials);
   const [localQuantities, setLocalQuantities] = useState<{[key: string]: number}>(quantities);
-  const [materialWasteFactors, setMaterialWasteFactors] = useState<Record<string, number>>({}); // New state
+  const [materialWasteFactors, setMaterialWasteFactors] = useState<Record<string, number>>({}); // State to store waste factors per material
   const [userOverriddenWaste, setUserOverriddenWaste] = useState<Record<string, boolean>>({}); // Tracks user per-item overrides
   const [wasteFactor, setWasteFactor] = useState(10); // Default 10% waste
   const [expandedCategories, setExpandedCategories] = useState<string[]>([
@@ -679,6 +679,7 @@ export function MaterialsSelectionTab({
       setLocalSelectedMaterials(prev => ({ ...prev, [materialToAdd.id]: materialToAdd }));
       setLocalQuantities(prev => ({ ...prev, [materialToAdd.id]: finalQuantity }));
       setMaterialWasteFactors(prev => ({ ...prev, [materialToAdd.id]: actualWasteFactor })); // Store actual waste factor
+      setUserOverriddenWaste(prev => ({ ...prev, [materialToAdd.id]: false })); // Initialize as not overridden
       
       // Update display quantity
       if (materialToAdd.id === "gaf-timberline-hdz-sg") {
@@ -735,18 +736,29 @@ export function MaterialsSelectionTab({
   
   // Update quantity for a material
   const updateQuantity = (materialId: string, newQuantity: number) => {
+    // Preserve scroll position by avoiding unnecessary re-renders
+    // Set a flag to indicate this is an internal change to prevent parent updates
     isInternalChange.current = true;
-    setLocalQuantities(prev => ({ ...prev, [materialId]: newQuantity }));
-    // Note: actualWasteFactor is not recalculated on direct quantity update via input field.
-    // It's set when the material is added or when global/GAF waste factors change.
-    // This means manual quantity adjustments won't reflect a change in the *displayed* waste factor for that item
-    // until a global waste factor change triggers a recalculation.
-    // For GAF Timberline, update display quantity (squares)
-    if (materialId === "gaf-timberline-hdz-sg") {
-      setDisplayQuantities(prev => ({ ...prev, [materialId]: (newQuantity / 3).toFixed(1) }));
-    } else {
-      setDisplayQuantities(prev => ({ ...prev, [materialId]: newQuantity.toString() }));
-    }
+    
+    // Batch state updates to minimize renders
+    const updates = () => {
+      setLocalQuantities(prev => ({ ...prev, [materialId]: newQuantity }));
+      
+      // Note: actualWasteFactor is not recalculated on direct quantity update via input field.
+      // It's set when the material is added or when global/GAF waste factors change.
+      // This means manual quantity adjustments won't reflect a change in the *displayed* waste factor for that item
+      // until a global waste factor change triggers a recalculation.
+      
+      // For GAF Timberline, update display quantity (squares)
+      if (materialId === "gaf-timberline-hdz-sg") {
+        setDisplayQuantities(prev => ({ ...prev, [materialId]: (newQuantity / 3).toFixed(1) }));
+      } else {
+        setDisplayQuantities(prev => ({ ...prev, [materialId]: newQuantity.toString() }));
+      }
+    };
+    
+    // Use requestAnimationFrame to make updates smoother and prevent scroll jumps
+    window.requestAnimationFrame(updates);
   };
   
   // Toggle category expansion
@@ -857,11 +869,28 @@ export function MaterialsSelectionTab({
     console.log(`Applying preset bundle: ${preset}`);
     isInternalChange.current = true;
 
-    // Start with current selections to preserve mandatory/low-slope items
-    let newSelectedMaterials: { [key: string]: Material } = { ...localSelectedMaterials };
-    let newQuantities: { [key: string]: number } = { ...localQuantities };
-    let newDisplayQuantities: { [key: string]: string } = { ...displayQuantities };
-    let newMaterialWasteFactors: { [key: string]: number } = { ...materialWasteFactors };
+    // Clear out existing non-mandatory materials before applying preset
+    const clearedSelectedMaterials: { [key: string]: Material } = {};
+    const clearedQuantities: { [key: string]: number } = {};
+    const clearedDisplayQuantities: { [key: string]: string } = {};
+    const clearedMaterialWasteFactors: { [key: string]: number } = {};
+    const clearedUserOverriddenWaste: { [key: string]: boolean } = {};
+
+    Object.entries(localSelectedMaterials).forEach(([matId, mat]) => {
+        if (mat.name && mat.name.includes("cannot be removed")) {
+            clearedSelectedMaterials[matId] = mat;
+            clearedQuantities[matId] = localQuantities[matId] || 0;
+            clearedDisplayQuantities[matId] = displayQuantities[matId] || "0";
+            clearedMaterialWasteFactors[matId] = materialWasteFactors[matId] || 0;
+            clearedUserOverriddenWaste[matId] = userOverriddenWaste[matId] || false;
+        }
+    });
+    
+    let newSelectedMaterials: { [key: string]: Material } = clearedSelectedMaterials;
+    let newQuantities: { [key: string]: number } = clearedQuantities;
+    let newDisplayQuantities: { [key: string]: string } = clearedDisplayQuantities;
+    let newMaterialWasteFactors: { [key: string]: number } = clearedMaterialWasteFactors;
+    let newUserOverriddenWaste: { [key: string]: boolean } = clearedUserOverriddenWaste;
     
     let atLeastOneMaterialAddedOrChanged = false;
 
@@ -929,28 +958,6 @@ export function MaterialsSelectionTab({
       ]
     };
     
-    // Clear out existing non-mandatory materials before applying preset
-    const clearedSelectedMaterials: { [key: string]: Material } = {};
-    const clearedQuantities: { [key: string]: number } = {};
-    const clearedDisplayQuantities: { [key: string]: string } = {};
-    const clearedMaterialWasteFactors: { [key: string]: number } = {};
-
-    Object.entries(localSelectedMaterials).forEach(([matId, mat]) => {
-        if (mat.name && mat.name.includes("cannot be removed")) {
-            clearedSelectedMaterials[matId] = mat;
-            clearedQuantities[matId] = localQuantities[matId] || 0;
-            clearedDisplayQuantities[matId] = displayQuantities[matId] || "0";
-            if (materialWasteFactors[matId] !== undefined) {
-                clearedMaterialWasteFactors[matId] = materialWasteFactors[matId];
-            }
-        }
-    });
-    newSelectedMaterials = clearedSelectedMaterials;
-    newQuantities = clearedQuantities;
-    newDisplayQuantities = clearedDisplayQuantities;
-    newMaterialWasteFactors = clearedMaterialWasteFactors;
-
-
     const materialsToAddFromPreset = PRESET_BUNDLES[preset];
     if (!materialsToAddFromPreset) {
       console.error(`Preset ${preset} not found!`);
@@ -974,7 +981,7 @@ export function MaterialsSelectionTab({
             duration: 7000,
         });
     }
-    
+
     materialsToAddFromPreset.forEach(({ id: materialId, description }) => {
       const material = ROOFING_MATERIALS.find(m => m.id === materialId);
       if (!material) {
@@ -1011,7 +1018,7 @@ export function MaterialsSelectionTab({
           finalQuantity = 0; // No valley, no valley material
         }
       }
-      
+
       if (material.category === MaterialCategory.SHINGLES && !hasStandardPitchAreas) {
         finalQuantity = 0; // No standard pitch, no shingles
       }
@@ -1022,7 +1029,8 @@ export function MaterialsSelectionTab({
         else if (materialId.includes('karnak') && !materialId.includes('spray')) finalQuantity = 1;
         else if (materialId.includes('pipe-flashing')) finalQuantity = Math.max(1, measurements?.numPipeJack1 ?? 1);
         // If still 0 after minimums, and not a typically manually-set item, skip it
-        if (finalQuantity <=0 && !materialId.includes('karnak') && !materialId.includes('sealant') && !materialId.includes('pipe-flashing')) {
+        if (finalQuantity <=0 && !materialId.includes('karnak') && !materialId.includes('sealant') && !materialId.includes('pipe-flashing') 
+            && !(material.category === MaterialCategory.VENTILATION || material.category === MaterialCategory.ACCESSORIES)) {
             console.log(`Preset material ${materialId} (${description}) quantity is ${finalQuantity}, skipping.`);
             return; 
         }
@@ -1035,28 +1043,37 @@ export function MaterialsSelectionTab({
       newSelectedMaterials[materialId] = materialToStore;
       newQuantities[materialId] = finalQuantity;
       newMaterialWasteFactors[materialId] = actualWasteFactorForMaterial;
-      atLeastOneMaterialAddedOrChanged = true;
-
-      if (material.id === "gaf-timberline-hdz-sg") {
+      newUserOverriddenWaste[materialId] = false; // Reset user override for preset materials
+      
+      if (material.id === "gaf-timberline-hdz-sg") { 
         newDisplayQuantities[materialId] = (finalQuantity / 3).toFixed(1);
       } else {
         newDisplayQuantities[materialId] = finalQuantity.toString();
       }
+      
+      atLeastOneMaterialAddedOrChanged = true;
       console.log(`Preset: Added/Updated ${materialId} (${description}) Qty: ${finalQuantity}, ActualWF: ${actualWasteFactorForMaterial}`);
     });
 
     if (atLeastOneMaterialAddedOrChanged || Object.keys(newSelectedMaterials).length !== Object.keys(localSelectedMaterials).length) {
-        setLocalSelectedMaterials(newSelectedMaterials);
-        setLocalQuantities(newQuantities);
-        setDisplayQuantities(newDisplayQuantities);
-        setMaterialWasteFactors(newMaterialWasteFactors);
+      setLocalSelectedMaterials(newSelectedMaterials);
+      setLocalQuantities(newQuantities);
+      setDisplayQuantities(newDisplayQuantities);
+      setMaterialWasteFactors(newMaterialWasteFactors);
+      setUserOverriddenWaste(newUserOverriddenWaste);
+      setSelectedPreset(preset);
+      
+      toast({
+        title: `Preset Applied: ${preset}`,
+        description: "Materials have been updated. Previously selected (non-mandatory) items were cleared.",
+      });
+    } else {
+      toast({
+        title: "No Changes Made",
+        description: "No materials were added or updated with this preset.",
+        variant: "destructive"
+      });
     }
-    
-    setSelectedPreset(preset); 
-    toast({
-      title: `Preset Applied: ${preset}`,
-      description: "Materials have been updated. Previously selected (non-mandatory) items were cleared.",
-    });
   };
   
   // Reset selected preset when materials are changed manually
@@ -1122,49 +1139,54 @@ export function MaterialsSelectionTab({
   
   // Format calculation logic with actual measurements and show estimated quantity
   const formatCalculationWithMeasurements = (material: Material): string => {
-    if (!measurements || !material.coverageRule) {
-      return "Coverage rule or measurements not available.";
-    }
-
-    // Prioritize material.coverageRule.calculation for a more detailed base string
-    let calculationText = material.coverageRule.calculation || material.coverageRule.description || "No calculation or description available.";
+    // Starting with the base calculation text
+    let calculationText = material.coverageRule?.calculation || "";
     
-    // If the chosen string is effectively empty or a placeholder for no rule, return a clearer message.
-    if (calculationText === "No calculation or description available." || calculationText.toLowerCase().includes("manual quantity selection")) {
-        // For manual selection, just state that, and then show the quantity and unit if available.
-        const quantity = localQuantities[material.id] || 0;
-        if (calculationText.toLowerCase().includes("manual quantity selection")) {
-            return `Manual quantity selection → ${quantity} ${material.unit}${quantity !== 1 ? 's' : ''} selected`;
+    // If we don't have a calculation text, use a default
+    if (!calculationText) {
+      if (material.category === MaterialCategory.SHINGLES) {
+        calculationText = "Total Roof Area";
+      } else if (material.category === MaterialCategory.UNDERLAYMENTS) {
+        calculationText = "Total Roof Area";
+      } else if (material.category === MaterialCategory.VENTILATION) {
+        if (material.id.includes("ridge-vent")) {
+          calculationText = "Ridge Length";
+        } else if (material.id.includes("off-ridge")) {
+          calculationText = "Per unit, manual quantity";
+        } else {
+          calculationText = "Manual quantity";
         }
-        return calculationText; // Returns "No calculation or description available."
+      } else {
+        calculationText = "Based on roof area and measurements";
+      }
     }
-
-    const currentActualWasteFactor = materialWasteFactors[material.id]; // Get from state
-
-    // Replace placeholders with actual measurement values
-    calculationText = calculationText.replace("Total Area", `Total Area (${measurements?.totalArea?.toFixed(1) || 'N/A'} sq ft)`);
-    calculationText = calculationText.replace("Total Roof Area", `Total Roof Area (${measurements?.totalArea?.toFixed(1) || 'N/A'} sq ft)`);
-    calculationText = calculationText.replace("Steep Slope Area", `Steep Slope Area (${measurements?.steepSlopeArea?.toFixed(1) ?? 'N/A'} sq ft)`);
-    calculationText = calculationText.replace("Eaves LF", `Eaves (${measurements?.eaveLength?.toFixed(1) || 'N/A'} LF)`);
-    calculationText = calculationText.replace("Eave Length", `Eave Length (${measurements?.eaveLength?.toFixed(1) || 'N/A'} LF)`);
-    calculationText = calculationText.replace("Rake Length", `Rake Length (${measurements?.rakeLength?.toFixed(1) || 'N/A'} LF)`);
-    calculationText = calculationText.replace("Ridge Length", `Ridge Length (${measurements?.ridgeLength?.toFixed(1) || 'N/A'} LF)`);
-    calculationText = calculationText.replace("Hip Length", `Hip Length (${measurements?.hipLength?.toFixed(1) || 'N/A'} LF)`);
-    calculationText = calculationText.replace("Valley Length", `Valley Length (${measurements?.valleyLength?.toFixed(1) || 'N/A'} LF)`);
-    calculationText = calculationText.replace("Step Flashing LF", `Step Flashing (${measurements?.stepFlashingLength?.toFixed(1) || 'N/A'} LF)`);
-    calculationText = calculationText.replace("Wall Flashing LF", `Wall Flashing (${measurements?.wallFlashingLength?.toFixed(1) ?? 'N/A'} LF)`);
-    calculationText = calculationText.replace("Ridges LF", `Ridges (${measurements?.ridgeLength?.toFixed(1) || 'N/A'} LF)`); // Assuming ridges = ridge length for vents
-    calculationText = calculationText.replace("Total Squares", `Total Squares (${((measurements?.totalArea ?? 0) / 100)?.toFixed(1) || 'N/A'})`);
     
-    // Replace waste percentage placeholder if it exists
-    if (currentActualWasteFactor !== undefined) {
-        calculationText = calculationText.replace("Waste%", `${(currentActualWasteFactor * 100).toFixed(0)}% Waste`);
-    } else {
-        // Fallback if somehow not set, though it should be
-        const fallbackWaste = material.id === "gaf-timberline-hdz-sg" 
-            ? gafTimberlineWasteFactor 
-            : (material.category === MaterialCategory.VENTILATION || material.category === MaterialCategory.ACCESSORIES ? 0 : wasteFactor);
-        calculationText = calculationText.replace("Waste%", `${fallbackWaste.toFixed(0)}% Waste`);
+    // Get the current actual waste factor for this material
+    const currentActualWasteFactor = materialWasteFactors[material.id];
+    
+    // Replace placeholders with actual measurement values
+    if (calculationText.includes("Total Area")) {
+      calculationText = calculationText.replace("Total Area", `Total Area (${measurements.totalArea.toFixed(1)} sq ft)`);
+    }
+    
+    if (calculationText.includes("Ridge Length")) {
+      calculationText = calculationText.replace("Ridge Length", `Ridge Length (${measurements.ridgeLength.toFixed(1)} ft)`);
+    }
+    
+    if (calculationText.includes("Hip Length")) {
+      calculationText = calculationText.replace("Hip Length", `Hip Length (${measurements.hipLength.toFixed(1)} ft)`);
+    }
+    
+    if (calculationText.includes("Valley Length")) {
+      calculationText = calculationText.replace("Valley Length", `Valley Length (${measurements.valleyLength.toFixed(1)} ft)`);
+    }
+    
+    if (calculationText.includes("Eave Length")) {
+      calculationText = calculationText.replace("Eave Length", `Eave Length (${measurements.eaveLength.toFixed(1)} ft)`);
+    }
+    
+    if (calculationText.includes("Rake Length")) {
+      calculationText = calculationText.replace("Rake Length", `Rake Length (${measurements.rakeLength.toFixed(1)} ft)`);
     }
 
     if (calculationText.includes("Low Slope Area")) {
@@ -1192,15 +1214,6 @@ export function MaterialsSelectionTab({
         }
         calculationText = calculationText.replace("0/12 pitch area", `0/12 Area (${zeroPitchArea.toFixed(1)} sq ft)`);
     }
-    
-    // Calculate and add the estimated quantity
-    // const effectiveWasteFactor = material.id === "gaf-timberline-hdz-sg" ? 
-    //   gafTimberlineWasteFactor / 100 : 
-    //   wasteFactor / 100;
-      
-    // const quantity = localQuantities[material.id] || 0;
-    // const estimatedQuantity = calculateMaterialQuantity(material, measurements, effectiveWasteFactor);
-    // No longer need to recalculate here, use stored quantity and waste factor.
     
     const quantity = localQuantities[material.id] || 0;
     
@@ -1233,21 +1246,28 @@ export function MaterialsSelectionTab({
     const displayQuantity = displayQuantities[materialId] || (isGafTimberline ? '0.0' : '0');
 
     const handleDisplayQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        // Prevent scroll position reset
+        e.preventDefault();
+        
         const rawValue = e.target.value;
+        // Update display immediately for better user experience
         setDisplayQuantities(prev => ({...prev, [materialId]: rawValue})); 
 
-        if (isGafTimberline) {
-            const newSquares = parseFloat(rawValue);
-            if (!isNaN(newSquares) && newSquares >= 0) {
-                 const newBundles = Math.ceil(newSquares * 3);
-                 updateQuantity(materialId, newBundles);
-            } else if (rawValue === '') {
-                 updateQuantity(materialId, 0);
+        // Use setTimeout to defer the calculation slightly, preventing UI jumps
+        setTimeout(() => {
+            if (isGafTimberline) {
+                const newSquares = parseFloat(rawValue);
+                if (!isNaN(newSquares) && newSquares >= 0) {
+                     const newBundles = Math.ceil(newSquares * 3);
+                     updateQuantity(materialId, newBundles);
+                } else if (rawValue === '') {
+                     updateQuantity(materialId, 0);
+                }
+            } else {
+                const newQuantity = parseInt(rawValue) || 0;
+                updateQuantity(materialId, newQuantity);
             }
-        } else {
-            const newQuantity = parseInt(rawValue) || 0;
-            updateQuantity(materialId, newQuantity);
-        }
+        }, 10);
     };
 
     const handlePerMaterialWasteChange = (materialId: string, newWastePercentage: string) => {
@@ -1434,11 +1454,20 @@ export function MaterialsSelectionTab({
              {isGafTimberline ? (
                <> {/* Timberline Input (Squares) */}
                  <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} 
-                    onClick={() => { 
+                    onClick={(e) => { 
+                       // Prevent the default button behavior which might cause scroll
+                       e.preventDefault();
+                       
                        const currentSq = parseFloat(displayQuantity) || 0;
                        const nextSq = Math.max(0, currentSq - 0.1); 
+                       
+                       // Update display immediately
                        setDisplayQuantities(prev => ({...prev, [materialId]: nextSq.toFixed(1)})); 
-                       updateQuantity(materialId, Math.ceil(nextSq * 3));
+                       
+                       // Defer quantity update
+                       setTimeout(() => {
+                         updateQuantity(materialId, Math.ceil(nextSq * 3));
+                       }, 10);
                     }} 
                     aria-label={`Decrease quantity for ${baseName}`}>
                     -
@@ -1453,11 +1482,20 @@ export function MaterialsSelectionTab({
                     aria-label={`Quantity in Squares for ${baseName}`} 
                   />
                  <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} 
-                    onClick={() => { 
+                    onClick={(e) => { 
+                       // Prevent the default button behavior which might cause scroll
+                       e.preventDefault();
+                       
                        const currentSq = parseFloat(displayQuantity) || 0;
                        const nextSq = currentSq + 0.1;
+                       
+                       // Update display immediately
                        setDisplayQuantities(prev => ({...prev, [materialId]: nextSq.toFixed(1)}));
-                       updateQuantity(materialId, Math.ceil(nextSq * 3));
+                       
+                       // Defer quantity update
+                       setTimeout(() => {
+                         updateQuantity(materialId, Math.ceil(nextSq * 3));
+                       }, 10);
                     }} 
                     aria-label={`Increase quantity for ${baseName}`}>
                     +
@@ -1465,7 +1503,17 @@ export function MaterialsSelectionTab({
                </>
              ) : (
                <> {/* Other Material Input (Bundles/Units) */}
-                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} onClick={() => updateQuantity(materialId, Math.max(0, bundleQuantity - 1))} aria-label={`Decrease quantity for ${baseName}`}>-</Button>
+                 <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    className={`h-8 w-8 rounded-r-none`} 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTimeout(() => updateQuantity(materialId, Math.max(0, bundleQuantity - 1)), 10);
+                    }} 
+                    aria-label={`Decrease quantity for ${baseName}`}
+                  >-</Button>
                  <Input 
                     type="number" 
                     min="0" 
@@ -1474,7 +1522,17 @@ export function MaterialsSelectionTab({
                     className={`h-8 w-16 rounded-none text-center`} 
                     aria-label={`Quantity for ${baseName}`}
                   />
-                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} onClick={() => updateQuantity(materialId, bundleQuantity + 1)} aria-label={`Increase quantity for ${baseName}`}>+</Button>
+                 <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon" 
+                    className={`h-8 w-8 rounded-l-none`} 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setTimeout(() => updateQuantity(materialId, bundleQuantity + 1), 10);
+                    }} 
+                    aria-label={`Increase quantity for ${baseName}`}
+                  >+</Button>
                </>
              )}
           </div>
