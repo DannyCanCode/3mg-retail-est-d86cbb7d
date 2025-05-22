@@ -338,6 +338,14 @@ export function EstimateSummaryTab({
   const profitAmount = subtotal * (profitMargin / 100);
   const total = subtotal + profitAmount;
 
+  // Helper function to format numbers with commas
+  const formatNumberWithCommas = (value: number): string => {
+    return value.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  };
+
   // Log the discrepancy for debugging
   console.log("EstimateSummaryTab calculation:", {
     totalMaterialCost,
@@ -417,20 +425,20 @@ export function EstimateSummaryTab({
                     <tr key={index} className={index < materialCosts.length - 1 ? "border-b" : ""}>
                       <td className="py-2 px-4">{item.name}</td>
                       <td className="text-right py-2 px-4">{item.quantity} {item.unit}</td>
-                      <td className="text-right py-2 px-4">${item.unitPrice.toFixed(2)}</td>
-                      <td className="text-right py-2 px-4">${item.totalCost.toFixed(2)}</td>
+                      <td className="text-right py-2 px-4">${formatNumberWithCommas(item.unitPrice)}</td>
+                      <td className="text-right py-2 px-4">${formatNumberWithCommas(item.totalCost)}</td>
                     </tr>
                   ))}
                   {peelStickAddonCost > 0 && (
                      <tr className="border-t">
                        <td className="py-2 px-4 italic">Full Peel & Stick System Cost</td>
                        <td colSpan={2} className="text-right py-2 px-4">($60.00/sq)</td>
-                       <td className="text-right py-2 px-4">${peelStickAddonCost.toFixed(2)}</td>
+                       <td className="text-right py-2 px-4">${formatNumberWithCommas(peelStickAddonCost)}</td>
                      </tr>
                   )}
                   <tr className="border-t bg-muted/30">
                     <td colSpan={3} className="py-2 px-4 font-semibold">Materials Subtotal</td>
-                    <td className="text-right py-2 px-4 font-semibold">${totalMaterialCost.toFixed(2)}</td>
+                    <td className="text-right py-2 px-4 font-semibold">${formatNumberWithCommas(totalMaterialCost)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -452,13 +460,13 @@ export function EstimateSummaryTab({
                   {laborCosts.map((item, index) => (
                     <tr key={index} className={index < laborCosts.length - 1 ? "border-b" : ""}>
                       <td className="py-2 px-4">{item.name}</td>
-                      <td className="text-right py-2 px-4">${item.rate.toFixed(2)}</td>
-                      <td className="text-right py-2 px-4">${item.totalCost.toFixed(2)}</td>
+                      <td className="text-right py-2 px-4">${formatNumberWithCommas(item.rate)}</td>
+                      <td className="text-right py-2 px-4">${formatNumberWithCommas(item.totalCost)}</td>
                     </tr>
                   ))}
                   <tr className="border-t bg-muted/30">
                     <td colSpan={2} className="py-2 px-4 font-semibold">Labor Subtotal (includes 12% waste)</td>
-                    <td className="text-right py-2 px-4 font-semibold">${totalLaborCost.toFixed(2)}</td>
+                    <td className="text-right py-2 px-4 font-semibold">${formatNumberWithCommas(totalLaborCost)}</td>
                   </tr>
                 </tbody>
               </table>
@@ -472,23 +480,23 @@ export function EstimateSummaryTab({
                 <tbody>
                   <tr className="border-b">
                     <td className="py-2 px-4">Materials Subtotal</td>
-                    <td className="text-right py-2 px-4">${totalMaterialCost.toFixed(2)}</td>
+                    <td className="text-right py-2 px-4">${formatNumberWithCommas(totalMaterialCost)}</td>
                   </tr>
                   <tr className="border-b">
                     <td className="py-2 px-4">Labor Subtotal (includes 12% waste)</td>
-                    <td className="text-right py-2 px-4">${totalLaborCost.toFixed(2)}</td>
+                    <td className="text-right py-2 px-4">${formatNumberWithCommas(totalLaborCost)}</td>
                   </tr>
                   <tr className="border-b">
                     <td className="py-2 px-4">Project Subtotal</td>
-                    <td className="text-right py-2 px-4">${subtotal.toFixed(2)}</td>
+                    <td className="text-right py-2 px-4">${formatNumberWithCommas(subtotal)}</td>
                   </tr>
                   <tr className="border-b">
                     <td className="py-2 px-4">Profit Margin ({profitMargin}%)</td>
-                    <td className="text-right py-2 px-4">${profitAmount.toFixed(2)}</td>
+                    <td className="text-right py-2 px-4">${formatNumberWithCommas(profitAmount)}</td>
                   </tr>
                   <tr className="bg-muted/30">
                     <td className="py-2 px-4 font-semibold">Total Estimate</td>
-                    <td className="text-right py-2 px-4 font-semibold text-lg">${total.toFixed(2)}</td>
+                    <td className="text-right py-2 px-4 font-semibold text-lg">${formatNumberWithCommas(total)}</td>
                   </tr>
                 </tbody>
               </table>
