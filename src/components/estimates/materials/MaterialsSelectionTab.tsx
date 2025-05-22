@@ -858,12 +858,28 @@ export function MaterialsSelectionTab({
     console.log(`Applying preset bundle: ${preset}`);
     isInternalChange.current = true;
 
-    // Start with current selections to preserve mandatory/low-slope items
-    let newSelectedMaterials: { [key: string]: Material } = { ...localSelectedMaterials };
-    let newQuantities: { [key: string]: number } = { ...localQuantities };
-    let newDisplayQuantities: { [key: string]: string } = { ...displayQuantities };
-    let newMaterialWasteFactors: { [key: string]: number } = { ...materialWasteFactors };
-    let newUserOverriddenWaste: { [key: string]: boolean } = { ...userOverriddenWaste };
+    // Clear out existing non-mandatory materials before applying preset
+    const clearedSelectedMaterials: { [key: string]: Material } = {};
+    const clearedQuantities: { [key: string]: number } = {};
+    const clearedDisplayQuantities: { [key: string]: string } = {};
+    const clearedMaterialWasteFactors: { [key: string]: number } = {};
+    const clearedUserOverriddenWaste: { [key: string]: boolean } = {};
+
+    Object.entries(localSelectedMaterials).forEach(([matId, mat]) => {
+        if (mat.name && mat.name.includes("cannot be removed")) {
+            clearedSelectedMaterials[matId] = mat;
+            clearedQuantities[matId] = localQuantities[matId] || 0;
+            clearedDisplayQuantities[matId] = displayQuantities[matId] || "0";
+            clearedMaterialWasteFactors[matId] = materialWasteFactors[matId] || 0;
+            clearedUserOverriddenWaste[matId] = userOverriddenWaste[matId] || false;
+        }
+    });
+    
+    let newSelectedMaterials: { [key: string]: Material } = clearedSelectedMaterials;
+    let newQuantities: { [key: string]: number } = clearedQuantities;
+    let newDisplayQuantities: { [key: string]: string } = clearedDisplayQuantities;
+    let newMaterialWasteFactors: { [key: string]: number } = clearedMaterialWasteFactors;
+    let newUserOverriddenWaste: { [key: string]: boolean } = clearedUserOverriddenWaste;
     
     let atLeastOneMaterialAddedOrChanged = false;
 
@@ -892,10 +908,68 @@ export function MaterialsSelectionTab({
       }
     }
 
-    // Define materials to add based on preset
-    const materialsToAddFromPreset: Array<{ id: string, description: string }> = [];
+    // Define preset package materials
+    const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
+      "GAF 1": [
+        { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
+        { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
+        { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
+        { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+        { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
+        { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
+        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+        { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
+      ],
+      "GAF 2": [
+        { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
+        { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
+        { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
+        { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" },
+        { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+        { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
+        { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
+        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+        { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
+      ],
+      "OC 1": [ 
+        { id: "oc-oakridge", description: "OC Oakridge (Shingles)" },
+        { id: "oc-hip-ridge", description: "OC Hip & Ridge (Ridge Cap)" },
+        { id: "oc-starter", description: "OC Starter Shingle Strip" },
+        { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
+        { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" }
+      ],
+      "OC 2": [ 
+        { id: "oc-duration", description: "OC Duration (Shingles)" },
+        { id: "oc-hip-ridge", description: "OC Hip & Ridge (Ridge Cap)" },
+        { id: "oc-starter", description: "OC Starter Shingle Strip" },
+        { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
+        { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" }
+      ]
+    };
     
-    // ... existing preset material definitions ...
+    const materialsToAddFromPreset = PRESET_BUNDLES[preset];
+    if (!materialsToAddFromPreset) {
+      console.error(`Preset ${preset} not found!`);
+      toast({ title: "Error", description: `Preset ${preset} not found.`, variant: "destructive" });
+      return;
+    }
+    
+    const hasStandardPitchAreas = measurements.areasByPitch.some(
+      area => {
+        const pitchParts = area.pitch.split(/[:\\/]/);
+        const rise = parseInt(pitchParts[0] || '0');
+        return !isNaN(rise) && rise >= 3;
+      }
+    );
+    
+    if (!hasStandardPitchAreas && materialsToAddFromPreset.some(item => ROOFING_MATERIALS.find(m => m.id === item.id)?.category === MaterialCategory.SHINGLES)) {
+        toast({
+            title: "No Standard Pitch Areas",
+            description: "This preset includes shingles, but no standard pitch roof areas (>= 3/12) were found. Shingle quantities may be zero.",
+            variant: "default", 
+            duration: 7000,
+        });
+    }
 
     materialsToAddFromPreset.forEach(({ id: materialId, description }) => {
       const material = ROOFING_MATERIALS.find(m => m.id === materialId);
@@ -934,30 +1008,54 @@ export function MaterialsSelectionTab({
         }
       }
 
-      // Add material if quantity > 0 or it's a ventilation/accessory
-      if (finalQuantity > 0 || (material.category === MaterialCategory.VENTILATION || material.category === MaterialCategory.ACCESSORIES)) {
-        newSelectedMaterials[materialId] = material;
-        newQuantities[materialId] = finalQuantity;
-        newMaterialWasteFactors[materialId] = actualWasteFactorForMaterial;
-        newUserOverriddenWaste[materialId] = false; // Reset user override for preset materials
-        
-        if (material.id === "gaf-timberline-hdz-sg") { 
-          newDisplayQuantities[materialId] = (finalQuantity / 3).toFixed(1);
-        } else {
-          newDisplayQuantities[materialId] = finalQuantity.toString();
-        }
-        
-        atLeastOneMaterialAddedOrChanged = true;
+      if (material.category === MaterialCategory.SHINGLES && !hasStandardPitchAreas) {
+        finalQuantity = 0; // No standard pitch, no shingles
       }
+      
+      if (finalQuantity <= 0) {
+        if (materialId.includes('sealant')) finalQuantity = 2;
+        else if (materialId.includes('karnak') && materialId.includes('spray')) finalQuantity = 1;
+        else if (materialId.includes('karnak') && !materialId.includes('spray')) finalQuantity = 1;
+        else if (materialId.includes('pipe-flashing')) finalQuantity = Math.max(1, measurements?.numPipeJack1 ?? 1);
+        // If still 0 after minimums, and not a typically manually-set item, skip it
+        if (finalQuantity <=0 && !materialId.includes('karnak') && !materialId.includes('sealant') && !materialId.includes('pipe-flashing') 
+            && !(material.category === MaterialCategory.VENTILATION || material.category === MaterialCategory.ACCESSORIES)) {
+            console.log(`Preset material ${materialId} (${description}) quantity is ${finalQuantity}, skipping.`);
+            return; 
+        }
+      }
+      
+      const materialToStore = (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2") && (measurements.valleyLength || 0) > 0)
+        ? { ...material, name: `${material.name} (Valleys Only)` } 
+        : material;
+
+      newSelectedMaterials[materialId] = materialToStore;
+      newQuantities[materialId] = finalQuantity;
+      newMaterialWasteFactors[materialId] = actualWasteFactorForMaterial;
+      newUserOverriddenWaste[materialId] = false; // Reset user override for preset materials
+      
+      if (material.id === "gaf-timberline-hdz-sg") { 
+        newDisplayQuantities[materialId] = (finalQuantity / 3).toFixed(1);
+      } else {
+        newDisplayQuantities[materialId] = finalQuantity.toString();
+      }
+      
+      atLeastOneMaterialAddedOrChanged = true;
+      console.log(`Preset: Added/Updated ${materialId} (${description}) Qty: ${finalQuantity}, ActualWF: ${actualWasteFactorForMaterial}`);
     });
 
-    if (atLeastOneMaterialAddedOrChanged) {
+    if (atLeastOneMaterialAddedOrChanged || Object.keys(newSelectedMaterials).length !== Object.keys(localSelectedMaterials).length) {
       setLocalSelectedMaterials(newSelectedMaterials);
       setLocalQuantities(newQuantities);
       setDisplayQuantities(newDisplayQuantities);
       setMaterialWasteFactors(newMaterialWasteFactors);
       setUserOverriddenWaste(newUserOverriddenWaste);
       setSelectedPreset(preset);
+      
+      toast({
+        title: `Preset Applied: ${preset}`,
+        description: "Materials have been updated. Previously selected (non-mandatory) items were cleared.",
+      });
     } else {
       toast({
         title: "No Changes Made",
