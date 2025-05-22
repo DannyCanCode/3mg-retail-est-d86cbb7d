@@ -419,10 +419,15 @@ export function MaterialsSelectionTab({
       const baseSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
       const capSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
       if (baseSheetMaterial && capSheetMaterial) {
-        const { quantity: baseQuantity, actualWasteFactor: baseWaste } = calculateMaterialQuantity( baseSheetMaterial, measurements, wasteFactor / 100 );
+        // Only calculate cap quantity first
         const { quantity: capQuantity, actualWasteFactor: capWaste } = calculateMaterialQuantity( capSheetMaterial, measurements, wasteFactor / 100 );
-        const finalBaseQuantity = Math.max(1, baseQuantity);
         const finalCapQuantity = Math.max(1, capQuantity);
+        
+        // Calculate base quantity as half of cap quantity, rounded up
+        const baseQuantity = Math.ceil(finalCapQuantity / 2);
+        const baseWaste = capWaste; // Use same waste factor as cap
+        
+        const finalBaseQuantity = baseQuantity; // Already rounded up
         const currentBaseQty = newQuantities["polyglass-elastoflex-sbs"] || 0;
         if (!newSelectedMaterials["polyglass-elastoflex-sbs"] || currentBaseQty !== finalBaseQuantity) {
           const mandatoryBaseSheet = { ...baseSheetMaterial, name: `${baseSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)` };

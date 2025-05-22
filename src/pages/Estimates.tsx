@@ -1006,16 +1006,7 @@ const Estimates = () => {
               const squaresNeeded = lowSlopeArea / 100;
               const squaresWithWaste = squaresNeeded * 1.1; // 10% waste
               
-              // Add base sheet
-              const baseQuantity = Math.ceil(squaresWithWaste / 0.625);
-              const mandatoryBase = {
-                ...baseMaterial,
-                name: `${baseMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
-              };
-              newMaterials["polyglass-elastoflex-sbs"] = mandatoryBase;
-              newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
-              
-              // Add cap sheet
+              // Add cap sheet first
               const capQuantity = Math.ceil(squaresWithWaste / 0.8);
               const mandatoryCap = {
                 ...capMaterial,
@@ -1023,6 +1014,15 @@ const Estimates = () => {
               };
               newMaterials["polyglass-polyflex-app"] = mandatoryCap;
               newQuantities["polyglass-polyflex-app"] = capQuantity;
+              
+              // Calculate base sheet as half of cap quantity, rounded up
+              const baseQuantity = Math.ceil(capQuantity / 2);
+              const mandatoryBase = {
+                ...baseMaterial,
+                name: `${baseMaterial.name} (Required for <= 2/12 pitch - cannot be removed)`
+              };
+              newMaterials["polyglass-elastoflex-sbs"] = mandatoryBase;
+              newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
             }
           }
         }

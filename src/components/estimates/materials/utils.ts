@@ -197,8 +197,25 @@ export const calculateMaterialQuantity = (
         const squareFtPerBoard = 32; // 4x8
         quantity = Math.ceil(lowSlopeAreaWithWaste / squareFtPerBoard);
     } else if (material.id === "polyglass-elastoflex-sbs") {
-        const coverageSqFtPerRoll = 67; // Approx 0.625 squares
-        quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll); 
+        // For base sheet, first try to calculate cap sheet quantity
+        // This is a special case where base is half of cap quantity
+        
+        // First, check if we're calculating for both base and cap in the same call
+        const capMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
+        if (capMaterial) {
+            // Calculate cap quantity first with standard formula
+            const coverageSqFtPerRollCap = 86; // Approx 0.8 squares for cap
+            const capQuantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRollCap);
+            
+            // Base quantity is half of cap quantity, rounded up
+            quantity = Math.ceil(capQuantity / 2);
+            console.log(`[CalcQuantity] Base quantity calculated as half of cap (${capQuantity} ÷ 2 = ${quantity})`);
+        } else {
+            // Fallback to original calculation if cap material not found
+            const coverageSqFtPerRoll = 67; // Approx 0.625 squares
+            quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
+            console.log(`[CalcQuantity] Base quantity calculated with standard formula: ${quantity}`);
+        }
     } else if (material.id === "polyglass-polyflex-app") {
         const coverageSqFtPerRoll = 86; // Approx 0.8 squares
         quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
