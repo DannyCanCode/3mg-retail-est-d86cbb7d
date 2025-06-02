@@ -51,7 +51,7 @@ export function RoofAreaTab({
               id="totalArea"
               name="totalArea"
               type="number"
-              value={measurements.totalArea || ""}
+              value={measurements.totalArea !== undefined && measurements.totalArea !== null ? parseFloat(measurements.totalArea.toString()).toFixed(1) : ""}
               onChange={handleInputChange}
               placeholder="Enter total roof area"
               readOnly={readOnly}
