@@ -86,8 +86,8 @@ export const saveEstimate = async (
     let data, error;
 
     if (inputId) { // UPDATE existing record
-      const { created_at: _createdAt, id: _id, ...updatePayload } = payload; // Exclude created_at and id from update payload itself
-      console.log("Updating estimate data for ID:", inputId, updatePayload);
+      const { created_at: _createdAt, id: _id, ...updatePayload } = payload; 
+      console.log("MARKER: About to UPDATE estimate ID:", inputId, "WITH PAYLOAD:", JSON.stringify(updatePayload, null, 2));
       ({ data, error } = await supabase
         .from("estimates")
         .update(updatePayload) 
@@ -353,11 +353,14 @@ export const generateEstimatePdf = async (id: string): Promise<{
 export const calculateEstimateTotal = (
   materials: Record<string, Material>,
   quantities: Record<string, number>,
-  laborRatesInput: LaborRates, // Renamed to avoid conflict with internal laborRates variable
+  laborRatesInput: LaborRates,
   profitMargin: number,
-  measurementsInput?: MeasurementValues, // Make measurements an optional parameter for broader use, but required for pitch calc
-  peelStickCost: number = 0 // Added peelStickCost as it's part of the total
+  measurementsInput?: MeasurementValues,
+  peelStickCost: number = 0
 ): number => {
+  console.log("API_CALC_TOTAL: Entry. measurementsInput:", JSON.stringify(measurementsInput, null, 2));
+  console.log("API_CALC_TOTAL: Entry. laborRatesInput:", JSON.stringify(laborRatesInput, null, 2));
+
   // Ensure we have a safe laborRates object with defaults
   const defaultLaborRates: LaborRates = {
     laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
@@ -389,30 +392,28 @@ export const calculateEstimateTotal = (
   const wasteMultiplier = 1 + (wasteFactorPercentage / 100);
 
   // Helper to get pitch rate, considering custom rates from laborRates.pitchRates
-  const getPitchRate = (pitchKey: string): number => {
-      const pitchValue = parseInt(pitchKey.split(/[:\/]/)[0]) || 0;
-      
-      // Check for custom rate first
+  const getPitchRate = (pitchKeyInput: string): number => {
+      const pitchKey = pitchKeyInput.replace("/", ":");
       if (laborRates.pitchRates && laborRates.pitchRates[pitchKey] !== undefined) {
           return laborRates.pitchRates[pitchKey];
       }
-
-      // Default logic if no custom rate (consistent with LaborProfitTab's getPitchRate)
-      if (pitchValue >= 8) { // Steep
+      const pitchValue = parseInt(pitchKey.split(/[:\/]/)[0]) || 0;
+      // Removed hasPolyIso and hasPolyglass checks from here as they depend on 'selectedMaterials' which is not in this function scope directly
+      // This getPitchRate should only return based on pitch value or laborRates.laborRate if no specific material context
+      if (pitchValue >= 8) { 
           const basePitchValue = 8; const baseRate = 90; const increment = 5;
           return baseRate + (pitchValue - basePitchValue) * increment;
       }
-      if (pitchValue === 0) return 50; // Flat
-      if (pitchValue <= 2) return 109; // Low Slope (1-2/12)
-      return laborRates.laborRate || 85; // Standard (3-7/12) or overall default
+      if (pitchValue === 0) return 50; 
+      if (pitchValue <= 2) return 109; 
+      return laborRates.laborRate || 85; 
   };
 
   if (measurements.areasByPitch && measurements.areasByPitch.length > 0 && totalSquares > 0) {
       measurements.areasByPitch.forEach(area => {
-          const pitchKey = area.pitch.replace("/", ":"); // Normalize to X:12 format
           const areaSquares = (area.area || 0) / 100;
           if (areaSquares > 0) {
-              const rate = getPitchRate(pitchKey);
+              const rate = getPitchRate(area.pitch); // Pass original pitch string
               calculated_labor_cost += rate * areaSquares * wasteMultiplier;
           }
       });
@@ -449,7 +450,7 @@ export const calculateEstimateTotal = (
   const profitAmount = subtotal * (profitMargin / 100);
   const total = subtotal + profitAmount;
 
-  console.log("API calculateEstimateTotal V2:", {
+  console.log("API_CALC_TOTAL V2 Results:", {
     materialCost,
     peelStickCost,
     calculated_labor_cost,

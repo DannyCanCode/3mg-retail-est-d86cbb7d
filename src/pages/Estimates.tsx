@@ -15,7 +15,7 @@ import { EstimateSummaryTab } from "@/components/estimates/pricing/EstimateSumma
 import { ParsedMeasurements } from "@/api/measurements";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { saveEstimate, calculateEstimateTotal, getEstimateById, Estimate as EstimateType, markEstimateAsSold, getEstimates } from "@/api/estimates";
+import { saveEstimate, calculateEstimateTotal as calculateEstimateTotalFromAPI, getEstimateById, Estimate as EstimateType, markEstimateAsSold, getEstimates } from "@/api/estimates";
 import { getMeasurementById } from "@/api/measurements";
 import {
   Dialog,
@@ -554,42 +554,26 @@ const Estimates = () => {
 
   const handleFinalizeEstimate = () => {
     setIsSubmittingFinal(true);
-    
-    // Validate that we have all required data
-    if (!measurements) {
-      toast({
-        title: "Missing Data",
-        description: "Measurements are required for the estimate.",
-        variant: "destructive"
-      });
+    if (!measurements || Object.keys(selectedMaterials).length === 0) {
+      toast({ title: "Missing Data", /* ... */ variant: "destructive" });
       setIsSubmittingFinal(false);
       return;
     }
-    
-    if (Object.keys(selectedMaterials).length === 0) {
-      toast({
-        title: "Missing Data",
-        description: "No materials selected for the estimate.",
-        variant: "destructive"
-      });
-      setIsSubmittingFinal(false);
-      return;
-    }
-    
-    // Create the estimate object
-    const estimateData = {
+    const liveTotal = calculateLiveEstimateTotal(); // Calculate the total using the live function
+    const estimatePayload: Partial<EstimateType> = { // Changed Estimate to EstimateType
       customer_address: measurements.propertyAddress || "Address not provided",
-      total_price: calculateTotalEstimate(),
+      total_price: liveTotal, // Use the live calculated total
       materials: selectedMaterials,
       quantities: quantities,
       labor_rates: laborRates,
       profit_margin: profitMargin,
       measurements: measurements,
+      peel_stick_addon_cost: parseFloat(peelStickAddonCost) || 0,
+      // status will be set to 'pending' by the saveEstimate API if it's a new record
     };
     
-    // Save the estimate to the database
-    console.log("Saving estimate data:", estimateData);
-    saveEstimate(estimateData)
+    console.log("Finalizing new estimate with payload:", estimatePayload);
+    saveEstimate(estimatePayload) // Ensure saveEstimate is called with ONE argument
       .then(({ data, error }) => {
         setIsSubmittingFinal(false);
         
@@ -654,17 +638,14 @@ const Estimates = () => {
       });
   };
   
+  // Ensure calculateTotalEstimate is defined and accessible in this scope
+  // It might already be defined as it was used in handleFinalizeEstimate
   const calculateTotalEstimate = (): number => {
-    // Base cost calculation using the existing API function
-    let total = calculateEstimateTotal(selectedMaterials, quantities, laborRates, profitMargin);
-    
-    // Add the peel & stick addon cost stored in state
+    let total = calculateEstimateTotalFromAPI(selectedMaterials, quantities, laborRates, profitMargin); // Renamed to avoid conflict
     const numericAddonCost = parseFloat(peelStickAddonCost) || 0;
     if (numericAddonCost > 0) {
-      console.log(`[calculateTotalEstimate - FINAL] Adding Peel&Stick Addon Cost: ${numericAddonCost}`);
       total += numericAddonCost;
     }
-    
     return total;
   };
   
@@ -1279,6 +1260,34 @@ const Estimates = () => {
     }
   };
 
+  // This is the live calculator using current component state
+  const calculateLiveEstimateTotal = (): number => {
+    if (!measurements || measurements.totalArea === undefined || measurements.totalArea === null || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) /* || measurements.areasByPitch.length === 0 */ ) {
+      // Allow areasByPitch to be empty if totalArea itself is 0 (e.g., before any measurements are loaded)
+      // but if totalArea > 0, areasByPitch should ideally not be empty.
+      // For now, primary check is if measurements or totalArea are missing.
+      console.warn("CALCULATE_LIVE_TOTAL (Estimates.tsx): Called with null/incomplete measurements. Current measurements state:", JSON.stringify(measurements, null, 2));
+      return 0; 
+    }
+
+    console.log("CALCULATE_LIVE_TOTAL (Estimates.tsx): Calling API with measurements:", JSON.stringify(measurements, null, 2));
+    console.log("CALCULATE_LIVE_TOTAL (Estimates.tsx): Calling API with laborRates:", JSON.stringify(laborRates, null, 2));
+    console.log("CALCULATE_LIVE_TOTAL (Estimates.tsx): Calling API with profitMargin:", profitMargin);
+    console.log("CALCULATE_LIVE_TOTAL (Estimates.tsx): Calling API with selectedMaterials count:", Object.keys(selectedMaterials).length);
+
+
+    let total = calculateEstimateTotalFromAPI(
+      selectedMaterials, 
+      quantities, 
+      laborRates, 
+      profitMargin, 
+      measurements, 
+      parseFloat(peelStickAddonCost) || 0
+    );
+    console.log("CALCULATE_LIVE_TOTAL (Estimates.tsx): Total received from API_CALC_TOTAL:", total);
+    return total;
+  };
+
   return (
     <MainLayout>
       <div className="container mx-auto p-4 max-w-7xl">
@@ -1582,12 +1591,18 @@ const Estimates = () => {
                       quantities={quantities}
                       laborRates={laborRates}
                       profitMargin={profitMargin}
-                      totalAmount={calculateTotalEstimate()}
                       peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
-                      onFinalizeEstimate={handleFinalizeEstimate}
-                      isSubmitting={isSubmittingFinal}
-                      estimate={estimateData}
+                      onFinalizeEstimate={handleFinalizeEstimate} 
+                      isSubmitting={isSubmittingFinal} 
+                      estimate={estimateData} 
                       isReviewMode={isViewMode}
+                      calculateLiveTotal={calculateLiveEstimateTotal}
+                      onEstimateUpdated={() => { 
+                        fetchEstimatesData(); 
+                        if (estimateId) { 
+                          fetchEstimateData(estimateId);
+                        }
+                      }}
                     />
                   </TabsContent>
                 </Tabs>

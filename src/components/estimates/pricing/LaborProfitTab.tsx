@@ -21,6 +21,7 @@ interface LaborProfitTabProps {
   quantities: {[key: string]: number};
   onLaborProfitContinue: (laborRates: LaborRates, profitMargin: number) => void;
   readOnly?: boolean;
+  laborRates?: LaborRates;
 }
 
 export interface LaborRates {
@@ -57,7 +58,8 @@ export function LaborProfitTab({
   selectedMaterials,
   quantities,
   onLaborProfitContinue,
-  readOnly
+  readOnly,
+  laborRates: laborRatesFromProps
 }: LaborProfitTabProps) {
   console.log("LaborProfitTab rendering, received initialLaborRatesProp:", JSON.stringify(initialLaborRatesProp, null, 2));
   console.log("LaborProfitTab rendering, received initialProfitMarginProp:", initialProfitMarginProp);
@@ -94,19 +96,18 @@ export function LaborProfitTab({
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      console.log("LABORPROFITDEBUG: Callback effect: Initial mount, onLaborProfitContinue call SKIPPED.");
+      console.log("LABORPROFITDEBUG: Callback effect (mount): Initial mount, onLaborProfitContinue call SKIPPED.");
       return; 
     }
-
     if (hasUserInteracted.current) {
       if (onLaborProfitContinue) {
-        console.log("LABORPROFITDEBUG: Callback effect: User-initiated change, CALLING onLaborProfitContinue with:", { laborRates, profitMargin });
+        console.log("LABORPROFITDEBUG: Callback effect (laborRates change): User-initiated change, CALLING onLaborProfitContinue with:", { laborRates, profitMargin });
         onLaborProfitContinue(laborRates, profitMargin);
       }
     } else {
-      console.log("LABORPROFITDEBUG: Callback effect: State changed by props, onLaborProfitContinue call SKIPPED (hasUserInteracted is false).");
+      console.log("LABORPROFITDEBUG: Callback effect (laborRates change): State changed by props, onLaborProfitContinue call SKIPPED (hasUserInteracted is false).");
     }
-  }, [JSON.stringify(laborRates), profitMargin, onLaborProfitContinue]);
+  }, [JSON.stringify(laborRates), onLaborProfitContinue]);
 
   const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates) => {
     setLaborRates(prev => {
@@ -156,7 +157,15 @@ export function LaborProfitTab({
   
   const handleProfitMarginChange = (value: number[]) => {
     setProfitMargin(value[0]);
+  };
+  
+  const handleProfitMarginCommit = (value: number[]) => {
+    console.log("LABORPROFITDEBUG: Slider commit, value:", value[0]);
     hasUserInteracted.current = true;
+    if (onLaborProfitContinue) {
+      console.log("LABORPROFITDEBUG: Slider commit, directly CALLING onLaborProfitContinue with:", { laborRates, profitMargin: value[0] });
+      onLaborProfitContinue(laborRates, value[0]);
+    }
   };
   
   const handleDumpsterLocationChange = (value: string) => {
@@ -893,6 +902,7 @@ export function LaborProfitTab({
               max={50}
               step={1}
               onValueChange={handleProfitMarginChange}
+              onValueCommit={handleProfitMarginCommit}
             />
           </div>
         </div>
