@@ -419,10 +419,15 @@ export function MaterialsSelectionTab({
       const baseSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
       const capSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
       if (baseSheetMaterial && capSheetMaterial) {
-        const { quantity: baseQuantity, actualWasteFactor: baseWaste } = calculateMaterialQuantity( baseSheetMaterial, measurements, wasteFactor / 100 );
+        // Only calculate cap quantity first
         const { quantity: capQuantity, actualWasteFactor: capWaste } = calculateMaterialQuantity( capSheetMaterial, measurements, wasteFactor / 100 );
-        const finalBaseQuantity = Math.max(1, baseQuantity);
         const finalCapQuantity = Math.max(1, capQuantity);
+        
+        // Calculate base quantity as half of cap quantity, rounded up
+        const baseQuantity = Math.ceil(finalCapQuantity / 2);
+        const baseWaste = capWaste; // Use same waste factor as cap
+        
+        const finalBaseQuantity = baseQuantity; // Already rounded up
         const currentBaseQty = newQuantities["polyglass-elastoflex-sbs"] || 0;
         if (!newSelectedMaterials["polyglass-elastoflex-sbs"] || currentBaseQty !== finalBaseQuantity) {
           const mandatoryBaseSheet = { ...baseSheetMaterial, name: `${baseSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)` };
@@ -1215,13 +1220,67 @@ export function MaterialsSelectionTab({
         calculationText = calculationText.replace("0/12 pitch area", `0/12 Area (${zeroPitchArea.toFixed(1)} sq ft)`);
     }
     
+    // Handle formulas with "Eaves LF" or "EavesLF" (for ProStart Starter Shingle)
+    if (calculationText.includes("Eaves LF") || calculationText.includes("EavesLF")) {
+      const eaveLength = measurements.eaveLength || 0;
+      calculationText = calculationText
+        .replace("Eaves LF", `Eaves LF (${eaveLength.toFixed(1)} ft)`)
+        .replace("EavesLF", `Eaves LF (${eaveLength.toFixed(1)} ft)`);
+    }
+    
+    // Handle combined Ridge+Hip length calculations
+    if (calculationText.includes("(Ridge Length") && calculationText.includes("Hip Length")) {
+      const ridgeLength = measurements.ridgeLength || 0;
+      const hipLength = measurements.hipLength || 0;
+      const totalLength = ridgeLength + hipLength;
+      calculationText = calculationText.replace(
+        /\(Ridge Length.*\+ Hip Length.*\)/,
+        `(Ridge Length (${ridgeLength.toFixed(1)} ft) + Hip Length (${hipLength.toFixed(1)} ft) = ${totalLength.toFixed(1)} ft)`
+      );
+    }
+
+    // Handle formulas with "Steep Slope Area"
+    if (calculationText.includes("Steep Slope Area")) {
+      let steepSlopeArea = 0;
+      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+        steepSlopeArea = measurements.areasByPitch
+          .filter(area => {
+            const pitchParts = area.pitch.split(/[:\\/]/);
+            const rise = parseInt(pitchParts[0] || '0');
+            return !isNaN(rise) && rise >= 3;
+          })
+          .reduce((sum, area) => sum + (area.area || 0), 0);
+      }
+      calculationText = calculationText.replace("Steep Slope Area", `Steep Slope Area (${steepSlopeArea.toFixed(1)} sq ft)`);
+    }
+    
+    // Handle formulas with waste percentage references
+    if (calculationText.includes("Waste%") || calculationText.includes("Waste %")) {
+      const wastePercent = material.id === "gaf-timberline-hdz-sg" 
+        ? gafTimberlineWasteFactor
+        : (currentActualWasteFactor !== undefined ? Math.round(currentActualWasteFactor * 100) : wasteFactor);
+      
+      calculationText = calculationText
+        .replace("Waste%", `Waste (${wastePercent}%)`)
+        .replace("Waste %", `Waste (${wastePercent}%)`);
+    }
+    
+    // Replace generic (1 + Waste%) pattern
+    if (calculationText.includes("(1 + Waste")) {
+      const wastePercent = material.id === "gaf-timberline-hdz-sg" 
+        ? gafTimberlineWasteFactor
+        : (currentActualWasteFactor !== undefined ? Math.round(currentActualWasteFactor * 100) : wasteFactor);
+      
+      calculationText = calculationText.replace(
+        /\(1 \+ Waste.*?\)/,
+        `(1 + Waste ${wastePercent}%)`
+      );
+    }
+    
     const quantity = localQuantities[material.id] || 0;
     
     // Add a summary showing the calculated quantity that matches the displayed quantity
     calculationText += ` → ${quantity} ${material.unit}${quantity !== 1 ? 's' : ''} needed`;
-    if (currentActualWasteFactor !== undefined && material.category !== MaterialCategory.VENTILATION && material.category !== MaterialCategory.ACCESSORIES) {
-        calculationText += ` (inc. ${(currentActualWasteFactor * 100).toFixed(0)}% waste)`;
-    }
     
     // For shingles that use bundles/squares, show square footage too
     if (material.id === "gaf-timberline-hdz-sg" || 
@@ -1369,11 +1428,11 @@ export function MaterialsSelectionTab({
     return (
       <div
         key={materialId}
-        className={`flex flex-col sm:flex-row justify-between sm:items-center ${isMandatory ? 'py-2 px-3' : 'p-3'} rounded-md border ${isMandatory ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}
+        className={`flex flex-col sm:flex-row justify-between sm:items-start ${isMandatory ? 'py-2 px-3' : 'p-3'} rounded-md border ${isMandatory ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}
       >
         {/* Left side: Material Info */}
-        <div className={`flex-1 ${isMandatory ? 'mb-2' : 'mb-3'} sm:mb-0 sm:mr-4`}>
-          <div className="flex items-center justify-between mb-1">
+        <div className={`flex-1 ${isMandatory ? 'mb-2' : 'mb-2'} sm:mb-0 sm:mr-3`}>
+          <div className="flex items-center justify-between mb-0.5">
             <span className="font-semibold text-gray-800">{baseName}</span>
             {isMandatory && (
               <Badge variant="default" className="ml-2 bg-blue-600 text-white text-xs px-1.5 py-0.5">
@@ -1383,11 +1442,11 @@ export function MaterialsSelectionTab({
           </div>
           
           {isMandatory && requirementText && (
-            <p className="text-[11px] text-blue-700 mb-0.5">{requirementText}</p>
+            <p className="text-[10px] text-blue-700 mb-0.5">{requirementText}</p>
           )}
           
           {/* Add quantity summary with calculation result */}
-          <div className="text-xs text-blue-700 mb-1">
+          <div className="text-xs text-blue-700 mb-0.5">
             {bundleQuantity > 0 && (
               <p className="font-medium">
                 {isGafTimberline 
@@ -1401,7 +1460,7 @@ export function MaterialsSelectionTab({
             )}
           </div>
           
-          <div className="text-sm text-muted-foreground mb-1">
+          <div className="text-xs text-muted-foreground mb-0.5 flex flex-wrap items-center gap-x-1">
              {isGafTimberline && material.approxPerSquare && (
                  <>{formatPrice(material.approxPerSquare)} per Square</>
              )}
@@ -1409,39 +1468,68 @@ export function MaterialsSelectionTab({
               <>{formatPrice(material.price)} per {material.unit}</>
             }
              {!isGafTimberline && material.approxPerSquare && material.approxPerSquare > 0 && 
-                <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
+                <span>(≈ {formatPrice(material.approxPerSquare)}/square)</span>
              }
              {material.id === 'full-peel-stick-system' && 
-                 <span className="italic"> (Cost included in Add-on Price)</span>
+                 <span className="italic">(Cost included in Add-on Price)</span>
              }
           </div>
           
           {/* Add detailed material info */}
-          <div className="text-xs text-muted-foreground space-y-0.5">
-            {/* Display price information - This is now primarily handled by the summary price line above this section. */}
-            {/* <p>– Price: {formatPrice(material.price)} per {material.unit}
-            {material.approxPerSquare && material.approxPerSquare > 0 && 
-               <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
-            }
-            {material.id === 'full-peel-stick-system' && 
-                <span className="italic"> (Cost included in Add-on Price)</span>
-            }
-            </p> */}
-            
-            {/* Display coverage rule - This is now incorporated into 'Calculation Details' */}
-            {/* {material.coverageRule?.description && (
-              <p>– Coverage Rule: {material.coverageRule.description}</p>
-            )} */}
-            
+          <div className="text-[10px] text-muted-foreground space-y-0.5">
             {/* Consolidated Calculation Details */}
             {material.coverageRule && ( // Show if any coverage rule exists
-              <p>– Calculation Details: {formatCalculationWithMeasurements(material)}</p>
+              <div>
+                <p>– Calculation Details: {formatCalculationWithMeasurements(material)}</p>
+                
+                {/* Add editable waste factor - only for materials that use waste */}
+                {currentWasteFactorForMaterial !== undefined && 
+                 material.category !== MaterialCategory.VENTILATION && 
+                 material.category !== MaterialCategory.ACCESSORIES && (
+                  <div className="flex flex-wrap items-center ml-1 mt-0.5">
+                    <div className="flex items-center mr-1">
+                      <span className="mr-1">– Waste:</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={(currentWasteFactorForMaterial * 100).toFixed(0)}
+                        onChange={(e) => handlePerMaterialWasteChange(materialId, e.target.value)}
+                        className="h-5 w-10 py-0 px-1 text-center text-xs"
+                        aria-label={`Waste factor for ${baseName}`}
+                      />
+                      <span className="text-xs ml-0.5 mr-1">%</span>
+                    </div>
+                    <div className="flex space-x-0.5">
+                      {[0, 5, 10, 12, 15].map(presetValue => (
+                        <Button
+                          key={`waste-preset-${presetValue}`}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className={`h-5 w-6 px-0.5 py-0 text-[9px] ${Math.round(currentWasteFactorForMaterial * 100) === presetValue ? 'bg-blue-100' : ''}`}
+                          onClick={() => handlePerMaterialWasteChange(materialId, presetValue.toString())}
+                        >
+                          {presetValue}%
+                        </Button>
+                      ))}
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground ml-0.5" />
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <p>Adjust waste factor for this material. Changes will update the quantity.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
             
             {/* Display bundle/square info for shingles if not already covered (fallback) */}
-            {/* This condition might need review: show if no rule.description but getBundleInfo() is truthy? 
-                However, getBundleInfo is mostly for GAF timberline or items with bundlesPerSquare, 
-                which should have coverage rules. For now, this fallback remains as is. */}
             {!material.coverageRule?.description && getBundleInfo() && (
               <p>– {getBundleInfo()}</p>
             )}
@@ -1449,7 +1537,7 @@ export function MaterialsSelectionTab({
         </div>
   
         {/* Right side: Quantity Control and Delete Button */}
-        <div className="flex items-center justify-between sm:justify-end space-x-2 shrink-0">
+        <div className="flex items-center justify-between sm:justify-end space-x-2 shrink-0 sm:ml-auto">
           <div className="flex items-center">
              {isGafTimberline ? (
                <> {/* Timberline Input (Squares) */}
@@ -1584,9 +1672,9 @@ export function MaterialsSelectionTab({
 
   // Main return structure
   return (
-    <div key={`materials-tab-${measurements?.totalArea || 'default'}-${Date.now()}`} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div key={`materials-tab-${measurements?.totalArea || 'default'}-${Date.now()}`} className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Left Column: Material Selection etc. */}
-      <div className="lg:col-span-2 space-y-6">
+      <div className="lg:col-span-3 space-y-6">
         {/* GAF Package & Warranty Card */}
         <Card>
            <CardHeader><CardTitle>GAF Package & Warranty Selection</CardTitle></CardHeader>
@@ -1753,17 +1841,17 @@ export function MaterialsSelectionTab({
       </div>
 
       {/* Right Column: Selected Materials */}
-      <div className="lg:col-span-1">
-        <Card>
-          <CardHeader><CardTitle>Selected Materials</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
+      <div className="lg:col-span-2">
+        <Card className="sticky top-4">
+          <CardHeader className="pb-2"><CardTitle>Selected Materials</CardTitle></CardHeader>
+          <CardContent className="space-y-3 px-3 py-2">
             {Object.keys(localSelectedMaterials).length === 0 && !warrantyDetails ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-6 text-muted-foreground">
                 <p>No materials selected yet</p>
                 <p className="text-sm mt-2">Select materials from the list</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {Object.entries(localSelectedMaterials).map(([materialId, material]) => {
                    if (!material || !material.id) return null; 
                    return renderSelectedMaterial(materialId, material);
@@ -1798,4 +1886,4 @@ export function MaterialsSelectionTab({
   );
 }
 
-export default MaterialsSelectionTab;
+export default MaterialsSelectionTab; 
