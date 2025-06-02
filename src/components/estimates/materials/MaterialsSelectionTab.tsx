@@ -954,8 +954,8 @@ export function MaterialsSelectionTab({
         { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
         { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
-        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
-        { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
+        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+        // Removed: { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
       ],
       "GAF 2": [
         { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
@@ -965,8 +965,8 @@ export function MaterialsSelectionTab({
         { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
         { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
-        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
-        { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
+        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+        // Removed: { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
       ],
       "OC 1": [ 
         { id: "oc-oakridge", description: "OC Oakridge (Shingles)" },
