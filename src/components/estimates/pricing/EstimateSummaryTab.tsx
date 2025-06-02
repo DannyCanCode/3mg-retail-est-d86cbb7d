@@ -196,10 +196,19 @@ export function EstimateSummaryTab({
         
         if (pitchValue >= 8) {
           // 8/12-18/12 has increasing rates
-          const basePitchValue = 8; // 8/12 is the base pitch
-          const baseRate = 90; // Base rate for 8/12
-          const increment = 5; // $5 increment per pitch level
-          rate = baseRate + (pitchValue - basePitchValue) * increment;
+          const defaultSteepRate = (() => {
+            const basePitchValue = 8; // 8/12 is the base pitch
+            const baseRate = 90; // Base rate for 8/12
+            const increment = 5; // $5 increment per pitch level
+            return baseRate + (pitchValue - basePitchValue) * increment;
+          })();
+
+          // Prioritize custom rate from pitchRates, fallback to defaultSteepRate
+          // Normalize pitch string from areasByPitch (e.g., "8/12") to match key format in pitchRates (e.g., "8:12")
+          const pitchKey = pitch.replace("/", ":"); 
+          rate = safeLaborRates.pitchRates[pitchKey] !== undefined 
+                 ? safeLaborRates.pitchRates[pitchKey] 
+                 : defaultSteepRate;
           
           laborCosts.push({ 
             name: `Labor for ${pitch} Pitch (${Math.round(areaSquares * 10) / 10} squares)`, 

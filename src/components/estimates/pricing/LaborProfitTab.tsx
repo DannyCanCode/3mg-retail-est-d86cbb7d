@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,17 +10,15 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { MeasurementValues } from "../measurement/types";
 import { Material } from "../materials/types";
+import { toast } from "@/components/ui/use-toast";
 
 interface LaborProfitTabProps {
   onBack: () => void;
-  onContinue: (laborRates: LaborRates, profitMargin: number) => void;
   initialLaborRates?: LaborRates;
   initialProfitMargin?: number;
   measurements?: MeasurementValues;
   selectedMaterials: {[key: string]: Material};
   quantities: {[key: string]: number};
-  initialLaborRates2?: LaborRates;
-  initialProfitMargin2?: number;
   onLaborProfitContinue: (laborRates: LaborRates, profitMargin: number) => void;
   readOnly?: boolean;
 }
@@ -53,84 +51,118 @@ export interface LaborRates {
 
 export function LaborProfitTab({
   onBack,
-  onContinue,
-  initialLaborRates = {
-    laborRate: 85, // Default combined rate for 3/12-7/12 pitches
-    isHandload: false,
-    handloadRate: 10,
-    dumpsterLocation: "orlando",
-    dumpsterCount: 1,
-    dumpsterRate: 400,
-    includePermits: true, // Default to include permits
-    permitRate: 450, // Default to Orlando permit rate
-    permitCount: 1, // Default to 1 permit
-    permitAdditionalRate: 450, // Cost for each additional permit
-    pitchRates: {},
-    wastePercentage: 12,
-    includeGutters: false,
-    gutterLinearFeet: 0,
-    gutterRate: 8, // $8 per linear foot
-    includeDownspouts: false,
-    downspoutCount: 0,
-    downspoutRate: 75, // $75 each
-    includeDetachResetGutters: false,
-    detachResetGutterLinearFeet: 0,
-    detachResetGutterRate: 1 // $1 per linear foot
-  },
-  initialProfitMargin = 25,
+  initialLaborRates: initialLaborRatesProp,
+  initialProfitMargin: initialProfitMarginProp,
   measurements,
   selectedMaterials,
   quantities,
-  initialLaborRates2,
-  initialProfitMargin2,
   onLaborProfitContinue,
   readOnly
 }: LaborProfitTabProps) {
-  console.log("LaborProfitTab rendering, received measurements:", measurements?.totalArea);
-  console.log("Received initialLaborRates:", JSON.stringify(initialLaborRates, null, 2));
+  console.log("LaborProfitTab rendering, received initialLaborRatesProp:", JSON.stringify(initialLaborRatesProp, null, 2));
+  console.log("LaborProfitTab rendering, received initialProfitMarginProp:", initialProfitMarginProp);
   
-  // Create a safe initial LaborRates object with all required properties and fallbacks
-  const safeInitialRates: LaborRates = {
-    // Ensure all required fields have default values
-    laborRate: 85,
-    tearOff: 0,
-    installation: 0,
-    isHandload: false,
-    handloadRate: 10,
-    dumpsterLocation: "orlando",
-    dumpsterCount: 1,
-    dumpsterRate: 400,
-    includePermits: true,
-    permitRate: 450,
-    permitCount: 1,
-    permitAdditionalRate: 450,
-    pitchRates: {},
-    wastePercentage: 12,
-    includeGutters: false,
-    gutterLinearFeet: 0,
-    gutterRate: 8,
-    includeDownspouts: false,
-    downspoutCount: 0,
-    downspoutRate: 75,
-    includeDetachResetGutters: false,
-    detachResetGutterLinearFeet: 0,
-    detachResetGutterRate: 1,
-    // Override with any values from initialLaborRates that exist
-    ...initialLaborRates,
-    // If initialLaborRates2 is provided, use those values instead
-    ...(initialLaborRates2 || {})
+  const getSafeInitialRates = useCallback((initialRates?: LaborRates): LaborRates => {
+    const defaults: LaborRates = {
+      laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
+      dumpsterLocation: "orlando", dumpsterCount: 1, dumpsterRate: 400, includePermits: true,
+      permitRate: 450, permitCount: 1, permitAdditionalRate: 450, pitchRates: {},
+      wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, gutterRate: 8,
+      includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
+      includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
+    };
+    let combined = { ...defaults, ...(initialRates || {}) };
+    if (!combined.laborRate && (combined.tearOff || combined.installation)) {
+      combined.laborRate = (combined.tearOff || 0) + (combined.installation || 0);
+    }
+    return combined;
+  }, []);
+
+  const [laborRates, setLaborRates] = useState<LaborRates>(() => getSafeInitialRates(initialLaborRatesProp));
+  const [profitMargin, setProfitMargin] = useState(initialProfitMarginProp || 25);
+
+  const isInitialMount = useRef(true);
+  const hasUserInteracted = useRef(false);
+
+  useEffect(() => {
+    console.log("LABORPROFITDEBUG: Props effect: initialLaborRatesProp or initialProfitMarginProp changed.");
+    setLaborRates(getSafeInitialRates(initialLaborRatesProp));
+    setProfitMargin(initialProfitMarginProp || 25);
+    hasUserInteracted.current = false; 
+  }, [initialLaborRatesProp, initialProfitMarginProp, getSafeInitialRates]);
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      console.log("LABORPROFITDEBUG: Callback effect: Initial mount, onLaborProfitContinue call SKIPPED.");
+      return; 
+    }
+
+    if (hasUserInteracted.current) {
+      if (onLaborProfitContinue) {
+        console.log("LABORPROFITDEBUG: Callback effect: User-initiated change, CALLING onLaborProfitContinue with:", { laborRates, profitMargin });
+        onLaborProfitContinue(laborRates, profitMargin);
+      }
+    } else {
+      console.log("LABORPROFITDEBUG: Callback effect: State changed by props, onLaborProfitContinue call SKIPPED (hasUserInteracted is false).");
+    }
+  }, [JSON.stringify(laborRates), profitMargin, onLaborProfitContinue]);
+
+  const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates) => {
+    setLaborRates(prev => {
+        const newState = updater(prev);
+        console.log("LABORPROFITDEBUG: commonStateUpdater, new laborRates state:", newState);
+        return newState;
+    });
+    hasUserInteracted.current = true;
   };
   
-  console.log("Using safeInitialRates:", JSON.stringify(safeInitialRates, null, 2));
+  const handleLaborRateChange = (field: keyof Omit<LaborRates, "pitchRates" | "dumpsterCount" | "dumpsterRate" | "permitRate">, value: string | boolean | number) => {
+    let processedValue = value;
+    if (typeof value === "string" && field !== "dumpsterLocation") {
+      if (value.trim() === "") {
+        processedValue = ""; 
+      } else {
+        const parsed = parseFloat(value);
+        processedValue = isNaN(parsed) ? (field === 'laborRate' || field === 'handloadRate' ? 0 : undefined) : parsed; 
+      }
+    }
+    commonStateUpdater(prev => {
+      const updatedRates = {
+        ...prev,
+        [field]: (field === 'laborRate' || field === 'handloadRate') ? (processedValue === "" || processedValue === undefined ? 0 : processedValue) : processedValue
+      } as LaborRates; 
+      if (field === "dumpsterLocation") {
+        updatedRates.dumpsterRate = value === "orlando" ? 400 : 500;
+        updatedRates.permitRate = value === "orlando" ? 450 : 550;
+      }
+      return updatedRates;
+    });
+  };
   
-  // Normalize for backward compatibility (only if needed)
-  if (!safeInitialRates.laborRate && (safeInitialRates.tearOff || safeInitialRates.installation)) {
-    safeInitialRates.laborRate = (safeInitialRates.tearOff || 0) + (safeInitialRates.installation || 0);
-    console.log(`Converted old labor rates to combined rate: ${safeInitialRates.laborRate}`);
-  }
+  const handlePitchRateChange = (pitch: string, value: string) => {
+    let numValue: number | undefined;
+    if (value.trim() === "") {
+      numValue = undefined; 
+    } else {
+      const parsed = parseFloat(value);
+      numValue = isNaN(parsed) ? undefined : parsed;
+    }
+    commonStateUpdater(prev => ({
+      ...prev,
+      pitchRates: { ...prev.pitchRates, [pitch]: numValue }
+    }));
+  };
   
-  const [laborRates, setLaborRates] = useState<LaborRates>(safeInitialRates);
-  const [profitMargin, setProfitMargin] = useState(initialProfitMargin2 || initialProfitMargin || 25);
+  const handleProfitMarginChange = (value: number[]) => {
+    setProfitMargin(value[0]);
+    hasUserInteracted.current = true;
+  };
+  
+  const handleDumpsterLocationChange = (value: string) => {
+    const location = value as "orlando" | "outside";
+    handleLaborRateChange("dumpsterLocation", location);
+  };
   
   // Calculate the rate for each pitch level
   const getPitchRate = (pitch: string = "6:12") => {
@@ -274,112 +306,6 @@ export function LaborProfitTab({
     }));
   }, [laborRates.dumpsterLocation]);
   
-  const handleLaborRateChange = (field: keyof Omit<LaborRates, "pitchRates" | "dumpsterCount" | "dumpsterRate" | "permitRate">, value: string | boolean | number) => {
-    let numValue = value;
-    if (typeof value === "string" && field !== "dumpsterLocation") {
-      numValue = parseFloat(value) || 0;
-    }
-    
-    setLaborRates(prev => {
-      // Make sure prev is not undefined
-      const safePrev = prev || {
-        laborRate: 85,
-        isHandload: false,
-        handloadRate: 10,
-        dumpsterLocation: "orlando",
-        dumpsterCount: 1,
-        dumpsterRate: 400,
-        includePermits: true,
-        permitRate: 450,
-        permitCount: 1,
-        permitAdditionalRate: 450,
-        pitchRates: {},
-        wastePercentage: 12,
-        includeDetachResetGutters: false,
-        detachResetGutterLinearFeet: 0,
-        detachResetGutterRate: 1
-      };
-      
-      return {
-        ...safePrev,
-        [field]: numValue
-      };
-    });
-    
-    // Update dumpster rate when location changes with safety check
-    if (field === "dumpsterLocation") {
-      const newRate = value === "orlando" ? 400 : 500;
-      setLaborRates(prev => {
-        // Make sure prev is not undefined
-        const safePrev = prev || {
-          laborRate: 85,
-          isHandload: false,
-          handloadRate: 10,
-          dumpsterLocation: "orlando",
-          dumpsterCount: 1,
-          dumpsterRate: 400,
-          includePermits: true,
-          permitRate: 450,
-          permitCount: 1,
-          permitAdditionalRate: 450,
-          pitchRates: {},
-          wastePercentage: 12,
-          includeDetachResetGutters: false,
-          detachResetGutterLinearFeet: 0,
-          detachResetGutterRate: 1
-        };
-        
-        return {
-          ...safePrev,
-          dumpsterRate: newRate
-        };
-      });
-    }
-  };
-  
-  const handlePitchRateChange = (pitch: string, value: string) => {
-    const numValue = parseFloat(value) || 0;
-    setLaborRates(prev => ({
-      ...prev,
-      pitchRates: {
-        ...prev.pitchRates,
-        [pitch]: numValue
-      }
-    }));
-  };
-  
-  const handleProfitMarginChange = (value: number[]) => {
-    setProfitMargin(value[0]);
-  };
-  
-  const handleDumpsterLocationChange = (value: string) => {
-    const location = value as "orlando" | "outside";
-    const dumpsterRate = location === "orlando" ? 400 : 500;
-    const permitRate = location === "orlando" ? 450 : 550;
-    
-    setLaborRates(prev => ({
-      ...prev,
-      dumpsterLocation: location,
-      dumpsterRate,
-      permitRate
-    }));
-  };
-  
-  const handleContinue = () => {
-    // Convert laborRate back to tearOff and installation for backward compatibility
-    const compatLaborRates = {
-      ...laborRates,
-      tearOff: laborRates.laborRate * 0.3, // 30% of labor rate goes to tear off
-      installation: laborRates.laborRate * 0.7, // 70% goes to installation
-    };
-    
-    if (onLaborProfitContinue) {
-      onLaborProfitContinue(laborRates, profitMargin);
-    } else if (onContinue) {
-      onContinue(laborRates, profitMargin);
-    }
-  };
-  
   // Generate pitch options from 8/12 to 18/12
   const pitchOptions = Array.from({ length: 11 }, (_, i) => {
     const pitch = i + 8;
@@ -482,6 +408,21 @@ export function LaborProfitTab({
     };
   });
   
+  const handleContinue = () => {
+    if (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)) {
+      toast({
+        title: "Missing Labor Rates",
+        description: "Please set a valid base labor rate.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (onLaborProfitContinue) {
+      console.log("LaborProfitTab: Continue button clicked, calling onLaborProfitContinue with:", { laborRates, profitMargin });
+      onLaborProfitContinue(laborRates, profitMargin);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -799,10 +740,12 @@ export function LaborProfitTab({
                 <Input
                   id="laborRate"
                   type="number"
-                  value={(laborRates.laborRate || 85).toString()}
-                  onChange={(e) => handleLaborRateChange("laborRate", e.target.value)}
+                  defaultValue={(laborRates.laborRate !== undefined ? laborRates.laborRate : 85).toString()}
+                  onBlur={(e) => handleLaborRateChange("laborRate", e.target.value)}
+                  key={`laborRate-input-${laborRates.laborRate}`}
                   min="0"
                   step="0.01"
+                  disabled={readOnly}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Combined rate for tear off and installation (3/12-7/12 pitches)
@@ -817,6 +760,7 @@ export function LaborProfitTab({
                   value={(laborRates.wastePercentage || 12).toString()}
                   readOnly
                   className="bg-muted"
+                  disabled={readOnly}
                 />
               </div>
             </div>
@@ -867,39 +811,53 @@ export function LaborProfitTab({
               <div className="mb-4">
                 <h4 className="text-md font-medium mb-2">Low Slope Pitches (0/12-2/12)</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {lowSlopePitchRateDisplay.map(({ pitch, rate }) => (
-                    <div key={pitch} className="flex items-center space-x-2">
-                      <Label htmlFor={`pitch_${pitch}`} className="min-w-24">{pitch}</Label>
-                      <Input
-                        id={`pitch_${pitch}`}
-                        type="text"
-                        value={`$${rate}/square`}
-                        readOnly
-                        className="bg-muted flex-1"
-                      />
-                    </div>
-                  ))}
+                  {lowSlopePitchOptions.map((pitch) => {
+                    const currentRate = laborRates.pitchRates[pitch] !== undefined ? laborRates.pitchRates[pitch] : getPitchRate(pitch);
+                    return (
+                      <div key={pitch} className="flex items-center space-x-2">
+                        <Label htmlFor={`pitch_rate_${pitch}`} className="min-w-[40px]">{pitch}</Label>                        
+                        <Input
+                          id={`pitch_rate_${pitch}`}
+                          type="number"
+                          step="0.01"
+                          defaultValue={laborRates.pitchRates[pitch] !== undefined ? String(laborRates.pitchRates[pitch]) : getPitchRate(pitch).toString()}
+                          onBlur={(e) => handlePitchRateChange(pitch, e.target.value)}
+                          key={`low_pitch_rate_input_${pitch}`}
+                          className="h-9 text-sm flex-1"
+                          disabled={readOnly}
+                          placeholder={getPitchRate(pitch).toString()}
+                        />
+                        <span className="text-sm text-muted-foreground">/square</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-              
-              {/* Standard Pitches - this information is already in the Note box below */}
               
               {/* Steep Pitches Section */}
               <div>
                 <h4 className="text-md font-medium mb-2">Steep Pitches (8/12-18/12)</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {pitchRateDisplay.map(({ pitch, rate }) => (
-                    <div key={pitch} className="flex items-center space-x-2">
-                      <Label htmlFor={`pitch_${pitch}`} className="min-w-24">{pitch}</Label>
-                      <Input
-                        id={`pitch_${pitch}`}
-                        type="text"
-                        value={`$${rate}/square`}
-                        readOnly
-                        className="bg-muted flex-1"
-                      />
-                    </div>
-                  ))}
+                  {pitchOptions.map((pitch) => {
+                    const currentRate = laborRates.pitchRates[pitch] !== undefined ? laborRates.pitchRates[pitch] : getPitchRate(pitch);
+                    return (
+                      <div key={pitch} className="flex items-center space-x-2">
+                        <Label htmlFor={`pitch_rate_${pitch}`} className="min-w-[40px]">{pitch}</Label>
+                        <Input
+                          id={`pitch_rate_${pitch}`}
+                          type="number"
+                          step="0.01"
+                          defaultValue={laborRates.pitchRates[pitch] !== undefined ? String(laborRates.pitchRates[pitch]) : getPitchRate(pitch).toString()}
+                          onBlur={(e) => handlePitchRateChange(pitch, e.target.value)}
+                          key={`steep_pitch_rate_input_${pitch}`}
+                          className="h-9 text-sm flex-1"
+                          disabled={readOnly}
+                          placeholder={getPitchRate(pitch).toString()}
+                        />
+                        <span className="text-sm text-muted-foreground">/square</span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -954,14 +912,6 @@ export function LaborProfitTab({
         >
           <ChevronLeft className="h-4 w-4" />
           Back to Materials
-        </Button>
-        <Button 
-          type="button" 
-          onClick={handleContinue}
-          className="flex items-center gap-2"
-        >
-          Continue to Summary
-          <ChevronRight className="h-4 w-4" />
         </Button>
       </CardFooter>
     </Card>

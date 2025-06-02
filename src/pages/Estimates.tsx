@@ -478,60 +478,78 @@ const Estimates = () => {
     selectedMaterials: {[key: string]: Material}, 
     quantities: {[key: string]: number},
     peelStickPrice: string;
+    warrantyCost?: number; 
+    warrantyDetails?: any | null; 
     isNavigatingBack?: boolean;
   }) => {
     console.log("handleMaterialsUpdate called with update:", update);
     
-    // Check if this is an explicit navigation back to measurements
     if (update.isNavigatingBack) {
       console.log("Navigation back to measurements tab initiated from Materials Tab.");
-      // Reset relevant material states if needed, or rely on MaterialsSelectionTab to send cleared values
-      // For now, just navigate. MaterialsSelectionTab sends empty/default values when its back button is clicked.
-      setPeelStickAddonCost("0.00"); 
-      setSelectedMaterials({});
-      setQuantities({});
       setActiveTab("measurements");
       return;
     }
     
-    // Regular update of materials, quantities, and costs from MaterialsSelectionTab
+    // This function will now ONLY update state. 
+    // Navigation forward will be handled by the main "Continue" button in Estimates.tsx render.
     setSelectedMaterials(update.selectedMaterials);
     setQuantities(update.quantities);
     setPeelStickAddonCost(update.peelStickPrice); 
+    // TODO: Handle warrantyDetails update if necessary
+    // if (update.warrantyDetails !== undefined) { /* set warranty state */ }
     
     console.log("Materials/Cost updated in Estimates.tsx. Quantities count:", Object.keys(update.quantities).length);
+
+    // REMOVED NAVIGATION BLOCK FROM HERE
+    // if (activeTab === 'materials' && !update.isNavigatingBack /* && update.isContinueAction */) {
+    //   if (Object.keys(update.selectedMaterials).length === 0) {
+    //     toast({ 
+    //       title: "No Materials Selected", 
+    //       description: "Please select at least one material to continue.",
+    //       variant: "destructive"
+    //     });
+    //     return; 
+    //   }
+      
+    //   if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+    //     toast({
+    //       title: "Missing Measurements Data",
+    //       description: "Cannot proceed to labor/profit without valid pitch information.",
+    //       variant: "destructive"
+    //     });
+    //     return;
+    //   }
+
+    //   console.log("Navigating from Materials to Pricing (Labor & Profit) tab.");
+    //   setActiveTab("pricing"); 
+    // }
   };
 
-  const handleLaborProfitContinue = (laborRates: LaborRates, profitMargin: number) => {
-    // Validate that we have proper laborRates and measurements before going to summary
-    if (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)) {
-      console.error("Missing valid labor rates, cannot continue to summary", laborRates);
-      toast({
-        title: "Error",
-        description: "Missing labor rate information. Please set valid labor rates.",
-        variant: "destructive"
-      });
+  const handleLaborProfitContinue = (updatedLaborRates: LaborRates, updatedProfitMargin: number) => {
+    // Validate that we have proper laborRates and measurements before just updating state
+    if (!updatedLaborRates || (!updatedLaborRates.laborRate && !updatedLaborRates.tearOff && !updatedLaborRates.installation)) {
+      console.error("Missing valid labor rates, not updating state in Estimates.tsx", updatedLaborRates);
+      // Toast is optional here, as this is more of a data sync. 
+      // The main "Continue" button will do a more user-facing validation.
       return;
     }
     
-    if (!measurements) {
-      console.error("Missing measurements, cannot continue to summary");
-      toast({
-        title: "Error",
-        description: "Missing measurement information. Please go back and set valid measurements.",
-        variant: "destructive"
-      });
-      return;
-    }
+    // if (!measurements) { // This validation might be too strict if just syncing data
+    //   console.error("Missing measurements, not updating state in Estimates.tsx");
+    //   return;
+    // }
     
-    setLaborRates(laborRates);
-    setProfitMargin(profitMargin);
-    setActiveTab("summary");
+    console.log("Estimates.tsx: Updating laborRates and profitMargin state.", { updatedLaborRates, updatedProfitMargin });
+    setLaborRates(updatedLaborRates);
+    setProfitMargin(updatedProfitMargin);
     
-    toast({
-      title: "Labor rates & profit margin saved",
-      description: "Review your estimate summary.",
-    });
+    // DO NOT NAVIGATE HERE. Navigation is handled by the main generic "Continue" button.
+    // setActiveTab("summary"); 
+    
+    // toast({ // Toast on data sync might be too noisy.
+    //   title: "Labor rates & profit margin synced",
+    //   description: "Data updated for summary review.",
+    // });
   };
 
   const handleFinalizeEstimate = () => {
@@ -1545,15 +1563,14 @@ const Estimates = () => {
                   
                   <TabsContent value="pricing">
                     <LaborProfitTab
-                      key={`labor-profit-${activeTab === 'pricing' ? 'active' : 'inactive'}`}
+                      key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
                       measurements={measurements!}
                       selectedMaterials={selectedMaterials}
                       quantities={quantities}
-                      initialLaborRates2={laborRates}
-                      initialProfitMargin2={profitMargin}
+                      initialLaborRates={laborRates}
+                      initialProfitMargin={profitMargin}
                       onLaborProfitContinue={handleLaborProfitContinue}
                       onBack={() => setActiveTab("materials")}
-                      onContinue={handleLaborProfitContinue}
                       readOnly={isViewMode}
                     />
                   </TabsContent>
@@ -1585,6 +1602,14 @@ const Estimates = () => {
                       const tabOrder = ["upload", "measurements", "materials", "pricing", "summary"];
                       const currentIndex = tabOrder.indexOf(activeTab);
                       if (currentIndex > 0) {
+                        // Special handling when going back FROM pricing TO materials
+                        if (activeTab === 'pricing' && handleLaborProfitContinue) {
+                            // Call onLaborProfitContinue to ensure latest labor rates are synced before leaving
+                            // This assumes onLaborProfitContinue is designed to just sync data without navigating if called this way
+                            // Or, ensure data is already synced via its internal useEffect in LaborProfitTab
+                            console.log("Back from Pricing: ensuring labor/profit data is synced.");
+                            // handleLaborProfitContinue(laborRates, profitMargin); // This might be too aggressive or cause loops
+                        }
                         setActiveTab(tabOrder[currentIndex - 1]);
                       }
                     }}
@@ -1599,14 +1624,55 @@ const Estimates = () => {
                     onClick={() => {
                       const tabOrder = ["upload", "measurements", "materials", "pricing", "summary"];
                       const currentIndex = tabOrder.indexOf(activeTab);
+
                       if (currentIndex < tabOrder.length - 1) {
-                        setActiveTab(tabOrder[currentIndex + 1]);
+                        const nextTab = tabOrder[currentIndex + 1];
+                        
+                        // Validations before navigating FROM a specific tab
+                        if (activeTab === 'materials') {
+                          if (Object.keys(selectedMaterials).length === 0) {
+                            toast({ 
+                              title: "No Materials Selected", 
+                              description: "Please select at least one material to continue to Labor & Profit.",
+                              variant: "destructive"
+                            });
+                            return; 
+                          }
+                          if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+                            toast({
+                              title: "Missing Measurements Data",
+                              description: "Cannot proceed to Labor & Profit without valid pitch information from measurements.",
+                              variant: "destructive"
+                            });
+                            return; 
+                          }
+                        }
+                        
+                        if (activeTab === 'pricing') {
+                           // Validation before leaving pricing tab to go to summary
+                           if (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)) {
+                            toast({
+                                title: "Missing Labor Rates",
+                                description: "Please ensure valid labor rates are set before proceeding to summary.",
+                                variant: "destructive"
+                            });
+                            return;
+                           }
+                           // Ensure latest labor/profit are synced before moving to summary
+                           if (handleLaborProfitContinue) {
+                               handleLaborProfitContinue(laborRates, profitMargin);
+                           }
+                        }
+
+                        console.log(`Main Continue button: Navigating from ${activeTab} to ${nextTab}`);
+                        setActiveTab(nextTab);
                       }
                     }}
-                    disabled={
+                    disabled={ // Review and adjust disabled logic as needed
                       (activeTab === "upload" && !extractedPdfData) ||
                       (activeTab === "measurements" && !measurements) ||
-                      (activeTab === "materials" && Object.keys(selectedMaterials).length === 0)
+                      (activeTab === "materials" && Object.keys(selectedMaterials).length === 0) ||
+                      (activeTab === "pricing" && (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)))
                     }
                   >
                     Continue
