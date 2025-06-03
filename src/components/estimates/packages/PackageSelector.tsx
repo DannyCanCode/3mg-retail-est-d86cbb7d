@@ -30,7 +30,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           onClick={() => handlePackageClick('gaf-1')}
         >
           <div className="flex justify-between">
-            <h4 className="font-medium">GAF 1 - Basic Package</h4>
+          <h4 className="font-medium">GAF 1 - Basic Package</h4>
           </div>
           <p className="text-sm text-gray-600 mt-1">Standard GAF materials for quality installation</p>
           <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
@@ -53,7 +53,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           onClick={() => handlePackageClick('gaf-2')}
         >
           <div className="flex justify-between">
-            <h4 className="font-medium">GAF 2 - Premium Package</h4>
+          <h4 className="font-medium">GAF 2 - Premium Package</h4>
           </div>
           <p className="text-sm text-gray-600 mt-1">Premium GAF materials with enhanced protection</p>
           <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">

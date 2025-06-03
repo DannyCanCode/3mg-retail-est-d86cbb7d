@@ -106,7 +106,7 @@ const UPDATED_MATERIALS: Material[] = [
     id: "millennium-galvanized-drip-edge",
     name: "Millennium Galvanized Steel Drip Edge - 26GA - 6\" (10')",
     category: MaterialCategory.METAL,
-    price: 13.30,
+    price: 15.00,
     unit: "Piece",
     coverageRule: {
       description: "10'/Piece",

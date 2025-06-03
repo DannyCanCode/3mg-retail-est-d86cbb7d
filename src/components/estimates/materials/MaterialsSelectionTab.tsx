@@ -19,7 +19,7 @@ import PackageSelector from "../packages/PackageSelector";
 import WarrantySelector from "../warranties/WarrantySelector";
 import LowSlopeOptions from "../lowslope/LowSlopeOptions";
 import { useToast } from "@/hooks/use-toast";
-import { getDefaultPricingTemplate, PricingTemplate } from "@/api/pricing-templates";
+import { getDefaultPricingTemplate, PricingTemplate, createPricingTemplate, updatePricingTemplate } from "@/api/pricing-templates"; // Added createPricingTemplate, updatePricingTemplate
 import {
   Tooltip,
   TooltipContent,
@@ -27,6 +27,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getAllMaterialWastePercentages, updateMaterialWastePercentage } from "@/lib/supabase/material-waste";
+import { supabase } from "@/integrations/supabase/client"; // Added supabase import
 
 // *** UPDATED LOG HERE ***
 console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: WASTE FACTOR UPDATE v1"); 
@@ -44,6 +45,9 @@ interface MaterialsSelectionTabProps {
     isNavigatingBack?: boolean; // New optional flag
   }) => void;
   readOnly?: boolean;
+  activePricingTemplate?: PricingTemplate | null; // Allow null
+  allPricingTemplates?: PricingTemplate[];
+  onTemplateChange?: (template: PricingTemplate) => void;
 }
 
 // Interface for warranty details
@@ -59,7 +63,10 @@ export function MaterialsSelectionTab({
   quantities = {}, // Default to empty object
   onMaterialsUpdate,
   readOnly,
-}: MaterialsSelectionTabProps) {
+  activePricingTemplate, // Assuming this prop is passed down with the currently selected template object
+  allPricingTemplates, // Assuming this prop is passed down with all templates for the dropdown
+  onTemplateChange, // Callback to parent when a template is selected/created/updated
+}: MaterialsSelectionTabProps) { // Added activePricingTemplate, allPricingTemplates, onTemplateChange to props
   // Debug log measurements
   console.log(`MaterialsSelectionTab rendering with measurements (key: ${measurements?.predominantPitch || 'no-measurements'})`);
   console.log("areasByPitch:", measurements?.areasByPitch);
@@ -123,6 +130,14 @@ export function MaterialsSelectionTab({
   // New state for database waste percentages
   const [dbWastePercentages, setDbWastePercentages] = useState<MaterialWastePercentages>({});
   const [isDbWasteLoading, setIsDbWasteLoading] = useState(false);
+  
+  // New state for the materials of the template currently being edited or viewed
+  const [editableTemplateMaterials, setEditableTemplateMaterials] = useState<Record<string, Material>>({});
+  
+  // State for "Save As New Template" modal
+  const [isSaveAsNewModalOpen, setIsSaveAsNewModalOpen] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [newTemplateDescription, setNewTemplateDescription] = useState("");
   
   // Load database waste percentages on component mount
   useEffect(() => {
@@ -489,13 +504,19 @@ export function MaterialsSelectionTab({
     
   }, [measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
 
-  // Group materials by category using the complete ROOFING_MATERIALS list
+  // Group materials by category using the editableTemplateMaterials
   const materialsByCategory = useMemo(() => {
-    console.log("Grouping materials from complete ROOFING_MATERIALS list");
-    const groups = groupMaterialsByCategory(ROOFING_MATERIALS);
-    console.log("Grouped materials by category:", groups);
+    console.log("[MaterialsByCategoryMemo] Grouping materials from editableTemplateMaterials list", Object.keys(editableTemplateMaterials).length);
+    if (Object.keys(editableTemplateMaterials).length === 0) {
+      // Fallback or initial load before editableTemplateMaterials is populated by effect
+      console.log("[MaterialsByCategoryMemo] editableTemplateMaterials is empty, trying ROOFING_MATERIALS for grouping temporarily.");
+      return groupMaterialsByCategory(ROOFING_MATERIALS);
+    }
+    const materialsArray = Object.values(editableTemplateMaterials);
+    const groups = groupMaterialsByCategory(materialsArray);
+    console.log("[MaterialsByCategoryMemo] Grouped editable materials by category:", groups);
     return groups;
-  }, []);
+  }, [editableTemplateMaterials]); // Depends on editableTemplateMaterials
 
   // Handle Peel & Stick system add-on
   useEffect(() => {
@@ -933,8 +954,8 @@ export function MaterialsSelectionTab({
         { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
         { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
-        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
-        { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
+        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+        // Removed: { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
       ],
       "GAF 2": [
         { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
@@ -944,8 +965,8 @@ export function MaterialsSelectionTab({
         { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
         { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
-        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
-        { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
+        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+        // Removed: { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
       ],
       "OC 1": [ 
         { id: "oc-oakridge", description: "OC Oakridge (Shingles)" },
@@ -1670,6 +1691,140 @@ export function MaterialsSelectionTab({
     }
   }, [selectedPackage, selectedWarranty, toast]);
 
+  // Populate editableTemplateMaterials when activePricingTemplate changes or on initial load
+  useEffect(() => {
+    console.log("[EditableTemplateEffect] Active pricing template changed:", activePricingTemplate?.name);
+    if (activePricingTemplate && activePricingTemplate.materials && Object.keys(activePricingTemplate.materials).length > 0) {
+      console.log("[EditableTemplateEffect] Loading materials from active template:", activePricingTemplate.name, Object.keys(activePricingTemplate.materials).length);
+      setEditableTemplateMaterials(JSON.parse(JSON.stringify(activePricingTemplate.materials))); // Deep copy
+    } else {
+      // Default to ROOFING_MATERIALS if no active template or if it's empty
+      // This assumes ROOFING_MATERIALS is the desired "Master" default
+      console.log("[EditableTemplateEffect] No active template or empty, loading from ROOFING_MATERIALS as default master.");
+      const masterMaterials: Record<string, Material> = {};
+      ROOFING_MATERIALS.forEach(material => {
+        masterMaterials[material.id] = JSON.parse(JSON.stringify(material)); // Deep copy
+      });
+      setEditableTemplateMaterials(masterMaterials);
+    }
+  }, [activePricingTemplate]); // ROOFING_MATERIALS is constant, no need to add as dep if it doesn't change
+
+  const handleEditableMaterialPropertyChange = (
+    materialId: string,
+    propertyPath: string, 
+    value: any,
+    isNumeric: boolean = false
+  ) => {
+    setEditableTemplateMaterials(prev => {
+      const newMaterials = { ...prev };
+      const materialToUpdate = JSON.parse(JSON.stringify(newMaterials[materialId])); // Deep clone
+
+      let current = materialToUpdate;
+      const parts = propertyPath.split('.');
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!current[parts[i]]) {
+          current[parts[i]] = {}; 
+        }
+        current = current[parts[i]];
+      }
+      
+      let processedValue = value;
+      if (isNumeric) {
+        processedValue = parseFloat(value);
+        if (isNaN(processedValue)) {
+          // Decide how to handle invalid numbers, e.g., keep old value or set to 0
+          // For now, let's revert or set to 0 if it's a price.
+          if (propertyPath === 'price') processedValue = 0;
+          else { // For other numeric fields, maybe try to keep previous if parse fails.
+             // This part needs careful consideration based on field type.
+             // For simplicity, if parse fails and not price, it might become NaN.
+          }
+        }
+      }
+      current[parts[parts.length - 1]] = processedValue;
+      
+      newMaterials[materialId] = materialToUpdate;
+      console.log(`[EditableMaterialChange] Material: ${materialId}, Path: ${propertyPath}, New Value:`, processedValue, "Updated Material:", newMaterials[materialId]);
+      return newMaterials;
+    });
+  };
+
+  const handleOpenSaveAsNewTemplateModal = () => {
+    // Pre-fill name if a template is loaded, suggesting a copy
+    if (activePricingTemplate?.name) {
+      setNewTemplateName(`${activePricingTemplate.name} - Copy`);
+      setNewTemplateDescription(activePricingTemplate.description || "");
+    } else {
+      setNewTemplateName("My Custom Template");
+      setNewTemplateDescription("");
+    }
+    setIsSaveAsNewModalOpen(true);
+  };
+
+  const handleSaveNewTemplate = async () => {
+    if (!newTemplateName.trim()) {
+      toast({ title: "Template Name Required", description: "Please enter a name for your new template.", variant: "destructive" });
+      return;
+    }
+
+    const defaultLaborRates = { 
+      laborRate: 85, isHandload: false, handloadRate: 10, dumpsterLocation: "orlando",
+      dumpsterCount: 1, dumpsterRate: 400, includePermits: true, permitRate: 450,
+      permitCount: 1, permitAdditionalRate: 450, pitchRates: {}, wastePercentage: 12,
+      includeGutters: false, gutterLinearFeet: 0, gutterRate: 8, includeDownspouts: false,
+      downspoutCount: 0, downspoutRate: 75, includeDetachResetGutters: false,
+      detachResetGutterLinearFeet: 0, detachResetGutterRate: 1
+    };
+
+    const templateDataToSave = {
+      name: newTemplateName.trim(),
+      description: newTemplateDescription.trim(),
+      materials: editableTemplateMaterials as any, // Cast to any for DB insert
+      quantities: {} as any, 
+      labor_rates: (activePricingTemplate?.labor_rates || defaultLaborRates) as any, 
+      profit_margin: activePricingTemplate?.profit_margin || 25, 
+      is_default: false, 
+    };
+
+    console.log("Attempting to save new template (typed for DB insert):", templateDataToSave);
+
+    try {
+      const { data, error } = await supabase
+        .from('pricing_templates')
+        .insert(templateDataToSave) 
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error saving new template to Supabase:", error);
+        toast({ title: "Error Saving Template", description: error.message, variant: "destructive" });
+      } else if (data) {
+        toast({ title: "Template Saved!", description: `"${data.name}" has been saved.` });
+        setIsSaveAsNewModalOpen(false);
+        setNewTemplateName("");
+        setNewTemplateDescription("");
+        if (onTemplateChange) { 
+          const returnedTemplate: PricingTemplate = {
+            id: data.id as string, 
+            name: data.name as string,
+            description: data.description as string | undefined,
+            materials: data.materials as unknown as Record<string, Material>,
+            quantities: data.quantities as unknown as Record<string, number>,
+            labor_rates: data.labor_rates as unknown as any, // Cast to any, assuming LaborRates structure matches
+            profit_margin: data.profit_margin as number | undefined,
+            is_default: data.is_default as boolean | undefined,
+            created_at: data.created_at as string | undefined,
+            updated_at: data.updated_at as string | undefined,
+          };
+          onTemplateChange(returnedTemplate); 
+        }
+      }
+    } catch (e) {
+      console.error("Exception saving new template:", e);
+      toast({ title: "Save Error", description: "An unexpected error occurred.", variant: "destructive" });
+    }
+  };
+
   // Main return structure
   return (
     <div key={`materials-tab-${measurements?.totalArea || 'default'}-${Date.now()}`} className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -1778,53 +1933,92 @@ export function MaterialsSelectionTab({
                      </AccordionTrigger>
                      <AccordionContent>
                        <div className="space-y-2 pt-2">
-                         {materials.map(material => (
-                           <div key={material.id} className="flex justify-between items-center p-3 rounded-md border hover:bg-secondary/20">
-                             <div className="space-y-1">
-                               <div className="font-medium">{material.name}</div>
-                                 {/* Price information with square footage estimate if available */}
-                               <div className="text-sm text-muted-foreground">
-                                   – Price: {formatPrice(material.price)} per {material.unit}
-                                   {material.approxPerSquare && material.approxPerSquare > 0 && 
-                                     <span> (≈ {formatPrice(material.approxPerSquare)}/square)</span>
-                                   }
-                               </div>
-                                 {/* Coverage rule */}
-                                 {material.coverageRule?.description && (
-                                   <div className="text-xs text-muted-foreground">
-                                     – Coverage Rule: {material.coverageRule.description}
-                             </div>
-                                 )}
-                                 {/* Calculation logic */}
-                                 {material.coverageRule?.calculation && (
-                                   <div className="text-xs text-muted-foreground">
-                                     – Calculation Logic: {formatCalculationWithMeasurements(material)}
-                                   </div>
-                                 )}
-                               </div>
-                               {(() => {
-                                 // Debug material selection state
-                                 const isSelected = !!localSelectedMaterials[material.id];
-                                 if (material.id === "gaf-timberline-hdz-sg" || material.id === "oc-oakridge") {
-                                   console.log(`Material selection state for ${material.id}:`, {
-                                     isSelected,
-                                     inLocalSelected: material.id in localSelectedMaterials,
-                                     inPropsSelected: material.id in selectedMaterials
-                                   });
-                                 }
-                                 return (
-                                   <Button 
-                                     size="sm" 
-                                     variant={isSelected ? "secondary" : "outline"} 
-                                     onClick={() => { isSelected ? removeMaterial(material.id) : addMaterial(material); }} 
-                                     className="min-w-24"
-                                   >
-                                     {isSelected ? <><Check className="mr-1 h-4 w-4" />Selected</> : <><Plus className="mr-1 h-4 w-4" />Add</>}
-                             </Button>
-                                 );
-                               })()}
-                           </div>
-                         ))}
+                         {materials.map(baseMaterial => {
+                           const material = editableTemplateMaterials[baseMaterial.id] || baseMaterial;
+                           const isSelected = !!localSelectedMaterials[material.id];
+
+                           return (
+                            <div key={material.id} className="p-3 rounded-md border border-gray-200 hover:shadow-sm transition-shadow duration-150 ease-in-out">
+                              <div className="flex justify-between items-start">
+                                {/* Left Column: Details */}
+                                <div className="flex-grow space-y-1.5 pr-3">
+                                  {/* Editable Name */}
+                                  <div>
+                                    <Label htmlFor={`name-${material.id}`} className="sr-only">Material Name</Label>
+                                    <Input
+                                      id={`name-${material.id}`}
+                                      type="text"
+                                      defaultValue={material.name || ''} // Use defaultValue for initial render
+                                      // onChange no longer calls handleEditableMaterialPropertyChange directly
+                                      onBlur={(e) => handleEditableMaterialPropertyChange(material.id, 'name', e.target.value)} // Update main state on blur
+                                      className="h-8 text-base font-semibold border-0 border-b-2 border-transparent focus:border-indigo-500 focus:ring-0 rounded-none px-1 py-0 -ml-1 w-full"
+                                      disabled={readOnly}
+                                      placeholder="Material Name"
+                                      key={`name-input-${material.id}`} // Add a key to help React with defaultValue changes if material.id changes
+                                    />
+                                  </div>
+                          
+                                  {/* Editable Price & Static Unit */}
+                                  <div className="flex items-center space-x-2">
+                                    <Label htmlFor={`price-${material.id}`} className="sr-only">Price</Label>
+                                    <Input
+                                      id={`price-${material.id}`}
+                                      type="number"
+                                      step="0.01"
+                                      defaultValue={material.price !== undefined ? String(material.price) : ''} // Use defaultValue
+                                      // onChange no longer calls handleEditableMaterialPropertyChange directly
+                                      onBlur={(e) => handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)} // Update main state on blur
+                                      className="h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24"
+                                      disabled={readOnly}
+                                      placeholder="0.00"
+                                      key={`price-input-${material.id}`} // Add a key
+                                    />
+                                    {material.unit && <span className="text-sm text-gray-600">per {material.unit}</span>}
+                                    {material.approxPerSquare && material.approxPerSquare > 0 && 
+                                      <span className="text-xs text-gray-500">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
+                                    }
+                                  </div>
+                                  
+                                  {/* Static Coverage Rule Description */}
+                                  {material.coverageRule?.description && (
+                                    <p className="text-xs text-gray-600">
+                                      <span className="font-medium text-gray-700">Coverage:</span> {material.coverageRule.description}
+                                    </p>
+                                  )}
+                          
+                                  {/* Static Coverage Rule Calculation & Interpreted Logic */}
+                                  {material.coverageRule?.calculation && (
+                                    <div className="text-xs text-gray-600">
+                                      <p><span className="font-medium text-gray-700">Logic:</span> {material.coverageRule.calculation}</p>
+                                      {!readOnly && (
+                                        <p className="text-indigo-500 mt-0.5">
+                                          <span className="font-medium text-gray-700">→ Current Calc:</span> {formatCalculationWithMeasurements(material)}
+                                        </p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                          
+                                {/* Right Column: Action Button */}
+                                <div className="ml-2 flex-shrink-0 self-center">
+                                  <Button 
+                                    size="sm" 
+                                    variant={isSelected ? "secondary" : "outline"} 
+                                    onClick={() => { 
+                                      if (readOnly) return;
+                                      isSelected ? removeMaterial(material.id) : addMaterial(editableTemplateMaterials[baseMaterial.id] || baseMaterial); 
+                                    }} 
+                                    className="min-w-[100px] h-9"
+                                    disabled={readOnly}
+                                  >
+                                    {isSelected ? <Check className="mr-1.5 h-4 w-4" /> : <Plus className="mr-1.5 h-4 w-4" />}
+                                    {isSelected ? "Selected" : "Add"}
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                           );
+                         })}
                        </div>
                      </AccordionContent>
                    </AccordionItem>

@@ -168,7 +168,7 @@ export const ROOFING_MATERIALS: Material[] = [
     id: "millennium-galvanized-drip-edge",
     name: "Millennium Galvanized Steel Drip Edge - 26GA - 6\" (10')",
     category: MaterialCategory.METAL,
-    price: 13.30,
+    price: 15.00,
     unit: "Piece",
     coverageRule: { description: "10'/Piece", calculation: "Eave Length + Rake Length / 10 rounded up" }
   },

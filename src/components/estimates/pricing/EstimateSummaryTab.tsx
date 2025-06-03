@@ -5,7 +5,7 @@ import { ChevronLeft, CheckCircle, XCircle } from "lucide-react";
 import { MeasurementValues } from "../measurement/types";
 import { Material } from "../materials/types";
 import { LaborRates } from "./LaborProfitTab";
-import { calculateEstimateTotal, Estimate, EstimateStatus, updateEstimateStatus } from "@/api/estimates";
+import { calculateEstimateTotal, Estimate, EstimateStatus, updateEstimateStatus, saveEstimate } from "@/api/estimates";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,12 +19,14 @@ interface EstimateSummaryTabProps {
   quantities: {[key: string]: number};
   laborRates: LaborRates;
   profitMargin: number;
-  totalAmount: number;
+  totalAmount?: number;
   peelStickAddonCost?: number;
-  onFinalizeEstimate: () => void;
+  onFinalizeEstimate?: () => void;
   isSubmitting?: boolean;
   estimate?: Estimate | null;
   isReviewMode?: boolean;
+  calculateLiveTotal: () => number;
+  onEstimateUpdated?: () => void;
 }
 
 export function EstimateSummaryTab({
@@ -33,18 +35,19 @@ export function EstimateSummaryTab({
   quantities,
   laborRates,
   profitMargin,
-  totalAmount,
   peelStickAddonCost = 0,
   onFinalizeEstimate,
   isSubmitting = false,
   estimate,
-  isReviewMode = false
+  isReviewMode = false,
+  calculateLiveTotal,
+  onEstimateUpdated
 }: EstimateSummaryTabProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(estimate?.notes || "");
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
 
   // Add defensive checks to prevent errors when rendering with missing data
@@ -73,38 +76,71 @@ export function EstimateSummaryTab({
     );
   }
 
+  const currentTotalEstimate = calculateLiveTotal();
+
   const handleUpdateStatus = async (newStatus: EstimateStatus) => {
     if (!estimate?.id) {
-      toast({
-        title: "Error",
-        description: "Cannot update estimate without ID",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Estimate ID is missing.", variant: "destructive" });
+      return;
+    }
+    if (newStatus === 'rejected' && !notes.trim()) {
+      toast({ title: "Reason Required", description: "Please provide a reason for rejecting this estimate.", variant: "destructive" });
       return;
     }
 
     setIsStatusUpdating(true);
     try {
-      const { error } = await updateEstimateStatus(estimate.id, newStatus, notes);
-      
+      let dataToSave: Partial<Estimate> & { id: string } = { id: estimate.id, notes };
+
+      if (newStatus === 'approved') {
+        if (!measurements) {
+            toast({ title: "Error", description: "Cannot approve estimate without measurements data.", variant: "destructive"});
+            setIsStatusUpdating(false);
+            return;
+        }
+        dataToSave = {
+          ...dataToSave,
+          status: 'approved',
+          materials: selectedMaterials,
+          quantities: quantities,
+          labor_rates: laborRates,
+          profit_margin: profitMargin,
+          measurements: measurements,
+          total_price: currentTotalEstimate,
+        };
+      } else {
+        dataToSave.status = newStatus;
+      }
+
+      const finalPayload: Estimate = {
+        ...(estimate as Estimate),
+        ...(dataToSave as Partial<Estimate>),
+        id: estimate.id,
+      };
+
+      console.log("Payload for updating estimate status:", finalPayload);
+      const { error } = await saveEstimate(finalPayload);
+
       if (error) throw error;
-      
+
       toast({
         title: `Estimate ${newStatus}`,
         description: `The estimate has been ${newStatus} successfully.`,
       });
       
-      // Close dialogs
       setIsApproveDialogOpen(false);
       setIsRejectDialogOpen(false);
+      setNotes("");
       
-      // Reload the page to refresh the estimates
-      window.location.href = "/";
-    } catch (error) {
-      console.error(`Error ${newStatus} estimate:`, error);
+      if (onEstimateUpdated) {
+        onEstimateUpdated();
+      }
+
+    } catch (error: any) {
+      console.error(`Error updating estimate to ${newStatus}:`, error);
       toast({
         title: "Error",
-        description: `Failed to ${newStatus} estimate.`,
+        description: `Failed to update estimate: ${error.message}`,
         variant: "destructive"
       });
     } finally {
@@ -196,10 +232,19 @@ export function EstimateSummaryTab({
         
         if (pitchValue >= 8) {
           // 8/12-18/12 has increasing rates
-          const basePitchValue = 8; // 8/12 is the base pitch
-          const baseRate = 90; // Base rate for 8/12
-          const increment = 5; // $5 increment per pitch level
-          rate = baseRate + (pitchValue - basePitchValue) * increment;
+          const defaultSteepRate = (() => {
+            const basePitchValue = 8; // 8/12 is the base pitch
+            const baseRate = 90; // Base rate for 8/12
+            const increment = 5; // $5 increment per pitch level
+            return baseRate + (pitchValue - basePitchValue) * increment;
+          })();
+
+          // Prioritize custom rate from pitchRates, fallback to defaultSteepRate
+          // Normalize pitch string from areasByPitch (e.g., "8/12") to match key format in pitchRates (e.g., "8:12")
+          const pitchKey = pitch.replace("/", ":"); 
+          rate = safeLaborRates.pitchRates[pitchKey] !== undefined 
+                 ? safeLaborRates.pitchRates[pitchKey] 
+                 : defaultSteepRate;
           
           laborCosts.push({ 
             name: `Labor for ${pitch} Pitch (${Math.round(areaSquares * 10) / 10} squares)`, 
@@ -346,17 +391,11 @@ export function EstimateSummaryTab({
     });
   };
 
-  // Log the discrepancy for debugging
-  console.log("EstimateSummaryTab calculation:", {
-    totalMaterialCost,
-    totalLaborCost,
-    subtotal,
-    profitMargin,
-    profitAmount,
-    calculatedTotal: total,
-    passedTotalAmount: totalAmount,
-    difference: Math.abs(total - totalAmount)
-  });
+  // Ensure 'total' for the log is based on these, or just use currentTotalEstimate
+  const totalForLog = subtotal + profitAmount; // Recalculate for clarity if needed, or use currentTotalEstimate
+
+  // For simplicity, let's remove the detailed comparison log or make it conditional on totalAmount prop existing
+  console.log("EstimateSummaryTab display total:", currentTotalEstimate);
 
   return (
     <>
@@ -496,7 +535,7 @@ export function EstimateSummaryTab({
                   </tr>
                   <tr className="bg-muted/30">
                     <td className="py-2 px-4 font-semibold">Total Estimate</td>
-                    <td className="text-right py-2 px-4 font-semibold text-lg">${formatNumberWithCommas(total)}</td>
+                    <td className="text-right py-2 px-4 font-semibold text-lg">${formatNumberWithCommas(currentTotalEstimate)}</td>
                   </tr>
                 </tbody>
               </table>
