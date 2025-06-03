@@ -1321,89 +1321,91 @@ export function MaterialsSelectionTab({
     const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
     const bundleQuantity = localQuantities[materialId] || 0;
     const isMandatory = material.name && isMandatoryMaterial(material.name);
-    const currentWasteFactorForMaterial = materialWasteFactors[materialId];
     
-    const displayQuantity = displayQuantities[materialId] || (isGafTimberline ? '0.0' : '0');
+    // RESTORED: currentWasteFactorForMaterial (derived from component state)
+    const currentWasteFactorForMaterial = materialWasteFactors[materialId]; 
 
-    const handleDisplayQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        // Prevent scroll position reset
-        e.preventDefault();
-        
-        const rawValue = e.target.value;
-        // Update display immediately for better user experience
-        setDisplayQuantities(prev => ({...prev, [materialId]: rawValue})); 
-
-        // Use setTimeout to defer the calculation slightly, preventing UI jumps
-        setTimeout(() => {
-            if (isGafTimberline) {
-                const newSquares = parseFloat(rawValue);
-                if (!isNaN(newSquares) && newSquares >= 0) {
-                     const newBundles = Math.ceil(newSquares * 3);
-                     updateQuantity(materialId, newBundles);
-                } else if (rawValue === '') {
-                     updateQuantity(materialId, 0);
-                }
-            } else {
-                const newQuantity = parseInt(rawValue) || 0;
-                updateQuantity(materialId, newQuantity);
-            }
-        }, 10);
+    const initialDisplayValue = () => {
+      const qty = localQuantities[materialId] || 0;
+      return isGafTimberline ? (qty / 3).toFixed(1) : qty.toString();
     };
 
-    const handlePerMaterialWasteChange = (materialId: string, newWastePercentage: string) => {
+    const handleQuantityInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+        const rawValue = e.target.value;
+        let newBundlesOrUnits: number;
+
+        if (isGafTimberline) {
+            const newSquares = parseFloat(rawValue);
+            if (!isNaN(newSquares) && newSquares >= 0) {
+                newBundlesOrUnits = Math.ceil(newSquares * 3);
+            } else { // Revert to current quantity if input is invalid or empty
+                newBundlesOrUnits = localQuantities[materialId] || 0;
+            }
+        } else {
+            const newQuantityNum = parseInt(rawValue, 10);
+            if (!isNaN(newQuantityNum) && newQuantityNum >= 0) {
+                newBundlesOrUnits = newQuantityNum;
+            } else { // Revert to current quantity if input is invalid or empty
+                newBundlesOrUnits = localQuantities[materialId] || 0;
+            }
+        }
+        // Only call updateQuantity if the value has actually changed to avoid unnecessary updates/flicker
+        if (newBundlesOrUnits !== (localQuantities[materialId] || 0) || 
+            (isGafTimberline && parseFloat(rawValue).toFixed(1) !== (localQuantities[materialId] / 3).toFixed(1)) ) {
+            updateQuantity(materialId, newBundlesOrUnits);
+        }
+    };
+
+    // RESTORED: handlePerMaterialWasteChange function (logic from previous correct version)
+    const handlePerMaterialWasteChange = (materialIdForWaste: string, newWastePercentage: string) => {
       const newWaste = parseFloat(newWastePercentage);
-      if (!isNaN(newWaste) && newWaste >= 0 && newWaste <= 100) { // Allow 0-100% for per-item
+      const targetMaterial = localSelectedMaterials[materialIdForWaste] || material; // Ensure we use the correct material
+
+      if (!isNaN(newWaste) && newWaste >= 0 && newWaste <= 100) {
         isInternalChange.current = true;
         const newWasteDecimal = newWaste / 100;
-        setMaterialWasteFactors(prev => ({ ...prev, [materialId]: newWasteDecimal }));
-
-        // Recalculate quantity for this material only
+        
+        // Recalculate quantity for this material only with the new waste
         const { quantity: updatedQuantity, actualWasteFactor: finalWasteFactor } = calculateMaterialQuantity(
-          material,
+          targetMaterial,
           measurements,
-          newWasteDecimal, // Pass the new per-material waste as override
-          dbWastePercentages // Pass database waste percentages
+          newWasteDecimal, 
+          dbWastePercentages 
         );
 
-        // Save the waste factor to the database
-        updateMaterialWastePercentage(materialId, newWaste)
+        // Update local states
+        setLocalQuantities(prev => ({ ...prev, [materialIdForWaste]: updatedQuantity }));
+        setMaterialWasteFactors(prev => ({ ...prev, [materialIdForWaste]: finalWasteFactor })); 
+        setUserOverriddenWaste(prev => ({ ...prev, [materialIdForWaste]: true })); // Mark as user overridden
+
+        if (targetMaterial.id === "gaf-timberline-hdz-sg") {
+          setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: (updatedQuantity / 3).toFixed(1) }));
+        } else {
+          setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: updatedQuantity.toString() }));
+        }
+        
+        updateMaterialWastePercentage(materialIdForWaste, newWaste)
           .then(success => {
             if (success) {
-              console.log(`Updated waste percentage for ${materialId} in database: ${newWaste}%`);
-              // Update local state with the new value
-              setDbWastePercentages(prev => ({ ...prev, [materialId]: newWaste }));
-            } else {
-              console.error(`Failed to update waste percentage for ${materialId} in database`);
-            }
-          })
-          .catch(error => {
-            console.error(`Error updating waste percentage in database:`, error);
-          });
+              console.log(`Updated waste percentage for ${materialIdForWaste} in database: ${newWaste}%`);
+              setDbWastePercentages(prev => ({ ...prev, [materialIdForWaste]: newWaste }));
+            } else { /* ... error ... */ }
+          }).catch(error => { /* ... error ... */ });
 
-        setLocalQuantities(prev => ({ ...prev, [materialId]: updatedQuantity }));
-        // Ensure materialWasteFactors is updated with the actualWasteFactor used, which should be newWasteDecimal
-        setMaterialWasteFactors(prev => ({ ...prev, [materialId]: finalWasteFactor })); 
-
-        if (isGafTimberline) {
-          setDisplayQuantities(prev => ({ ...prev, [materialId]: (updatedQuantity / 3).toFixed(1) }));
-        } else {
-          setDisplayQuantities(prev => ({ ...prev, [materialId]: updatedQuantity.toString() }));
-        }
-        toast({ title: `${material.name} waste factor updated to ${newWaste.toFixed(0)}%`, duration: 2000 });
+        toast({ title: `${targetMaterial.name} waste factor updated to ${newWaste.toFixed(0)}%`, duration: 2000 });
       } else if (newWastePercentage === "") {
-        // If input is cleared, maybe reset to category default? For now, do nothing or set to 0?
-        // Let's set it to 0 if cleared, and recalculate.
         isInternalChange.current = true;
-        setMaterialWasteFactors(prev => ({ ...prev, [materialId]: 0 }));
-        const { quantity: updatedQuantity, actualWasteFactor: finalWasteFactor } = calculateMaterialQuantity(material, measurements, 0);
-        setLocalQuantities(prev => ({ ...prev, [materialId]: updatedQuantity }));
-        setMaterialWasteFactors(prev => ({ ...prev, [materialId]: finalWasteFactor }));
-        if (isGafTimberline) {
-          setDisplayQuantities(prev => ({ ...prev, [materialId]: (updatedQuantity / 3).toFixed(1) }));
+        const { quantity: updatedQuantity, actualWasteFactor: finalWasteFactor } = calculateMaterialQuantity(targetMaterial, measurements, 0, dbWastePercentages);
+        setLocalQuantities(prev => ({ ...prev, [materialIdForWaste]: updatedQuantity }));
+        setMaterialWasteFactors(prev => ({ ...prev, [materialIdForWaste]: finalWasteFactor }));
+        setUserOverriddenWaste(prev => ({ ...prev, [materialIdForWaste]: true })); // Still overridden, but to 0%
+
+        if (targetMaterial.id === "gaf-timberline-hdz-sg") {
+          setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: (updatedQuantity / 3).toFixed(1) }));
         } else {
-          setDisplayQuantities(prev => ({ ...prev, [materialId]: updatedQuantity.toString() }));
+          setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: updatedQuantity.toString() }));
         }
-        toast({ title: `${material.name} waste factor set to 0%`, duration: 2000 });
+        toast({ title: `${targetMaterial.name} waste factor set to 0%`, duration: 2000 });
       }
     };
 
@@ -1564,19 +1566,11 @@ export function MaterialsSelectionTab({
                <> {/* Timberline Input (Squares) */}
                  <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} 
                     onClick={(e) => { 
-                       // Prevent the default button behavior which might cause scroll
                        e.preventDefault();
-                       
-                       const currentSq = parseFloat(displayQuantity) || 0;
-                       const nextSq = Math.max(0, currentSq - 0.1); 
-                       
-                       // Update display immediately
-                       setDisplayQuantities(prev => ({...prev, [materialId]: nextSq.toFixed(1)})); 
-                       
-                       // Defer quantity update
-                       setTimeout(() => {
-                         updateQuantity(materialId, Math.ceil(nextSq * 3));
-                       }, 10);
+                       const currentQty = localQuantities[materialId] || 0;
+                       const currentSq = currentQty / 3;
+                       const nextSq = Math.max(0, parseFloat((currentSq - 0.1).toFixed(1))); 
+                       updateQuantity(materialId, Math.ceil(nextSq * 3));
                     }} 
                     aria-label={`Decrease quantity for ${baseName}`}>
                     -
@@ -1585,26 +1579,19 @@ export function MaterialsSelectionTab({
                     type="number" 
                     min="0" 
                     step="0.1"
-                    value={displayQuantity}
-                    onChange={handleDisplayQuantityChange}
+                    defaultValue={initialDisplayValue()} // USE defaultValue
+                    onBlur={handleQuantityInputBlur}      // UPDATE onBlur
+                    key={`qty-input-gaf-${materialId}-${localQuantities[materialId]}`} // Add localQuantities to key to force re-render with new default if external change happens
                     className={`h-8 w-20 rounded-none text-center`}
                     aria-label={`Quantity in Squares for ${baseName}`} 
                   />
                  <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} 
                     onClick={(e) => { 
-                       // Prevent the default button behavior which might cause scroll
                        e.preventDefault();
-                       
-                       const currentSq = parseFloat(displayQuantity) || 0;
-                       const nextSq = currentSq + 0.1;
-                       
-                       // Update display immediately
-                       setDisplayQuantities(prev => ({...prev, [materialId]: nextSq.toFixed(1)}));
-                       
-                       // Defer quantity update
-                       setTimeout(() => {
-                         updateQuantity(materialId, Math.ceil(nextSq * 3));
-                       }, 10);
+                       const currentQty = localQuantities[materialId] || 0;
+                       const currentSq = currentQty / 3;
+                       const nextSq = parseFloat((currentSq + 0.1).toFixed(1));
+                       updateQuantity(materialId, Math.ceil(nextSq * 3));
                     }} 
                     aria-label={`Increase quantity for ${baseName}`}>
                     +
@@ -1619,15 +1606,16 @@ export function MaterialsSelectionTab({
                     className={`h-8 w-8 rounded-r-none`} 
                     onClick={(e) => {
                       e.preventDefault();
-                      setTimeout(() => updateQuantity(materialId, Math.max(0, bundleQuantity - 1)), 10);
+                      updateQuantity(materialId, Math.max(0, (localQuantities[materialId] || 0) - 1));
                     }} 
                     aria-label={`Decrease quantity for ${baseName}`}
                   >-</Button>
                  <Input 
                     type="number" 
                     min="0" 
-                    value={displayQuantity}
-                    onChange={handleDisplayQuantityChange}
+                    defaultValue={initialDisplayValue()} // USE defaultValue
+                    onBlur={handleQuantityInputBlur}      // UPDATE onBlur
+                    key={`qty-input-${materialId}-${localQuantities[materialId]}`} // Add localQuantities to key
                     className={`h-8 w-16 rounded-none text-center`} 
                     aria-label={`Quantity for ${baseName}`}
                   />
@@ -1638,7 +1626,7 @@ export function MaterialsSelectionTab({
                     className={`h-8 w-8 rounded-l-none`} 
                     onClick={(e) => {
                       e.preventDefault();
-                      setTimeout(() => updateQuantity(materialId, bundleQuantity + 1), 10);
+                      updateQuantity(materialId, (localQuantities[materialId] || 0) + 1);
                     }} 
                     aria-label={`Increase quantity for ${baseName}`}
                   >+</Button>
