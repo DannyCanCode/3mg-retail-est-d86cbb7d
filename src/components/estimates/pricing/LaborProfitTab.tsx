@@ -67,13 +67,30 @@ export function LaborProfitTab({
   const getSafeInitialRates = useCallback((initialRates?: LaborRates): LaborRates => {
     const defaults: LaborRates = {
       laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
-      dumpsterLocation: "orlando", dumpsterCount: 1, dumpsterRate: 400, includePermits: true,
-      permitRate: 450, permitCount: 1, permitAdditionalRate: 450, pitchRates: {},
-      wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, gutterRate: 8,
-      includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
+      dumpsterLocation: "orlando", 
+      dumpsterCount: initialRates?.dumpsterCount !== undefined ? initialRates.dumpsterCount : 1, // Prioritize prop, then 1
+      dumpsterRate: 400, 
+      includePermits: true, permitRate: 450, permitCount: 1, permitAdditionalRate: 450, 
+      pitchRates: {}, wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, 
+      gutterRate: 8, includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
       includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
     };
+    
     let combined = { ...defaults, ...(initialRates || {}) };
+
+    // Ensure dumpsterCount from initialRates overrides the basic default of 1 if present
+    if (initialRates?.dumpsterCount !== undefined) {
+      combined.dumpsterCount = initialRates.dumpsterCount;
+    }
+
+    if (initialRates?.dumpsterLocation === 'outside') {
+      combined.dumpsterRate = initialRates.dumpsterRate !== undefined ? initialRates.dumpsterRate : 500;
+      combined.permitRate = initialRates.permitRate !== undefined ? initialRates.permitRate : 550;
+    } else {
+      combined.dumpsterRate = initialRates?.dumpsterRate !== undefined ? initialRates.dumpsterRate : 400;
+      combined.permitRate = initialRates?.permitRate !== undefined ? initialRates.permitRate : 450;
+    }
+
     if (!combined.laborRate && (combined.tearOff || combined.installation)) {
       combined.laborRate = (combined.tearOff || 0) + (combined.installation || 0);
     }
@@ -118,22 +135,48 @@ export function LaborProfitTab({
     hasUserInteracted.current = true;
   };
   
-  const handleLaborRateChange = (field: keyof Omit<LaborRates, "pitchRates" | "dumpsterCount" | "dumpsterRate" | "permitRate">, value: string | boolean | number) => {
+  const handleLaborRateChange = (
+    field: keyof Omit<LaborRates, "pitchRates" | "permitRate">,
+    value: string | boolean | number
+  ) => {
     let processedValue = value;
+    // Default values for specific fields if parsing fails or input is empty
+    const locationDefaultDumpsterRate = laborRates.dumpsterLocation === "orlando" ? 400 : 500;
+
     if (typeof value === "string" && field !== "dumpsterLocation") {
       if (value.trim() === "") {
-        processedValue = ""; 
+        if (field === 'laborRate' || field === 'handloadRate' || field === 'dumpsterCount') {
+          processedValue = 0; // Or 1 for dumpsterCount if that's the minimum
+        } else if (field === 'dumpsterRate') {
+          processedValue = locationDefaultDumpsterRate; // Revert to default if cleared
+        } else {
+          processedValue = undefined; // Or appropriate default for other string-parsable fields
+        }
       } else {
         const parsed = parseFloat(value);
-        processedValue = isNaN(parsed) ? (field === 'laborRate' || field === 'handloadRate' ? 0 : undefined) : parsed; 
+        if (isNaN(parsed)) {
+          if (field === 'laborRate' || field === 'handloadRate' || field === 'dumpsterCount') {
+            processedValue = 0; // Or 1 for dumpsterCount
+          } else if (field === 'dumpsterRate') {
+            processedValue = locationDefaultDumpsterRate; // Revert to default if invalid
+          } else {
+            processedValue = undefined;
+          }
+        } else {
+          processedValue = parsed;
+        }
       }
     }
+
     commonStateUpdater(prev => {
       const updatedRates = {
         ...prev,
-        [field]: (field === 'laborRate' || field === 'handloadRate') ? (processedValue === "" || processedValue === undefined ? 0 : processedValue) : processedValue
+        [field]: processedValue 
       } as LaborRates; 
+      
       if (field === "dumpsterLocation") {
+        // When location changes, also reset dumpsterRate to the default for the new location
+        // and permitRate.
         updatedRates.dumpsterRate = value === "orlando" ? 400 : 500;
         updatedRates.permitRate = value === "orlando" ? 450 : 550;
       }
@@ -170,7 +213,17 @@ export function LaborProfitTab({
   
   const handleDumpsterLocationChange = (value: string) => {
     const location = value as "orlando" | "outside";
-    handleLaborRateChange("dumpsterLocation", location);
+    setLaborRates(prev => {
+      const isLocationChanging = prev.dumpsterLocation !== location;
+      const newRate = isLocationChanging ? (location === "orlando" ? 400 : 500) : prev.dumpsterRate;
+      return {
+        ...prev,
+        dumpsterLocation: location,
+        dumpsterRate: newRate,
+        permitRate: location === "orlando" ? 450 : 550
+      };
+    });
+    hasUserInteracted.current = true;
   };
   
   // Calculate the rate for each pitch level
@@ -288,22 +341,52 @@ export function LaborProfitTab({
   const estTotalLaborCost = measurements ? 
     calculateTotalLaborCost(measurements, laborRates, selectedMaterials, quantities) : 0;
   
-  // Calculate dumpster count based on total roof area
+  // useEffect to specifically handle dumpsterCount initialization and updates based on area/props
   useEffect(() => {
-    console.log("LaborProfitTab useEffect triggered, measurements:", measurements?.totalArea);
-    if (measurements?.totalArea) {
-      const totalSquares = measurements.totalArea / 100;
-      const dumpsterCount = Math.max(1, Math.ceil(totalSquares / 20));
-      const dumpsterRate = laborRates.dumpsterLocation === "orlando" ? 400 : 500;
-      
-      console.log(`Calculating dumpsters: ${totalSquares} squares, dumpsterCount: ${dumpsterCount}`);
+    let determinedDumpsterCount: number;
+    const calculatedByArea = (measurements?.totalArea && measurements.totalArea > 0)
+        ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28))
+        : null;
+
+    const propDumpsterCount = initialLaborRatesProp?.dumpsterCount;
+
+    if (calculatedByArea !== null) {
+        // Area is available, so we have a calculation.
+        if (propDumpsterCount !== undefined && 
+            propDumpsterCount !== 1 && // If '1' is the known generic default from templates
+            propDumpsterCount !== calculatedByArea) {
+            // If there's a prop value, AND it's not the generic default 1, AND it's different from calculation,
+            // it implies a specific user-set value (e.g., loaded estimate). Honor it.
+            determinedDumpsterCount = propDumpsterCount;
+            // console.log(`DUMPSTER_EFFECT: Using specific prop count over calculation: ${determinedDumpsterCount}`);
+        } else {
+            // Otherwise, use the calculation (either prop was undefined, or was the generic default 1, or matched calculation).
+            determinedDumpsterCount = calculatedByArea;
+            // console.log(`DUMPSTER_EFFECT: Using calculated count from area: ${determinedDumpsterCount}`);
+        }
+    } else if (propDumpsterCount !== undefined) {
+        // No area calculation, but prop value exists.
+        determinedDumpsterCount = propDumpsterCount;
+        // console.log(`DUMPSTER_EFFECT: Using prop count (no area calc): ${determinedDumpsterCount}`);
+    } else {
+        // No area, no prop. Fallback.
+        determinedDumpsterCount = 1;
+        // console.log(`DUMPSTER_EFFECT: Defaulting count to 1 (no area or prop)`);
+    }
+
+    if (laborRates.dumpsterCount !== determinedDumpsterCount) {
+      console.log(`DUMPSTER_EFFECT: Setting laborRates.dumpsterCount from ${laborRates.dumpsterCount} to ${determinedDumpsterCount}`);
       setLaborRates(prev => ({
         ...prev,
-        dumpsterCount,
-        dumpsterRate
+        dumpsterCount: determinedDumpsterCount,
+        // dumpsterRate is handled by initial prop effect or user edit or location change
       }));
     }
-  }, [measurements?.totalArea, laborRates.dumpsterLocation]);
+  }, [
+    measurements?.totalArea,
+    initialLaborRatesProp?.dumpsterCount, 
+    // laborRates.dumpsterCount // Ensuring this is not in dependencies to avoid issues with user edits
+  ]);
   
   // Update permit rate when location changes
   useEffect(() => {
@@ -432,6 +515,9 @@ export function LaborProfitTab({
     }
   };
 
+  // Add this log before the main return statement of the component
+  console.log("LaborProfitTab RENDER: laborRates.dumpsterCount is currently:", laborRates.dumpsterCount, "Recommended based on area:", (measurements?.totalArea && measurements.totalArea > 0 ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) : 1) );
+
   return (
     <Card>
       <CardHeader>
@@ -442,7 +528,8 @@ export function LaborProfitTab({
         <div>
           <h3 className="text-lg font-semibold mb-4">Dumpsters</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Based on roof area of {totalSquares} squares, we recommend {laborRates.dumpsterCount} dumpster(s).
+            Based on roof area of {totalSquares.toFixed(1)} squares, we recommend {measurements?.totalArea && measurements.totalArea > 0 ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) : 1} dumpster(s).
+            Current setting: {laborRates.dumpsterCount || 1}
           </p>
           
           <div className="space-y-4">
@@ -450,26 +537,44 @@ export function LaborProfitTab({
               value={laborRates.dumpsterLocation}
               onValueChange={handleDumpsterLocationChange}
               className="flex flex-col space-y-1"
+              disabled={readOnly}
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="orlando" id="orlando" />
-                <Label htmlFor="orlando">Orlando ($400 per dumpster)</Label>
+                <RadioGroupItem value="orlando" id="orlando" disabled={readOnly}/>
+                <Label htmlFor="orlando">Orlando</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="outside" id="outside" />
-                <Label htmlFor="outside">Outside Orlando ($500 per dumpster)</Label>
+                <RadioGroupItem value="outside" id="outside" disabled={readOnly}/>
+                <Label htmlFor="outside">Outside Orlando</Label>
               </div>
             </RadioGroup>
-            
-            <div className="grid grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="space-y-2">
+                <Label htmlFor="dumpsterRate">Rate per Dumpster ($)</Label>
+                <Input
+                  id="dumpsterRate"
+                  type="number"
+                  defaultValue={(laborRates.dumpsterRate !== undefined ? laborRates.dumpsterRate : (laborRates.dumpsterLocation === "orlando" ? 400 : 500)).toString()} 
+                  onBlur={(e) => handleLaborRateChange("dumpsterRate", e.target.value)}
+                  key={`dumpsterRate-input-${laborRates.dumpsterLocation}-${laborRates.dumpsterRate}`}
+                  min="0"
+                  step="0.01"
+                  disabled={readOnly}
+                  placeholder={laborRates.dumpsterLocation === "orlando" ? "400" : "500"}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="dumpsterCount">Number of Dumpsters</Label>
                 <Input
                   id="dumpsterCount"
                   type="number"
-                  value={(laborRates.dumpsterCount || 1).toString()}
-                  readOnly
-                  className="bg-muted"
+                  defaultValue={(laborRates.dumpsterCount || 1).toString()}
+                  onBlur={(e) => handleLaborRateChange("dumpsterCount", e.target.value)}
+                  key={`dumpsterCount-input-${laborRates.dumpsterCount}`}
+                  min="1"
+                  step="1"
+                  disabled={readOnly}
                 />
               </div>
               <div className="space-y-2">
@@ -477,9 +582,10 @@ export function LaborProfitTab({
                 <Input
                   id="dumpsterTotal"
                   type="text"
-                  value={`$${((laborRates.dumpsterCount || 1) * (laborRates.dumpsterRate || 400)).toFixed(2)}`}
+                  value={`$${((laborRates.dumpsterCount || 0) * (laborRates.dumpsterRate || 0)).toFixed(2)}`}
                   readOnly
                   className="bg-muted"
+                  disabled={readOnly}
                 />
               </div>
             </div>
