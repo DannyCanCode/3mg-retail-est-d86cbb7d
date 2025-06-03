@@ -288,22 +288,52 @@ export function LaborProfitTab({
   const estTotalLaborCost = measurements ? 
     calculateTotalLaborCost(measurements, laborRates, selectedMaterials, quantities) : 0;
   
-  // Calculate dumpster count based on total roof area
+  // useEffect to specifically handle dumpsterCount initialization and updates based on area/props
   useEffect(() => {
-    console.log("LaborProfitTab useEffect triggered, measurements:", measurements?.totalArea);
-    if (measurements?.totalArea) {
-      const totalSquares = measurements.totalArea / 100;
-      const dumpsterCount = Math.max(1, Math.ceil(totalSquares / 20));
-      const dumpsterRate = laborRates.dumpsterLocation === "orlando" ? 400 : 500;
-      
-      console.log(`Calculating dumpsters: ${totalSquares} squares, dumpsterCount: ${dumpsterCount}`);
+    let determinedDumpsterCount: number;
+    const calculatedByArea = (measurements?.totalArea && measurements.totalArea > 0)
+        ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28))
+        : null;
+
+    const propDumpsterCount = initialLaborRatesProp?.dumpsterCount;
+
+    if (calculatedByArea !== null) {
+        // Area is available, so we have a calculation.
+        if (propDumpsterCount !== undefined && 
+            propDumpsterCount !== 1 && // If '1' is the known generic default from templates
+            propDumpsterCount !== calculatedByArea) {
+            // If there's a prop value, AND it's not the generic default 1, AND it's different from calculation,
+            // it implies a specific user-set value (e.g., loaded estimate). Honor it.
+            determinedDumpsterCount = propDumpsterCount;
+            // console.log(`DUMPSTER_EFFECT: Using specific prop count over calculation: ${determinedDumpsterCount}`);
+        } else {
+            // Otherwise, use the calculation (either prop was undefined, or was the generic default 1, or matched calculation).
+            determinedDumpsterCount = calculatedByArea;
+            // console.log(`DUMPSTER_EFFECT: Using calculated count from area: ${determinedDumpsterCount}`);
+        }
+    } else if (propDumpsterCount !== undefined) {
+        // No area calculation, but prop value exists.
+        determinedDumpsterCount = propDumpsterCount;
+        // console.log(`DUMPSTER_EFFECT: Using prop count (no area calc): ${determinedDumpsterCount}`);
+    } else {
+        // No area, no prop. Fallback.
+        determinedDumpsterCount = 1;
+        // console.log(`DUMPSTER_EFFECT: Defaulting count to 1 (no area or prop)`);
+    }
+
+    if (laborRates.dumpsterCount !== determinedDumpsterCount) {
+      console.log(`DUMPSTER_EFFECT: Setting laborRates.dumpsterCount from ${laborRates.dumpsterCount} to ${determinedDumpsterCount}`);
       setLaborRates(prev => ({
         ...prev,
-        dumpsterCount,
-        dumpsterRate
+        dumpsterCount: determinedDumpsterCount,
+        // dumpsterRate is handled by initial prop effect or user edit or location change
       }));
     }
-  }, [measurements?.totalArea, laborRates.dumpsterLocation]);
+  }, [
+    measurements?.totalArea,
+    initialLaborRatesProp?.dumpsterCount, 
+    // laborRates.dumpsterCount // Ensuring this is not in dependencies to avoid issues with user edits
+  ]);
   
   // Update permit rate when location changes
   useEffect(() => {
