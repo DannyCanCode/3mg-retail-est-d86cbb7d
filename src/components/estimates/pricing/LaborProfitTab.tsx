@@ -118,16 +118,53 @@ export function LaborProfitTab({
     hasUserInteracted.current = true;
   };
   
-  const handleLaborRateChange = (field: keyof Omit<LaborRates, "pitchRates" | "dumpsterCount" | "dumpsterRate" | "permitRate">, value: string | boolean | number) => {
+  const handleLaborRateChange = (
+    field: keyof Omit<LaborRates, "pitchRates" | "permitRate">,
+    value: string | boolean | number
+  ) => {
     let processedValue = value;
-    if (typeof value === "string" && field !== "dumpsterLocation") {
+    const locationDefaultDumpsterRate = laborRates.dumpsterLocation === "orlando" ? 400 : 500;
+
+    if (field === "dumpsterCount") {
+        const valStr = String(value).trim(); // Value from input is a string
+        if (valStr === "") {
+            // If input is cleared, enforce minimum value in state as input type is number
+            processedValue = 1; 
+        } else {
+            const parsed = parseInt(valStr, 10);
+            if (!isNaN(parsed) && parsed >= 1) {
+                processedValue = parsed;
+            } else {
+                // If parsing fails or value is less than 1, enforce minimum
+                // This ensures the state always holds a valid number for the controlled input
+                processedValue = 1; 
+            }
+        }
+    } else if (typeof value === "string" && field !== "dumpsterLocation") {
       if (value.trim() === "") {
-        processedValue = ""; 
+        if (field === 'laborRate' || field === 'handloadRate') { // dumpsterCount handled above
+          processedValue = 0;
+        } else if (field === 'dumpsterRate') {
+          processedValue = locationDefaultDumpsterRate;
+        } else {
+          processedValue = undefined; 
+        }
       } else {
         const parsed = parseFloat(value);
-        processedValue = isNaN(parsed) ? (field === 'laborRate' || field === 'handloadRate' ? 0 : undefined) : parsed; 
+        if (isNaN(parsed)) {
+          if (field === 'laborRate' || field === 'handloadRate') { // dumpsterCount handled above
+            processedValue = 0; 
+          } else if (field === 'dumpsterRate') {
+            processedValue = locationDefaultDumpsterRate; 
+          } else {
+            processedValue = undefined;
+          }
+        } else {
+          processedValue = parsed;
+        }
       }
     }
+
     commonStateUpdater(prev => {
       const updatedRates = {
         ...prev,
@@ -498,8 +535,10 @@ export function LaborProfitTab({
                   id="dumpsterCount"
                   type="number"
                   value={(laborRates.dumpsterCount || 1).toString()}
-                  readOnly
-                  className="bg-muted"
+                  onChange={(e) => handleLaborRateChange("dumpsterCount", e.target.value)}
+                  min="1"
+                  step="1"
+                  disabled={readOnly}
                 />
               </div>
               <div className="space-y-2">
