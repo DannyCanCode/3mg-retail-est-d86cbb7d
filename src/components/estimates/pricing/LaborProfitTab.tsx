@@ -48,6 +48,8 @@ export interface LaborRates {
   includeDetachResetGutters?: boolean; // Whether to include detach and reset gutters
   detachResetGutterLinearFeet?: number; // Linear feet of gutters to detach and reset
   detachResetGutterRate?: number; // Rate per linear foot for detach and reset
+  includeLowSlopeLabor?: boolean; // New: Toggle for low slope area labor
+  includeSteepSlopeLabor?: boolean; // New: Toggle for steep slope area labor
 }
 
 export function LaborProfitTab({
@@ -67,12 +69,17 @@ export function LaborProfitTab({
   const getSafeInitialRates = useCallback((initialRates?: LaborRates): LaborRates => {
     const defaults: LaborRates = {
       laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
-      dumpsterLocation: "orlando", dumpsterCount: 1, dumpsterRate: 400, includePermits: true,
-      permitRate: 450, permitCount: 1, permitAdditionalRate: 450, pitchRates: {},
-      wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, gutterRate: 8,
-      includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
+      dumpsterLocation: "orlando", 
+      dumpsterCount: initialRates?.dumpsterCount !== undefined ? initialRates.dumpsterCount : 1, // Prioritize prop, then 1
+      dumpsterRate: 400, 
+      includePermits: true, permitRate: 450, permitCount: 1, permitAdditionalRate: 450, 
+      pitchRates: {}, wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, 
+      gutterRate: 8, includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
       includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
+      includeLowSlopeLabor: true, // Default to true
+      includeSteepSlopeLabor: true, // Default to true
     };
+    
     let combined = { ...defaults, ...(initialRates || {}) };
     if (!combined.laborRate && (combined.tearOff || combined.installation)) {
       combined.laborRate = (combined.tearOff || 0) + (combined.installation || 0);
@@ -273,17 +280,17 @@ export function LaborProfitTab({
     const squares = totalArea / 100;
     
     let totalLaborCost = 0;
-    let has0PitchMaterial = false;
-    let has12PitchMaterial = false;
+    // No longer need these specific material checks here as we will iterate by pitch area
+    // let has0PitchMaterial = false;
+    // let has12PitchMaterial = false;
     
-    // Check for special pitch materials
-    if (selectedMaterials) {
-      has0PitchMaterial = Object.values(selectedMaterials).some(material => 
-        material.id === "gaf-poly-iso-4x8");
+    // if (selectedMaterials) {
+    //   has0PitchMaterial = Object.values(selectedMaterials).some(material => 
+    //     material.id === "gaf-poly-iso-4x8");
       
-      has12PitchMaterial = Object.values(selectedMaterials).some(material => 
-        material.id === "polyglass-elastoflex-sbs" || material.id === "polyglass-polyflex-app");
-    }
+    //   has12PitchMaterial = Object.values(selectedMaterials).some(material => 
+    //     material.id === "polyglass-elastoflex-sbs" || material.id === "polyglass-polyflex-app");
+    // }
     
     // Calculate labor based on pitch areas
     if (measurements?.areasByPitch && measurements.areasByPitch.length > 0) {
@@ -291,6 +298,20 @@ export function LaborProfitTab({
         const pitchRaw = area.pitch;
         const pitchValue = parseInt(pitchRaw.split(/[:\/]/)[0]) || 0;
         const pitchSquares = area.area / 100;
+
+        if (pitchSquares === 0) return; // No area for this pitch, skip
+
+        let isLowSlopePitch = pitchValue >= 0 && pitchValue <= 2;
+        let isSteepSlopePitch = pitchValue >= 3; // Assuming anything 3/12 and up is "steep" for this toggle logic
+
+        if (isLowSlopePitch && !(laborRates.includeLowSlopeLabor ?? true)) {
+          console.log(`Skipping labor for low slope pitch ${pitchRaw} as includeLowSlopeLabor is false`);
+          return; // Skip this low slope pitch area
+        }
+        if (isSteepSlopePitch && !(laborRates.includeSteepSlopeLabor ?? true)) {
+          console.log(`Skipping labor for steep slope pitch ${pitchRaw} as includeSteepSlopeLabor is false`);
+          return; // Skip this steep slope pitch area
+        }
         
         // Apply different labor rates based on pitch
         if (pitchValue === 0) {
@@ -303,18 +324,24 @@ export function LaborProfitTab({
           // Steep slopes 8/12 and up
           const specificPitchRate = laborRates.pitchRates[pitchRaw] || getPitchRate(pitchRaw);
           totalLaborCost += pitchSquares * specificPitchRate;
-        } else {
+        } else { // This covers 3/12 to 7/12
           // Regular labor rate for standard pitches (3/12-7/12)
           totalLaborCost += pitchSquares * (laborRates.laborRate || 85);
         }
       });
-    } else {
-      // Fallback if no pitch data
+    } else if (squares > 0 && (laborRates.includeSteepSlopeLabor ?? true)) {
+      // Fallback if no pitch data, assume it's standard steep slope labor if that toggle is on
       totalLaborCost = squares * (laborRates.laborRate || 85);
+    } else {
+      // No areasByPitch and either no squares or steep slope labor is off
+      totalLaborCost = 0;
     }
     
     // Add handload cost if applicable
-    if (laborRates.isHandload) {
+    // Handload is applied to total squares, decide if it should be conditional on steep/low toggles
+    // For now, let's assume handload applies if *any* labor is included and handload is checked.
+    // This might need further refinement based on business logic for handload.
+    if (laborRates.isHandload && totalLaborCost > 0) { // only add handload if some labor cost was calculated
       totalLaborCost += squares * (laborRates.handloadRate || 10);
     }
     
@@ -498,6 +525,8 @@ export function LaborProfitTab({
       onLaborProfitContinue(laborRates, profitMargin);
     }
   };
+
+  console.log("LaborProfitTab RENDER: laborRates.dumpsterCount is currently:", laborRates.dumpsterCount, "Recommended based on area:", (measurements?.totalArea && measurements.totalArea > 0 ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) : 1) );
 
   return (
     <Card>
@@ -850,6 +879,43 @@ export function LaborProfitTab({
                   ${(totalSquares * (1 + (laborRates.wastePercentage || 12)/100) * (laborRates.laborRate || 85)).toFixed(2)}
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        {/* Labor Scope Section - NEW */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Labor Scope</h3>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-4 p-3 border rounded-md">
+              <Switch
+                id="includeLowSlopeLabor"
+                checked={laborRates.includeLowSlopeLabor ?? true}
+                onCheckedChange={(checked) => handleLaborRateChange("includeLowSlopeLabor", checked)}
+                disabled={readOnly}
+              />
+              <Label htmlFor="includeLowSlopeLabor" className="flex flex-col space-y-1">
+                <span>Include Low Slope Labor</span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  Applies to pitches 0/12 through 2/12.
+                </span>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-4 p-3 border rounded-md">
+              <Switch
+                id="includeSteepSlopeLabor"
+                checked={laborRates.includeSteepSlopeLabor ?? true}
+                onCheckedChange={(checked) => handleLaborRateChange("includeSteepSlopeLabor", checked)}
+                disabled={readOnly}
+              />
+              <Label htmlFor="includeSteepSlopeLabor" className="flex flex-col space-y-1">
+                <span>Include Steep Slope Labor</span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  Applies to pitches 3/12 and steeper.
+                </span>
+              </Label>
             </div>
           </div>
         </div>
