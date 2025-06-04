@@ -176,7 +176,9 @@ export function EstimateSummaryTab({
     gutterRate: laborRates?.gutterRate || 8,
     includeDownspouts: laborRates?.includeDownspouts || false,
     downspoutCount: laborRates?.downspoutCount || 0,
-    downspoutRate: laborRates?.downspoutRate || 65
+    downspoutRate: laborRates?.downspoutRate || 65,
+    includeLowSlopeLabor: laborRates?.includeLowSlopeLabor || false,
+    includeSteepSlopeLabor: laborRates?.includeSteepSlopeLabor || false,
   };
 
   // Calculate the number of squares
@@ -201,8 +203,11 @@ export function EstimateSummaryTab({
   // Calculate labor costs with combined labor rate
   const laborCosts = [];
 
+  // Use the safeLaborRates which includes defaults and the new toggles
+  const currentLaborRates = safeLaborRates; // Alias for clarity in this section
+
   // Add combined labor or backward compatibility with separate tear off/installation
-  if (safeLaborRates.laborRate) {
+  if (currentLaborRates.laborRate) {
     // Use combined labor rate - but apply pitch-specific rates for different areas
     
     // Check if we have pitch areas to calculate with
@@ -211,9 +216,9 @@ export function EstimateSummaryTab({
       const pitchAreas = safeMeasurements.areasByPitch;
       
       // Track if we've already added any pitch-specific labor items
-      let hasPitchSpecificLabor = false;
+      // let hasPitchSpecificLabor = false; // This can be removed or re-purposed
       
-      // Check if special low pitch materials are selected
+      // Check if special low pitch materials are selected (used for specific rate overrides)
       const hasPolyIsoMaterial = Object.values(selectedMaterials).some(material => 
         material.id === "gaf-poly-iso-4x8");
       
@@ -226,9 +231,24 @@ export function EstimateSummaryTab({
         const pitch = pitchArea.pitch;
         const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
         const areaSquares = pitchArea.area / 100; // Convert to squares
+
+        if (areaSquares === 0) return; // No area, skip
+
+        const isLowSlopePitch = pitchValue >= 0 && pitchValue <= 2;
+        const isStandardOrSteepSlopePitch = pitchValue >= 3;
+
+        if (isLowSlopePitch && (currentLaborRates.includeLowSlopeLabor === false)) {
+          console.log(`[SummaryTab] Skipping display labor for low slope pitch ${pitch} as includeLowSlopeLabor is false.`);
+          return; 
+        }
+        if (isStandardOrSteepSlopePitch && (currentLaborRates.includeSteepSlopeLabor === false)) {
+          console.log(`[SummaryTab] Skipping display labor for steep slope pitch ${pitch} as includeSteepSlopeLabor is false.`);
+          return; 
+        }
         
         // Determine the appropriate rate for this pitch
-        let rate = safeLaborRates.laborRate; // Default to the standard rate
+        let rate = currentLaborRates.laborRate; // Default to the standard rate
+        let itemNamePrefix = `Labor for ${pitch} Pitch`;
         
         if (pitchValue >= 8) {
           // 8/12-18/12 has increasing rates
@@ -239,106 +259,78 @@ export function EstimateSummaryTab({
             return baseRate + (pitchValue - basePitchValue) * increment;
           })();
 
-          // Prioritize custom rate from pitchRates, fallback to defaultSteepRate
-          // Normalize pitch string from areasByPitch (e.g., "8/12") to match key format in pitchRates (e.g., "8:12")
           const pitchKey = pitch.replace("/", ":"); 
-          rate = safeLaborRates.pitchRates[pitchKey] !== undefined 
-                 ? safeLaborRates.pitchRates[pitchKey] 
+          rate = currentLaborRates.pitchRates[pitchKey] !== undefined 
+                 ? currentLaborRates.pitchRates[pitchKey] 
                  : defaultSteepRate;
-          
-          laborCosts.push({ 
-            name: `Labor for ${pitch} Pitch (${Math.round(areaSquares * 10) / 10} squares)`, 
-            rate: rate, 
-            totalCost: rate * areaSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
-          });
-          
-          hasPitchSpecificLabor = true;
         } else if (pitchValue === 0 && hasPolyIsoMaterial) {
-          // 0/12 pitch with GAF Poly ISO has special $60/sq rate
           rate = 60;
-          
-          laborCosts.push({ 
-            name: `Labor for ${pitch} Pitch (GAF Poly ISO) (${Math.round(areaSquares * 10) / 10} squares)`, 
-            rate: rate, 
-            totalCost: rate * areaSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
-          });
-          
-          hasPitchSpecificLabor = true;
+          itemNamePrefix = `Labor for ${pitch} Pitch (GAF Poly ISO)`;
         } else if ((pitchValue === 1 || pitchValue === 2) && hasPolyglasMaterials) {
-          // 1/12 or 2/12 pitch with Polyglass materials has special $109/sq rate
           rate = 109;
-          
-          laborCosts.push({ 
-            name: `Labor for ${pitch} Pitch (Polyglass Base & Cap) (${Math.round(areaSquares * 10) / 10} squares)`, 
-            rate: rate, 
-            totalCost: rate * areaSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
-          });
-          
-          hasPitchSpecificLabor = true;
+          itemNamePrefix = `Labor for ${pitch} Pitch (Polyglass Base & Cap)`;
         } else if (pitchValue <= 2) {
-          // Default rate for low slope areas if special materials are not selected
           rate = 75;
-          
-          laborCosts.push({ 
-            name: `Labor for ${pitch} Pitch (Low Slope) (${Math.round(areaSquares * 10) / 10} squares)`, 
-            rate: rate, 
-            totalCost: rate * areaSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
-          });
-          
-          hasPitchSpecificLabor = true;
-        } else {
-          // 3/12-7/12 has the standard rate
-          laborCosts.push({ 
-            name: `Labor for ${pitch} Pitch (${Math.round(areaSquares * 10) / 10} squares)`, 
-            rate: rate, 
-            totalCost: rate * areaSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
-          });
-        }
+          itemNamePrefix = `Labor for ${pitch} Pitch (Low Slope)`;
+        } // Standard rate (3/12-7/12) is already set in 'rate' by default
+        
+        laborCosts.push({ 
+          name: `${itemNamePrefix} (${Math.round(areaSquares * 10) / 10} squares)`, 
+          rate: rate, 
+          totalCost: rate * areaSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
+        });
       });
-    } else {
-      // No pitch areas available, just use the standard rate for the total
+    } else if (totalSquares > 0 && (currentLaborRates.includeSteepSlopeLabor !== false) ){
+      // No pitch areas available, but total area exists. Apply standard rate if steep slope labor is included.
       laborCosts.push({ 
         name: "Labor (Tear Off & Installation)", 
-        rate: safeLaborRates.laborRate, 
-        totalCost: safeLaborRates.laborRate * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
+        rate: currentLaborRates.laborRate, 
+        totalCost: currentLaborRates.laborRate * totalSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
       });
-    }
-  } else if (safeLaborRates.tearOff || safeLaborRates.installation) {
+    } // If no pitch areas AND steep slope labor is off, no general labor is added.
+
+  } else if (currentLaborRates.tearOff || currentLaborRates.installation) {
     // Backward compatibility: handle old format with separate rates
-    const tearOff = safeLaborRates.tearOff || 0;
-    const installation = safeLaborRates.installation || 0;
-    
-    if (tearOff > 0) {
-      laborCosts.push({ 
-        name: "Tear Off", 
-        rate: tearOff, 
-        totalCost: tearOff * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
-      });
+    // This path should also respect the toggles, assuming these rates apply to standard/steep.
+    if (currentLaborRates.includeSteepSlopeLabor !== false) {
+      const tearOff = currentLaborRates.tearOff || 0;
+      const installation = currentLaborRates.installation || 0;
+      
+      if (tearOff > 0) {
+        laborCosts.push({ 
+          name: "Tear Off", 
+          rate: tearOff, 
+          totalCost: tearOff * totalSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
+        });
+      }
+      
+      if (installation > 0) {
+        laborCosts.push({ 
+          name: "Installation", 
+          rate: installation, 
+          totalCost: installation * totalSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
+        });
+      }
     }
-    
-    if (installation > 0) {
-      laborCosts.push({ 
-        name: "Installation", 
-        rate: installation, 
-        totalCost: installation * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
-      });
-    }
-  } else {
-    // Fallback to default rate if neither format is available
+  } else if (totalSquares > 0 && (currentLaborRates.includeSteepSlopeLabor !== false)) {
+    // Fallback to default rate if neither format is available AND steep slope labor is included
     const defaultRate = 85;
     laborCosts.push({ 
       name: "Labor (Default Rate)", 
       rate: defaultRate, 
-      totalCost: defaultRate * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100) 
+      totalCost: defaultRate * totalSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
     });
   }
 
-  // Add handload cost if enabled
-  if (safeLaborRates.isHandload) {
+  // Add handload cost if enabled and if any primary labor was calculated
+  const hasCalculatedPitchLabor = laborCosts.some(lc => 
+    lc.name.startsWith("Labor for") || lc.name === "Labor (Tear Off & Installation)" || lc.name === "Tear Off" || lc.name === "Installation" || lc.name === "Labor (Default Rate)"
+  );
+  if (currentLaborRates.isHandload && hasCalculatedPitchLabor) {
     laborCosts.push({
       name: "Handload", 
-      rate: safeLaborRates.handloadRate || 15, 
-      totalCost: (safeLaborRates.handloadRate || 15) * totalSquares * (1 + (safeLaborRates.wastePercentage || 12)/100)
+      rate: currentLaborRates.handloadRate || 15, 
+      totalCost: (currentLaborRates.handloadRate || 15) * totalSquares * (1 + (currentLaborRates.wastePercentage || 12)/100)
     });
   }
   

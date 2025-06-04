@@ -48,6 +48,8 @@ export interface LaborRates {
   includeDetachResetGutters?: boolean; // Whether to include detach and reset gutters
   detachResetGutterLinearFeet?: number; // Linear feet of gutters to detach and reset
   detachResetGutterRate?: number; // Rate per linear foot for detach and reset
+  includeLowSlopeLabor?: boolean; // New: Toggle for low slope area labor
+  includeSteepSlopeLabor?: boolean; // New: Toggle for steep slope area labor
 }
 
 export function LaborProfitTab({
@@ -74,6 +76,8 @@ export function LaborProfitTab({
       pitchRates: {}, wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, 
       gutterRate: 8, includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
       includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
+      includeLowSlopeLabor: true, // Default to true
+      includeSteepSlopeLabor: true, // Default to true
     };
     
     let combined = { ...defaults, ...(initialRates || {}) };
@@ -140,25 +144,39 @@ export function LaborProfitTab({
     value: string | boolean | number
   ) => {
     let processedValue = value;
-    // Default values for specific fields if parsing fails or input is empty
     const locationDefaultDumpsterRate = laborRates.dumpsterLocation === "orlando" ? 400 : 500;
 
-    if (typeof value === "string" && field !== "dumpsterLocation") {
-      if (value.trim() === "") {
-        if (field === 'laborRate' || field === 'handloadRate' || field === 'dumpsterCount') {
-          processedValue = 0; // Or 1 for dumpsterCount if that's the minimum
-        } else if (field === 'dumpsterRate') {
-          processedValue = locationDefaultDumpsterRate; // Revert to default if cleared
+    if (field === "dumpsterCount") {
+        const valStr = String(value).trim(); // Value from input is a string
+        if (valStr === "") {
+            // If input is cleared, enforce minimum value in state as input type is number
+            processedValue = 1; 
         } else {
-          processedValue = undefined; // Or appropriate default for other string-parsable fields
+            const parsed = parseInt(valStr, 10);
+            if (!isNaN(parsed) && parsed >= 1) {
+                processedValue = parsed;
+            } else {
+                // If parsing fails or value is less than 1, enforce minimum
+                // This ensures the state always holds a valid number for the controlled input
+                processedValue = 1; 
+            }
+        }
+    } else if (typeof value === "string" && field !== "dumpsterLocation") {
+      if (value.trim() === "") {
+        if (field === 'laborRate' || field === 'handloadRate') { // dumpsterCount handled above
+          processedValue = 0;
+        } else if (field === 'dumpsterRate') {
+          processedValue = locationDefaultDumpsterRate;
+        } else {
+          processedValue = undefined; 
         }
       } else {
         const parsed = parseFloat(value);
         if (isNaN(parsed)) {
-          if (field === 'laborRate' || field === 'handloadRate' || field === 'dumpsterCount') {
-            processedValue = 0; // Or 1 for dumpsterCount
+          if (field === 'laborRate' || field === 'handloadRate') { // dumpsterCount handled above
+            processedValue = 0; 
           } else if (field === 'dumpsterRate') {
-            processedValue = locationDefaultDumpsterRate; // Revert to default if invalid
+            processedValue = locationDefaultDumpsterRate; 
           } else {
             processedValue = undefined;
           }
@@ -289,17 +307,17 @@ export function LaborProfitTab({
     const squares = totalArea / 100;
     
     let totalLaborCost = 0;
-    let has0PitchMaterial = false;
-    let has12PitchMaterial = false;
+    // No longer need these specific material checks here as we will iterate by pitch area
+    // let has0PitchMaterial = false;
+    // let has12PitchMaterial = false;
     
-    // Check for special pitch materials
-    if (selectedMaterials) {
-      has0PitchMaterial = Object.values(selectedMaterials).some(material => 
-        material.id === "gaf-poly-iso-4x8");
+    // if (selectedMaterials) {
+    //   has0PitchMaterial = Object.values(selectedMaterials).some(material => 
+    //     material.id === "gaf-poly-iso-4x8");
       
-      has12PitchMaterial = Object.values(selectedMaterials).some(material => 
-        material.id === "polyglass-elastoflex-sbs" || material.id === "polyglass-polyflex-app");
-    }
+    //   has12PitchMaterial = Object.values(selectedMaterials).some(material => 
+    //     material.id === "polyglass-elastoflex-sbs" || material.id === "polyglass-polyflex-app");
+    // }
     
     // Calculate labor based on pitch areas
     if (measurements?.areasByPitch && measurements.areasByPitch.length > 0) {
@@ -307,6 +325,20 @@ export function LaborProfitTab({
         const pitchRaw = area.pitch;
         const pitchValue = parseInt(pitchRaw.split(/[:\/]/)[0]) || 0;
         const pitchSquares = area.area / 100;
+
+        if (pitchSquares === 0) return; // No area for this pitch, skip
+
+        let isLowSlopePitch = pitchValue >= 0 && pitchValue <= 2;
+        let isSteepSlopePitch = pitchValue >= 3; // Assuming anything 3/12 and up is "steep" for this toggle logic
+
+        if (isLowSlopePitch && !(laborRates.includeLowSlopeLabor ?? true)) {
+          console.log(`Skipping labor for low slope pitch ${pitchRaw} as includeLowSlopeLabor is false`);
+          return; // Skip this low slope pitch area
+        }
+        if (isSteepSlopePitch && !(laborRates.includeSteepSlopeLabor ?? true)) {
+          console.log(`Skipping labor for steep slope pitch ${pitchRaw} as includeSteepSlopeLabor is false`);
+          return; // Skip this steep slope pitch area
+        }
         
         // Apply different labor rates based on pitch
         if (pitchValue === 0) {
@@ -319,18 +351,24 @@ export function LaborProfitTab({
           // Steep slopes 8/12 and up
           const specificPitchRate = laborRates.pitchRates[pitchRaw] || getPitchRate(pitchRaw);
           totalLaborCost += pitchSquares * specificPitchRate;
-        } else {
+        } else { // This covers 3/12 to 7/12
           // Regular labor rate for standard pitches (3/12-7/12)
           totalLaborCost += pitchSquares * (laborRates.laborRate || 85);
         }
       });
-    } else {
-      // Fallback if no pitch data
+    } else if (squares > 0 && (laborRates.includeSteepSlopeLabor ?? true)) {
+      // Fallback if no pitch data, assume it's standard steep slope labor if that toggle is on
       totalLaborCost = squares * (laborRates.laborRate || 85);
+    } else {
+      // No areasByPitch and either no squares or steep slope labor is off
+      totalLaborCost = 0;
     }
     
     // Add handload cost if applicable
-    if (laborRates.isHandload) {
+    // Handload is applied to total squares, decide if it should be conditional on steep/low toggles
+    // For now, let's assume handload applies if *any* labor is included and handload is checked.
+    // This might need further refinement based on business logic for handload.
+    if (laborRates.isHandload && totalLaborCost > 0) { // only add handload if some labor cost was calculated
       totalLaborCost += squares * (laborRates.handloadRate || 10);
     }
     
@@ -515,7 +553,6 @@ export function LaborProfitTab({
     }
   };
 
-  // Add this log before the main return statement of the component
   console.log("LaborProfitTab RENDER: laborRates.dumpsterCount is currently:", laborRates.dumpsterCount, "Recommended based on area:", (measurements?.totalArea && measurements.totalArea > 0 ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) : 1) );
 
   return (
@@ -569,9 +606,8 @@ export function LaborProfitTab({
                 <Input
                   id="dumpsterCount"
                   type="number"
-                  defaultValue={(laborRates.dumpsterCount || 1).toString()}
-                  onBlur={(e) => handleLaborRateChange("dumpsterCount", e.target.value)}
-                  key={`dumpsterCount-input-${laborRates.dumpsterCount}`}
+                  value={(laborRates.dumpsterCount || 1).toString()}
+                  onChange={(e) => handleLaborRateChange("dumpsterCount", e.target.value)}
                   min="1"
                   step="1"
                   disabled={readOnly}
@@ -887,6 +923,43 @@ export function LaborProfitTab({
                   ${(totalSquares * (1 + (laborRates.wastePercentage || 12)/100) * (laborRates.laborRate || 85)).toFixed(2)}
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+        
+        <Separator />
+        
+        {/* Labor Scope Section - NEW */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Labor Scope</h3>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-4 p-3 border rounded-md">
+              <Switch
+                id="includeLowSlopeLabor"
+                checked={laborRates.includeLowSlopeLabor ?? true}
+                onCheckedChange={(checked) => handleLaborRateChange("includeLowSlopeLabor", checked)}
+                disabled={readOnly}
+              />
+              <Label htmlFor="includeLowSlopeLabor" className="flex flex-col space-y-1">
+                <span>Include Low Slope Labor</span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  Applies to pitches 0/12 through 2/12.
+                </span>
+              </Label>
+            </div>
+            <div className="flex items-center space-x-4 p-3 border rounded-md">
+              <Switch
+                id="includeSteepSlopeLabor"
+                checked={laborRates.includeSteepSlopeLabor ?? true}
+                onCheckedChange={(checked) => handleLaborRateChange("includeSteepSlopeLabor", checked)}
+                disabled={readOnly}
+              />
+              <Label htmlFor="includeSteepSlopeLabor" className="flex flex-col space-y-1">
+                <span>Include Steep Slope Labor</span>
+                <span className="text-xs font-normal text-muted-foreground">
+                  Applies to pitches 3/12 and steeper.
+                </span>
+              </Label>
             </div>
           </div>
         </div>

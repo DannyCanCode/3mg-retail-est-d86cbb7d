@@ -128,8 +128,11 @@ export const calculateMaterialQuantity = (
   
   // For underlayment
   else if (material.category === MaterialCategory.UNDERLAYMENTS) {
-    let calculationArea = 0;
+    let calculationArea = 0; // This will be area in sq ft for most underlayments
+    let quantitySource = "area"; // For logging
+
     if (material.id === "abc-pro-guard-20") { // Rhino
+      quantitySource = "steep slope area";
       console.log(`[CalcQuantity] Underlayment ${material.id}: Applying to steep slopes only.`);
       if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
         calculationArea = measurements.areasByPitch
@@ -144,26 +147,48 @@ export const calculateMaterialQuantity = (
         console.warn(`[CalcQuantity] Underlayment ${material.id}: areasByPitch missing. Quantity will be 0.`);
         calculationArea = 0;
       }
+    } else if (material.id === "gaf-weatherwatch-ice-water-shield") {
+      quantitySource = "valley length";
+      console.log(`[CalcQuantity] Underlayment ${material.id}: Calculating based on valley length.`);
+      const valleyLength = measurements.valleyLength || 0;
+      if (valleyLength > 0) {
+        const linearFeetPerRoll = 45.5; // As per existing special logic and UI string
+        // Apply waste to the length of material needed
+        quantity = Math.ceil((valleyLength * (1 + actualWasteFactor)) / linearFeetPerRoll);
+        console.log(`[CalcQuantity] GAF WeatherWatch: ValleyLength=${valleyLength}, Waste=${actualWasteFactor}, LF/Roll=${linearFeetPerRoll}, Qty=${quantity}`);
+      } else {
+        quantity = 0;
+      }
+      // This path calculates quantity directly and should bypass the generic area-based calculation below.
+      console.log(`[CalcQuantity] Underlayment Result for ${material.id}: ${quantity}`);
+      // Return early as quantity is now finalized for this specific material
+      return { quantity: Math.max(0, Math.ceil(quantity)), actualWasteFactor };
     } else {
+      quantitySource = "total area";
       console.log(`[CalcQuantity] Underlayment ${material.id}: Using total area.`);
       calculationArea = measurements.totalArea;
     }
 
-    console.log(`[CalcQuantity] Underlayment: Using Area=${calculationArea.toFixed(1)} sq ft`);
+    // This block is for underlayments calculated by AREA (like Rhino or general underlayments)
+    // It will be skipped if GAF WeatherWatch returned early.
+    console.log(`[CalcQuantity] Underlayment (${quantitySource}): Using Area=${calculationArea.toFixed(1)} sq ft`);
     
     if (calculationArea <= 0) {
       quantity = 0;
     } else {
       const totalSquares = calculationArea / 100;
-      const squaresPerRoll = material.coverageAmount || extractCoverageValue(material.coverageRule.description) || 4;
+      // Default to 4 squares per roll if no specific coverage found, which is 400 sq ft.
+      // For GAF WeatherWatch, its description is "1.5 Squares/Roll (150 sq ft)"
+      // extractCoverageValue would get 1.5 from description.
+      const squaresPerRoll = material.coverageAmount || extractCoverageValue(material.coverageRule.description) || 4; 
       console.log(`[CalcQuantity] Underlayment: Squares=${totalSquares.toFixed(2)}, Sq/Roll=${squaresPerRoll}`);
       // For underlayment, only apply waste if it's NOT abc-pro-guard-20 (Rhino) because Rhino already factors its specific area.
-      // All other underlayments will use the determined actualWasteFactor.
-      const wasteToApply = material.id === "abc-pro-guard-20" ? 0 : actualWasteFactor;
+      // GAF WeatherWatch also handles its own waste application in the block above.
+      const wasteToApply = (material.id === "abc-pro-guard-20" || material.id === "gaf-weatherwatch-ice-water-shield") ? 0 : actualWasteFactor;
       const finalSquares = totalSquares * (1 + wasteToApply);
       quantity = Math.ceil(finalSquares / squaresPerRoll);
     }
-    console.log(`[CalcQuantity] Underlayment Result: ${quantity}`);
+    console.log(`[CalcQuantity] Underlayment Result (Area-based for ${material.id}): ${quantity}`);
   }
   
   // For low slope materials

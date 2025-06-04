@@ -546,7 +546,21 @@ const calculateFinalCosts = (estimateData: Estimate) => {
       safeMeasurements.areasByPitch.forEach(area => {
           const pitch = area.pitch;
           const areaSquares = (area.area || 0) / 100;
+          
           if (areaSquares > 0) {
+              const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
+              const isLowSlopePitch = pitchValue >= 0 && pitchValue <= 2;
+              const isStandardOrSteepSlopePitch = pitchValue >= 3; // Covers 3/12 and up
+
+              if (isLowSlopePitch && (laborRates.includeLowSlopeLabor === false)) { // Check explicitly for false
+                console.log(`[calculateFinalCosts] Skipping labor for low slope pitch ${pitch} because includeLowSlopeLabor is false.`);
+                return; // Skip this iteration
+              }
+              if (isStandardOrSteepSlopePitch && (laborRates.includeSteepSlopeLabor === false)) { // Check explicitly for false
+                console.log(`[calculateFinalCosts] Skipping labor for steep slope pitch ${pitch} because includeSteepSlopeLabor is false.`);
+                return; // Skip this iteration
+              }
+
               const rate = getPitchRate(pitch);
               calculated_labor_cost += rate * areaSquares * (1 + wasteFactor);
               console.log(`[calculateFinalCosts] Labor for Pitch ${pitch}: ${areaSquares.toFixed(2)} sq @ $${rate}/sq (w/ waste) = $${(rate * areaSquares * (1 + wasteFactor)).toFixed(2)}`);
@@ -554,13 +568,20 @@ const calculateFinalCosts = (estimateData: Estimate) => {
       });
   } else if (totalSquares > 0) {
       // Fallback if no pitch data but total area exists
-      const fallbackRate = laborRates.laborRate || 85;
-      calculated_labor_cost += fallbackRate * totalSquares * (1 + wasteFactor);
-      console.log(`[calculateFinalCosts] Labor Fallback: ${totalSquares.toFixed(2)} sq @ $${fallbackRate}/sq (w/ waste) = $${(fallbackRate * totalSquares * (1 + wasteFactor)).toFixed(2)}`);
+      // This fallback implicitly assumes standard/steep slope labor. Apply toggle.
+      if (laborRates.includeSteepSlopeLabor !== false) { // Default to true if undefined
+        const fallbackRate = laborRates.laborRate || 85;
+        calculated_labor_cost += fallbackRate * totalSquares * (1 + wasteFactor);
+        console.log(`[calculateFinalCosts] Labor Fallback (Steep Slope Included): ${totalSquares.toFixed(2)} sq @ $${fallbackRate}/sq (w/ waste) = $${(fallbackRate * totalSquares * (1 + wasteFactor)).toFixed(2)}`);
+      } else {
+        console.log(`[calculateFinalCosts] Labor Fallback (Steep Slope Excluded)`);
+      }
   }
 
   // Add Handload
-  if (laborRates.isHandload && totalSquares > 0) {
+  // Handload cost should only be added if the labor for the areas it applies to is included.
+  // This simple check ensures handload isn't added if all labor was excluded by toggles.
+  if (laborRates.isHandload && totalSquares > 0 && calculated_labor_cost > 0) { 
       const handloadCost = (laborRates.handloadRate || 15) * totalSquares * (1 + wasteFactor); // Default 15/sq
       calculated_labor_cost += handloadCost;
       console.log(`[calculateFinalCosts] Added Handload: $${handloadCost.toFixed(2)}`);
