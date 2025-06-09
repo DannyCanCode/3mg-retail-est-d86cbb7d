@@ -75,23 +75,6 @@ export function MaterialsSelectionTab({
     ids: Object.keys(selectedMaterials)
   });
   
-  // Add validation at the start
-  if (!measurements || !measurements.totalArea || measurements.totalArea === 0 || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Missing Measurements</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
-        </CardContent>
-        <CardFooter>
-          <Button onClick={() => onMaterialsUpdate({ selectedMaterials: {}, quantities: {}, peelStickPrice: "0.00", warrantyCost: 0, warrantyDetails: null, isNavigatingBack: true })} variant="outline">Back to Measurements</Button>
-        </CardFooter>
-      </Card>
-    );
-  }
-
   // Local state for managing selected materials
   const [localSelectedMaterials, setLocalSelectedMaterials] = useState<{[key: string]: Material}>(selectedMaterials);
   const [localQuantities, setLocalQuantities] = useState<{[key: string]: number}>(quantities);
@@ -504,19 +487,11 @@ export function MaterialsSelectionTab({
     
   }, [measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
 
-  // Group materials by category using the editableTemplateMaterials
+  // Group all available materials by category for rendering the accordion
   const materialsByCategory = useMemo(() => {
-    console.log("[MaterialsByCategoryMemo] Grouping materials from editableTemplateMaterials list", Object.keys(editableTemplateMaterials).length);
-    if (Object.keys(editableTemplateMaterials).length === 0) {
-      // Fallback or initial load before editableTemplateMaterials is populated by effect
-      console.log("[MaterialsByCategoryMemo] editableTemplateMaterials is empty, trying ROOFING_MATERIALS for grouping temporarily.");
-      return groupMaterialsByCategory(ROOFING_MATERIALS);
-    }
-    const materialsArray = Object.values(editableTemplateMaterials);
-    const groups = groupMaterialsByCategory(materialsArray);
-    console.log("[MaterialsByCategoryMemo] Grouped editable materials by category:", groups);
-    return groups;
-  }, [editableTemplateMaterials]); // Depends on editableTemplateMaterials
+    console.log("[MaterialsByCategoryMemo] Grouping materials from ROOFING_MATERIALS.");
+    return groupMaterialsByCategory(ROOFING_MATERIALS);
+  }, []); // This now only depends on the static list, not the template
 
   // Handle Peel & Stick system add-on
   useEffect(() => {
@@ -893,59 +868,7 @@ export function MaterialsSelectionTab({
   // Apply material preset bundle
   const applyPresetBundle = (preset: string) => {
     console.log(`Applying preset bundle: ${preset}`);
-    isInternalChange.current = true;
-
-    // Clear out existing non-mandatory materials before applying preset
-    const clearedSelectedMaterials: { [key: string]: Material } = {};
-    const clearedQuantities: { [key: string]: number } = {};
-    const clearedDisplayQuantities: { [key: string]: string } = {};
-    const clearedMaterialWasteFactors: { [key: string]: number } = {};
-    const clearedUserOverriddenWaste: { [key: string]: boolean } = {};
-
-    Object.entries(localSelectedMaterials).forEach(([matId, mat]) => {
-        if (mat.name && mat.name.includes("cannot be removed")) {
-            clearedSelectedMaterials[matId] = mat;
-            clearedQuantities[matId] = localQuantities[matId] || 0;
-            clearedDisplayQuantities[matId] = displayQuantities[matId] || "0";
-            clearedMaterialWasteFactors[matId] = materialWasteFactors[matId] || 0;
-            clearedUserOverriddenWaste[matId] = userOverriddenWaste[matId] || false;
-        }
-    });
     
-    let newSelectedMaterials: { [key: string]: Material } = clearedSelectedMaterials;
-    let newQuantities: { [key: string]: number } = clearedQuantities;
-    let newDisplayQuantities: { [key: string]: string } = clearedDisplayQuantities;
-    let newMaterialWasteFactors: { [key: string]: number } = clearedMaterialWasteFactors;
-    let newUserOverriddenWaste: { [key: string]: boolean } = clearedUserOverriddenWaste;
-    
-    let atLeastOneMaterialAddedOrChanged = false;
-
-    // Auto-select corresponding package based on preset
-    if (preset.startsWith('GAF 1') && selectedPackage !== 'gaf-1') {
-      setSelectedPackage('gaf-1');
-      if (selectedWarranty === 'gold-pledge') {
-        setSelectedWarranty('silver-pledge');
-      }
-    } else if (preset.startsWith('GAF 2') && selectedPackage !== 'gaf-2') {
-      setSelectedPackage('gaf-2');
-    } else if ((preset.startsWith('OC 1') || preset.startsWith('OC 2'))) {
-      // For Owens Corning presets, we don't need a GAF package
-      if (selectedPackage) {
-        setSelectedPackage(null);
-      }
-      
-      // Clear any GAF warranties when selecting OC
-      if (selectedWarranty === 'gold-pledge' || selectedWarranty === 'silver-pledge') {
-        setSelectedWarranty(null);
-        toast({
-          title: "Warranty Removed",
-          description: "GAF warranties aren't applicable with Owens Corning materials.",
-          duration: 4000,
-        });
-      }
-    }
-
-    // Define preset package materials
     const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
       "GAF 1": [
         { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
@@ -955,7 +878,6 @@ export function MaterialsSelectionTab({
         { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
         { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
-        // Removed: { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
       ],
       "GAF 2": [
         { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
@@ -966,7 +888,6 @@ export function MaterialsSelectionTab({
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
         { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
         { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
-        // Removed: { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray" }
       ],
       "OC 1": [ 
         { id: "oc-oakridge", description: "OC Oakridge (Shingles)" },
@@ -983,123 +904,41 @@ export function MaterialsSelectionTab({
         { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" }
       ]
     };
-    
+
     const materialsToAddFromPreset = PRESET_BUNDLES[preset];
     if (!materialsToAddFromPreset) {
       console.error(`Preset ${preset} not found!`);
       toast({ title: "Error", description: `Preset ${preset} not found.`, variant: "destructive" });
       return;
     }
-    
-    const hasStandardPitchAreas = measurements.areasByPitch.some(
-      area => {
-        const pitchParts = area.pitch.split(/[:\\/]/);
-        const rise = parseInt(pitchParts[0] || '0');
-        return !isNaN(rise) && rise >= 3;
-      }
-    );
-    
-    if (!hasStandardPitchAreas && materialsToAddFromPreset.some(item => ROOFING_MATERIALS.find(m => m.id === item.id)?.category === MaterialCategory.SHINGLES)) {
-        toast({
-            title: "No Standard Pitch Areas",
-            description: "This preset includes shingles, but no standard pitch roof areas (>= 3/12) were found. Shingle quantities may be zero.",
-            variant: "default", 
-            duration: 7000,
-        });
-    }
 
-    materialsToAddFromPreset.forEach(({ id: materialId, description }) => {
+    const newSelectedMaterials: { [key: string]: Material } = {};
+    const newQuantities: { [key: string]: number } = {};
+
+    materialsToAddFromPreset.forEach(({ id: materialId }) => {
       const material = ROOFING_MATERIALS.find(m => m.id === materialId);
-      if (!material) {
-        console.error(`Material with ID ${materialId} (${description}) not found in ROOFING_MATERIALS for preset.`);
-        return; 
-      }
-      
-      // Determine override waste factor for this material
-      const overrideWaste = material.id === "gaf-timberline-hdz-sg" 
-        ? gafTimberlineWasteFactor / 100 
-        : wasteFactor / 100;
-
-      let calculatedQuantityData = calculateMaterialQuantity(
-        material,
-        measurements,
-        overrideWaste,
-        dbWastePercentages // Pass database waste percentages
-      );
-      
-      let finalQuantity = calculatedQuantityData.quantity;
-      const actualWasteFactorForMaterial = calculatedQuantityData.actualWasteFactor;
-
-      // Special handling for WeatherWatch in GAF presets (valleys only)
-      if (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2")) {
-        const valleyLength = measurements.valleyLength || 0;
-        if (valleyLength > 0) {
-          // Recalculate specifically for valley, assuming a rule exists or it's handled in calculateMaterialQuantity
-          // For simplicity, we'll rely on calculateMaterialQuantity to correctly use valleyLength if the material ID indicates it
-          // No change needed here if calculateMaterialQuantity is robust.
-          // We might want a specific valley-only version if its calculation is very different and not covered by the generic one.
-          // For now, let's assume calculateMaterialQuantity is sufficient.
-          // The name modification should happen when displaying or storing.
-        } else {
-          finalQuantity = 0; // No valley, no valley material
+      if (material) {
+        const { quantity } = calculateMaterialQuantity(material, measurements, undefined, dbWastePercentages);
+        if (quantity > 0) {
+          newSelectedMaterials[materialId] = material;
+          newQuantities[materialId] = quantity;
         }
       }
-
-      if (material.category === MaterialCategory.SHINGLES && !hasStandardPitchAreas) {
-        finalQuantity = 0; // No standard pitch, no shingles
-      }
-      
-      if (finalQuantity <= 0) {
-        if (materialId.includes('sealant')) finalQuantity = 2;
-        else if (materialId.includes('karnak') && materialId.includes('spray')) finalQuantity = 1;
-        else if (materialId.includes('karnak') && !materialId.includes('spray')) finalQuantity = 1;
-        else if (materialId.includes('pipe-flashing')) finalQuantity = Math.max(1, measurements?.numPipeJack1 ?? 1);
-        // If still 0 after minimums, and not a typically manually-set item, skip it
-        if (finalQuantity <=0 && !materialId.includes('karnak') && !materialId.includes('sealant') && !materialId.includes('pipe-flashing') 
-            && !(material.category === MaterialCategory.VENTILATION || material.category === MaterialCategory.ACCESSORIES)) {
-            console.log(`Preset material ${materialId} (${description}) quantity is ${finalQuantity}, skipping.`);
-            return; 
-        }
-      }
-      
-      const materialToStore = (materialId === "gaf-weatherwatch-ice-water-shield" && (preset === "GAF 1" || preset === "GAF 2") && (measurements.valleyLength || 0) > 0)
-        ? { ...material, name: `${material.name} (Valleys Only)` } 
-        : material;
-
-      newSelectedMaterials[materialId] = materialToStore;
-      newQuantities[materialId] = finalQuantity;
-      newMaterialWasteFactors[materialId] = actualWasteFactorForMaterial;
-      newUserOverriddenWaste[materialId] = false; // Reset user override for preset materials
-      
-      if (material.id === "gaf-timberline-hdz-sg") { 
-        newDisplayQuantities[materialId] = (finalQuantity / 3).toFixed(1);
-      } else {
-        newDisplayQuantities[materialId] = finalQuantity.toString();
-      }
-      
-      atLeastOneMaterialAddedOrChanged = true;
-      console.log(`Preset: Added/Updated ${materialId} (${description}) Qty: ${finalQuantity}, ActualWF: ${actualWasteFactorForMaterial}`);
     });
 
-    if (atLeastOneMaterialAddedOrChanged || Object.keys(newSelectedMaterials).length !== Object.keys(localSelectedMaterials).length) {
-      setLocalSelectedMaterials(newSelectedMaterials);
-      setLocalQuantities(newQuantities);
-      setDisplayQuantities(newDisplayQuantities);
-      setMaterialWasteFactors(newMaterialWasteFactors);
-      setUserOverriddenWaste(newUserOverriddenWaste);
-      setSelectedPreset(preset);
-      
-      toast({
-        title: `Preset Applied: ${preset}`,
-        description: "Materials have been updated. Previously selected (non-mandatory) items were cleared.",
-      });
-    } else {
-      toast({
-        title: "No Changes Made",
-        description: "No materials were added or updated with this preset.",
-        variant: "destructive"
-      });
-    }
+    // Directly call the parent update function with the new state
+    onMaterialsUpdate({
+      selectedMaterials: newSelectedMaterials,
+      quantities: newQuantities,
+      peelStickPrice: peelStickPrice, // Preserve existing value
+      warrantyCost: warrantyDetails?.price || 0, // Preserve existing value
+      warrantyDetails: warrantyDetails, // Preserve existing value
+    });
+
+    toast({
+      title: `Preset Applied: ${preset}`,
+      description: "Materials have been updated.",
+    });
   };
   
   // Reset selected preset when materials are changed manually
@@ -1695,7 +1534,7 @@ export function MaterialsSelectionTab({
       });
       setEditableTemplateMaterials(masterMaterials);
     }
-  }, [activePricingTemplate]); // ROOFING_MATERIALS is constant, no need to add as dep if it doesn't change
+  }, [activePricingTemplate]);
 
   const handleEditableMaterialPropertyChange = (
     materialId: string,

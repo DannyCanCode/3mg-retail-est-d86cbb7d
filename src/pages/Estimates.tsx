@@ -211,8 +211,13 @@ const Estimates = () => {
       fetchEstimateData(estimateId);
     } else {
       setIsViewMode(false);
+      // For a new estimate, ensure we start clean
+      // and don't load from localStorage unless specified by a measurementId
+      if (!measurementId) {
+        setActiveTab("upload");
+      }
     }
-  }, [estimateId]);
+  }, [estimateId, measurementId]);
   
   // Fetch estimate data when in view mode
   const fetchEstimateData = async (id: string) => {
@@ -249,9 +254,9 @@ const Estimates = () => {
     }
   };
   
-  // Only load persisted data if not in view mode
+  // Only load persisted data if not in view mode AND not starting a fresh estimate
   useEffect(() => {
-    if (!isViewMode) {
+    if (!isViewMode && (estimateId || measurementId)) {
       if (storedPdfData && !extractedPdfData) {
         setExtractedPdfData(storedPdfData);
         console.log("Loaded PDF data from localStorage:", storedPdfData);
@@ -266,7 +271,7 @@ const Estimates = () => {
         setPdfFileName(storedFileName);
       }
     }
-  }, [isViewMode, storedPdfData, storedMeasurements, storedFileName]);
+  }, [isViewMode, storedPdfData, storedMeasurements, storedFileName, estimateId, measurementId]);
 
   // Ensure measurements are properly set from extracted PDF data
   useEffect(() => {
@@ -1411,200 +1416,202 @@ const Estimates = () => {
                     </div>
                   )}
 
-                  {!isViewMode && (
-                    <TabsContent value="upload" className="space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
-                        </div>
-                        
-                        <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
-                          <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
-                          <p className="text-sm text-slate-600 mb-4">
-                            Follow these steps to create a complete estimate
-                          </p>
-                          <ol className="space-y-2 text-sm">
-                            <li className="flex items-start gap-2">
-                              <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">1</span>
-                              <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
-                              <span>Review Measurements - Verify or enter the roof measurements</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
-                              <span>Select Materials - Choose roofing materials and options</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
-                              <span>Set Labor & Profit - Define labor rates and profit margin</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
-                              <span>Review Summary - Finalize and prepare for customer approval</span>
-                            </li>
-                          </ol>
-                        </div>
+                  {activeTab === 'upload' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
                       </div>
-                    </TabsContent>
+                      
+                      <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
+                        <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
+                        <p className="text-sm text-slate-600 mb-4">
+                          Follow these steps to create a complete estimate
+                        </p>
+                        <ol className="space-y-2 text-sm">
+                          <li className="flex items-start gap-2">
+                            <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">1</span>
+                            <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
+                            <span>Review Measurements - Verify or enter the roof measurements</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
+                            <span>Select Materials - Choose roofing materials and options</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
+                            <span>Set Labor & Profit - Define labor rates and profit margin</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
+                            <span>Review Summary - Finalize and prepare for customer approval</span>
+                          </li>
+                        </ol>
+                      </div>
+                    </div>
                   )}
                   
-                  <TabsContent value="measurements">
-                    <MeasurementForm
-                      initialMeasurements={measurements || undefined}
-                      onMeasurementsSaved={handleMeasurementsSaved}
-                      extractedFileName={pdfFileName || undefined}
-                      onBack={() => setActiveTab("upload")}
-                      readOnly={isViewMode}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="materials">
-                    {(() => {
-                      // Debug measurements for MaterialsSelectionTab
-                      console.log("About to render MaterialsSelectionTab with measurements:", measurements);
-                      console.log("areasByPitch type:", measurements?.areasByPitch ? (Array.isArray(measurements.areasByPitch) ? "array" : typeof measurements.areasByPitch) : "undefined");
+                  {activeTab !== 'upload' && (
+                    <>
+                      <TabsContent value="measurements">
+                        <MeasurementForm
+                          initialMeasurements={measurements || undefined}
+                          onMeasurementsSaved={handleMeasurementsSaved}
+                          extractedFileName={pdfFileName || undefined}
+                          onBack={() => setActiveTab("upload")}
+                          readOnly={isViewMode}
+                        />
+                      </TabsContent>
                       
-                      if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
-                        return (
-                          <Card>
-                            <CardHeader>
-                              <CardTitle>Missing Measurements</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
-                            </CardContent>
-                            <CardFooter>
-                              <Button onClick={() => setActiveTab("measurements")} variant="outline">Go to Measurements</Button>
-                            </CardFooter>
-                          </Card>
-                        );
-                      } else {
-                        return (
-                          <>
-                            {/* UPDATED: Template Selector Card with Management Options */}
-                            {!isViewMode && (
-                              <Card className="mb-6">
+                      <TabsContent value="materials">
+                        {(() => {
+                          // Debug measurements for MaterialsSelectionTab
+                          console.log("About to render MaterialsSelectionTab with measurements:", measurements);
+                          console.log("areasByPitch type:", measurements?.areasByPitch ? (Array.isArray(measurements.areasByPitch) ? "array" : typeof measurements.areasByPitch) : "undefined");
+                          
+                          if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
+                            return (
+                              <Card>
                                 <CardHeader>
-                                  <CardTitle>Select Pricing Template</CardTitle>
-                                  <CardDescription>Choose a pricing template to apply to this estimate</CardDescription>
+                                  <CardTitle>Missing Measurements</CardTitle>
                                 </CardHeader>
-                                <CardContent className="space-y-4">
-                                  <div className="flex items-end gap-4">
-                                    <div className="flex-1">
-                                      <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
-                                      <Select
-                                        value={selectedTemplateId || undefined}
-                                        onValueChange={setSelectedTemplateId}
-                                        disabled={isLoadingTemplates || templates.length === 0}
-                                      >
-                                        <SelectTrigger id="template-select" className="w-full">
-                                          <SelectValue placeholder="Select a template" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {templates.map(template => (
-                                            <SelectItem key={template.id} value={template.id}>
-                                              {template.name} {template.is_default && "(Default)"}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    
-                                    {/* Template Action Buttons */}
-                                    <div className="flex gap-2">
-                                      <Button 
-                                        onClick={handleApplyTemplate} 
-                                        disabled={!selectedTemplateId || isLoadingTemplates}
-                                      >
-                                        Apply Template
-                                      </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        onClick={() => handleOpenTemplateDialog('edit')}
-                                        disabled={!selectedTemplateId || isLoadingTemplates}
-                                      >
-                                        Edit
-                                      </Button>
-                                      <Button 
-                                        variant="secondary" 
-                                        onClick={() => handleOpenTemplateDialog('create')}
-                                        disabled={isLoadingTemplates}
-                                      >
-                                        New Template
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  {isLoadingTemplates && (
-                                    <div className="flex items-center justify-center py-2">
-                                      <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
-                                      <p className="text-sm text-muted-foreground">Loading template data...</p>
-                                    </div>
-                                  )}
-                                  {selectedTemplateData && (
-                                    <div className="text-sm text-muted-foreground">
-                                      <p>Template: <span className="font-medium">{selectedTemplateData.name}</span></p>
-                                      <p>Materials: {selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</p>
-                                      {selectedTemplateData.description && (
-                                        <p>Description: {selectedTemplateData.description}</p>
-                                      )}
-                                    </div>
-                                  )}
+                                <CardContent>
+                                  <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
                                 </CardContent>
+                                <CardFooter>
+                                  <Button onClick={() => setActiveTab("measurements")} variant="outline">Go to Measurements</Button>
+                                </CardFooter>
                               </Card>
-                            )}
-                            
-                            {/* MaterialsSelectionTab component remains the same */}
-                            <MaterialsSelectionTab
-                              key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
-                              measurements={measurements}
-                              selectedMaterials={selectedMaterials}
-                              quantities={quantities}
-                              onMaterialsUpdate={handleMaterialsUpdate}
-                              readOnly={isViewMode}
-                            />
-                          </>
-                        );
-                      }
-                    })()}
-                  </TabsContent>
-                  
-                  <TabsContent value="pricing">
-                    <LaborProfitTab
-                      key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
-                      measurements={measurements!}
-                      selectedMaterials={selectedMaterials}
-                      quantities={quantities}
-                      initialLaborRates={laborRates}
-                      initialProfitMargin={profitMargin}
-                      onLaborProfitContinue={handleLaborProfitContinue}
-                      onBack={() => setActiveTab("materials")}
-                      readOnly={isViewMode}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="summary">
-                    <EstimateSummaryTab
-                      measurements={measurements || undefined}
-                      selectedMaterials={selectedMaterials}
-                      quantities={quantities}
-                      laborRates={laborRates}
-                      profitMargin={profitMargin}
-                      peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
-                      onFinalizeEstimate={handleFinalizeEstimate} 
-                      isSubmitting={isSubmittingFinal} 
-                      estimate={estimateData} 
-                      isReviewMode={isViewMode}
-                      calculateLiveTotal={calculateLiveEstimateTotal}
-                      onEstimateUpdated={() => { 
-                        fetchEstimatesData(); 
-                        if (estimateId) { 
-                          fetchEstimateData(estimateId);
-                        }
-                      }}
-                    />
-                  </TabsContent>
+                            );
+                          } else {
+                            return (
+                              <>
+                                {/* UPDATED: Template Selector Card with Management Options */}
+                                {!isViewMode && (
+                                  <Card className="mb-6">
+                                    <CardHeader>
+                                      <CardTitle>Select Pricing Template</CardTitle>
+                                      <CardDescription>Choose a pricing template to apply to this estimate</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-4">
+                                      <div className="flex items-end gap-4">
+                                        <div className="flex-1">
+                                          <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
+                                          <Select
+                                            value={selectedTemplateId || undefined}
+                                            onValueChange={setSelectedTemplateId}
+                                            disabled={isLoadingTemplates || templates.length === 0}
+                                          >
+                                            <SelectTrigger id="template-select" className="w-full">
+                                              <SelectValue placeholder="Select a template" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {templates.map(template => (
+                                                <SelectItem key={template.id} value={template.id}>
+                                                  {template.name} {template.is_default && "(Default)"}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                        </div>
+                                        
+                                        {/* Template Action Buttons */}
+                                        <div className="flex gap-2">
+                                          <Button 
+                                            onClick={handleApplyTemplate} 
+                                            disabled={!selectedTemplateId || isLoadingTemplates}
+                                          >
+                                            Apply Template
+                                          </Button>
+                                          <Button 
+                                            variant="outline" 
+                                            onClick={() => handleOpenTemplateDialog('edit')}
+                                            disabled={!selectedTemplateId || isLoadingTemplates}
+                                          >
+                                            Edit
+                                          </Button>
+                                          <Button 
+                                            variant="secondary" 
+                                            onClick={() => handleOpenTemplateDialog('create')}
+                                            disabled={isLoadingTemplates}
+                                          >
+                                            New Template
+                                          </Button>
+                                        </div>
+                                      </div>
+                                      {isLoadingTemplates && (
+                                        <div className="flex items-center justify-center py-2">
+                                          <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
+                                          <p className="text-sm text-muted-foreground">Loading template data...</p>
+                                        </div>
+                                      )}
+                                      {selectedTemplateData && (
+                                        <div className="text-sm text-muted-foreground">
+                                          <p>Template: <span className="font-medium">{selectedTemplateData.name}</span></p>
+                                          <p>Materials: {selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</p>
+                                          {selectedTemplateData.description && (
+                                            <p>Description: {selectedTemplateData.description}</p>
+                                          )}
+                                        </div>
+                                      )}
+                                    </CardContent>
+                                  </Card>
+                                )}
+                                
+                                {/* MaterialsSelectionTab component remains the same */}
+                                <MaterialsSelectionTab
+                                  key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
+                                  measurements={measurements}
+                                  selectedMaterials={selectedMaterials}
+                                  quantities={quantities}
+                                  onMaterialsUpdate={handleMaterialsUpdate}
+                                  readOnly={isViewMode}
+                                />
+                              </>
+                            );
+                          }
+                        })()}
+                      </TabsContent>
+                      
+                      <TabsContent value="pricing">
+                        <LaborProfitTab
+                          key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
+                          measurements={measurements!}
+                          selectedMaterials={selectedMaterials}
+                          quantities={quantities}
+                          initialLaborRates={laborRates}
+                          initialProfitMargin={profitMargin}
+                          onLaborProfitContinue={handleLaborProfitContinue}
+                          onBack={() => setActiveTab("materials")}
+                          readOnly={isViewMode}
+                        />
+                      </TabsContent>
+                      
+                      <TabsContent value="summary">
+                        <EstimateSummaryTab
+                          measurements={measurements || undefined}
+                          selectedMaterials={selectedMaterials}
+                          quantities={quantities}
+                          laborRates={laborRates}
+                          profitMargin={profitMargin}
+                          peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
+                          onFinalizeEstimate={handleFinalizeEstimate} 
+                          isSubmitting={isSubmittingFinal} 
+                          estimate={estimateData} 
+                          isReviewMode={isViewMode}
+                          calculateLiveTotal={calculateLiveEstimateTotal}
+                          onEstimateUpdated={() => { 
+                            fetchEstimatesData(); 
+                            if (estimateId) { 
+                              fetchEstimateData(estimateId);
+                            }
+                          }}
+                        />
+                      </TabsContent>
+                    </>
+                  )}
                 </Tabs>
               )}
 
