@@ -20,8 +20,8 @@ test.describe.skip('Create New Estimate via PDF Upload', () => {
     await page.getByRole('button', { name: 'Browse Files' }).click();
     const fileChooser = await fileChooserPromise;
     
-    // Set the input file
-    await fileChooser.setFiles('/Users/danielpedraza/Downloads/4931_EV_62741395.pdf');
+    // Set the input file using a relative path
+    await fileChooser.setFiles('e2e/fixtures/sample-eagleview.pdf');
 
     // Wait for the "PDF processed successfully" message to appear
     await expect(page.getByRole('heading', { name: 'PDF processed successfully' })).toBeVisible({ timeout: 15000 });
@@ -72,9 +72,10 @@ test.describe.skip('Create New Estimate via PDF Upload', () => {
     await page.getByRole('button', { name: 'Continue' }).click();
     await expect(page.getByRole('tab', { name: 'Summary', selected: true })).toBeVisible();
 
-    // Step 11: Verify the final estimate total is visible
+    // Step 11: Verify the final estimate total is visible and formatted as currency
     const totalEstimateLocator = page.locator('td:has-text("Total Estimate") + td');
     await expect(totalEstimateLocator).toBeVisible();
-    await expect(totalEstimateLocator).not.toHaveText('$0.00');
+    await expect(totalEstimateLocator).toContainText('$');
+    await expect(totalEstimateLocator).not.toContainText('$0.00');
   });
 }); 

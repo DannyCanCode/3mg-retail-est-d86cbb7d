@@ -142,9 +142,6 @@ export function MaterialsSelectionTab({
 
   // Reset function to completely reset state from props
   const resetStateFromProps = useCallback(() => {
-    // Temporarily DRASTICALLY SIMPLIFIED for debugging navigation issue
-    console.log("resetStateFromProps was called - SIMPLIFIED");
-    /* --- Original body commented out ---
     console.log("Resetting state from props", {
       materials: Object.keys(selectedMaterials).length,
       quantities: Object.keys(quantities).length
@@ -186,8 +183,7 @@ export function MaterialsSelectionTab({
     setDisplayQuantities(initialDisplayQtys);
     setMaterialWasteFactors(initialWasteFactors); 
     setUserOverriddenWaste(initialUserOverrides); 
-    */
-  }, []); // DRASTICALLY SIMPLIFIED DEPENDENCY ARRAY FOR DIAGNOSTICS
+  }, [selectedMaterials, quantities, measurements, wasteFactor, gafTimberlineWasteFactor]);
 
   // Update local state when props change
   useEffect(() => {
