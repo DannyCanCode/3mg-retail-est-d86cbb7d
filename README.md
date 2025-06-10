@@ -130,12 +130,12 @@ This section outlines the strategic initiatives for the 3MG Estimating Tool, bas
 
 These are critical issues that must be addressed to ensure the accuracy and reliability of the platform.
 
-- **[ ] Change Profit Calculation from Markup to Margin:**
+- **[x] Change Profit Calculation from Markup to Margin:**
   - **Task:** Update the core profit calculation formula.
   - **Context:** This is a fundamental business logic change requested by the GM.
   - **Action:** Identify the current formula and change it to the correct margin formula.
 
-- **[ ] Fix Flat Roof Labor & Waste Calculations:**
+- **[x] Fix Flat Roof Labor & Waste Calculations:**
   - **Task:** Correct the labor and material waste calculations specifically for low-slope/flat roof areas.
   - **Context:** Essential for generating accurate material orders from "sold" estimates.
 
