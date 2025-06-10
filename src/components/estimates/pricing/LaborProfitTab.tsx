@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { MeasurementValues } from "../measurement/types";
 import { Material } from "../materials/types";
 import { toast } from "@/components/ui/use-toast";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 interface LaborProfitTabProps {
   onBack: () => void;
@@ -919,10 +920,21 @@ export function LaborProfitTab({
             
             <div className="space-y-2">
               <p className="text-sm mb-2">Fixed 12% waste factored into calculations</p>
-              <div className="bg-muted p-3 rounded-md">
-                <p className="text-sm">Labor with waste: 
-                  ${estTotalLaborCost.toFixed(2)}
+              <div className="bg-muted p-3 rounded-md flex items-center gap-2">
+                <p className="text-sm">
+                  Total labor (all pitches, incl. {(laborRates.wastePercentage ?? 12)}% waste):
+                  &nbsp;${estTotalLaborCost.toFixed(2)}
                 </p>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-pointer" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      Calculates labor for every pitch using its specific rate (0–2/12, 3–7/12 base, 8/12+ escalating), applies the fixed {(laborRates.wastePercentage ?? 12)}% waste factor, and adds hand-load if enabled.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </div>
             </div>
           </div>
