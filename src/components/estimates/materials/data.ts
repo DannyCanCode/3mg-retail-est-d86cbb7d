@@ -312,11 +312,11 @@ export const ROOFING_MATERIALS: Material[] = [
   // ACCESSORIES
   {
     id: "1inch-plastic-cap-nails",
-    name: "1\" Plastic Cap Nails (3000/pail)",
+    name: "1\" Plastic Cap Nails (3000/bucket)",
     category: MaterialCategory.ACCESSORIES,
     price: 39.48,
-    unit: "Pail",
-    coverageRule: { description: "1 pail per 10 squares of synthetic underlayment", calculation: "Ceiling(Total Squares / 10)" }
+    unit: "Bucket",
+    coverageRule: { description: "1 bucket per 20 squares of total roof area", calculation: "Ceiling(Total Squares / 20)" }
   },
   {
     id: "master-sealant",
