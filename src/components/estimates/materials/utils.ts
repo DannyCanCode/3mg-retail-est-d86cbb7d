@@ -208,8 +208,8 @@ export const calculateMaterialQuantity = (
         }
         
         const zeroPitchAreaWithWaste = zeroPitchArea * (1 + actualWasteFactor);
-        const squareFtPerBoard = 32; // 4x8
-        quantity = Math.ceil(zeroPitchAreaWithWaste / squareFtPerBoard);
+        const squaresNeeded = zeroPitchAreaWithWaste / 100;
+        quantity = Math.ceil(squaresNeeded);
     } else if (material.id === "polyglass-elastoflex-sbs") {
         const coverageSqFtPerRoll = 114; // Approx 1.06 squares
         quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
@@ -334,9 +334,6 @@ export function groupMaterialsByCategory(materials: Material[]): Record<string, 
     MaterialCategory.METAL,
     MaterialCategory.VENTILATION,
     MaterialCategory.ACCESSORIES,
-    MaterialCategory.FASTENERS, // Added
-    MaterialCategory.SIDING,      // Added
-    MaterialCategory.GUTTERS,     // Added
   ];
 
   // Initialize with all known categories explicitly in a specific order

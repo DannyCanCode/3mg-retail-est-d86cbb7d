@@ -158,10 +158,10 @@ export const ROOFING_MATERIALS: Material[] = [
     id: "gaf-poly-iso-4x8",
     name: "GAF Poly ISO 4X8",
     category: MaterialCategory.LOW_SLOPE,
-    price: 28.80,
-    unit: "Roll", 
+    price: 90.00,
+    unit: "Square", 
     approxPerSquare: 90.00, 
-    coverageRule: { description: "Priced at $90.00/square. Each 4x8 board covers 32 sq ft.", calculation: "0/12 pitch area * 1.12 / 32 rounded up" }
+    coverageRule: { description: "Priced at $90.00/square for 0/12 pitch areas.", calculation: "0/12 pitch area / 100 rounded up" }
   },
   // METAL
   {
