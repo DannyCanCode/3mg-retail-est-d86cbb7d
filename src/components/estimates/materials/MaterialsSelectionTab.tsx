@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/tooltip";
 import { getAllMaterialWastePercentages, updateMaterialWastePercentage } from "@/lib/supabase/material-waste";
 import { supabase } from "@/integrations/supabase/client"; // Added supabase import
+import { determineWasteFactor } from "./utils";
 
 // *** UPDATED LOG HERE ***
 console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: WASTE FACTOR UPDATE v1"); 
@@ -55,6 +56,22 @@ interface WarrantyDetails {
   name: string;
   price: number;
   calculation: string;
+}
+
+// Define a separate type for the editable template row state
+interface EditableTemplateMaterial {
+  id: string;
+  name: string;
+  price: number;
+  coverageRule?: {
+    description: string;
+    calculation: string;
+  };
+  bundlesPerSquare?: number;
+  approxPerSquare?: number;
+  unit: string;
+  category: MaterialCategory;
+  wasteFactor?: number;
 }
 
 export function MaterialsSelectionTab({
@@ -1153,8 +1170,8 @@ export function MaterialsSelectionTab({
     const bundleQuantity = localQuantities[materialId] || 0;
     const isMandatory = material.name && isMandatoryMaterial(material.name);
     
-    // RESTORED: currentWasteFactorForMaterial (derived from component state)
-    const currentWasteFactorForMaterial = materialWasteFactors[materialId]; 
+    // Ensure waste factor exists, falling back to the default for the material if not in state yet.
+    const currentWasteFactorForMaterial = materialWasteFactors[materialId] ?? determineWasteFactor(material, undefined, dbWastePercentages); 
 
     const initialDisplayValue = () => {
       const qty = localQuantities[materialId] || 0;
@@ -1846,10 +1863,23 @@ export function MaterialsSelectionTab({
                )}
              </Accordion>
           </CardContent>
-          <CardFooter className="flex justify-between">
-             <Button type="button" variant="outline" onClick={() => onMaterialsUpdate({ selectedMaterials: {}, quantities: {}, peelStickPrice: "0.00", warrantyCost: 0, warrantyDetails: null, isNavigatingBack: true })} className="flex items-center gap-2"><ChevronLeft className="h-4 w-4" />Back to Measurements</Button>
-             <Button onClick={() => onMaterialsUpdate({ selectedMaterials: localSelectedMaterials, quantities: localQuantities, peelStickPrice, warrantyCost: warrantyDetails?.price || 0, warrantyDetails, isNavigatingBack: false })} disabled={Object.keys(localSelectedMaterials).length === 0} className="flex items-center gap-2">Continue</Button>
-           </CardFooter>
+          <CardFooter className="flex justify-between items-center mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => onMaterialsUpdate({ 
+                selectedMaterials: localSelectedMaterials,
+                quantities: localQuantities,
+                peelStickPrice: peelStickPrice,
+                warrantyCost: warrantyDetails?.price || 0,
+                warrantyDetails: warrantyDetails,
+                isNavigatingBack: true 
+              })}
+              className="flex items-center gap-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back to Measurements
+            </Button>
+          </CardFooter>
         </Card>
       </div>
 
