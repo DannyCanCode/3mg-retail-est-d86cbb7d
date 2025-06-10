@@ -219,30 +219,27 @@ export const calculateMaterialQuantity = (
     const lowSlopeAreaWithWaste = lowSlopeAreaSqFt * (1 + actualWasteFactor);
     
     if (material.id === "gaf-poly-iso-4x8") {
-        const squareFtPerBoard = 32; // 4x8
-        quantity = Math.ceil(lowSlopeAreaWithWaste / squareFtPerBoard);
-    } else if (material.id === "polyglass-elastoflex-sbs") {
-        // For base sheet, first try to calculate cap sheet quantity
-        // This is a special case where base is half of cap quantity
-        
-        // First, check if we're calculating for both base and cap in the same call
-        const capMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
-        if (capMaterial) {
-            // Calculate cap quantity first with standard formula
-            const coverageSqFtPerRollCap = 86; // Approx 0.8 squares for cap
-            const capQuantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRollCap);
-            
-            // Base quantity is half of cap quantity, rounded up
-            quantity = Math.ceil(capQuantity / 2);
-            console.log(`[CalcQuantity] Base quantity calculated as half of cap (${capQuantity} ÷ 2 = ${quantity})`);
-        } else {
-            // Fallback to original calculation if cap material not found
-            const coverageSqFtPerRoll = 67; // Approx 0.625 squares
-            quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
-            console.log(`[CalcQuantity] Base quantity calculated with standard formula: ${quantity}`);
+        // This material is ONLY for 0/12 pitch. We need to recalculate the area for this specific case.
+        const zeroPitchArea = measurements.areasByPitch
+          ?.filter(area => {
+             const rise = getPitchRise(area.pitch);
+             return !isNaN(rise) && rise === 0;
+          })
+          .reduce((sum, area) => sum + (area.area || 0), 0) || 0;
+
+        if (zeroPitchArea <= 0) {
+            console.log(`[CalcQuantity] 0/12 pitch area is 0, returning 0 for ${material.id}.`);
+            return { quantity: 0, actualWasteFactor };
         }
+        
+        const zeroPitchAreaWithWaste = zeroPitchArea * (1 + actualWasteFactor);
+        const squaresNeeded = zeroPitchAreaWithWaste / 100;
+        quantity = Math.ceil(squaresNeeded);
+    } else if (material.id === "polyglass-elastoflex-sbs") {
+        const coverageSqFtPerRoll = 114; // Approx 1.06 squares
+        quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
     } else if (material.id === "polyglass-polyflex-app") {
-        const coverageSqFtPerRoll = 86; // Approx 0.8 squares
+        const coverageSqFtPerRoll = 100; // Approx 1.0 squares
         quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
     } else {
       // Fallback for other low slope - assuming 1.5 sq/roll = 150 sqft/roll
@@ -362,9 +359,6 @@ export function groupMaterialsByCategory(materials: Material[]): Record<string, 
     MaterialCategory.METAL,
     MaterialCategory.VENTILATION,
     MaterialCategory.ACCESSORIES,
-    MaterialCategory.FASTENERS, // Added
-    MaterialCategory.SIDING,      // Added
-    MaterialCategory.GUTTERS,     // Added
   ];
 
   // Initialize with all known categories explicitly in a specific order

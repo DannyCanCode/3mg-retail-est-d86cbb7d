@@ -1,12 +1,11 @@
-
 import React from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { DashboardOverview } from "@/components/dashboard/DashboardOverview";
 import { RecentEstimates } from "@/components/dashboard/RecentEstimates";
-import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 const Index = () => {
   return (
@@ -29,12 +28,9 @@ const Index = () => {
 
         <DashboardOverview />
         
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1">
+          <div className="lg:col-span-1">
             <RecentEstimates />
-          </div>
-          <div>
-            <PdfUploader />
           </div>
         </div>
       </div>

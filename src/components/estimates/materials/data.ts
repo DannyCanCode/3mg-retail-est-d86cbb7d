@@ -143,7 +143,7 @@ export const ROOFING_MATERIALS: Material[] = [
     price: 142.22,
     unit: "Roll",
     approxPerSquare: 177.78,
-    coverageRule: { description: "1.60 Rolls per Square (0.625 sq/roll)", calculation: "Low Slope Area (0-2 pitch) / 0.625 rounded up" }
+    coverageRule: { description: "0.57 Rolls per Square (≈114 sq ft per roll)", calculation: "Low Slope Area (0-2 pitch) / 1.14 rounded up" }
   },
   {
     id: "polyglass-polyflex-app",
@@ -152,16 +152,16 @@ export const ROOFING_MATERIALS: Material[] = [
     price: 132.22,
     unit: "Roll",
     approxPerSquare: 165.28,
-    coverageRule: { description: "1.25 Rolls per Square (0.8 sq/roll)", calculation: "Low Slope Area (0-2 pitch) / 0.8 rounded up" }
+    coverageRule: { description: "1 Roll per Square (100 sq ft per roll)", calculation: "Low Slope Area (0-2 pitch) / 1 rounded up" }
   },
   {
     id: "gaf-poly-iso-4x8",
     name: "GAF Poly ISO 4X8",
     category: MaterialCategory.LOW_SLOPE,
-    price: 90.0,
-    unit: "Roll", 
-    approxPerSquare: 90.0, 
-    coverageRule: { description: "For 0/12 pitch areas only (32 sq ft/unit)", calculation: "0/12 pitch area * 1.12 / 32 rounded up" }
+    price: 90.00,
+    unit: "Square", 
+    approxPerSquare: 90.00, 
+    coverageRule: { description: "Priced at $90.00/square for 0/12 pitch areas.", calculation: "0/12 pitch area / 100 rounded up" }
   },
   // METAL
   {
@@ -312,11 +312,11 @@ export const ROOFING_MATERIALS: Material[] = [
   // ACCESSORIES
   {
     id: "1inch-plastic-cap-nails",
-    name: "1\" Plastic Cap Nails (3000/pail)",
+    name: "1\" Plastic Cap Nails (3000/bucket)",
     category: MaterialCategory.ACCESSORIES,
     price: 39.48,
-    unit: "Pail",
-    coverageRule: { description: "1 pail per 10 squares of synthetic underlayment", calculation: "Ceiling(Total Squares / 10)" }
+    unit: "Bucket",
+    coverageRule: { description: "1 bucket per 20 squares of total roof area", calculation: "Ceiling(Total Squares / 20)" }
   },
   {
     id: "master-sealant",

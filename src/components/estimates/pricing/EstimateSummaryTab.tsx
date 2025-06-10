@@ -177,8 +177,11 @@ export function EstimateSummaryTab({
     includeDownspouts: laborRates?.includeDownspouts || false,
     downspoutCount: laborRates?.downspoutCount || 0,
     downspoutRate: laborRates?.downspoutRate || 65,
-    includeLowSlopeLabor: laborRates?.includeLowSlopeLabor || false,
-    includeSteepSlopeLabor: laborRates?.includeSteepSlopeLabor || false,
+    includeDetachResetGutters: laborRates?.includeDetachResetGutters || false,
+    detachResetGutterLinearFeet: laborRates?.detachResetGutterLinearFeet || 0,
+    detachResetGutterRate: laborRates?.detachResetGutterRate || 1,
+    includeLowSlopeLabor: laborRates?.includeLowSlopeLabor ?? true,
+    includeSteepSlopeLabor: laborRates?.includeSteepSlopeLabor ?? true,
   };
 
   // Calculate the number of squares
@@ -230,7 +233,7 @@ export function EstimateSummaryTab({
         // Get the pitch value (numeric part of the pitch)
         const pitch = pitchArea.pitch;
         const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
-        const areaSquares = pitchArea.area / 100; // Convert to squares
+        const areaSquares = Math.ceil((pitchArea.area || 0) / 100);
 
         if (areaSquares === 0) return; // No area, skip
 
@@ -263,22 +266,21 @@ export function EstimateSummaryTab({
           rate = currentLaborRates.pitchRates[pitchKey] !== undefined 
                  ? currentLaborRates.pitchRates[pitchKey] 
                  : defaultSteepRate;
-        } else if (pitchValue === 0 && hasPolyIsoMaterial) {
-          rate = 60;
-          itemNamePrefix = `Labor for ${pitch} Pitch (GAF Poly ISO)`;
-        } else if ((pitchValue === 1 || pitchValue === 2) && hasPolyglasMaterials) {
+        } else if (pitchValue === 0) {
+          // Default flat-roof rate $159 unless overridden via pitchRates
+          const overrideRate = currentLaborRates.pitchRates["0:12"];
+          rate = overrideRate !== undefined ? overrideRate : 159;
+          itemNamePrefix = `Labor for ${pitch} Pitch`;
+        } else if (pitchValue === 1 || pitchValue === 2) {
           rate = 109;
-          itemNamePrefix = `Labor for ${pitch} Pitch (Polyglass Base & Cap)`;
-        } else if (pitchValue <= 2) {
-          rate = 75;
           itemNamePrefix = `Labor for ${pitch} Pitch (Low Slope)`;
         } // Standard rate (3/12-7/12) is already set in 'rate' by default
-        
-        laborCosts.push({ 
-          name: `${itemNamePrefix} (${Math.round(areaSquares * 10) / 10} squares)`, 
-          rate: rate, 
+          
+          laborCosts.push({ 
+          name: `${itemNamePrefix} (${areaSquares} squares)`, 
+            rate: rate, 
           totalCost: rate * areaSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
-        });
+          });
       });
     } else if (totalSquares > 0 && (currentLaborRates.includeSteepSlopeLabor !== false) ){
       // No pitch areas available, but total area exists. Apply standard rate if steep slope labor is included.
@@ -295,21 +297,21 @@ export function EstimateSummaryTab({
     if (currentLaborRates.includeSteepSlopeLabor !== false) {
       const tearOff = currentLaborRates.tearOff || 0;
       const installation = currentLaborRates.installation || 0;
-      
-      if (tearOff > 0) {
-        laborCosts.push({ 
-          name: "Tear Off", 
-          rate: tearOff, 
+    
+    if (tearOff > 0) {
+      laborCosts.push({ 
+        name: "Tear Off", 
+        rate: tearOff, 
           totalCost: tearOff * totalSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
-        });
-      }
-      
-      if (installation > 0) {
-        laborCosts.push({ 
-          name: "Installation", 
-          rate: installation, 
+      });
+    }
+    
+    if (installation > 0) {
+      laborCosts.push({ 
+        name: "Installation", 
+        rate: installation, 
           totalCost: installation * totalSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
-        });
+      });
       }
     }
   } else if (totalSquares > 0 && (currentLaborRates.includeSteepSlopeLabor !== false)) {
@@ -372,8 +374,7 @@ export function EstimateSummaryTab({
   
   // Calculate total costs
   const subtotal = totalMaterialCost + totalLaborCost;
-  const profitAmount = subtotal * (profitMargin / 100);
-  const total = subtotal + profitAmount;
+  const profitAmount = currentTotalEstimate - subtotal;
 
   // Helper function to format numbers with commas
   const formatNumberWithCommas = (value: number): string => {
@@ -383,10 +384,6 @@ export function EstimateSummaryTab({
     });
   };
 
-  // Ensure 'total' for the log is based on these, or just use currentTotalEstimate
-  const totalForLog = subtotal + profitAmount; // Recalculate for clarity if needed, or use currentTotalEstimate
-
-  // For simplicity, let's remove the detailed comparison log or make it conditional on totalAmount prop existing
   console.log("EstimateSummaryTab display total:", currentTotalEstimate);
 
   return (
