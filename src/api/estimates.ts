@@ -625,4 +625,3 @@ export const updateEstimateCustomerDetails = async (
 
   return { data: parsedData as Estimate | null, error: null };
 };
-<ctrl46>,instructions:<ctrl46>Re-create the 'src/api/estimates.ts' file with the correct margin calculation logic in both required locations.<ctrl46>,target_file:<ctrl46>src/api/estimates.ts<ctrl46>}
