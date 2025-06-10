@@ -9,8 +9,8 @@ test.describe.skip('Create New Estimate via PDF Upload', () => {
     await expect(page).toHaveTitle(/3MG Retail Estimator/);
 
     // Step 2: Click the "New Estimate" link
-    // Using a more specific locator to distinguish between the two "New Estimate" links
-    await page.locator('div').filter({ hasText: /^DashboardWelcome back to 3MG Retail Roofing EstimatorNew Estimate$/ }).getByRole('link').click();
+    // Using a more robust locator targeting the primary "New Estimate" button in the header
+    await page.getByRole('button', { name: 'New Estimate' }).click();
     await expect(page).toHaveURL(/.*\/estimates/);
     await expect(page.getByRole('heading', { name: 'Create New Estimate' })).toBeVisible();
 

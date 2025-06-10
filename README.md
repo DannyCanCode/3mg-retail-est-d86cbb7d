@@ -71,7 +71,6 @@ VITE_SUPABASE_ANON_KEY=your-supabase-key
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/9dfb42fe-c594-42dd-83cb-bf701ca56a8f
 
 ## How can I edit this code?
 
@@ -122,3 +121,70 @@ npm run dev
 ## I want to use a custom domain - is that possible?
 
 We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+
+---
+
+## Project Roadmap (as of 6/10/2025)
+
+This section outlines the strategic initiatives for the 3MG Estimating Tool, based on business goals and recent development analysis. Our primary goal is to prepare the tool for a company-wide rollout by July.
+
+### 📍 Initiative 1: Core Logic & Foundational Fixes (Immediate Priority)
+
+These are critical issues that must be addressed to ensure the accuracy and reliability of the platform.
+
+- **[ ] Change Profit Calculation from Markup to Margin:**
+  - **Task:** Update the core profit calculation formula.
+  - **Context:** This is a fundamental business logic change requested by the GM.
+  - **Action:** Identify the current formula and change it to the correct margin formula.
+
+- **[ ] Fix Flat Roof Labor & Waste Calculations:**
+  - **Task:** Correct the labor and material waste calculations specifically for low-slope/flat roof areas.
+  - **Context:** Essential for generating accurate material orders from "sold" estimates.
+
+- **[ ] Resolve Preset Bundle Application Bug:**
+  - **Task:** Debug the state management issue in the `MaterialsSelectionTab` component.
+  - **Context:** Our E2E test has confirmed that applying a material preset does not correctly update the UI. This is a critical bug.
+  - **Action:** Fix the state flow between `Estimates.tsx` and `MaterialsSelectionTab.tsx`.
+
+### 📱 Initiative 2: Mobile-First Responsive UI (High Priority)
+
+To support reps in the field, the application must be fully functional and easy to use on mobile phones and tablets.
+
+- **[ ] Comprehensive UI Audit & Refactoring:**
+  - **Task:** Systematically review every view and component, ensuring it is responsive and usable on small screens.
+  - **Priority Areas:**
+    - The 5-step estimate workflow (tabs may become a stepper or dropdown on mobile).
+    - Data tables (columns should stack vertically).
+    - All forms and buttons must be easily tappable.
+
+### ✨ Initiative 3: Future Feature Development
+
+These are longer-term goals to be addressed after the initial rollout.
+
+- **[ ] Customer-Facing PDF Proposal Generation:**
+  - **Task:** Create a feature to generate a "blue chip / white glove" PDF of the final estimate.
+  - **Context:** A key request from the marketing team to enhance the customer experience.
+
+- **[ ] Customer & Estimate Management (CRM-Lite):**
+  - **Task:** Allow associating estimates with specific customers.
+
+- **[ ] Expand Sub-Trade Support:**
+  - **Task:** Add features for Stucco, siding, painting, solar D&R, screen replacements estimates.
+
+- **[ ] Tile & Metal Roofing Functionality:**
+  - **Task:** Add support for different roofing material types, we have shingle now we need metal/tile. 
+  
+- **[ ] API Integrations:**
+  - **Task:** Plan for future integrations with AccuLynx, ServiceTitan, and measurement report providers.
+
+### 🧪 Initiative 4: Solidify Testing Framework
+
+A robust testing suite is non-negotiable for an enterprise platform. It ensures we can add features without breaking existing functionality.
+
+- **[ ] Complete and Fix the "Golden Path" E2E Test:**
+  - **Task:** Once the preset bundle bug is fixed, get the `create-estimate.spec.ts` test to pass reliably.
+  - **Context:** This test validates the entire core user journey.
+  
+- **[ ] Add Unit Tests for Core Calculations:**
+  - **Task:** Implement unit tests for functions like `calculateMaterialQuantity` and `calculateFinalCosts`.
+  - **Context:** These tests are fast and ensure our core business logic is always mathematically correct.

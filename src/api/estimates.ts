@@ -35,9 +35,6 @@ export interface Estimate {
   peel_stick_addon_cost?: number;
 }
 
-// Helper function for safe stringification (if not already global to this file)
-// const safeStringify = (obj: any): string => { ... };
-
 /**
  * Save a new estimate to the database with "pending" status
  */
@@ -49,7 +46,6 @@ export const saveEstimate = async (
       console.warn("Supabase not configured, estimate will not be saved to database");
       return { data: null, error: new Error("Supabase not configured") };
     }
-    // console.log("Supabase is configured, proceeding with save/update for input:", estimateInput);
 
     const now = new Date().toISOString();
 
@@ -57,7 +53,6 @@ export const saveEstimate = async (
       created_at, 
       updated_at,
       id: inputId,
-      // Destructure the fields that were previously stringified, to pass them as objects
       materials: inputMaterials,
       quantities: inputQuantities,
       labor_rates: inputLaborRates,
@@ -66,12 +61,11 @@ export const saveEstimate = async (
       ...restOfEstimateInput 
     } = estimateInput;
 
-    // Prepare payload with direct objects/arrays for JSONB fields
     const payload: any = {
       ...restOfEstimateInput,
       materials: inputMaterials || {},
       quantities: inputQuantities || {},
-      labor_rates: inputLaborRates || {}, // Consider full default if {} is problematic for LaborRates type elsewhere
+      labor_rates: inputLaborRates || {},
       measurements: inputMeasurements || {},
       updated_at: now,
     };
@@ -87,7 +81,6 @@ export const saveEstimate = async (
 
     if (inputId) { // UPDATE existing record
       const { created_at: _createdAt, id: _id, ...updatePayload } = payload; 
-      console.log("MARKER: About to UPDATE estimate ID:", inputId, "WITH PAYLOAD:", JSON.stringify(updatePayload, null, 2));
       ({ data, error } = await supabase
         .from("estimates")
         .update(updatePayload) 
@@ -105,7 +98,6 @@ export const saveEstimate = async (
         throw new Error(`Invalid total_price for new estimate: ${payload.total_price}`);
       }
 
-      console.log("Inserting new estimate data:", payload);
       ({ data, error } = await supabase
         .from("estimates")
         .insert(payload) 
@@ -121,8 +113,6 @@ export const saveEstimate = async (
         return { data: null, error: new Error("No data returned from Supabase after save/update.") };
     }
 
-    // When data comes back from Supabase, JSONB fields might be objects/arrays directly, or still strings
-    // depending on the client library and selects. Robust parsing is good.
     const parsedData = {
       ...data,
       status: data.status as EstimateStatus,
@@ -187,7 +177,6 @@ export const getEstimateById = async (id: string): Promise<{
     }
     const { data, error } = await supabase.from("estimates").select("*").eq("id", id).single();
     if (error) {
-      // If error is due to "PGRST116" (resource not found), return null data
       if (error.code === 'PGRST116') return { data: null, error: null };
       throw error;
     }
@@ -220,20 +209,17 @@ export const updateEstimateStatus = async (
   error: Error | null;
 }> => {
   try {
-    // Check if Supabase is configured
     if (!isSupabaseConfigured()) {
-      console.warn("Supabase not configured, cannot update estimate status");
       return { data: null, error: new Error("Supabase not configured") };
     }
 
-    const updateData = {
+    const updateData: { status: EstimateStatus, updated_at: string, notes?: string } = {
       status,
       updated_at: new Date().toISOString()
     };
     
-    // Add notes if provided
     if (notes) {
-      Object.assign(updateData, { notes });
+      updateData.notes = notes;
     }
 
     const { data, error } = await supabase
@@ -258,97 +244,7 @@ export const updateEstimateStatus = async (
 };
 
 /**
- * Generate PDF for an approved estimate
- */
-export const generateEstimatePdf = async (id: string): Promise<{
-  data: { url: string } | null;
-  error: Error | null;
-}> => {
-  try {
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured()) {
-      console.warn("Supabase not configured, cannot generate PDF");
-      return { data: null, error: new Error("Supabase not configured") };
-    }
-
-    // First, get the estimate
-    const { data: estimate, error: fetchError } = await getEstimateById(id);
-    
-    if (fetchError) {
-      throw fetchError;
-    }
-    
-    // Check if estimate is approved (only approved estimates can generate PDFs)
-    if (estimate?.status !== "approved") {
-      throw new Error("Cannot generate PDF for estimates that are not approved");
-    }
-    
-    // Fetch any needed auxiliary data
-    
-    // Create PDF content based on estimate data
-    // This should be generated using a PDF library or by using your backend API
-    const pdfData = {
-      estimateId: estimate.id,
-      customerName: estimate.customer_name || "Customer",
-      customerAddress: estimate.customer_address,
-      customerEmail: estimate.customer_email,
-      customerPhone: estimate.customer_phone,
-      totalPrice: estimate.total_price,
-      measurements: estimate.measurements,
-      materials: estimate.materials,
-      quantities: estimate.quantities,
-      laborRates: estimate.labor_rates,
-      profitMargin: estimate.profit_margin,
-      createdAt: estimate.created_at,
-      notes: estimate.notes
-    };
-    
-    // Call PDF generation service
-    // In a real implementation, this would call an API endpoint that returns a PDF URL
-    // For this implementation, we'll return a mock URL for demonstration purposes
-    
-    // Here you would integrate with your actual PDF generation service
-    // For example:
-    // const pdfResponse = await fetch('/api/generate-pdf', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(pdfData)
-    // });
-    // const pdfResult = await pdfResponse.json();
-    // return { data: { url: pdfResult.url }, error: null };
-    
-    // Mock implementation - in production this would be an actual PDF generation call
-    console.log("Generating PDF for estimate:", id, pdfData);
-    
-    // Generate a mock PDF URL
-    const mockPdfUrl = `/estimates/${id}/3mg-estimate-${id}.pdf`;
-    
-    // Update the estimate to record that a PDF was generated
-    await supabase
-      .from("estimates")
-      .update({
-        pdf_generated: true,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", id);
-    
-    return { 
-      data: { url: mockPdfUrl }, 
-      error: null 
-    };
-  } catch (error) {
-    console.error("Error generating PDF:", error);
-    return {
-      data: null,
-      error: error instanceof Error ? error : new Error("Unknown error generating PDF")
-    };
-  }
-};
-
-/**
  * Calculate estimate total
- * This is a helper function to calculate the total price of an estimate
- * based on materials, labor rates, and profit margin
  */
 export const calculateEstimateTotal = (
   materials: Record<string, Material>,
@@ -358,10 +254,6 @@ export const calculateEstimateTotal = (
   measurementsInput?: MeasurementValues,
   peelStickCost: number = 0
 ): number => {
-  console.log("API_CALC_TOTAL: Entry. measurementsInput:", JSON.stringify(measurementsInput, null, 2));
-  console.log("API_CALC_TOTAL: Entry. laborRatesInput:", JSON.stringify(laborRatesInput, null, 2));
-
-  // Ensure we have a safe laborRates object with defaults
   const defaultLaborRates: LaborRates = {
     laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
     dumpsterLocation: "orlando", dumpsterCount: 1, dumpsterRate: 400, includePermits: true,
@@ -372,7 +264,6 @@ export const calculateEstimateTotal = (
   };
   const laborRates: LaborRates = { ...defaultLaborRates, ...(laborRatesInput || {}) };
 
-  // Calculate materials cost
   let materialCost = 0;
   for (const materialId in materials) {
     const material = materials[materialId];
@@ -381,25 +272,21 @@ export const calculateEstimateTotal = (
         materialCost += material.price * quantity;
     }
   }
-  materialCost += peelStickCost; // Add peel and stick cost to material cost
+  materialCost += peelStickCost;
 
-  // --- Detailed Labor Cost Calculation (adapted from calculateFinalCosts/EstimateSummaryTab) ---
   let calculated_labor_cost = 0;
-  const measurements = measurementsInput || { totalArea: 0, areasByPitch: [], predominantPitch: "6/12" }; // Basic default if not provided
+  const measurements = measurementsInput || { totalArea: 0, areasByPitch: [], predominantPitch: "6/12" };
   const totalArea = measurements.totalArea || 0;
   const totalSquares = totalArea > 0 ? totalArea / 100 : 0;
-  const wasteFactorPercentage = laborRates.wastePercentage || 12; // Default 12%
+  const wasteFactorPercentage = laborRates.wastePercentage || 12;
   const wasteMultiplier = 1 + (wasteFactorPercentage / 100);
 
-  // Helper to get pitch rate, considering custom rates from laborRates.pitchRates
   const getPitchRate = (pitchKeyInput: string): number => {
       const pitchKey = pitchKeyInput.replace("/", ":");
       if (laborRates.pitchRates && laborRates.pitchRates[pitchKey] !== undefined) {
           return laborRates.pitchRates[pitchKey];
       }
       const pitchValue = parseInt(pitchKey.split(/[:\/]/)[0]) || 0;
-      // Removed hasPolyIso and hasPolyglass checks from here as they depend on 'selectedMaterials' which is not in this function scope directly
-      // This getPitchRate should only return based on pitch value or laborRates.laborRate if no specific material context
       if (pitchValue >= 8) { 
           const basePitchValue = 8; const baseRate = 90; const increment = 5;
           return baseRate + (pitchValue - basePitchValue) * increment;
@@ -413,7 +300,7 @@ export const calculateEstimateTotal = (
       measurements.areasByPitch.forEach(area => {
           const areaSquares = (area.area || 0) / 100;
           if (areaSquares > 0) {
-              const rate = getPitchRate(area.pitch); // Pass original pitch string
+              const rate = getPitchRate(area.pitch);
               calculated_labor_cost += rate * areaSquares * wasteMultiplier;
           }
       });
@@ -434,7 +321,6 @@ export const calculateEstimateTotal = (
       const additionalPermitRate = laborRates.permitAdditionalRate || basePermitRate;
       calculated_labor_cost += basePermitRate + Math.max(0, permitCount - 1) * additionalPermitRate;
   }
-  // Add other fixed costs like gutters, downspouts if they are part of laborRates and applicable
   if (laborRates.includeGutters && laborRates.gutterLinearFeet && laborRates.gutterRate) {
     calculated_labor_cost += laborRates.gutterLinearFeet * laborRates.gutterRate;
   }
@@ -444,34 +330,14 @@ export const calculateEstimateTotal = (
   if (laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet && laborRates.detachResetGutterRate) {
     calculated_labor_cost += laborRates.detachResetGutterLinearFeet * laborRates.detachResetGutterRate;
   }
-  // --- End of Detailed Labor Cost Calculation ---
 
   const subtotal = materialCost + calculated_labor_cost;
-  const profitAmount = subtotal * (profitMargin / 100);
-  const total = subtotal + profitAmount;
-
-  console.log("API_CALC_TOTAL V2 Results:", {
-    materialCost,
-    peelStickCost,
-    calculated_labor_cost,
-    subtotal,
-    profitMargin,
-    profitAmount,
-    total,
-    wasteFactorUsedForLabor: wasteMultiplier
-  });
-
-  // Consider if rounding to 2 decimal places is better than nearest dollar for final total
-  return parseFloat(total.toFixed(2)); 
+  const margin = profitMargin / 100;
+  const totalPrice = margin < 1 ? subtotal / (1 - margin) : subtotal;
+  return totalPrice;
 };
 
-// --- Helper Function for Cost Calculation ---
-// NOTE: This logic MUST precisely match the calculations used in EstimateSummaryTab.tsx
-//       Consider refactoring the logic from EstimateSummaryTab into a shared utility
-//       function to avoid duplication and ensure consistency.
 const calculateFinalCosts = (estimateData: Estimate) => {
-  console.log("[calculateFinalCosts] Received estimateData:", JSON.stringify(estimateData, null, 2));
-
   const defaultLaborRatesFull: LaborRates = {
     laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
     dumpsterLocation: "orlando", dumpsterCount: 1, dumpsterRate: 400, includePermits: true,
@@ -488,39 +354,25 @@ const calculateFinalCosts = (estimateData: Estimate) => {
   const profitMargin = estimateData.profit_margin || 0;
   const peelStickAddonCost = estimateData.peel_stick_addon_cost || 0; 
 
-  console.log("[calculateFinalCosts] Parsed Materials:", selectedMaterials);
-  console.log("[calculateFinalCosts] Parsed Quantities:", quantities);
-  console.log("[calculateFinalCosts] Parsed LaborRates:", laborRates);
-  console.log("[calculateFinalCosts] Parsed Measurements:", safeMeasurements);
-
-  // --- Material Cost Calculation ---
   let calculated_material_cost = 0;
   try {
     for (const materialId in selectedMaterials) {
       const material = selectedMaterials[materialId];
       const quantity = quantities[materialId] || 0;
-      console.log(`[calculateFinalCosts] Processing Material: ID=${materialId}, Qty=${quantity}, Material Data:`, material);
-      
-      // **Crucial Check:** Ensure material and price exist and are valid numbers
       if (material && typeof material.price === 'number' && !isNaN(material.price) && typeof quantity === 'number' && !isNaN(quantity)) {
         calculated_material_cost += material.price * quantity;
-      } else {
-        console.warn(`[calculateFinalCosts] Skipping invalid material/quantity: ID=${materialId}, Price=${material?.price}, Qty=${quantity}`);
       }
     }
   } catch (matError) {
     console.error("[calculateFinalCosts] Error during material cost calculation:", matError);
-    throw new Error("Material cost calculation failed."); // Re-throw or handle
   }
   calculated_material_cost += peelStickAddonCost; 
 
-  // --- Labor Cost Calculation --- 
   let calculated_labor_cost = 0;
   const totalArea = safeMeasurements.totalArea || 0;
   const totalSquares = totalArea > 0 ? totalArea / 100 : 0;
-  const wasteFactor = (laborRates.wastePercentage || 12) / 100; // Default 12%
+  const wasteFactor = (laborRates.wastePercentage || 12) / 100;
 
-  // Helper to get pitch rate (adjust based on your actual implementation)
   const getPitchRate = (pitch: string): number => {
       const pitchKey = pitch.replace("/", ":");
       if (laborRates.pitchRates && laborRates.pitchRates[pitchKey] !== undefined) {
@@ -541,127 +393,85 @@ const calculateFinalCosts = (estimateData: Estimate) => {
       return laborRates.laborRate || 85; 
   };
 
-  // Calculate pitch-based labor
   if (safeMeasurements.areasByPitch && safeMeasurements.areasByPitch.length > 0 && totalSquares > 0) {
       safeMeasurements.areasByPitch.forEach(area => {
           const pitch = area.pitch;
           const areaSquares = (area.area || 0) / 100;
-          
           if (areaSquares > 0) {
               const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
               const isLowSlopePitch = pitchValue >= 0 && pitchValue <= 2;
-              const isStandardOrSteepSlopePitch = pitchValue >= 3; // Covers 3/12 and up
-
-              if (isLowSlopePitch && (laborRates.includeLowSlopeLabor === false)) { // Check explicitly for false
-                console.log(`[calculateFinalCosts] Skipping labor for low slope pitch ${pitch} because includeLowSlopeLabor is false.`);
-                return; // Skip this iteration
-              }
-              if (isStandardOrSteepSlopePitch && (laborRates.includeSteepSlopeLabor === false)) { // Check explicitly for false
-                console.log(`[calculateFinalCosts] Skipping labor for steep slope pitch ${pitch} because includeSteepSlopeLabor is false.`);
-                return; // Skip this iteration
-              }
-
+              const isStandardOrSteepSlopePitch = pitchValue >= 3;
+              if (isLowSlopePitch && (laborRates.includeLowSlopeLabor === false)) return;
+              if (isStandardOrSteepSlopePitch && (laborRates.includeSteepSlopeLabor === false)) return;
               const rate = getPitchRate(pitch);
               calculated_labor_cost += rate * areaSquares * (1 + wasteFactor);
-              console.log(`[calculateFinalCosts] Labor for Pitch ${pitch}: ${areaSquares.toFixed(2)} sq @ $${rate}/sq (w/ waste) = $${(rate * areaSquares * (1 + wasteFactor)).toFixed(2)}`);
           }
       });
   } else if (totalSquares > 0) {
-      // Fallback if no pitch data but total area exists
-      // This fallback implicitly assumes standard/steep slope labor. Apply toggle.
-      if (laborRates.includeSteepSlopeLabor !== false) { // Default to true if undefined
+      if (laborRates.includeSteepSlopeLabor !== false) {
         const fallbackRate = laborRates.laborRate || 85;
         calculated_labor_cost += fallbackRate * totalSquares * (1 + wasteFactor);
-        console.log(`[calculateFinalCosts] Labor Fallback (Steep Slope Included): ${totalSquares.toFixed(2)} sq @ $${fallbackRate}/sq (w/ waste) = $${(fallbackRate * totalSquares * (1 + wasteFactor)).toFixed(2)}`);
-      } else {
-        console.log(`[calculateFinalCosts] Labor Fallback (Steep Slope Excluded)`);
       }
   }
 
-  // Add Handload
-  // Handload cost should only be added if the labor for the areas it applies to is included.
-  // This simple check ensures handload isn't added if all labor was excluded by toggles.
   if (laborRates.isHandload && totalSquares > 0 && calculated_labor_cost > 0) { 
-      const handloadCost = (laborRates.handloadRate || 15) * totalSquares * (1 + wasteFactor); // Default 15/sq
+      const handloadCost = (laborRates.handloadRate || 15) * totalSquares * (1 + wasteFactor);
       calculated_labor_cost += handloadCost;
-      console.log(`[calculateFinalCosts] Added Handload: $${handloadCost.toFixed(2)}`);
   }
 
-  // Add Dumpsters
-  // Use stored count/rate if available, otherwise calculate
   const dumpsterCount = laborRates.dumpsterCount || (totalSquares > 0 ? Math.max(1, Math.ceil(totalSquares / 20)) : 0); 
   if (dumpsterCount > 0) {
-      const dumpsterRate = laborRates.dumpsterRate || (laborRates.dumpsterLocation === "orlando" ? 400 : 500); // Defaults
+      const dumpsterRate = laborRates.dumpsterRate || (laborRates.dumpsterLocation === "orlando" ? 400 : 500);
       const dumpsterTotalCost = dumpsterCount * dumpsterRate;
       calculated_labor_cost += dumpsterTotalCost;
-      console.log(`[calculateFinalCosts] Added Dumpsters (${dumpsterCount}): $${dumpsterTotalCost.toFixed(2)}`);
   }
 
-  // Add Permits
   if (laborRates.includePermits) {
       const permitCount = laborRates.permitCount || 1;
-      const basePermitRate = laborRates.permitRate || (laborRates.dumpsterLocation === "orlando" ? 450 : 550); // Defaults
-      const additionalPermitRate = laborRates.permitAdditionalRate || basePermitRate; // Default additional to base rate
+      const basePermitRate = laborRates.permitRate || (laborRates.dumpsterLocation === "orlando" ? 450 : 550);
+      const additionalPermitRate = laborRates.permitAdditionalRate || basePermitRate;
       const permitTotalCost = basePermitRate + Math.max(0, permitCount - 1) * additionalPermitRate;
       calculated_labor_cost += permitTotalCost;
-      console.log(`[calculateFinalCosts] Added Permits (${permitCount}): $${permitTotalCost.toFixed(2)}`);
   }
 
-  // Add Gutters
   if (laborRates.includeGutters && laborRates.gutterLinearFeet && laborRates.gutterLinearFeet > 0) {
-      const gutterCost = (laborRates.gutterRate || 8) * laborRates.gutterLinearFeet; // Default $8/ft
+      const gutterCost = (laborRates.gutterRate || 8) * laborRates.gutterLinearFeet;
       calculated_labor_cost += gutterCost;
-      console.log(`[calculateFinalCosts] Added Gutters (${laborRates.gutterLinearFeet} ft): $${gutterCost.toFixed(2)}`);
   }
 
-  // Add Downspouts
   if (laborRates.includeDownspouts && laborRates.downspoutCount && laborRates.downspoutCount > 0) {
-      const downspoutCost = (laborRates.downspoutRate || 75) * laborRates.downspoutCount; // Default $75 each
+      const downspoutCost = (laborRates.downspoutRate || 75) * laborRates.downspoutCount;
       calculated_labor_cost += downspoutCost;
-      console.log(`[calculateFinalCosts] Added Downspouts (${laborRates.downspoutCount}): $${downspoutCost.toFixed(2)}`);
   }
 
-  // Add Detach/Reset Gutters 
   if (laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet && laborRates.detachResetGutterLinearFeet > 0) {
-      const detachCost = (laborRates.detachResetGutterRate || 1) * laborRates.detachResetGutterLinearFeet; // Default $1/ft
+      const detachCost = (laborRates.detachResetGutterRate || 1) * laborRates.detachResetGutterLinearFeet;
       calculated_labor_cost += detachCost;
-      console.log(`[calculateFinalCosts] Added Detach/Reset Gutters (${laborRates.detachResetGutterLinearFeet} ft): $${detachCost.toFixed(2)}`);
   }
 
-  // --- Subtotal and Profit --- 
   const calculated_subtotal = calculated_material_cost + calculated_labor_cost;
-  const calculated_profit_amount = calculated_subtotal * (profitMargin / 100);
-  const calculated_total = calculated_subtotal + calculated_profit_amount;
-
-  console.log("[calculateFinalCosts] Calculated values:", { calculated_material_cost, calculated_labor_cost, calculated_subtotal, calculated_profit_amount });
+  const margin = profitMargin / 100;
+  const calculated_total_price = margin < 1 ? calculated_subtotal / (1 - margin) : calculated_subtotal;
+  const calculated_profit_amount = calculated_total_price - calculated_subtotal;
 
   return {
     calculated_material_cost,
     calculated_labor_cost,
     calculated_subtotal,
     calculated_profit_amount,
-    calculated_total 
+    calculated_total: calculated_total_price
   };
 };
 
-// --- Modified Function: markEstimateAsSold --- 
 export const markEstimateAsSold = async (
   estimateId: string, 
   jobType: 'Retail' | 'Insurance', 
   insuranceCompany?: string 
 ): Promise<Estimate> => {
-  if (!isSupabaseConfigured()) {
-    throw new Error("Supabase is not configured.");
-  }
-  if (!estimateId) {
-    throw new Error("Estimate ID is required.");
-  }
-  if (!jobType) {
-      throw new Error("Job Type (Retail/Insurance) is required.");
-  }
-  if (jobType === 'Insurance' && !insuranceCompany) {
-      throw new Error("Insurance Company name is required when Job Type is Insurance.");
-  }
+  if (!isSupabaseConfigured()) throw new Error("Supabase is not configured.");
+  if (!estimateId) throw new Error("Estimate ID is required.");
+  if (!jobType) throw new Error("Job Type (Retail/Insurance) is required.");
+  if (jobType === 'Insurance' && !insuranceCompany) throw new Error("Insurance Company name is required when Job Type is Insurance.");
 
   const { data: rawEstimateData, error: fetchError } = await supabase
     .from('estimates')
@@ -670,7 +480,6 @@ export const markEstimateAsSold = async (
     .single();
 
   if (fetchError || !rawEstimateData) {
-    console.error("Error fetching estimate for 'Mark as Sold':", fetchError);
     throw new Error(`Estimate not found or error fetching: ${fetchError?.message || 'Unknown error'}`);
   }
 
@@ -685,7 +494,6 @@ export const markEstimateAsSold = async (
         measurements: typeof rawEstimateData.measurements === 'string' ? JSON.parse(rawEstimateData.measurements) : (rawEstimateData.measurements || { areasByPitch: [] }),
       } as Estimate;
   } catch (parseError: any) {
-      console.error("[markEstimateAsSold] Error parsing estimate JSON fields:", parseError);
       throw new Error(`Failed to parse estimate data: ${parseError.message}`);
   }
   
@@ -707,16 +515,14 @@ export const markEstimateAsSold = async (
 
   const { data: updatedEstimate, error: updateError } = await supabase
     .from('estimates')
-    .update(updatePayload as any) // Using 'as any' for the payload
+    .update(updatePayload as any)
     .eq('id', estimateId)
     .select() 
     .single(); 
 
   if (updateError) {
-    console.error("Error updating estimate to 'Sold':", updateError);
     throw new Error(`Failed to mark estimate as sold: ${updateError.message}`);
   }
-
   if (!updatedEstimate) {
      throw new Error("Failed to update estimate and retrieve the updated record.");
   }
@@ -731,16 +537,10 @@ export const markEstimateAsSold = async (
   } as Estimate; 
 };
 
-// Define the structure expected by the Accounting Report page
 interface SoldEstimateReportData {
   id: string;
   customer_name?: string;
-  customer_address?: string; // Use one field for the full address
-  // Remove individual address fields if they don't exist in the table
-  // address_street?: string;
-  // address_city?: string;
-  // address_state?: string;
-  // address_zip?: string;
+  customer_address?: string;
   sold_at: string | null;
   calculated_material_cost: number | null;
   calculated_labor_cost: number | null;
@@ -751,28 +551,15 @@ interface SoldEstimateReportData {
 }
 
 export const getSoldEstimates = async (filters?: { startDate?: string, endDate?: string }): Promise<SoldEstimateReportData[]> => {
-  if (!isSupabaseConfigured) {
-    console.error("[getSoldEstimates] Supabase is not configured.");
+  if (!isSupabaseConfigured()) {
     throw new Error("Supabase is not configured.");
   }
 
   let query = supabase
     .from('estimates')
-    .select(`
-      id,
-      customer_name,
-      customer_address,
-      sold_at,
-      calculated_material_cost,
-      calculated_labor_cost,
-      calculated_subtotal,
-      profit_margin, 
-      calculated_profit_amount,
-      total_price
-    `) 
+    .select(`id, customer_name, customer_address, sold_at, calculated_material_cost, calculated_labor_cost, calculated_subtotal, profit_margin, calculated_profit_amount, total_price`) 
     .eq('is_sold', true);
 
-  // Apply date filters
   if (filters?.startDate) {
     query = query.gte('sold_at', filters.startDate);
   }
@@ -780,26 +567,17 @@ export const getSoldEstimates = async (filters?: { startDate?: string, endDate?:
     query = query.lte('sold_at', filters.endDate);
   }
 
-  // Order by sold date descending
   query = query.order('sold_at', { ascending: false });
 
-  // Execute the query
   const { data, error } = await query;
 
-  // Handle potential errors
   if (error) {
-    console.error("[getSoldEstimates] Error fetching sold estimates:", error);
     throw new Error(`Failed to fetch sold estimates: ${error.message}`);
   }
 
-  // Log success and return the data (or an empty array)
-  console.log("[getSoldEstimates] Successfully fetched data:", data);
   return (data || []) as SoldEstimateReportData[]; 
 };
 
-/**
- * Update customer details for a specific estimate
- */
 export const updateEstimateCustomerDetails = async (
   id: string,
   details: {
@@ -808,43 +586,34 @@ export const updateEstimateCustomerDetails = async (
     customer_phone?: string | null;
   }
 ): Promise<{ data: Estimate | null; error: Error | null }> => {
-  if (!isSupabaseConfigured) {
-    console.error("[updateEstimateCustomerDetails] Supabase not configured.");
-    throw new Error("Supabase not configured.");
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase is not configured.");
   }
   if (!id) {
     throw new Error("Estimate ID is required.");
   }
 
-  // Prepare only non-empty fields for update
   const updateData: Partial<Estimate> = {};
   if (details.customer_name !== undefined) updateData.customer_name = details.customer_name;
   if (details.customer_email !== undefined) updateData.customer_email = details.customer_email;
   if (details.customer_phone !== undefined) updateData.customer_phone = details.customer_phone;
   updateData.updated_at = new Date().toISOString();
 
-  if (Object.keys(updateData).length <= 1) { // Only updated_at
-      console.warn("[updateEstimateCustomerDetails] No details provided to update.");
-      // Optionally fetch and return the current estimate data if needed
+  if (Object.keys(updateData).length <= 1) {
       return getEstimateById(id); 
   }
 
-  console.log(`[updateEstimateCustomerDetails] Updating estimate ${id} with:`, updateData);
-
   const { data, error } = await supabase
     .from("estimates")
-    .update(updateData as any) // Use 'as any' for updateData
+    .update(updateData as any)
     .eq("id", id)
     .select()
     .single();
 
   if (error) {
-    console.error("[updateEstimateCustomerDetails] Error updating details:", error);
     throw new Error(`Failed to update customer details: ${error.message}`);
   }
 
-  console.log("[updateEstimateCustomerDetails] Update successful:", data);
-  // Ensure returned data is parsed correctly if needed elsewhere
   const parsedData = data ? {
       ...data,
       status: data.status as EstimateStatus,
@@ -856,7 +625,4 @@ export const updateEstimateCustomerDetails = async (
 
   return { data: parsedData as Estimate | null, error: null };
 };
-
-// --- Ensure deleteEstimate is exported if used --- 
-// Example: If you have a deleteEstimate function, make sure it's exported:
-// export const deleteEstimate = async (id: string): Promise<...> => { ... };
+<ctrl46>,instructions:<ctrl46>Re-create the 'src/api/estimates.ts' file with the correct margin calculation logic in both required locations.<ctrl46>,target_file:<ctrl46>src/api/estimates.ts<ctrl46>}

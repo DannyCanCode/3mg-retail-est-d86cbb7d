@@ -900,17 +900,17 @@ export function MaterialsSelectionTab({
         { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" }
       ]
     };
-
+  
     const materialsToAddFromPreset = PRESET_BUNDLES[preset];
     if (!materialsToAddFromPreset) {
       console.error(`Preset ${preset} not found!`);
       toast({ title: "Error", description: `Preset ${preset} not found.`, variant: "destructive" });
       return;
     }
-
+  
     const newSelectedMaterials: { [key: string]: Material } = {};
     const newQuantities: { [key: string]: number } = {};
-
+  
     materialsToAddFromPreset.forEach(({ id: materialId }) => {
       const material = ROOFING_MATERIALS.find(m => m.id === materialId);
       if (material) {
@@ -921,16 +921,12 @@ export function MaterialsSelectionTab({
         }
       }
     });
-
-    // Directly call the parent update function with the new state
-    onMaterialsUpdate({
-      selectedMaterials: newSelectedMaterials,
-      quantities: newQuantities,
-      peelStickPrice: peelStickPrice, // Preserve existing value
-      warrantyCost: warrantyDetails?.price || 0, // Preserve existing value
-      warrantyDetails: warrantyDetails, // Preserve existing value
-    });
-
+  
+    // Update local state directly
+    setLocalSelectedMaterials(newSelectedMaterials);
+    setLocalQuantities(newQuantities);
+    setSelectedPreset(preset);
+  
     toast({
       title: `Preset Applied: ${preset}`,
       description: "Materials have been updated.",
