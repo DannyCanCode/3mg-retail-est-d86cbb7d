@@ -279,6 +279,7 @@ export function LaborProfitTab({
     // Start with base assumptions
     const totalArea = measurements?.totalArea || 0;
     const squares = totalArea / 100;
+    const wasteMultiplier = 1 + (laborRates.wastePercentage || 12) / 100;
     
     let totalLaborCost = 0;
     // No longer need these specific material checks here as we will iterate by pitch area
@@ -298,7 +299,7 @@ export function LaborProfitTab({
       measurements.areasByPitch.forEach(area => {
         const pitchRaw = area.pitch;
         const pitchValue = parseInt(pitchRaw.split(/[:\/]/)[0]) || 0;
-        const pitchSquares = area.area / 100;
+        const pitchSquares = Math.ceil((area.area || 0) / 100);
 
         if (pitchSquares === 0) return; // No area for this pitch, skip
 
@@ -319,33 +320,30 @@ export function LaborProfitTab({
           // Flat roof: round up to full squares and use $159 per square unless overridden.
           const flatSquares = Math.ceil(pitchSquares);
           const overrideRate = laborRates.pitchRates["0:12"] !== undefined ? laborRates.pitchRates["0:12"] : 159;
-          totalLaborCost += flatSquares * overrideRate;
+          totalLaborCost += flatSquares * overrideRate * wasteMultiplier;
         } else if (pitchValue === 1 || pitchValue === 2) {
           // 1/12 or 2/12 pitch uses $109/sq labor rate
-          totalLaborCost += pitchSquares * 109;
+          totalLaborCost += pitchSquares * 109 * wasteMultiplier;
         } else if (pitchValue >= 8) {
           // Steep slopes 8/12 and up
           const specificPitchRate = laborRates.pitchRates[pitchRaw] || getPitchRate(pitchRaw);
-          totalLaborCost += pitchSquares * specificPitchRate;
+          totalLaborCost += pitchSquares * specificPitchRate * wasteMultiplier;
         } else { // This covers 3/12 to 7/12
           // Regular labor rate for standard pitches (3/12-7/12)
-          totalLaborCost += pitchSquares * (laborRates.laborRate || 85);
+          totalLaborCost += pitchSquares * (laborRates.laborRate || 85) * wasteMultiplier;
         }
       });
     } else if (squares > 0 && (laborRates.includeSteepSlopeLabor ?? true)) {
       // Fallback if no pitch data, assume it's standard steep slope labor if that toggle is on
-      totalLaborCost = squares * (laborRates.laborRate || 85);
+      totalLaborCost = squares * (laborRates.laborRate || 85) * wasteMultiplier;
     } else {
       // No areasByPitch and either no squares or steep slope labor is off
       totalLaborCost = 0;
     }
     
-    // Add handload cost if applicable
-    // Handload is applied to total squares, decide if it should be conditional on steep/low toggles
-    // For now, let's assume handload applies if *any* labor is included and handload is checked.
-    // This might need further refinement based on business logic for handload.
-    if (laborRates.isHandload && totalLaborCost > 0) { // only add handload if some labor cost was calculated
-      totalLaborCost += squares * (laborRates.handloadRate || 10);
+    // Add handload cost if applicable, applied to the total squares with waste
+    if (laborRates.isHandload && totalLaborCost > 0) { 
+      totalLaborCost += squares * (laborRates.handloadRate || 10) * wasteMultiplier;
     }
     
     return totalLaborCost;
@@ -879,7 +877,7 @@ export function LaborProfitTab({
               <p className="text-sm mb-2">Fixed 12% waste factored into calculations</p>
               <div className="bg-muted p-3 rounded-md">
                 <p className="text-sm">Labor with waste: 
-                  ${(totalSquares * (1 + (laborRates.wastePercentage || 12)/100) * (laborRates.laborRate || 85)).toFixed(2)}
+                  ${estTotalLaborCost.toFixed(2)}
                 </p>
               </div>
             </div>
