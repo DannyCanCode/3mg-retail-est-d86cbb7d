@@ -233,11 +233,7 @@ export function EstimateSummaryTab({
         // Get the pitch value (numeric part of the pitch)
         const pitch = pitchArea.pitch;
         const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
-        let areaSquares = pitchArea.area / 100; // Convert to squares
-        // For flat roofs, always round UP to the next full square so 0.3 ⇒ 1
-        if (pitchValue >= 0 && pitchValue <= 2) {
-          areaSquares = Math.ceil(areaSquares);
-        }
+        const areaSquares = Math.ceil((pitchArea.area || 0) / 100);
 
         if (areaSquares === 0) return; // No area, skip
 
@@ -275,16 +271,13 @@ export function EstimateSummaryTab({
           const overrideRate = currentLaborRates.pitchRates["0:12"];
           rate = overrideRate !== undefined ? overrideRate : 159;
           itemNamePrefix = `Labor for ${pitch} Pitch`;
-        } else if ((pitchValue === 1 || pitchValue === 2) && hasPolyglasMaterials) {
+        } else if (pitchValue === 1 || pitchValue === 2) {
           rate = 109;
-          itemNamePrefix = `Labor for ${pitch} Pitch (Polyglass Base & Cap)`;
-        } else if (pitchValue <= 2) {
-          rate = 75;
           itemNamePrefix = `Labor for ${pitch} Pitch (Low Slope)`;
         } // Standard rate (3/12-7/12) is already set in 'rate' by default
           
           laborCosts.push({ 
-          name: `${itemNamePrefix} (${Math.round(areaSquares * 10) / 10} squares)`, 
+          name: `${itemNamePrefix} (${areaSquares} squares)`, 
             rate: rate, 
           totalCost: rate * areaSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
           });

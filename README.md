@@ -76,9 +76,7 @@ VITE_SUPABASE_ANON_KEY=your-supabase-key
 
 There are several ways of editing your application.
 
-**Use Lovable**
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/9dfb42fe-c594-42dd-83cb-bf701ca56a8f) and start prompting.
 
 Changes made via Lovable will be committed automatically to this repo.
 

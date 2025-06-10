@@ -301,11 +301,8 @@ export const calculateEstimateTotal = (
 
   if (measurements.areasByPitch && measurements.areasByPitch.length > 0 && totalSquares > 0) {
       measurements.areasByPitch.forEach(area => {
-          let areaSquares = (area.area || 0) / 100;
-          const pitchNum = parseInt(area.pitch.split(/[:\/]/)[0]) || 0;
-          if (pitchNum >= 0 && pitchNum <= 2) {
-              areaSquares = Math.ceil(areaSquares);
-          }
+          const areaSquares = Math.ceil((area.area || 0) / 100);
+
           if (areaSquares > 0) {
               const rate = getPitchRate(area.pitch);
               calculated_labor_cost += rate * areaSquares * wasteMultiplier;
@@ -386,11 +383,10 @@ const calculateFinalCosts = (estimateData: Estimate) => {
         return laborRates.pitchRates[pitchKey];
       }
       const pitchValue = parseInt(pitchKey.split(/[:\/]/)[0]) || 0;
-      const hasPolyIso = Object.values(selectedMaterials).some(m => m.id === "gaf-poly-iso-4x8");
-      const hasPolyglass = Object.values(selectedMaterials).some(m => m.id === "polyglass-elastoflex-sbs" || m.id === "polyglass-polyflex-app");
+
       if (pitchValue === 0) {
-          const override = laborRates.pitchRates && laborRates.pitchRates["0:12"];
-          return override !== undefined ? override : 159;
+        const override = laborRates.pitchRates && laborRates.pitchRates["0:12"];
+        return override !== undefined ? override : 159;
       }
       if (pitchValue >= 8) { 
           const basePitchValue = 8; const baseRate = 90; const increment = 5;
@@ -402,11 +398,8 @@ const calculateFinalCosts = (estimateData: Estimate) => {
 
   if (safeMeasurements.areasByPitch && safeMeasurements.areasByPitch.length > 0 && totalSquares > 0) {
       safeMeasurements.areasByPitch.forEach(area => {
-          let areaSquares = (area.area || 0) / 100;
-          const pitchNum = parseInt(area.pitch.split(/[:\/]/)[0]) || 0;
-          if (pitchNum >= 0 && pitchNum <= 2) {
-              areaSquares = Math.ceil(areaSquares);
-          }
+          const areaSquares = Math.ceil((area.area || 0) / 100);
+
           if (areaSquares > 0) {
               const rate = getPitchRate(area.pitch);
               calculated_labor_cost += rate * areaSquares * (1 + wasteFactor);

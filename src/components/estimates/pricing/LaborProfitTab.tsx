@@ -81,6 +81,20 @@ export function LaborProfitTab({
     };
     
     let combined = { ...defaults, ...(initialRates || {}) };
+
+    // Ensure dumpsterCount from initialRates overrides the basic default of 1 if present
+    if (initialRates?.dumpsterCount !== undefined) {
+      combined.dumpsterCount = initialRates.dumpsterCount;
+    }
+
+    if (initialRates?.dumpsterLocation === 'outside') {
+      combined.dumpsterRate = initialRates.dumpsterRate !== undefined ? initialRates.dumpsterRate : 500;
+      combined.permitRate = initialRates.permitRate !== undefined ? initialRates.permitRate : 550;
+    } else {
+      combined.dumpsterRate = initialRates?.dumpsterRate !== undefined ? initialRates.dumpsterRate : 400;
+      combined.permitRate = initialRates?.permitRate !== undefined ? initialRates.permitRate : 450;
+    }
+
     if (!combined.laborRate && (combined.tearOff || combined.installation)) {
       combined.laborRate = (combined.tearOff || 0) + (combined.installation || 0);
     }
@@ -175,9 +189,12 @@ export function LaborProfitTab({
     commonStateUpdater(prev => {
       const updatedRates = {
         ...prev,
-        [field]: (field === 'laborRate' || field === 'handloadRate') ? (processedValue === "" || processedValue === undefined ? 0 : processedValue) : processedValue
+        [field]: processedValue 
       } as LaborRates; 
+      
       if (field === "dumpsterLocation") {
+        // When location changes, also reset dumpsterRate to the default for the new location
+        // and permitRate.
         updatedRates.dumpsterRate = value === "orlando" ? 400 : 500;
         updatedRates.permitRate = value === "orlando" ? 450 : 550;
       }
@@ -214,7 +231,17 @@ export function LaborProfitTab({
   
   const handleDumpsterLocationChange = (value: string) => {
     const location = value as "orlando" | "outside";
-    handleLaborRateChange("dumpsterLocation", location);
+    setLaborRates(prev => {
+      const isLocationChanging = prev.dumpsterLocation !== location;
+      const newRate = isLocationChanging ? (location === "orlando" ? 400 : 500) : prev.dumpsterRate;
+      return {
+        ...prev,
+        dumpsterLocation: location,
+        dumpsterRate: newRate,
+        permitRate: location === "orlando" ? 450 : 550
+      };
+    });
+    hasUserInteracted.current = true;
   };
   
   // Calculate the rate for each pitch level
@@ -539,7 +566,8 @@ export function LaborProfitTab({
         <div>
           <h3 className="text-lg font-semibold mb-4">Dumpsters</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Based on roof area of {totalSquares} squares, we recommend {laborRates.dumpsterCount} dumpster(s).
+            Based on roof area of {totalSquares.toFixed(1)} squares, we recommend {measurements?.totalArea && measurements.totalArea > 0 ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) : 1} dumpster(s).
+            Current setting: {laborRates.dumpsterCount || 1}
           </p>
           
           <div className="space-y-4">
@@ -547,18 +575,33 @@ export function LaborProfitTab({
               value={laborRates.dumpsterLocation}
               onValueChange={handleDumpsterLocationChange}
               className="flex flex-col space-y-1"
+              disabled={readOnly}
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="orlando" id="orlando" />
-                <Label htmlFor="orlando">Orlando ($400 per dumpster)</Label>
+                <RadioGroupItem value="orlando" id="orlando" disabled={readOnly}/>
+                <Label htmlFor="orlando">Orlando</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="outside" id="outside" />
-                <Label htmlFor="outside">Outside Orlando ($500 per dumpster)</Label>
+                <RadioGroupItem value="outside" id="outside" disabled={readOnly}/>
+                <Label htmlFor="outside">Outside Orlando</Label>
               </div>
             </RadioGroup>
-            
-            <div className="grid grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="space-y-2">
+                <Label htmlFor="dumpsterRate">Rate per Dumpster ($)</Label>
+                <Input
+                  id="dumpsterRate"
+                  type="number"
+                  defaultValue={(laborRates.dumpsterRate !== undefined ? laborRates.dumpsterRate : (laborRates.dumpsterLocation === "orlando" ? 400 : 500)).toString()} 
+                  onBlur={(e) => handleLaborRateChange("dumpsterRate", e.target.value)}
+                  key={`dumpsterRate-input-${laborRates.dumpsterLocation}-${laborRates.dumpsterRate}`}
+                  min="0"
+                  step="0.01"
+                  disabled={readOnly}
+                  placeholder={laborRates.dumpsterLocation === "orlando" ? "400" : "500"}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="dumpsterCount">Number of Dumpsters</Label>
                 <Input
@@ -576,9 +619,10 @@ export function LaborProfitTab({
                 <Input
                   id="dumpsterTotal"
                   type="text"
-                  value={`$${((laborRates.dumpsterCount || 1) * (laborRates.dumpsterRate || 400)).toFixed(2)}`}
+                  value={`$${((laborRates.dumpsterCount || 0) * (laborRates.dumpsterRate || 0)).toFixed(2)}`}
                   readOnly
                   className="bg-muted"
+                  disabled={readOnly}
                 />
               </div>
             </div>

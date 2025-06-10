@@ -23,7 +23,7 @@ export function DropZone({ dragActive, handleDrag, handleDrop, handleFileInput }
       onDragOver={handleDrag}
       onDrop={handleDrop}
     >
-      <input
+      < input
         id="pdf-upload"
         type="file"
         accept=".pdf"
