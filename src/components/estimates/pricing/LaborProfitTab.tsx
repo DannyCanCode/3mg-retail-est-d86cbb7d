@@ -238,8 +238,9 @@ export function LaborProfitTab({
         const increment = 5; // $5 increment per pitch level
         return baseRate + (pitchValue - basePitchValue) * increment;
       } else if (pitchValue === 0) {
-        // 0/12 pitch has $50/sq labor rate
-        return 50;
+        // Flat roof default rate
+        const overrideRate = laborRates.pitchRates["0:12"] !== undefined ? laborRates.pitchRates["0:12"] : 159;
+        return overrideRate;
       } else if (pitchValue <= 2) {
         // 1/12-2/12 has $109/sq labor rate
         return 109;
@@ -315,8 +316,10 @@ export function LaborProfitTab({
         
         // Apply different labor rates based on pitch
         if (pitchValue === 0) {
-          // 0/12 pitch uses $50/sq labor rate
-          totalLaborCost += pitchSquares * 50;
+          // Flat roof: round up to full squares and use $159 per square unless overridden.
+          const flatSquares = Math.ceil(pitchSquares);
+          const overrideRate = laborRates.pitchRates["0:12"] !== undefined ? laborRates.pitchRates["0:12"] : 159;
+          totalLaborCost += flatSquares * overrideRate;
         } else if (pitchValue === 1 || pitchValue === 2) {
           // 1/12 or 2/12 pitch uses $109/sq labor rate
           totalLaborCost += pitchSquares * 109;

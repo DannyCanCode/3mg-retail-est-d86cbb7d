@@ -287,18 +287,25 @@ export const calculateEstimateTotal = (
           return laborRates.pitchRates[pitchKey];
       }
       const pitchValue = parseInt(pitchKey.split(/[:\/]/)[0]) || 0;
+      if (pitchValue === 0) {
+          const override = laborRates.pitchRates && laborRates.pitchRates["0:12"];
+          return override !== undefined ? override : 159;
+      }
       if (pitchValue >= 8) { 
           const basePitchValue = 8; const baseRate = 90; const increment = 5;
           return baseRate + (pitchValue - basePitchValue) * increment;
       }
-      if (pitchValue === 0) return 50; 
       if (pitchValue <= 2) return 109; 
       return laborRates.laborRate || 85; 
   };
 
   if (measurements.areasByPitch && measurements.areasByPitch.length > 0 && totalSquares > 0) {
       measurements.areasByPitch.forEach(area => {
-          const areaSquares = (area.area || 0) / 100;
+          let areaSquares = (area.area || 0) / 100;
+          const pitchNum = parseInt(area.pitch.split(/[:\/]/)[0]) || 0;
+          if (pitchNum >= 0 && pitchNum <= 2) {
+              areaSquares = Math.ceil(areaSquares);
+          }
           if (areaSquares > 0) {
               const rate = getPitchRate(area.pitch);
               calculated_labor_cost += rate * areaSquares * wasteMultiplier;
@@ -381,29 +388,27 @@ const calculateFinalCosts = (estimateData: Estimate) => {
       const pitchValue = parseInt(pitchKey.split(/[:\/]/)[0]) || 0;
       const hasPolyIso = Object.values(selectedMaterials).some(m => m.id === "gaf-poly-iso-4x8");
       const hasPolyglass = Object.values(selectedMaterials).some(m => m.id === "polyglass-elastoflex-sbs" || m.id === "polyglass-polyflex-app");
-      if (pitchValue === 0 && hasPolyIso) return 60;
-      if ((pitchValue === 1 || pitchValue === 2) && hasPolyglass) return 109;
-      if (pitchValue <= 2) return 75; 
+      if (pitchValue === 0) {
+          const override = laborRates.pitchRates && laborRates.pitchRates["0:12"];
+          return override !== undefined ? override : 159;
+      }
       if (pitchValue >= 8) { 
-          const basePitchValue = 8;
-          const baseRate = 90;
-          const increment = 5;
+          const basePitchValue = 8; const baseRate = 90; const increment = 5;
           return baseRate + (pitchValue - basePitchValue) * increment;
       }
+      if (pitchValue <= 2) return 109; 
       return laborRates.laborRate || 85; 
   };
 
   if (safeMeasurements.areasByPitch && safeMeasurements.areasByPitch.length > 0 && totalSquares > 0) {
       safeMeasurements.areasByPitch.forEach(area => {
-          const pitch = area.pitch;
-          const areaSquares = (area.area || 0) / 100;
+          let areaSquares = (area.area || 0) / 100;
+          const pitchNum = parseInt(area.pitch.split(/[:\/]/)[0]) || 0;
+          if (pitchNum >= 0 && pitchNum <= 2) {
+              areaSquares = Math.ceil(areaSquares);
+          }
           if (areaSquares > 0) {
-              const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
-              const isLowSlopePitch = pitchValue >= 0 && pitchValue <= 2;
-              const isStandardOrSteepSlopePitch = pitchValue >= 3;
-              if (isLowSlopePitch && (laborRates.includeLowSlopeLabor === false)) return;
-              if (isStandardOrSteepSlopePitch && (laborRates.includeSteepSlopeLabor === false)) return;
-              const rate = getPitchRate(pitch);
+              const rate = getPitchRate(area.pitch);
               calculated_labor_cost += rate * areaSquares * (1 + wasteFactor);
           }
       });

@@ -154,7 +154,9 @@ const Estimates = () => {
     downspoutRate: 75,
     includeDetachResetGutters: false,
     detachResetGutterLinearFeet: 0,
-    detachResetGutterRate: 1
+    detachResetGutterRate: 1,
+    includeLowSlopeLabor: true,
+    includeSteepSlopeLabor: true,
   });
   const [profitMargin, setProfitMargin] = useState(25);
   const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
@@ -685,7 +687,9 @@ const Estimates = () => {
       downspoutRate: 75,
       includeDetachResetGutters: false,
       detachResetGutterLinearFeet: 0,
-      detachResetGutterRate: 1
+      detachResetGutterRate: 1,
+      includeLowSlopeLabor: true,
+      includeSteepSlopeLabor: true,
     });
     setProfitMargin(25);
     
