@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
+const brandGreen = "#0F9D58"; // 3MG thematic green
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,10 +26,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/50 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Log in</CardTitle>
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: `linear-gradient(135deg, ${brandGreen} 0%, #ffffff 60%)` }}
+    >
+      <Card className="w-full max-w-md shadow-xl border-0">
+        <CardHeader className="text-center">
+          <img
+            src="/logo-3mg.svg"
+            alt="3MG Roofing & Solar Logo"
+            className="mx-auto h-12 w-auto mb-4"
+          />
+          <CardTitle className="text-2xl font-bold text-gray-800">Sign in to 3MG Estimator</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSignIn}>
@@ -37,8 +47,14 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              className="h-11"
             />
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full h-11 font-semibold"
+              style={{ backgroundColor: brandGreen }}
+              disabled={loading}
+            >
               {loading ? "Sending..." : "Send Magic Link"}
             </Button>
           </form>
