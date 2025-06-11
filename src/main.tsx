@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { supabase } from '@/integrations/supabase/client'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 // NEW – bootstrap auth session then mount React
 (async () => {
@@ -24,6 +25,10 @@ import { supabase } from '@/integrations/supabase/client'
     console.log("[Auth] Session", session);
   });
 
-  // Mount the app
-  createRoot(document.getElementById("root")!).render(<App />);
+  // Mount the app with AuthProvider
+  createRoot(document.getElementById("root")!).render(
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  );
 })();
