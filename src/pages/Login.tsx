@@ -18,7 +18,7 @@ export default function Login() {
 
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState<string[]>(Array(6).fill(""));
+  const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -72,7 +72,7 @@ export default function Login() {
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const token = code.join("");
+    const token = code;
     if (token.length !== 6) return;
     setLoading(true);
 
@@ -126,7 +126,12 @@ export default function Login() {
 
   const renderCodeForm = () => (
     <form className="space-y-4" onSubmit={handleCodeSubmit}>
-      <InputOTP maxLength={6} value={code.join("")} onChange={(val) => setCode(val.split(""))}>
+      <InputOTP
+        maxLength={6}
+        autoFocus
+        value={code}
+        onChange={(val) => setCode(val)}
+      >
         <InputOTPGroup>
           {Array.from({ length: 6 }).map((_, i) => (
             <InputOTPSlot key={i} index={i} />
