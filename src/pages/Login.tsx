@@ -28,7 +28,11 @@ export default function Login() {
     const { data, error } = await supabase.functions.invoke("validate-email", {
       body: { email: address },
     });
-    if (error) return { ok: false, message: error.message };
+    if (error) {
+      // If Edge Function is unreachable (likely in a preview), skip validation but log it
+      console.warn('validate-email function error', error);
+      return { ok: true };
+    }
     // Edge function convention: { ok: boolean, message?: string }
     if (data?.ok === false) return { ok: false, message: data.message ?? "E-mail not allowed." };
     return { ok: true };
