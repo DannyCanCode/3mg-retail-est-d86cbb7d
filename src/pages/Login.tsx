@@ -31,13 +31,11 @@ export default function Login() {
       style={{ background: `linear-gradient(135deg, ${brandGreen} 0%, #ffffff 60%)` }}
     >
       <Card className="w-full max-w-md shadow-xl border-0">
-        <CardHeader className="text-center">
-          <img
-            src="/logo-3mg.svg"
-            alt="3MG Roofing & Solar Logo"
-            className="mx-auto h-12 w-auto mb-4"
-          />
-          <CardTitle className="text-2xl font-bold text-gray-800">Sign in to 3MG Estimator</CardTitle>
+        <CardHeader className="text-center space-y-2">
+          <h1 className="text-3xl font-extrabold" style={{ color: brandGreen }}>
+            3MG Roofing & Solar
+          </h1>
+          <CardTitle className="text-xl font-semibold text-gray-800">Sign in to Estimator</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={handleSignIn}>
