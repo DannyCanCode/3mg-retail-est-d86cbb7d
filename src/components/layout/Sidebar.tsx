@@ -13,6 +13,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { UserMenu } from '@/components/layout/UserMenu';
 
 const navigationItems = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -78,8 +79,11 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="mt-auto pt-4 text-xs text-sidebar-foreground/60">
-        {expanded && <div>© 2023 3MG Estimator</div>}
+      <div className="mt-auto flex flex-col items-center gap-4">
+        <UserMenu />
+        {expanded && (
+          <div className="text-xs text-sidebar-foreground/60">© 2023 3MG Estimator</div>
+        )}
       </div>
     </div>
   );
@@ -132,8 +136,9 @@ export function Sidebar() {
           ))}
         </nav>
 
-        <div className="mt-auto pt-4 text-xs text-sidebar-foreground/60 absolute bottom-4 left-4">
-          <div>© 2023 3MG Estimator</div>
+        <div className="mt-auto pt-4 space-y-4 absolute bottom-4 left-4">
+          <UserMenu />
+          <div className="text-xs text-sidebar-foreground/60">© 2023 3MG Estimator</div>
         </div>
       </div>
     </div>
