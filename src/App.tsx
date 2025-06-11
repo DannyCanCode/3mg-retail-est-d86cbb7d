@@ -10,6 +10,7 @@ import NotFound from '@/pages/NotFound'; // Assuming you have a 404 component
 import AccountingReport from '@/pages/AccountingReport'; // Import the new component
 import Login from '@/pages/Login';
 import { useAuth } from '@/contexts/AuthContext';
+import Onboarding from '@/pages/Onboarding';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -37,6 +38,7 @@ function App() {
         
         {/* --- Add the new route for the Accounting Report --- */}
         <Route path="/accounting-report" element={<RequireAuth><AccountingReport /></RequireAuth>} />
+        <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
         {/* --- End new route --- */}
 
         {/* Catch-all 404 route */}

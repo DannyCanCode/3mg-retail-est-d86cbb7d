@@ -2,34 +2,143 @@ import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const brandGreen = "#0F9D58"; // 3MG thematic green
 
 export default function Login() {
+  type Step = "email" | "code";
+
+  const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState<string[]>(Array(6).fill(""));
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const validateEmail = async (address: string) => {
+    // Calls Edge Function validate-email – returns 200 if allowed
+    const { data, error } = await supabase.functions.invoke("validate-email", {
+      body: { email: address },
+    });
+    if (error) return { ok: false, message: error.message };
+    // Edge function convention: { ok: boolean, message?: string }
+    if (data?.ok === false) return { ok: false, message: data.message ?? "E-mail not allowed." };
+    return { ok: true };
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
     setLoading(true);
+
+    // 1. Validate against Microsoft 365 (Edge Function)
+    const validation = await validateEmail(email);
+    if (!validation.ok) {
+      toast({ title: "Invalid e-mail", description: validation.message, variant: "destructive" });
+      setLoading(false);
+      return;
+    }
+
+    // 2. Send numeric OTP via Supabase
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
+        emailRedirectTo: window.location.origin, // fallback link
         shouldCreateUser: true,
-        emailRedirectTo: window.location.origin,
       },
     });
+
     setLoading(false);
+
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Magic link sent", description: "Check your inbox to log in." });
+      toast({ title: "Check inbox", description: "We sent a 6-digit code." });
+      setStep("code");
     }
   };
+
+  const handleCodeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = code.join("");
+    if (token.length !== 6) return;
+    setLoading(true);
+
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
+    });
+
+    setLoading(false);
+
+    if (error || !data?.session) {
+      toast({ title: "Invalid code", description: error?.message ?? "Try again.", variant: "destructive" });
+      return;
+    }
+
+    // Fetch profile to see if onboarding needed
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("completed")
+      .eq("id", data.session.user.id)
+      .single();
+
+    if (profile && profile.completed === false) {
+      navigate("/onboarding", { replace: true });
+    } else {
+      navigate("/", { replace: true });
+    }
+  };
+
+  const renderEmailForm = () => (
+    <form className="space-y-4" onSubmit={handleEmailSubmit}>
+      <Input
+        type="email"
+        placeholder="you@3mgroofing.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        className="h-11"
+      />
+      <Button
+        type="submit"
+        className="w-full h-11 font-semibold"
+        style={{ backgroundColor: brandGreen }}
+        disabled={loading}
+      >
+        {loading ? "Sending..." : "Send Code"}
+      </Button>
+    </form>
+  );
+
+  const renderCodeForm = () => (
+    <form className="space-y-4" onSubmit={handleCodeSubmit}>
+      <InputOTP maxLength={6} value={code.join("")} onChange={(val) => setCode(val.split(""))}>
+        <InputOTPGroup>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <InputOTPSlot key={i} index={i} />
+          ))}
+        </InputOTPGroup>
+      </InputOTP>
+      <Button
+        type="submit"
+        className="w-full h-11 font-semibold"
+        style={{ backgroundColor: brandGreen }}
+        disabled={loading}
+      >
+        {loading ? "Verifying..." : "Verify Code"}
+      </Button>
+    </form>
+  );
 
   return (
     <div
@@ -41,27 +150,12 @@ export default function Login() {
           <h1 className="text-3xl font-extrabold" style={{ color: brandGreen }}>
             3MG Roofing & Solar
           </h1>
-          <CardTitle className="text-xl font-semibold text-gray-800">Sign in to Estimator</CardTitle>
+          <CardTitle className="text-xl font-semibold text-gray-800">
+            {step === "email" ? "Sign in to Estimator" : "Enter the 6-digit code"}
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={handleSignIn}>
-            <Input
-              type="email"
-              placeholder="you@3mgroofing.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="h-11"
-            />
-            <Button
-              type="submit"
-              className="w-full h-11 font-semibold"
-              style={{ backgroundColor: brandGreen }}
-              disabled={loading}
-            >
-              {loading ? "Sending..." : "Send Magic Link"}
-            </Button>
-          </form>
+          {step === "email" ? renderEmailForm() : renderCodeForm()}
         </CardContent>
       </Card>
     </div>
