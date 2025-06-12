@@ -152,7 +152,7 @@ export default function Users() {
             </Select>
             <Select value={inviteTerritory} onValueChange={setInviteTerritory}>
               <SelectTrigger>
-                <SelectValue placeholder="Territory" />
+                <SelectValue placeholder="All Territories (optional)" />
               </SelectTrigger>
               <SelectContent>
                 {territories.map((t) => (
@@ -162,7 +162,7 @@ export default function Users() {
                 ))}
               </SelectContent>
             </Select>
-            <Button className="w-full" onClick={sendInvite} disabled={!inviteEmail || !inviteTerritory}>
+            <Button className="w-full" onClick={sendInvite} disabled={!inviteEmail}>
               Send Invite
             </Button>
           </div>
