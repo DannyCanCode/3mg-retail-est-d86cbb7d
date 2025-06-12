@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -11,15 +11,18 @@ import {
   Menu,
   X,
   FileSpreadsheet,
+  Users as UsersIcon,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserMenu } from '@/components/layout/UserMenu';
+import { useAuth } from "@/contexts/AuthContext";
 
 const navigationItems = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Estimates", href: "/estimates", icon: FileText },
   { name: "Pricing", href: "/pricing", icon: DollarSign },
   { name: "Accounting", href: "/accounting-report", icon: FileSpreadsheet },
+  { name: "Users", href: "/users", icon: UsersIcon },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 

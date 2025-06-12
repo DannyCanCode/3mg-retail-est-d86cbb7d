@@ -11,6 +11,7 @@ import AccountingReport from '@/pages/AccountingReport'; // Import the new compo
 import Login from '@/pages/Login';
 import { useAuth } from '@/contexts/AuthContext';
 import Onboarding from '@/pages/Onboarding';
+import Users from '@/pages/Users';
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth();
@@ -39,6 +40,7 @@ function App() {
         {/* --- Add the new route for the Accounting Report --- */}
         <Route path="/accounting-report" element={<RequireAuth><AccountingReport /></RequireAuth>} />
         <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
+        <Route path="/users" element={<RequireAuth><Users /></RequireAuth>} />
         {/* --- End new route --- */}
 
         {/* Catch-all 404 route */}
