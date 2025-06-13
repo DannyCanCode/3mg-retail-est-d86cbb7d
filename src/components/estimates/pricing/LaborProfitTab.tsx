@@ -399,7 +399,7 @@ export function LaborProfitTab({
             // it implies a specific user-set value (e.g., loaded estimate). Honor it.
             determinedDumpsterCount = propDumpsterCount;
             // console.log(`DUMPSTER_EFFECT: Using specific prop count over calculation: ${determinedDumpsterCount}`);
-        } else {
+    } else {
             // Otherwise, use the calculation (either prop was undefined, or was the generic default 1, or matched calculation).
             determinedDumpsterCount = calculatedByArea;
             // console.log(`DUMPSTER_EFFECT: Using calculated count from area: ${determinedDumpsterCount}`);

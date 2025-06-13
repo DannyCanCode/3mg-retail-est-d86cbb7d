@@ -7,7 +7,7 @@ import {
   Estimate,
   EstimateStatus, 
   updateEstimateStatus, 
-  generateEstimatePdf
+  markEstimateAsSold
 } from "@/api/estimates";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";

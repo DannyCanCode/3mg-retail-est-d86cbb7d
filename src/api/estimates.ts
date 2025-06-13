@@ -407,8 +407,8 @@ const calculateFinalCosts = (estimateData: Estimate) => {
       });
   } else if (totalSquares > 0) {
       if (laborRates.includeSteepSlopeLabor !== false) {
-        const fallbackRate = laborRates.laborRate || 85;
-        calculated_labor_cost += fallbackRate * totalSquares * (1 + wasteFactor);
+      const fallbackRate = laborRates.laborRate || 85;
+      calculated_labor_cost += fallbackRate * totalSquares * (1 + wasteFactor);
       }
   }
 

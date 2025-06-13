@@ -91,7 +91,7 @@ export function MaterialsSelectionTab({
     count: Object.keys(selectedMaterials).length,
     ids: Object.keys(selectedMaterials)
   });
-  
+
   // Local state for managing selected materials
   const [localSelectedMaterials, setLocalSelectedMaterials] = useState<{[key: string]: Material}>(selectedMaterials);
   const [localQuantities, setLocalQuantities] = useState<{[key: string]: number}>(quantities);
@@ -503,7 +503,7 @@ export function MaterialsSelectionTab({
   // Group all available materials by category for rendering the accordion
   const materialsByCategory = useMemo(() => {
     console.log("[MaterialsByCategoryMemo] Grouping materials from ROOFING_MATERIALS.");
-    return groupMaterialsByCategory(ROOFING_MATERIALS);
+      return groupMaterialsByCategory(ROOFING_MATERIALS);
   }, []); // This now only depends on the static list, not the template
 
   // Handle Peel & Stick system add-on
@@ -917,17 +917,17 @@ export function MaterialsSelectionTab({
         { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" }
       ]
     };
-  
+    
     const materialsToAddFromPreset = PRESET_BUNDLES[preset];
     if (!materialsToAddFromPreset) {
       console.error(`Preset ${preset} not found!`);
       toast({ title: "Error", description: `Preset ${preset} not found.`, variant: "destructive" });
       return;
     }
-  
+    
     const newSelectedMaterials: { [key: string]: Material } = {};
     const newQuantities: { [key: string]: number } = {};
-  
+
     materialsToAddFromPreset.forEach(({ id: materialId }) => {
       const material = ROOFING_MATERIALS.find(m => m.id === materialId);
       if (material) {
@@ -940,14 +940,14 @@ export function MaterialsSelectionTab({
     });
   
     // Update local state directly
-    setLocalSelectedMaterials(newSelectedMaterials);
-    setLocalQuantities(newQuantities);
-    setSelectedPreset(preset);
-  
-    toast({
-      title: `Preset Applied: ${preset}`,
+      setLocalSelectedMaterials(newSelectedMaterials);
+      setLocalQuantities(newQuantities);
+      setSelectedPreset(preset);
+      
+      toast({
+        title: `Preset Applied: ${preset}`,
       description: "Materials have been updated.",
-    });
+      });
   };
   
   // Reset selected preset when materials are changed manually
@@ -1879,7 +1879,7 @@ export function MaterialsSelectionTab({
               <ChevronLeft className="h-4 w-4" />
               Back to Measurements
             </Button>
-          </CardFooter>
+           </CardFooter>
         </Card>
       </div>
 
