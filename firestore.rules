@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isManager() {
+      return request.auth.token.role == 'manager';
+    }
+    function isRep() {
+      return request.auth.token.role == 'rep';
+    }
+
+    // Estimates collection access control
+    match /estimates/{estimateId} {
+      allow read, write: if isManager() || (isRep() && request.auth != null && request.auth.uid == resource.data.created_by);
+    }
+
+    // Raw PDF uploads are private to uploader
+    match /uploads/{uid}/{fileId} {
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow read: if false;
+    }
+
+    // Parsed PDF data; same visibility as uploader and managers
+    match /uploads/{uid}/{fileId}/parsed/{docId} {
+      allow read: if isManager() || (request.auth != null && request.auth.uid == uid);
+      allow write: if false;
+    }
+  }
+} 
