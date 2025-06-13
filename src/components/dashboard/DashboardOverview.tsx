@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { getEstimates, Estimate } from "@/api/estimates";
+import { getEstimates, Estimate } from "@/api/estimatesFacade";
 import { ClipboardCheck, Clock, CheckCircle2, X, Loader2 } from "lucide-react";
 
 export function DashboardOverview() {
