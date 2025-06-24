@@ -3,6 +3,8 @@
 import { resolvePDFJS } from "https://esm.sh/pdfjs-serverless@0.4.2";
 // @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore deno types
+import * as Sentry from "https://deno.land/x/sentry_deno@0.7.0/mod.ts";
 
 // Add Deno global type declaration
 declare const Deno: {
@@ -297,6 +299,7 @@ serve(async (req) => {
   } catch (error) {
     const processingTime = (Date.now() - startTime) / 1000; // in seconds
     console.error(`[${requestId}] Error in parse-eagleview-pdf function:`, error);
+    Sentry.captureException(error);
     
     return new Response(
       JSON.stringify({
@@ -334,3 +337,11 @@ function extractText(text: string, regex: RegExp): string | null {
   }
   return null;
 }
+
+Sentry.init({
+  // @ts-ignore deno global
+  dsn: Deno.env.get("SENTRY_DSN") || "",
+  tracesSampleRate: 0.2,
+  // @ts-ignore deno global
+  environment: Deno.env.get("SENTRY_ENV") || "development",
+});

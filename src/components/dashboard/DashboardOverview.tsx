@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { getEstimates, Estimate } from "@/api/estimatesFacade";
+import { withTimeout } from "@/lib/withTimeout";
 import { ClipboardCheck, Clock, CheckCircle2, X, Loader2 } from "lucide-react";
 
 export function DashboardOverview() {
@@ -16,18 +17,28 @@ export function DashboardOverview() {
   const fetchEstimates = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await getEstimates();
-      
-      if (error) {
-        throw error;
+      let data, error;
+      try {
+        ({ data, error } = await withTimeout(getEstimates(), 60000));
+      } catch (err:any) {
+        if (err?.message?.includes('timed out')) {
+          console.warn('getEstimates timed out, falling back to empty list');
+          data = [];
+          error = null;
+        } else {
+          throw err;
+        }
       }
-      
-      setEstimates(data);
+
+      if (error) throw error;
+
+      setEstimates(data ?? []);
     } catch (error) {
       console.error("Error fetching estimates:", error);
+      setEstimates([]); // show zeros instead of spinner
       toast({
         title: "Error",
-        description: "Failed to load dashboard data. Please try again.",
+        description: "Failed to load dashboard data.",
         variant: "destructive"
       });
     } finally {

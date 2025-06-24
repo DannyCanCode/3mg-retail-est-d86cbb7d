@@ -11,6 +11,7 @@ import { EstimateCard } from "@/components/ui/EstimateCard";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { getEstimates, EstimateStatus, Estimate, updateEstimateStatus, markEstimateAsSold, updateEstimateCustomerDetails } from "@/api/estimatesFacade";
+import { withTimeout } from "@/lib/withTimeout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -40,13 +41,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { saveAs } from 'file-saver';
+import { useRealTimeEstimates } from "@/hooks/useRealTimeEstimates";
+import { WifiOff, Wifi } from "lucide-react";
 
 const INITIAL_VISIBLE_COUNT = 12; // Show 12 estimates initially
 
 export function RecentEstimates() {
-  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const { estimates, isLoading, error: realtimeError, refreshEstimates } = useRealTimeEstimates();
   const [filteredEstimates, setFilteredEstimates] = useState<Estimate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<EstimateStatus | "all">("all");
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -74,10 +76,6 @@ export function RecentEstimates() {
   // --- End State ---
 
   useEffect(() => {
-    fetchEstimates();
-  }, []);
-
-  useEffect(() => {
     if (activeFilter === "all") {
       setFilteredEstimates(estimates);
     } else {
@@ -85,28 +83,18 @@ export function RecentEstimates() {
     }
   }, [activeFilter, estimates]);
 
-  const fetchEstimates = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await getEstimates();
-      
-      if (error) {
-        throw error;
-      }
-      
-      setEstimates(data);
-      setFilteredEstimates(data);
-    } catch (error) {
-      console.error("Error fetching estimates:", error);
+  // Handle real-time connection errors
+  useEffect(() => {
+    if (realtimeError) {
       toast({
-        title: "Error",
-        description: "Failed to load estimates. Please try again.",
+        title: "Connection Issue",
+        description: "Real-time updates disconnected. Click refresh to reconnect.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [realtimeError, toast]);
+
+  // Removed manual fetchEstimates - now using real-time hook
   
   const formatEstimateDate = (dateString?: string) => {
     if (!dateString) return "N/A";
@@ -138,7 +126,7 @@ export function RecentEstimates() {
     try {
       await updateEstimateStatus(id, status);
       toast({ title: "Success", description: `Estimate ${status}.` });
-      fetchEstimates(); // Refresh list
+      // Real-time updates will automatically refresh the list
     } catch (err: any) {
       toast({ title: "Error", description: `Failed to update status: ${err.message}`, variant: "destructive" });
     } finally {
@@ -319,8 +307,7 @@ export function RecentEstimates() {
 
       if (error) throw error;
 
-      // Update local estimates state
-      setEstimates(prev => prev.map(est => est.id === estimateId ? { ...est, ...updatedEstimateData } : est));
+      // Real-time updates will handle the state automatically
       
       toast({ title: "Success", description: "Customer details updated." });
       setIsCustomerInfoDialogOpen(false);
@@ -370,7 +357,7 @@ export function RecentEstimates() {
       await markEstimateAsSold(estimateId, jobType, insuranceCompany.trim());
       toast({ title: "Success", description: `Estimate #${estimateId.substring(0, 8)} marked as ${jobType} Sale.` });
       setEstimateToMarkSold(null);
-      fetchEstimates(); // Refresh the list to show updated status
+      // Real-time updates will automatically refresh the list
     } catch (err: any) {
       console.error("Error marking estimate as sold:", err);
       toast({ title: "Error", description: `Failed to mark estimate as sold: ${err.message}`, variant: "destructive" });
@@ -394,14 +381,30 @@ export function RecentEstimates() {
       <Card className="animate-slide-in-up" style={{ animationDelay: "0.2s" }}>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Estimates</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Estimates
+              {realtimeError ? (
+                <WifiOff className="h-4 w-4 text-red-500" title="Real-time updates disconnected" />
+              ) : (
+                <Wifi className="h-4 w-4 text-green-500" title="Real-time updates active" />
+              )}
+            </CardTitle>
             <CardDescription>
-              View and manage your roofing estimates
+              View and manage your roofing estimates {realtimeError ? '(offline mode)' : '(live updates)'}
             </CardDescription>
           </div>
-          <Button asChild>
-            <Link to="/estimates">New Estimate</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={refreshEstimates}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Loading...' : 'Refresh'}
+            </Button>
+            <Button asChild>
+              <Link to="/estimates">New Estimate</Link>
+            </Button>
+          </div>
         </CardHeader>
         
         <div className="px-6 mb-4">

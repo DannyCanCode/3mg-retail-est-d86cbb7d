@@ -1,12 +1,21 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// @ts-ignore deno types
+import * as Sentry from "https://deno.land/x/sentry_deno@0.7.0/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+Sentry.init({
+  // @ts-ignore deno global
+  dsn: Deno.env.get("SENTRY_DSN") || "",
+  tracesSampleRate: 0.2,
+  // @ts-ignore deno global
+  environment: Deno.env.get("SENTRY_ENV") || "development",
+});
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -81,6 +90,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error saving measurement:', error);
+    Sentry.captureException(error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

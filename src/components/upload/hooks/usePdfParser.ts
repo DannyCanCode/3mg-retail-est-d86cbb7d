@@ -8,7 +8,7 @@ import {
   handleInvalidPdfError, 
   handleGeneralPdfError
 } from "./pdf-error-handler";
-import { processPdfWithSupabase } from "@/api/pdf-service";
+import { processPdfWithSupabase, uploadPdfToStorage } from "@/api/pdf-service";
 import { isSupabaseConfigured } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 // Import PDF.js for client-side parsing
@@ -92,11 +92,12 @@ export function usePdfParser() {
         if (isSupabaseConfigured()) {
           try {
             // Upload to Supabase for storage only
-            const { error, fileUrl } = await uploadToSupabase(file);
+            const fileUrl = await uploadPdfToStorage(file).catch(err => {
+              console.warn("Storage upload failed", err);
+              return null;
+            });
             
-            if (error) {
-              console.warn("PDF uploaded, but Supabase storage upload failed:", error);
-            } else if (fileUrl) {
+            if (fileUrl) {
               // Set the file URL for downloading or viewing
               setFileUrl(fileUrl);
             }
@@ -109,74 +110,14 @@ export function usePdfParser() {
       } catch (clientSideError) {
         console.warn("Client-side PDF parsing failed, falling back to Supabase:", clientSideError);
         
-        // Fall back to Supabase if client-side parsing fails
-        if (isSupabaseConfigured()) {
-          setProcessingMode("supabase");
-          setStatus("parsing");
-          setProcessingProgress({
-            page: 0,
-            totalPages: 1,
-            status: "Uploading to Supabase for processing..."
-          });
-          
-          console.log(`Falling back to Supabase for: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
-          
-          // Process PDF with Supabase
-          const { data, error, fileUrl } = await processPdfWithSupabase(file);
-          
-          if (error) {
-            console.error("Error processing PDF with Supabase:", error);
-            setStatus("error");
-            setErrorDetails(`Error: ${error.message}`);
+        // Edge parser disabled by default – skip fallback
             return null;
-          }
-          
-          if (!data) {
-            setStatus("error");
-            setErrorDetails("No data returned from PDF processing");
-            return null;
-          }
-          
-          // Set the file URL (for downloading or viewing)
-          if (fileUrl) {
-            setFileUrl(fileUrl);
-          }
-          
-          // Store the parsed measurements
-          setParsedData(data);
-          setStatus("success");
-          
-          return data;
-        } else {
-          // No fallback available
-          setStatus("error");
-          setErrorDetails(`Client-side parsing failed: ${clientSideError.message}`);
-        return null;
-        }
       }
     } catch (error: any) {
       handleGeneralPdfError(error, setStatus, setErrorDetails);
       return null;
     } finally {
       setProcessingProgress(null);
-    }
-  };
-
-  // Upload the file to Supabase Storage (for storage only, not processing)
-  const uploadToSupabase = async (file: File) => {
-    try {
-      // Only upload if Supabase is configured
-      if (!isSupabaseConfigured()) {
-        return { error: new Error("Supabase not configured"), fileUrl: null };
-      }
-      
-      // Upload to Supabase Storage
-      const { data, error, fileUrl } = await processPdfWithSupabase(file);
-      
-      return { error, fileUrl };
-    } catch (error) {
-      console.error("Supabase upload error:", error);
-      return { error, fileUrl: null };
     }
   };
 

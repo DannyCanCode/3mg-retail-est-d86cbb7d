@@ -1,51 +1,107 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
-import Estimates from '@/pages/Estimates';
-// import Measurements from '@/pages/Measurements'; // Remove this import
-import Pricing from '@/pages/Pricing';
-import Index from '@/pages/Index'; // Assuming this is your Dashboard
-import NotFound from '@/pages/NotFound'; // Assuming you have a 404 component
-// import Settings from '@/pages/Settings'; // Comment out: File does not exist
-import AccountingReport from '@/pages/AccountingReport'; // Import the new component
-import Login from '@/pages/Login';
 import { useAuth } from '@/contexts/AuthContext';
-import Onboarding from '@/pages/Onboarding';
+import ProtectedLayout from '@/components/layout/ProtectedLayout';
+import Login from '@/pages/Login';
+import Index from '@/pages/Index';
+import Estimates from '@/pages/Estimates';
+import Pricing from '@/pages/Pricing';
+import AccountingReport from '@/pages/AccountingReport';
 import Users from '@/pages/Users';
+import Onboarding from '@/pages/Onboarding';
+import ManagerDashboard from '@/pages/ManagerDashboard';
+import SalesRepDashboard from '@/pages/SalesRepDashboard';
+import NotFound from '@/pages/NotFound';
+import { RoleGuard } from '@/components/RoleGuard';
+import Territories from '@/pages/Territories';
+import Subtrades from '@/pages/Subtrades';
 
-function RequireAuth({ children }: { children: JSX.Element }) {
-  const { user, loading } = useAuth();
-  if (loading) return null; // or a spinner
-  return user ? children : <Navigate to="/login" replace />;
-}
+// Role-based dashboard redirection component
+const RoleDashboardRedirect: React.FC = () => {
+  const { profile } = useAuth();
+  
+  // Redirect based on user role
+  switch (profile?.role) {
+    case 'admin':
+      return <Index />; // Admin gets the full dashboard
+    case 'manager':
+      return <Navigate to="/manager" replace />;
+    case 'rep':
+      return <Navigate to="/sales" replace />;
+    default:
+      return <Index />; // Fallback to main dashboard
+  }
+};
 
-function App() {
-  // Check if Supabase is configured (optional, could be handled elsewhere)
-  // const isSupabaseReady = isSupabaseConfigured();
+const AppRoutes: React.FC = () => {
+  const { user, loading, profile } = useAuth();
+
+  console.log('[DEBUG] AppRoutes render: loading=', loading, 'user=', !!user, 'profile=', profile);
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p>Loading session...</p>
+      </div>
+    );
+  }
+
+  console.log('[DEBUG] AppRoutes: loading false, user=', !!user);
+
+  // ADMIN BYPASS: Allow admin users to skip onboarding for demo purposes
+  const isAdmin = profile?.role === 'admin';
+  const needsOnboarding = profile && !profile.completed_onboarding && !profile.full_name && !isAdmin;
+  
+  if (user && needsOnboarding) {
+    return (
+      <Routes>
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="*" element={<Navigate to="/onboarding" replace />} />
+      </Routes>
+    );
+  }
 
   return (
-    <Router>
-      <Routes>
-        {/* Main application routes */}
-        <Route path="/login" element={<Login />} />
-
-        {/* Protected routes */}
-        <Route path="/" element={<RequireAuth><Index /></RequireAuth>} />
-        <Route path="/estimates" element={<RequireAuth><Estimates /></RequireAuth>} />
-        <Route path="/estimates/:estimateId" element={<RequireAuth><Estimates /></RequireAuth>} />
-        {/* <Route path="/measurements" element={<Measurements />} /> */}{/* Remove this route */}
-        <Route path="/pricing" element={<RequireAuth><Pricing /></RequireAuth>} />
-        {/* <Route path="/settings" element={<Settings />} /> */}{/* Comment out: File does not exist */}
+    <Routes>
+      <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
+      
+      <Route path="/" element={user ? <ProtectedLayout /> : <Navigate to="/login" replace />}>
+        {/* Role-based dashboard routing */}
+        <Route index element={<RoleDashboardRedirect />} />
         
-        {/* --- Add the new route for the Accounting Report --- */}
-        <Route path="/accounting-report" element={<RequireAuth><AccountingReport /></RequireAuth>} />
-        <Route path="/onboarding" element={<RequireAuth><Onboarding /></RequireAuth>} />
-        <Route path="/users" element={<RequireAuth><Users /></RequireAuth>} />
-        {/* --- End new route --- */}
+        {/* Specific role dashboards */}
+        <Route path="manager" element={<RoleGuard allowed={['manager', 'admin']}><ManagerDashboard /></RoleGuard>} />
+        <Route path="sales" element={<RoleGuard allowed={['rep', 'admin']}><SalesRepDashboard /></RoleGuard>} />
+        
+        {/* General pages - accessible by all authenticated users */}
+        <Route path="estimates" element={<Estimates />} />
+        <Route path="estimates/:estimateId" element={<Estimates />} />
+        
+        {/* Admin/Manager only pages */}
+        <Route path="pricing" element={<RoleGuard allowed={['admin', 'manager']}><Pricing /></RoleGuard>} />
+        <Route path="accounting-report" element={<RoleGuard allowed={['admin', 'manager']}><AccountingReport /></RoleGuard>} />
+        
+        {/* Admin only pages */}
+        <Route path="users" element={<RoleGuard allowed={['admin']}><Users /></RoleGuard>} />
+        <Route path="territories" element={<RoleGuard allowed={['admin']}><Territories /></RoleGuard>} />
+        <Route path="subtrades" element={<RoleGuard allowed={['admin', 'manager']}><Subtrades /></RoleGuard>} />
+        
+        {/* EMERGENCY ADMIN BYPASS ROUTE */}
+        <Route path="admin-bypass" element={<Index />} />
+        
+        {/* All other nested routes will be caught by the outer NotFound */}
+      </Route>
 
-        {/* Catch-all 404 route */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
+function App() {
+  return (
+    <Router>
+      <AppRoutes />
       <Toaster />
     </Router>
   );

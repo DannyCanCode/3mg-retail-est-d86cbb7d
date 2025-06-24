@@ -1,0 +1,371 @@
+import React, { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Estimate, updateEstimateStatus } from '@/api/estimates';
+import { MetricCard } from '@/components/ui/MetricCard';
+import { ClipboardCheck, Clock, CheckCircle2, XCircle, MapPin, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+
+interface Territory {
+  id: string;
+  name: string;
+  address: string;
+  phone?: string;
+}
+
+interface TeamMember {
+  id: string;
+  email: string;
+  full_name?: string;
+  role: string;
+}
+
+const ManagerDashboard: React.FC = () => {
+  const { profile } = useAuth();
+  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [territory, setTerritory] = useState<Territory | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [rejectionNote, setRejectionNote] = useState('');
+  const [selectedEstimate, setSelectedEstimate] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (profile?.territory_id) {
+      fetchData();
+    }
+  }, [profile?.territory_id]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    await Promise.all([
+      fetchEstimates(),
+      fetchTerritory(),
+      fetchTeamMembers()
+    ]);
+    setLoading(false);
+  };
+
+  const fetchEstimates = async () => {
+    const { data, error } = await supabase
+      .from('estimates')
+      .select('*')
+      .eq('territory_id', profile!.territory_id)
+      .order('created_at', { ascending: false });
+    
+    if (!error) setEstimates(data as Estimate[]);
+    else toast({ variant: 'destructive', title: 'Error loading estimates', description: error.message });
+  };
+
+  const fetchTerritory = async () => {
+    const { data, error } = await supabase
+      .from('territories')
+      .select('*')
+      .eq('id', profile!.territory_id)
+      .single();
+    
+    if (!error) setTerritory(data as Territory);
+  };
+
+  const fetchTeamMembers = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, full_name, role')
+      .eq('territory_id', profile!.territory_id);
+    
+    if (!error) setTeamMembers(data as TeamMember[]);
+  };
+
+  const handleApprove = async (id: string) => {
+    const { error } = await updateEstimateStatus(id, 'approved');
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } else {
+      toast({ title: 'Estimate approved successfully!' });
+      fetchEstimates();
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    if (!rejectionNote.trim()) {
+      toast({ variant: 'destructive', title: 'Rejection reason required', description: 'Please provide a reason for rejection.' });
+      return;
+    }
+
+    const { error } = await updateEstimateStatus(id, 'rejected', rejectionNote);
+    if (error) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } else {
+      toast({ title: 'Estimate rejected' });
+      setSelectedEstimate(null);
+      setRejectionNote('');
+      fetchEstimates();
+    }
+  };
+
+  // KPI calculations
+  const pending = estimates.filter(e => e.status === 'pending');
+  const approved = estimates.filter(e => e.status === 'approved');
+  const rejected = estimates.filter(e => e.status === 'rejected');
+  const totalValue = estimates.reduce((sum, e) => sum + (e.total_price || 0), 0);
+  const approvedValue = approved.reduce((sum, e) => sum + (e.total_price || 0), 0);
+
+  const currency = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-amber-100 text-amber-800';
+      case 'approved': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const EstimateCard = ({ estimate }: { estimate: Estimate }) => (
+    <Card className="mb-4">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1">
+            <h3 className="font-semibold text-lg">{estimate.customer_address}</h3>
+            <p className="text-sm text-muted-foreground">
+              Created: {new Date(estimate.created_at).toLocaleDateString()}
+            </p>
+            <p className="text-lg font-bold text-green-600 mt-1">
+              {currency(estimate.total_price || 0)}
+            </p>
+          </div>
+          <Badge className={getStatusColor(estimate.status)}>
+            {estimate.status}
+          </Badge>
+        </div>
+        
+        {estimate.status === 'pending' && (
+          <div className="flex gap-2 mt-3">
+            <Button 
+              size="sm" 
+              onClick={() => handleApprove(estimate.id!)}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-1" />
+              Approve
+            </Button>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button 
+                  size="sm" 
+                  variant="destructive"
+                  onClick={() => setSelectedEstimate(estimate.id!)}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Reject
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Reject Estimate</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p>Please provide a reason for rejecting this estimate:</p>
+                  <Textarea
+                    placeholder="Enter rejection reason..."
+                    value={rejectionNote}
+                    onChange={(e) => setRejectionNote(e.target.value)}
+                    rows={3}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => {
+                      setSelectedEstimate(null);
+                      setRejectionNote('');
+                    }}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      onClick={() => handleReject(estimate.id!)}
+                      disabled={!rejectionNote.trim()}
+                    >
+                      Reject Estimate
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+        
+        {estimate.status === 'rejected' && estimate.rejection_reason && (
+          <div className="mt-3 p-2 bg-red-50 rounded border-l-4 border-red-200">
+            <p className="text-sm text-red-700">
+              <strong>Rejection reason:</strong> {estimate.rejection_reason}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  if (!profile?.territory_id && profile?.role !== 'admin') {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <h2 className="text-xl font-semibold mb-2">No Territory Assigned</h2>
+            <p className="text-muted-foreground">
+              You need to be assigned to a territory to access the manager dashboard.
+              Please contact your administrator.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 p-6">
+      {/* Territory Header */}
+      {territory && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              {territory.name} Territory
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Address</p>
+                <p>{territory.address}</p>
+              </div>
+              {territory.phone && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Phone</p>
+                  <p>{territory.phone}</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* KPI Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <MetricCard 
+          title="Total Estimates" 
+          value={estimates.length} 
+          icon={<ClipboardCheck className="h-4 w-4"/>}
+        />
+        <MetricCard 
+          title="Pending" 
+          value={pending.length} 
+          icon={<Clock className="h-4 w-4 text-amber-500"/>}
+        />
+        <MetricCard 
+          title="Approved" 
+          value={approved.length} 
+          icon={<CheckCircle2 className="h-4 w-4 text-green-500"/>}
+        />
+        <MetricCard 
+          title="Total Value" 
+          value={currency(totalValue)} 
+          icon={<svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
+        />
+        <MetricCard 
+          title="Team Members" 
+          value={teamMembers.length} 
+          icon={<Users className="h-4 w-4"/>}
+        />
+      </div>
+
+      {/* Estimates Tabs */}
+      <Tabs defaultValue="pending" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
+          <TabsTrigger value="approved">Approved ({approved.length})</TabsTrigger>
+          <TabsTrigger value="rejected">Rejected ({rejected.length})</TabsTrigger>
+          <TabsTrigger value="team">Team ({teamMembers.length})</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="pending" className="mt-6">
+          {loading ? (
+            <p>Loading estimates...</p>
+          ) : pending.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-muted-foreground">No pending estimates to review.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {pending.map(estimate => (
+                <EstimateCard key={estimate.id} estimate={estimate} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="approved" className="mt-6">
+          <div className="mb-4">
+            <p className="text-lg font-semibold text-green-600">
+              Approved Value: {currency(approvedValue)}
+            </p>
+          </div>
+          {approved.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-muted-foreground">No approved estimates yet.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {approved.map(estimate => (
+                <EstimateCard key={estimate.id} estimate={estimate} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="rejected" className="mt-6">
+          {rejected.length === 0 ? (
+            <Card>
+              <CardContent className="p-6 text-center">
+                <p className="text-muted-foreground">No rejected estimates.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {rejected.map(estimate => (
+                <EstimateCard key={estimate.id} estimate={estimate} />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="team" className="mt-6">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {teamMembers.map(member => (
+              <Card key={member.id}>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold">{member.full_name || 'No name set'}</h3>
+                  <p className="text-sm text-muted-foreground">{member.email}</p>
+                  <Badge variant="outline" className="mt-2">
+                    {member.role}
+                  </Badge>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default ManagerDashboard; 

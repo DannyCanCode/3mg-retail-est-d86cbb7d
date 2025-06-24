@@ -1,34 +1,38 @@
+import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { supabase } from '@/integrations/supabase/client'
 import { AuthProvider } from '@/contexts/AuthContext'
+import * as Sentry from '@sentry/react'
+import { initLogger } from './utils/logger.ts'
 
-// NEW – bootstrap auth session then mount React
-(async () => {
-  // Handle email-magic or OAuth redirect hash
-  if (window.location.hash.includes("access_token")) {
-    try {
-      const { error } = await supabase.auth.recoverSession(
-        window.location.hash
-      );
-      if (error) console.error("Auth session recovery error:", error.message);
-      // Clean the URL so tokens aren't exposed
-      window.history.replaceState({}, "", "/");
-    } catch (err) {
-      console.error("Auth recovery exception", err);
-    }
-  }
+// --- DEBUGGING ---
+// Log the full URL as soon as the app loads to capture the redirect hash.
+console.log('[DEBUG] App loading with URL:', window.location.href);
+// --- END DEBUGGING ---
 
-  // Always listen for auth state changes (optional for debugging)
-  supabase.auth.onAuthStateChange((_event, session) => {
-    console.log("[Auth] Session", session);
-  });
+// Initialize Sentry and Logger
+initLogger()
+Sentry.init({
+  dsn: import.meta.env.VITE_SENTRY_DSN as string | undefined,
+  // @ts-ignore
+  integrations: [new Sentry.BrowserTracing()],
+  tracesSampleRate: 1.0,
+})
 
-  // Mount the app with AuthProvider
-  createRoot(document.getElementById("root")!).render(
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  );
-})();
+// Render the application
+const container = document.getElementById('root')
+if (container) {
+  console.log('[DEBUG] container found, mounting React root');
+  const root = createRoot(container)
+  console.log('[DEBUG] Calling root.render');
+  root.render(
+    <React.StrictMode>
+      <Sentry.ErrorBoundary fallback={<p>An error has occurred</p>}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </Sentry.ErrorBoundary>
+    </React.StrictMode>
+  )
+}

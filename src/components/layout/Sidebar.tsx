@@ -12,25 +12,71 @@ import {
   X,
   FileSpreadsheet,
   Users as UsersIcon,
+  BarChart3,
+  Package,
+  Wrench,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserMenu } from '@/components/layout/UserMenu';
 import { useAuth } from "@/contexts/AuthContext";
-
-const navigationItems = [
-  { name: "Dashboard", href: "/", icon: Home },
-  { name: "Estimates", href: "/estimates", icon: FileText },
-  { name: "Pricing", href: "/pricing", icon: DollarSign },
-  { name: "Accounting", href: "/accounting-report", icon: FileSpreadsheet },
-  { name: "Users", href: "/users", icon: UsersIcon },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
+import { useRoleAccess } from "@/components/RoleGuard";
 
 export function Sidebar() {
   const [expanded, setExpanded] = useState(true);
   const location = useLocation();
   const isMobile = useIsMobile();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { profile, user } = useAuth();
+  const { isAdmin, isManager, isSalesRep, canAccess } = useRoleAccess();
+  
+  // Get role-appropriate navigation items with production restrictions
+  const getNavigationItems = () => {
+    const userRole = profile?.role;
+
+    // Production-ready role restrictions
+    switch (userRole) {
+      case 'admin':
+        return [
+          { name: "Admin Dashboard", href: "/", icon: Home },
+          { name: "Estimates", href: "/estimates", icon: FileText },
+          { name: "Pricing", href: "/pricing", icon: DollarSign },
+          { name: "Subtrades", href: "/subtrades", icon: Wrench },
+          { name: "Accounting", href: "/accounting-report", icon: FileSpreadsheet },
+          { name: "Users", href: "/users", icon: UsersIcon },
+          { name: "Territories", href: "/territories", icon: Database },
+          // Development mode - allow admin to see other role views
+          { name: "Manager View", href: "/manager", icon: BarChart3 },
+          { name: "Sales Rep View", href: "/sales", icon: Package },
+        ];
+      
+      case 'manager':
+        return [
+          { name: "Manager Dashboard", href: "/manager", icon: Home },
+          { name: "Estimates", href: "/estimates", icon: FileText },
+          { name: "Pricing", href: "/pricing", icon: DollarSign },
+          { name: "Subtrades", href: "/subtrades", icon: Wrench },
+          { name: "Accounting", href: "/accounting-report", icon: FileSpreadsheet },
+        ];
+      
+      case 'rep':
+        return [
+          { name: "Sales Dashboard", href: "/sales", icon: Home },
+          { name: "My Estimates", href: "/estimates", icon: FileText },
+        ];
+      
+      case 'subtrade_manager':
+        return [
+          { name: "Subtrades", href: "/subtrades", icon: Wrench },
+        ];
+      
+      default:
+        return [
+          { name: "Dashboard", href: "/", icon: Home },
+        ];
+    }
+  };
+
+  const navigationItems = getNavigationItems();
 
   const toggleSidebar = () => {
     setExpanded(!expanded);
@@ -38,6 +84,17 @@ export function Sidebar() {
 
   const toggleMobileSidebar = () => {
     setMobileOpen(!mobileOpen);
+  };
+
+  // Get role-appropriate sidebar title
+  const getSidebarTitle = () => {
+    const userRole = profile?.role;
+    switch (userRole) {
+      case 'admin': return '3MG Admin';
+      case 'manager': return '3MG Manager';
+      case 'rep': return '3MG Sales';
+      default: return '3MG Estimator';
+    }
   };
 
   // For desktop view
@@ -51,7 +108,7 @@ export function Sidebar() {
       <div className="flex items-center justify-between mb-8">
         {expanded && (
           <div className="text-xl font-semibold tracking-tight text-sidebar-foreground animate-fade-in">
-            3MG Estimator
+            {getSidebarTitle()}
           </div>
         )}
         <Button
@@ -85,7 +142,7 @@ export function Sidebar() {
       <div className="mt-auto flex flex-col items-center gap-4">
         <UserMenu />
         {expanded && (
-          <div className="text-xs text-sidebar-foreground/60">© 2023 3MG Estimator</div>
+          <div className="text-xs text-sidebar-foreground/60">© 2025 3MG Roofing</div>
         )}
       </div>
     </div>
@@ -108,7 +165,7 @@ export function Sidebar() {
       <div className="w-64 h-full bg-sidebar p-4 animate-slide-in-left">
         <div className="flex items-center justify-between mb-8">
           <div className="text-xl font-semibold tracking-tight text-sidebar-foreground">
-            3MG Estimator
+            {getSidebarTitle()}
           </div>
           <Button
             variant="outline"
@@ -141,7 +198,7 @@ export function Sidebar() {
 
         <div className="mt-auto pt-4 space-y-4 absolute bottom-4 left-4">
           <UserMenu />
-          <div className="text-xs text-sidebar-foreground/60">© 2023 3MG Estimator</div>
+          <div className="text-xs text-sidebar-foreground/60">© 2025 3MG Roofing</div>
         </div>
       </div>
     </div>

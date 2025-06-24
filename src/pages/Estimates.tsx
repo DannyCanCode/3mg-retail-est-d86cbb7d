@@ -34,9 +34,13 @@ import { getPricingTemplates, getPricingTemplateById, PricingTemplate, createPri
 import { Checkbox } from "@/components/ui/checkbox";
 import { ROOFING_MATERIALS } from "@/components/estimates/materials/data";
 import { calculateMaterialQuantity } from "@/components/estimates/materials/utils";
+import { withTimeout } from "@/lib/withTimeout";
+import { EstimateTypeSelector } from "@/components/estimates/EstimateTypeSelector";
 
 // Convert ParsedMeasurements to MeasurementValues format
-const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): MeasurementValues => {
+const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
+  // Allow both direct ParsedMeasurements and the wrapper { measurements, parsedMeasurements }
+  const parsedData: ParsedMeasurements | null = parsedDataRaw?.parsedMeasurements ?? parsedDataRaw ?? null;
   console.log("Converting PDF data to measurement values");
   
   // Handle null/undefined data safely
@@ -122,7 +126,11 @@ const Estimates = () => {
   const [estimateData, setEstimateData] = useState<EstimateType | null>(null);
 
   // Workflow state 
-  const [activeTab, setActiveTab] = useState("upload");
+  const [activeTab, setActiveTab] = useState("type-selection");
+  
+  // Estimate type selection state
+  const [estimateType, setEstimateType] = useState<'roof_only' | 'with_subtrades' | null>(null);
+  const [selectedSubtrades, setSelectedSubtrades] = useState<string[]>([]);
   
   // Store extracted PDF data
   const [extractedPdfData, setExtractedPdfData] = useState<ParsedMeasurements | null>(null);
@@ -216,7 +224,7 @@ const Estimates = () => {
       // For a new estimate, ensure we start clean
       // and don't load from localStorage unless specified by a measurementId
       if (!measurementId) {
-        setActiveTab("upload");
+        setActiveTab("type-selection");
     }
     }
   }, [estimateId, measurementId]);
@@ -454,6 +462,19 @@ const Estimates = () => {
 
   const handleGoToMaterials = () => {
     setActiveTab("materials");
+  };
+
+  const handleEstimateTypeSelection = (selection: { type: 'roof_only' | 'with_subtrades'; selectedSubtrades: string[] }) => {
+    setEstimateType(selection.type);
+    setSelectedSubtrades(selection.selectedSubtrades);
+    setActiveTab("upload");
+    
+    toast({
+      title: "Estimate Type Selected",
+      description: selection.type === 'roof_only' 
+        ? "Standard roofing estimate workflow selected"
+        : `Roof + ${selection.selectedSubtrades.length} subtrade(s) selected`,
+    });
   };
 
   const handleMeasurementsSaved = (savedMeasurements: MeasurementValues) => {
@@ -714,7 +735,7 @@ const Estimates = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await getEstimates();
+      const { data, error: fetchError } = await withTimeout(getEstimates(), 5000);
       if (fetchError) {
         throw fetchError;
       }
@@ -735,6 +756,13 @@ const Estimates = () => {
   useEffect(() => {
     fetchEstimatesData();
   }, [fetchEstimatesData]);
+
+  // Safety guard: ensure isLoading cannot remain true longer than 6 s
+  useEffect(() => {
+    if (!isLoading) return;
+    const id = setTimeout(() => setIsLoading(false), 6000);
+    return () => clearTimeout(id);
+  }, [isLoading]);
 
   const handleApprove = async (id: string) => {
     // ... existing approve logic ...
@@ -1298,7 +1326,7 @@ const Estimates = () => {
   };
 
   return (
-    <MainLayout>
+    <>
       <div className="container mx-auto p-4 max-w-7xl">
         <div className="flex flex-col gap-4">
           <div className="flex justify-between items-center">
@@ -1367,37 +1395,42 @@ const Estimates = () => {
                     console.log(`Tab changed, activeTab is now ${value}`);
                   }} 
                   className="w-full"
-                  defaultValue={isViewMode ? "summary" : "upload"}
+                  defaultValue={isViewMode ? "summary" : "type-selection"}
                 >
-                  <TabsList className="grid grid-cols-5 mb-8">
+                  <TabsList className="grid grid-cols-6 mb-8">
                     {!isViewMode && (
-                      <TabsTrigger value="upload" disabled={false}>
-                        1. Upload EagleView
+                      <TabsTrigger value="type-selection" disabled={false}>
+                        1. Estimate Type
+                      </TabsTrigger>
+                    )}
+                    {!isViewMode && (
+                      <TabsTrigger value="upload" disabled={!estimateType}>
+                        2. Upload EagleView
                       </TabsTrigger>
                     )}
                     <TabsTrigger 
                       value="measurements" 
                       disabled={!isViewMode && !extractedPdfData && !measurements}
                     >
-                      {isViewMode ? "Measurements" : "2. Enter Measurements"}
+                      {isViewMode ? "Measurements" : "3. Enter Measurements"}
                     </TabsTrigger>
                     <TabsTrigger 
                       value="materials" 
                       disabled={!isViewMode && !measurements}
                     >
-                      {isViewMode ? "Materials" : "3. Select Materials"}
+                      {isViewMode ? "Materials" : "4. Select Materials"}
                     </TabsTrigger>
                     <TabsTrigger 
                       value="pricing" 
                       disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
                     >
-                      {isViewMode ? "Labor & Profit" : "4. Labor & Profit"}
+                      {isViewMode ? "Labor & Profit" : "5. Labor & Profit"}
                     </TabsTrigger>
                     <TabsTrigger 
                       value="summary" 
                       disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
                     >
-                      {isViewMode ? "Summary" : "5. Summary"}
+                      {isViewMode ? "Summary" : "6. Summary"}
                     </TabsTrigger>
                   </TabsList>
 
@@ -1420,6 +1453,12 @@ const Estimates = () => {
                     </div>
                   )}
 
+                  {activeTab === 'type-selection' && (
+                    <EstimateTypeSelector 
+                      onSelectionComplete={handleEstimateTypeSelection}
+                    />
+                  )}
+
                   {activeTab === 'upload' && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -1431,25 +1470,45 @@ const Estimates = () => {
                           <p className="text-sm text-slate-600 mb-4">
                             Follow these steps to create a complete estimate
                           </p>
+                          
+                          {/* Show selected estimate type */}
+                          {estimateType && (
+                            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                              <h4 className="font-medium text-blue-900 mb-1">Selected Estimate Type</h4>
+                              <p className="text-sm text-blue-800">
+                                {estimateType === 'roof_only' ? '🏠 Roof Shingles Only' : `🔧 Roof + ${selectedSubtrades.length} Subtrade(s)`}
+                              </p>
+                              {estimateType === 'with_subtrades' && selectedSubtrades.length > 0 && (
+                                <p className="text-xs text-blue-700 mt-1">
+                                  Subtrades: {selectedSubtrades.join(', ')}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
                           <ol className="space-y-2 text-sm">
                             <li className="flex items-start gap-2">
-                              <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">1</span>
+                              <span className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">✓</span>
+                              <span>Estimate Type Selected - {estimateType === 'roof_only' ? 'Standard roofing' : 'Roof + subtrades'}</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
                               <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
                               <span>Review Measurements - Verify or enter the roof measurements</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
                               <span>Select Materials - Choose roofing materials and options</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
                               <span>Set Labor & Profit - Define labor rates and profit margin</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">6</span>
                               <span>Review Summary - Finalize and prepare for customer approval</span>
                             </li>
                           </ol>
@@ -1621,21 +1680,13 @@ const Estimates = () => {
 
               {/* Add Continue buttons at the bottom of each tab */}
               <div className="flex justify-between mt-8">
-                {activeTab !== "upload" && (
+                {activeTab !== "type-selection" && (
                   <Button 
                     variant="outline" 
                     onClick={() => {
-                      const tabOrder = ["upload", "measurements", "materials", "pricing", "summary"];
+                      const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
                       const currentIndex = tabOrder.indexOf(activeTab);
                       if (currentIndex > 0) {
-                        // Special handling when going back FROM pricing TO materials
-                        if (activeTab === 'pricing' && handleLaborProfitContinue) {
-                            // Call onLaborProfitContinue to ensure latest labor rates are synced before leaving
-                            // This assumes onLaborProfitContinue is designed to just sync data without navigating if called this way
-                            // Or, ensure data is already synced via its internal useEffect in LaborProfitTab
-                            console.log("Back from Pricing: ensuring labor/profit data is synced.");
-                            // handleLaborProfitContinue(laborRates, profitMargin); // This might be too aggressive or cause loops
-                        }
                         setActiveTab(tabOrder[currentIndex - 1]);
                       }
                     }}
@@ -1648,13 +1699,24 @@ const Estimates = () => {
                   <Button 
                     className="ml-auto"
                     onClick={() => {
-                      const tabOrder = ["upload", "measurements", "materials", "pricing", "summary"];
+                      const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
                       const currentIndex = tabOrder.indexOf(activeTab);
 
                       if (currentIndex < tabOrder.length - 1) {
                         const nextTab = tabOrder[currentIndex + 1];
                         
                         // Validations before navigating FROM a specific tab
+                        if (activeTab === 'type-selection') {
+                          if (!estimateType) {
+                            toast({ 
+                              title: "No Estimate Type Selected", 
+                              description: "Please select an estimate type to continue.",
+                              variant: "destructive"
+                            });
+                            return; 
+                          }
+                        }
+                        
                         if (activeTab === 'materials') {
                           if (Object.keys(selectedMaterials).length === 0) {
                             toast({ 
@@ -1695,6 +1757,7 @@ const Estimates = () => {
                       }
                     }}
                     disabled={ // Review and adjust disabled logic as needed
+                      (activeTab === "type-selection" && !estimateType) ||
                       (activeTab === "upload" && !extractedPdfData) ||
                       (activeTab === "measurements" && !measurements) ||
                       (activeTab === "materials" && Object.keys(selectedMaterials).length === 0) ||
@@ -1888,7 +1951,7 @@ const Estimates = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </>
   );
 };
 

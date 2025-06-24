@@ -3,7 +3,7 @@ import { getSoldEstimates } from '@/api/estimates'; // Adjust import path
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MainLayout } from '@/components/layout/MainLayout'; // Import layout if needed
+// MainLayout removed - already handled by ProtectedLayout in routing
 import { format, subDays, startOfDay, endOfDay } from 'date-fns'; // Import date functions
 import * as XLSX from 'xlsx'; // Uncomment import
 import { 
@@ -145,7 +145,6 @@ const AccountingReport: React.FC = () => {
   // --- End Uncomment --- 
 
   return (
-    <MainLayout> { /* Wrap content in MainLayout if needed */}
       <div className="container mx-auto p-4 md:p-6 lg:p-8">
          <Card>
             <CardHeader className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
@@ -225,8 +224,7 @@ const AccountingReport: React.FC = () => {
             </CardContent>
          </Card>
       </div>
-    </MainLayout>
   );
 };
 
-export default AccountingReport; 
+export default AccountingReport;
