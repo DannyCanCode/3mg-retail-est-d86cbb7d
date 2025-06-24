@@ -1689,7 +1689,14 @@ export function MaterialsSelectionTab({
         
         {/* Material Selection Card */}
         <Card>
-          <CardHeader><CardTitle>Select Materials</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Select Materials</CardTitle>
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-800">
+                🔒 <strong>Admin Version:</strong> Material prices are locked for consistency across estimates.
+              </p>
+            </div>
+          </CardHeader>
           <CardContent className="space-y-4">
              {/* Waste Factor Inputs */}
              <div className="flex items-center space-x-4 pb-4">
@@ -1804,8 +1811,8 @@ export function MaterialsSelectionTab({
                                       defaultValue={material.price !== undefined ? String(material.price) : ''} // Use defaultValue
                                       // onChange no longer calls handleEditableMaterialPropertyChange directly
                                       onBlur={(e) => handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)} // Update main state on blur
-                                      className="h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24"
-                                      disabled={readOnly}
+                                      className="h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24 bg-gray-100 text-gray-600"
+                                      disabled={true} // Always disabled for admin-estimator release
                                       placeholder="0.00"
                                       key={`price-input-${material.id}`} // Add a key
                                     />
