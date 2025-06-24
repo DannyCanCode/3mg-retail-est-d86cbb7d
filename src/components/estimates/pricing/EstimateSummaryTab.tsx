@@ -180,6 +180,12 @@ export function EstimateSummaryTab({
     includeDetachResetGutters: laborRates?.includeDetachResetGutters || false,
     detachResetGutterLinearFeet: laborRates?.detachResetGutterLinearFeet || 0,
     detachResetGutterRate: laborRates?.detachResetGutterRate || 1,
+    includeSkylights2x2: laborRates?.includeSkylights2x2 || false,
+    skylights2x2Count: laborRates?.skylights2x2Count || 0,
+    skylights2x2Rate: laborRates?.skylights2x2Rate || 280,
+    includeSkylights2x4: laborRates?.includeSkylights2x4 || false,
+    skylights2x4Count: laborRates?.skylights2x4Count || 0,
+    skylights2x4Rate: laborRates?.skylights2x4Rate || 370,
     includeLowSlopeLabor: laborRates?.includeLowSlopeLabor ?? true,
     includeSteepSlopeLabor: laborRates?.includeSteepSlopeLabor ?? true,
   };
@@ -367,6 +373,24 @@ export function EstimateSummaryTab({
       name: `3" x 4" Downspouts (${safeLaborRates.downspoutCount})`,
       rate: safeLaborRates.downspoutRate,
       totalCost: safeLaborRates.downspoutRate * safeLaborRates.downspoutCount
+    });
+  }
+
+  // Add 2x2 skylights if included
+  if (safeLaborRates.includeSkylights2x2 && safeLaborRates.skylights2x2Count > 0) {
+    laborCosts.push({
+      name: `2X2 Skylights (${safeLaborRates.skylights2x2Count})`,
+      rate: safeLaborRates.skylights2x2Rate,
+      totalCost: safeLaborRates.skylights2x2Rate * safeLaborRates.skylights2x2Count
+    });
+  }
+
+  // Add 2x4 skylights if included
+  if (safeLaborRates.includeSkylights2x4 && safeLaborRates.skylights2x4Count > 0) {
+    laborCosts.push({
+      name: `2X4 Skylights (${safeLaborRates.skylights2x4Count})`,
+      rate: safeLaborRates.skylights2x4Rate,
+      totalCost: safeLaborRates.skylights2x4Rate * safeLaborRates.skylights2x4Count
     });
   }
   

@@ -49,6 +49,12 @@ export interface LaborRates {
   includeDetachResetGutters?: boolean; // Whether to include detach and reset gutters
   detachResetGutterLinearFeet?: number; // Linear feet of gutters to detach and reset
   detachResetGutterRate?: number; // Rate per linear foot for detach and reset
+  includeSkylights2x2?: boolean; // Whether to include 2x2 skylights
+  skylights2x2Count?: number; // Number of 2x2 skylights
+  skylights2x2Rate?: number; // Rate per 2x2 skylight ($280)
+  includeSkylights2x4?: boolean; // Whether to include 2x4 skylights
+  skylights2x4Count?: number; // Number of 2x4 skylights
+  skylights2x4Rate?: number; // Rate per 2x4 skylight ($370)
   includeLowSlopeLabor?: boolean; // New: Toggle for low slope area labor
   includeSteepSlopeLabor?: boolean; // New: Toggle for steep slope area labor
 }
@@ -77,6 +83,8 @@ export function LaborProfitTab({
       pitchRates: {}, wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, 
       gutterRate: 8, includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
       includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
+      includeSkylights2x2: false, skylights2x2Count: 0, skylights2x2Rate: 280,
+      includeSkylights2x4: false, skylights2x4Count: 0, skylights2x4Rate: 370,
       includeLowSlopeLabor: true, // Default to true
       includeSteepSlopeLabor: true, // Default to true
     };
@@ -835,6 +843,146 @@ export function LaborProfitTab({
                     value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 75)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <Separator />
+        
+        {/* Skylights Section */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Skylights</h3>
+          <div className="space-y-4">
+            {/* 2x2 Skylights */}
+            <div className="flex items-center space-x-4">
+              <Switch
+                id="includeSkylights2x2"
+                checked={!!laborRates.includeSkylights2x2}
+                onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x2", checked)}
+                disabled={readOnly}
+              />
+              <Label htmlFor="includeSkylights2x2">
+                2X2 Skylight ($280 per unit)
+              </Label>
+            </div>
+            
+            {!!laborRates.includeSkylights2x2 && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x2Count">Number of 2X2 Skylights</Label>
+                  <div className="flex items-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleLaborRateChange("skylights2x2Count", Math.max(0, (laborRates.skylights2x2Count || 0) - 1))}
+                      disabled={(laborRates.skylights2x2Count || 0) <= 0 || readOnly}
+                      className="h-8 w-8 rounded-r-none"
+                    >
+                      <span className="sr-only">Decrease</span>
+                      <span className="text-lg font-bold">-</span>
+                    </Button>
+                    <Input
+                      id="skylights2x2Count"
+                      type="number"
+                      value={(laborRates.skylights2x2Count || 0).toString()}
+                      onChange={(e) => handleLaborRateChange("skylights2x2Count", parseInt(e.target.value, 10) || 0)}
+                      min="0"
+                      step="1"
+                      className="h-8 rounded-none text-center"
+                      disabled={readOnly}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleLaborRateChange("skylights2x2Count", (laborRates.skylights2x2Count || 0) + 1)}
+                      disabled={readOnly}
+                      className="h-8 w-8 rounded-l-none"
+                    >
+                      <span className="sr-only">Increase</span>
+                      <span className="text-lg font-bold">+</span>
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x2Total">Total 2X2 Skylight Cost</Label>
+                  <Input
+                    id="skylights2x2Total"
+                    type="text"
+                    value={`$${((laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                    disabled={readOnly}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* 2x4 Skylights */}
+            <div className="flex items-center space-x-4 mt-4">
+              <Switch
+                id="includeSkylights2x4"
+                checked={!!laborRates.includeSkylights2x4}
+                onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x4", checked)}
+                disabled={readOnly}
+              />
+              <Label htmlFor="includeSkylights2x4">
+                2X4 Skylight ($370 per unit)
+              </Label>
+            </div>
+            
+            {!!laborRates.includeSkylights2x4 && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x4Count">Number of 2X4 Skylights</Label>
+                  <div className="flex items-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleLaborRateChange("skylights2x4Count", Math.max(0, (laborRates.skylights2x4Count || 0) - 1))}
+                      disabled={(laborRates.skylights2x4Count || 0) <= 0 || readOnly}
+                      className="h-8 w-8 rounded-r-none"
+                    >
+                      <span className="sr-only">Decrease</span>
+                      <span className="text-lg font-bold">-</span>
+                    </Button>
+                    <Input
+                      id="skylights2x4Count"
+                      type="number"
+                      value={(laborRates.skylights2x4Count || 0).toString()}
+                      onChange={(e) => handleLaborRateChange("skylights2x4Count", parseInt(e.target.value, 10) || 0)}
+                      min="0"
+                      step="1"
+                      className="h-8 rounded-none text-center"
+                      disabled={readOnly}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleLaborRateChange("skylights2x4Count", (laborRates.skylights2x4Count || 0) + 1)}
+                      disabled={readOnly}
+                      className="h-8 w-8 rounded-l-none"
+                    >
+                      <span className="sr-only">Increase</span>
+                      <span className="text-lg font-bold">+</span>
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x4Total">Total 2X4 Skylight Cost</Label>
+                  <Input
+                    id="skylights2x4Total"
+                    type="text"
+                    value={`$${((laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                    disabled={readOnly}
                   />
                 </div>
               </div>

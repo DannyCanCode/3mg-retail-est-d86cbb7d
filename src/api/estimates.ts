@@ -261,6 +261,8 @@ export const calculateEstimateTotal = (
     wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, gutterRate: 8,
     includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
     includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
+    includeSkylights2x2: false, skylights2x2Count: 0, skylights2x2Rate: 280,
+    includeSkylights2x4: false, skylights2x4Count: 0, skylights2x4Rate: 370,
   };
   const laborRates: LaborRates = { ...defaultLaborRates, ...(laborRatesInput || {}) };
 
@@ -334,6 +336,12 @@ export const calculateEstimateTotal = (
   if (laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet && laborRates.detachResetGutterRate) {
     calculated_labor_cost += laborRates.detachResetGutterLinearFeet * laborRates.detachResetGutterRate;
   }
+  if (laborRates.includeSkylights2x2 && laborRates.skylights2x2Count && laborRates.skylights2x2Rate) {
+    calculated_labor_cost += laborRates.skylights2x2Count * laborRates.skylights2x2Rate;
+  }
+  if (laborRates.includeSkylights2x4 && laborRates.skylights2x4Count && laborRates.skylights2x4Rate) {
+    calculated_labor_cost += laborRates.skylights2x4Count * laborRates.skylights2x4Rate;
+  }
 
   const subtotal = materialCost + calculated_labor_cost;
   const margin = profitMargin / 100;
@@ -349,6 +357,8 @@ const calculateFinalCosts = (estimateData: Estimate) => {
     wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, gutterRate: 8,
     includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
     includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
+    includeSkylights2x2: false, skylights2x2Count: 0, skylights2x2Rate: 280,
+    includeSkylights2x4: false, skylights2x4Count: 0, skylights2x4Rate: 370,
   };
 
   const safeMeasurements = estimateData.measurements as MeasurementValues || { totalArea: 0, areasByPitch: [] };
@@ -445,6 +455,16 @@ const calculateFinalCosts = (estimateData: Estimate) => {
   if (laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet && laborRates.detachResetGutterLinearFeet > 0) {
       const detachCost = (laborRates.detachResetGutterRate || 1) * laborRates.detachResetGutterLinearFeet;
       calculated_labor_cost += detachCost;
+  }
+
+  if (laborRates.includeSkylights2x2 && laborRates.skylights2x2Count && laborRates.skylights2x2Count > 0) {
+      const skylights2x2Cost = (laborRates.skylights2x2Rate || 280) * laborRates.skylights2x2Count;
+      calculated_labor_cost += skylights2x2Cost;
+  }
+
+  if (laborRates.includeSkylights2x4 && laborRates.skylights2x4Count && laborRates.skylights2x4Count > 0) {
+      const skylights2x4Cost = (laborRates.skylights2x4Rate || 370) * laborRates.skylights2x4Count;
+      calculated_labor_cost += skylights2x4Cost;
   }
 
   const calculated_subtotal = calculated_material_cost + calculated_labor_cost;
