@@ -144,13 +144,13 @@ const ManagerDashboard: React.FC = () => {
   };
 
   const handleViewDetails = (estimate: ExtendedEstimate) => {
-    // Navigate to estimate view page
-    navigate(`/estimates?view=${estimate.id}`);
+    // Navigate to estimate view page using route parameter (not query parameter)
+    navigate(`/estimates/${estimate.id}`);
   };
 
   const handleEditEstimate = (estimate: ExtendedEstimate) => {
-    // Navigate to estimate edit page
-    navigate(`/estimates?edit=${estimate.id}`);
+    // Navigate to estimate edit page using route parameter (not query parameter) 
+    navigate(`/estimates/${estimate.id}`);
   };
 
   // KPI calculations
