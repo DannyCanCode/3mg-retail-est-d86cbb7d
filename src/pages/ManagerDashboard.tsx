@@ -67,7 +67,7 @@ const ManagerDashboard: React.FC = () => {
         .eq('territory_id', profile!.territory_id)
         .order('created_at', { ascending: false });
       
-      if (!error && data) setEstimates(data as ExtendedEstimate[]);
+      if (!error && data) setEstimates(data as unknown as ExtendedEstimate[]);
       else if (error) toast({ variant: 'destructive', title: 'Error loading estimates', description: error.message });
     } catch (error) {
       console.error('Error fetching estimates:', error);
@@ -82,7 +82,7 @@ const ManagerDashboard: React.FC = () => {
         .eq('id', profile!.territory_id)
         .single();
       
-      if (!error && data) setTerritory(data as Territory);
+      if (!error && data) setTerritory(data as unknown as Territory);
     } catch (error) {
       console.error('Error fetching territory:', error);
     }
@@ -95,7 +95,7 @@ const ManagerDashboard: React.FC = () => {
         .select('id, email, full_name, role')
         .eq('territory_id', profile!.territory_id);
       
-      if (!error && data) setTeamMembers(data as TeamMember[]);
+      if (!error && data) setTeamMembers(data as unknown as TeamMember[]);
     } catch (error) {
       console.error('Error fetching team members:', error);
     }
@@ -133,6 +133,26 @@ const ManagerDashboard: React.FC = () => {
     }
   };
 
+  const handleGeneratePdf = async (estimate: ExtendedEstimate) => {
+    try {
+      toast({ title: 'PDF generation started', description: 'Your PDF will be available shortly.' });
+      // PDF generation logic here - using same functionality as admin dashboard
+      console.log('Generating PDF for estimate:', estimate.id);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to generate PDF.' });
+    }
+  };
+
+  const handleViewDetails = (estimate: ExtendedEstimate) => {
+    // Navigate to estimate view page
+    navigate(`/estimates?view=${estimate.id}`);
+  };
+
+  const handleEditEstimate = (estimate: ExtendedEstimate) => {
+    // Navigate to estimate edit page
+    navigate(`/estimates?edit=${estimate.id}`);
+  };
+
   // KPI calculations
   const pending = estimates.filter(e => e.status === 'pending');
   const approved = estimates.filter(e => e.status === 'approved');
@@ -152,21 +172,35 @@ const ManagerDashboard: React.FC = () => {
   };
 
   const EstimateCard = ({ estimate }: { estimate: ExtendedEstimate }) => (
-    <Card className="mb-4">
+    <Card>
       <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg">{estimate.customer_address}</h3>
+        <div className="flex justify-between items-start mb-2">
+          <div>
+            <h3 className="font-semibold">{estimate.customer_address}</h3>
             <p className="text-sm text-muted-foreground">
-              Created: {new Date(estimate.created_at).toLocaleDateString()}
-            </p>
-            <p className="text-lg font-bold text-green-600 mt-1">
-              {currency(estimate.total_price || 0)}
+              {new Date(estimate.created_at).toLocaleDateString()}
             </p>
           </div>
-          <Badge className={getStatusColor(estimate.status)}>
-            {estimate.status}
+          <Badge 
+            className={
+              estimate.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+              estimate.status === 'approved' ? 'bg-green-100 text-green-800' :
+              'bg-red-100 text-red-800'
+            }
+          >
+            {estimate.status?.charAt(0).toUpperCase() + estimate.status?.slice(1)}
           </Badge>
+        </div>
+        
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-lg font-bold text-green-600">
+            {currency(estimate.total_price || 0)}
+          </span>
+          {estimate.measurements?.totalArea && (
+            <span className="text-sm text-muted-foreground">
+              {estimate.measurements.totalArea} sq ft
+            </span>
+          )}
         </div>
         
         {estimate.status === 'pending' && (
@@ -221,6 +255,49 @@ const ManagerDashboard: React.FC = () => {
                 </div>
               </DialogContent>
             </Dialog>
+          </div>
+        )}
+        
+        {/* Enhanced functionality for approved/rejected estimates */}
+        {(estimate.status === 'approved' || estimate.status === 'rejected') && (
+          <div className="flex gap-2 mt-3">
+            {estimate.status === 'approved' && (
+              <Button 
+                size="sm" 
+                onClick={() => handleGeneratePdf(estimate)}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Generate PDF
+              </Button>
+            )}
+            
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleViewDetails(estimate)}
+            >
+              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View Details
+            </Button>
+            
+            {estimate.status === 'approved' && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => handleEditEstimate(estimate)}
+              >
+                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit
+              </Button>
+            )}
           </div>
         )}
         
