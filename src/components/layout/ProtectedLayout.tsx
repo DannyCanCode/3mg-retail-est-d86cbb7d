@@ -1,13 +1,42 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 
 const ProtectedLayout: React.FC = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [profileWaitTime, setProfileWaitTime] = useState(0);
+  const [showProfileError, setShowProfileError] = useState(false);
+
+  // Track how long we've been waiting for profile
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (user && !profile && !loading) {
+      interval = setInterval(() => {
+        setProfileWaitTime((prev) => {
+          const newTime = prev + 1;
+          // Show error after 10 seconds of waiting
+          if (newTime >= 10) {
+            setShowProfileError(true);
+          }
+          return newTime;
+        });
+      }, 1000);
+    } else {
+      setProfileWaitTime(0);
+      setShowProfileError(false);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [user, profile, loading]);
 
   useEffect(() => {
     if (loading) return; // Wait for auth to load
@@ -69,13 +98,54 @@ const ProtectedLayout: React.FC = () => {
     );
   }
 
-  // Show loading while profile is being fetched
+  // Handle profile loading/error states
   if (user && !profile) {
+    if (showProfileError) {
+      // Show error state with retry option
+      return (
+        <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center max-w-md p-6">
+            <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Account Setup Issue</h2>
+            <p className="text-gray-600 mb-6">
+              We're having trouble loading your account information. This might be a temporary issue.
+            </p>
+            <div className="space-y-3">
+              <Button 
+                onClick={() => window.location.reload()} 
+                className="w-full"
+                variant="default"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh Page
+              </Button>
+              <Button 
+                onClick={() => navigate('/login')} 
+                variant="outline"
+                className="w-full"
+              >
+                Sign In Again
+              </Button>
+            </div>
+            <p className="text-xs text-gray-500 mt-4">
+              If this issue persists, please contact support.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Show loading while profile is being fetched (with timeout)
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Setting up your account...</p>
+          {profileWaitTime > 3 && (
+            <p className="text-gray-500 text-sm mt-2">
+              This is taking longer than usual ({profileWaitTime}s)
+            </p>
+          )}
         </div>
       </div>
     );

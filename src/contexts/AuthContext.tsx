@@ -33,12 +33,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [profileFetchAttempts, setProfileFetchAttempts] = useState(0);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
-  // Fetch user profile data
-  const fetchProfile = useCallback(async (userId: string) => {
+  // Fetch user profile data with retry logic
+  const fetchProfile = useCallback(async (userId: string, attempt: number = 1): Promise<Profile | null> => {
     try {
       if (import.meta.env.DEV) {
-        console.log('[AuthContext] Fetching profile for user:', userId);
+        console.log(`[AuthContext] Fetching profile for user: ${userId} (attempt ${attempt})`);
       }
       
       const { data, error } = await supabase
@@ -51,20 +53,95 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (import.meta.env.DEV) {
           console.error('[AuthContext] Profile fetch error:', error);
         }
+        
+        // If profile doesn't exist, create a default one
+        if (error.code === 'PGRST116') {
+          if (import.meta.env.DEV) {
+            console.log('[AuthContext] Profile not found, creating default profile');
+          }
+          // Create default profile for this user
+          const defaultProfile: Profile = {
+            id: userId,
+            role: 'rep', // Default role
+            completed_onboarding: false,
+            full_name: null,
+            org_id: null,
+            territory_id: null
+          };
+          setProfileError(null);
+          return defaultProfile;
+        }
+        
+        setProfileError(error.message);
         return null;
       }
 
       if (import.meta.env.DEV) {
         console.log('[AuthContext] Profile fetched successfully:', data);
       }
+      setProfileError(null);
       return data as unknown as Profile;
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('[AuthContext] Profile fetch exception:', error);
       }
+      setProfileError(error instanceof Error ? error.message : 'Unknown error');
       return null;
     }
   }, []);
+
+  // Fetch profile with timeout and retry
+  const fetchProfileWithTimeout = useCallback(async (userId: string) => {
+    const maxAttempts = 3;
+    const timeout = 5000; // 5 seconds
+    
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      setProfileFetchAttempts(attempt);
+      
+      try {
+        // Race between profile fetch and timeout
+        const profilePromise = fetchProfile(userId, attempt);
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Profile fetch timeout')), timeout)
+        );
+        
+        const result = await Promise.race([profilePromise, timeoutPromise]);
+        
+        if (result) {
+          return result;
+        }
+        
+        // If no result but no timeout, try again (unless last attempt)
+        if (attempt < maxAttempts) {
+          if (import.meta.env.DEV) {
+            console.log(`[AuthContext] Profile fetch attempt ${attempt} failed, retrying...`);
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn(`[AuthContext] Profile fetch attempt ${attempt} failed:`, error);
+        }
+        
+        if (attempt === maxAttempts) {
+          // Final attempt failed, create default profile
+          if (import.meta.env.DEV) {
+            console.log('[AuthContext] All profile fetch attempts failed, using default profile');
+          }
+          return {
+            id: userId,
+            role: 'rep',
+            completed_onboarding: false,
+            full_name: null,
+            org_id: null,
+            territory_id: null
+          } as Profile;
+        }
+      }
+    }
+    
+    return null;
+  }, [fetchProfile]);
 
   // Initialize auth state
   useEffect(() => {
@@ -85,6 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
           if (isMounted) {
             setLoading(false);
+            setMounted(true);
           }
           return;
         }
@@ -93,8 +171,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setSession(initialSession);
           setUser(initialSession.user);
           
-          // Fetch profile
-          const profileData = await fetchProfile(initialSession.user.id);
+          // Fetch profile with timeout
+          const profileData = await fetchProfileWithTimeout(initialSession.user.id);
           if (isMounted) {
             setProfile(profileData);
           }
@@ -131,6 +209,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setProfile(null);
           setSession(null);
           setLoading(false);
+          setProfileFetchAttempts(0);
+          setProfileError(null);
           return;
         }
 
@@ -139,8 +219,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(session.user);
           setLoading(true);
           
-          // Fetch profile
-          const profileData = await fetchProfile(session.user.id);
+          // Fetch profile with timeout
+          const profileData = await fetchProfileWithTimeout(session.user.id);
           if (isMounted) {
             setProfile(profileData);
             setLoading(false);
@@ -153,7 +233,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [fetchProfile]);
+  }, [fetchProfileWithTimeout]);
 
   // Logout function
   const logout = useCallback(async () => {
@@ -173,6 +253,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       setProfile(null);
       setSession(null);
+      setProfileFetchAttempts(0);
+      setProfileError(null);
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('[AuthContext] Logout exception:', error);
