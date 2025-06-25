@@ -156,6 +156,7 @@ const AppRouter = () => {
       <Route path="/" element={<ProtectedLayout />}>
         <Route index element={<Index />} />
         <Route path="estimates" element={<Estimates />} />
+        <Route path="estimates/:estimateId" element={<Estimates />} />
         <Route path="pricing" element={<Pricing />} />
         <Route path="manager" element={<ManagerDashboard />} />
         <Route path="sales" element={<SalesRepDashboard />} />
