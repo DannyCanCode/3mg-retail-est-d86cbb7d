@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen, Info } from "lucide-react";
+import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen, Info, Package } from "lucide-react";
 import { MeasurementValues } from "../measurement/types";
 import { ROOFING_MATERIALS } from "./data";
 import { Material, MaterialCategory } from "./types";
@@ -920,54 +920,74 @@ export function MaterialsSelectionTab({
         { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
         { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
       ],
-      "OC 1": [ 
-        { id: "oc-oakridge", description: "OC Oakridge (Shingles)" },
-        { id: "oc-hip-ridge", description: "OC Hip & Ridge (Ridge Cap)" },
-        { id: "oc-starter", description: "OC Starter Shingle Strip" },
-        { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
-        { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" }
+      "OC 1": [
+        { id: "oc-oakridge-shingles", description: "OC Oakridge Shingles" },
+        { id: "oc-proedge-starter-shingle", description: "OC ProEdge Starter Shingle" },
+        { id: "oc-proshield-ice-water-protector", description: "OC ProShield Ice & Water Protector" },
+        { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" }
       ],
-      "OC 2": [ 
-        { id: "oc-duration", description: "OC Duration (Shingles)" },
-        { id: "oc-hip-ridge", description: "OC Hip & Ridge (Ridge Cap)" },
-        { id: "oc-starter", description: "OC Starter Shingle Strip" },
-        { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
-        { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" }
+      "OC 2": [
+        { id: "oc-duration-shingles", description: "OC Duration Shingles" },
+        { id: "oc-proedge-starter-shingle", description: "OC ProEdge Starter Shingle" },
+        { id: "oc-proshield-ice-water-protector", description: "OC ProShield Ice & Water Protector" },
+        { id: "oc-prodeck-synthetic-underlayment", description: "OC ProDeck Synthetic Underlayment" }
       ]
     };
-    
-    const materialsToAddFromPreset = PRESET_BUNDLES[preset];
-    if (!materialsToAddFromPreset) {
-      console.error(`Preset ${preset} not found!`);
-      toast({ title: "Error", description: `Preset ${preset} not found.`, variant: "destructive" });
+
+    const selectedBundle = PRESET_BUNDLES[preset];
+    if (!selectedBundle) {
+      console.warn(`Preset bundle '${preset}' not found`);
       return;
     }
-    
-    const newSelectedMaterials: { [key: string]: Material } = {};
-    const newQuantities: { [key: string]: number } = {};
 
-    materialsToAddFromPreset.forEach(({ id: materialId }) => {
-      const material = ROOFING_MATERIALS.find(m => m.id === materialId);
+    console.log(`Found ${selectedBundle.length} materials for bundle: ${preset}`);
+
+    // CRITICAL FIX: Merge with existing materials instead of replacing
+    const newMaterials = { ...localSelectedMaterials }; // Start with existing materials
+    const newQuantities = { ...localQuantities }; // Start with existing quantities
+    const newWasteFactors = { ...materialWasteFactors }; // Preserve existing waste factors
+
+    selectedBundle.forEach(({ id, description }) => {
+      const material = ROOFING_MATERIALS.find(m => m.id === id);
       if (material) {
-        const { quantity } = calculateMaterialQuantity(material, measurements, undefined, dbWastePercentages);
-        if (quantity > 0) {
-          newSelectedMaterials[materialId] = material;
-          newQuantities[materialId] = quantity;
-        }
+        const isGafTimberline = id === "gaf-timberline-hdz-sg";
+        const overrideWaste = isGafTimberline 
+          ? gafTimberlineWasteFactor / 100 
+          : wasteFactor / 100;
+
+        const { quantity: calculatedQuantity, actualWasteFactor } = calculateMaterialQuantity(
+          material,
+          measurements,
+          overrideWaste,
+          dbWastePercentages
+        );
+
+        // Only add if not already present, or if it's a replacement for same category
+        console.log(`Adding material: ${material.name} (${id}) - Qty: ${calculatedQuantity}`);
+        newMaterials[id] = material;
+        newQuantities[id] = Math.max(1, calculatedQuantity);
+        newWasteFactors[id] = actualWasteFactor;
+      } else {
+        console.warn(`Material with id '${id}' not found in ROOFING_MATERIALS`);
       }
     });
-  
-    // Update local state directly
-      setLocalSelectedMaterials(newSelectedMaterials);
-      setLocalQuantities(newQuantities);
-      setSelectedPreset(preset);
-      
-      toast({
-        title: `Preset Applied: ${preset}`,
-      description: "Materials have been updated.",
-      });
+
+    // Update state with merged materials
+    setLocalSelectedMaterials(newMaterials);
+    setLocalQuantities(newQuantities);
+    setMaterialWasteFactors(newWasteFactors);
+    setSelectedPreset(preset);
+
+    toast({
+      title: "Materials Added Successfully! ✅",
+      description: `${preset} package materials have been added to your existing selection (${Object.keys(newMaterials).length} total materials).`,
+      duration: 4000,
+      variant: "default"
+    });
+
+    console.log(`Successfully applied ${preset} preset. Total materials now: ${Object.keys(newMaterials).length}`);
   };
-  
+
   // Reset selected preset when materials are changed manually
   useEffect(() => {
     // If user manually adds/removes materials, reset the selected preset
@@ -1744,29 +1764,47 @@ export function MaterialsSelectionTab({
              {/* Presets Section */}
              <div className="border-t pt-4 pb-2">
                <h3 className="text-md font-medium mb-2">Material Presets</h3>
+               
+               {/* PROMINENT GAF NOTICE */}
+               <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
+                 <div className="flex items-center">
+                   <Package className="h-5 w-5 text-blue-600 mr-2" />
+                   <h4 className="text-sm font-semibold text-blue-800">🎯 FOR GAF PACKAGES:</h4>
+                 </div>
+                 <p className="text-sm text-blue-700 mt-1 font-medium">
+                   ⚡ IF YOU WANT GAF 1 OR GAF 2 PACKAGES, CLICK EITHER OF THESE OPTIONS BELOW! ⚡
+                 </p>
+                 <p className="text-xs text-blue-600 mt-1">
+                   These presets will ADD to your existing material selection (won't remove low slope materials).
+                 </p>
+               </div>
+               
                <div className="flex flex-wrap gap-2">
                  {[
-                   { id: "GAF 1", label: "GAF 1 - Basic Package" },
-                   { id: "GAF 2", label: "GAF 2 - Premium Package" },
-                   { id: "OC 1", label: "OC 1 - Oakridge" },
-                   { id: "OC 2", label: "OC 2 - Duration" }
+                   { id: "GAF 1", label: "GAF 1 - Basic Package", highlight: true },
+                   { id: "GAF 2", label: "GAF 2 - Premium Package", highlight: true },
+                   { id: "OC 1", label: "OC 1 - Oakridge", highlight: false },
+                   { id: "OC 2", label: "OC 2 - Duration", highlight: false }
                  ].map(preset => (
                    <Button 
                      key={preset.id} 
                      variant={selectedPreset === preset.id ? "default" : "outline"}
                      size="sm" 
-                     className={`text-xs ${selectedPreset === preset.id ? 'border-2 border-primary' : ''}`}
+                     className={`text-xs ${selectedPreset === preset.id ? 'border-2 border-primary' : ''} ${
+                       preset.highlight ? 'bg-blue-50 border-blue-300 hover:bg-blue-100' : ''
+                     }`}
                      onClick={() => applyPresetBundle(preset.id)}
                      disabled={readOnly}
                    >
                      <PackageOpen className="w-3.5 h-3.5 mr-1" />
                      {preset.label}
                      {selectedPreset === preset.id && <Check className="w-3.5 h-3.5 ml-1" />}
+                     {preset.highlight && <span className="ml-1">⭐</span>}
                    </Button>
                  ))}
                </div>
                <p className="text-xs text-muted-foreground mt-1">
-                 Click a preset to automatically add a pre-configured bundle of materials
+                 ✅ Presets now ADD to existing materials (preserves low slope selections)
                </p>
              </div>
              
