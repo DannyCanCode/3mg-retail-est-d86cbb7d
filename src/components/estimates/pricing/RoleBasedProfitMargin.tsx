@@ -41,11 +41,11 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
       case 'manager':
         return {
           min: 30,
-          max: 35,
+          max: 50, // Allow managers to go higher than 35% if needed
           step: 1,
           isLocked: false,
           hideInput: false,
-          description: 'Territory managers can set margins between 30% and 35%.'
+          description: 'Territory managers have a 30% minimum profit margin (cannot go lower). You can increase above 30% as needed.'
         };
       
       case 'rep':

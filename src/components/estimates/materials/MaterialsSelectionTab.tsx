@@ -29,6 +29,7 @@ import {
 import { getAllMaterialWastePercentages, updateMaterialWastePercentage } from "@/lib/supabase/material-waste";
 import { supabase } from "@/integrations/supabase/client"; // Added supabase import
 import { determineWasteFactor } from "./utils";
+import { useAuth } from '@/contexts/AuthContext';
 
 // *** UPDATED LOG HERE ***
 console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: WASTE FACTOR UPDATE v1"); 
@@ -139,6 +140,23 @@ export function MaterialsSelectionTab({
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateDescription, setNewTemplateDescription] = useState("");
   
+  const { profile } = useAuth();
+  const userRole = profile?.role;
+
+  // Determine if user can edit material prices based on role
+  const canEditMaterialPrices = () => {
+    switch (userRole) {
+      case 'admin':
+        return true; // Admins can edit material prices
+      case 'manager':
+        return false; // Territory managers CANNOT edit material prices
+      case 'rep':
+        return false; // Sales reps cannot edit material prices
+      default:
+        return false;
+    }
+  };
+
   // Load database waste percentages on component mount
   useEffect(() => {
     const loadDbWastePercentages = async () => {
@@ -1692,9 +1710,15 @@ export function MaterialsSelectionTab({
           <CardHeader>
             <CardTitle>Select Materials</CardTitle>
             <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-800">
-                🔒 <strong>Admin Version:</strong> Material prices are locked for consistency across estimates.
-              </p>
+              {canEditMaterialPrices() ? (
+                <p className="text-sm text-blue-800">
+                  🔓 <strong>Admin Access:</strong> You can modify material prices for this estimate.
+                </p>
+              ) : (
+                <p className="text-sm text-blue-800">
+                  🔒 <strong>Territory Manager:</strong> Material prices are locked for consistency across estimates.
+                </p>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -1781,46 +1805,39 @@ export function MaterialsSelectionTab({
                            const isSelected = !!localSelectedMaterials[material.id];
 
                            return (
-                            <div key={material.id} className="p-3 rounded-md border border-gray-200 hover:shadow-sm transition-shadow duration-150 ease-in-out">
-                              <div className="flex justify-between items-start">
-                                {/* Left Column: Details */}
-                                <div className="flex-grow space-y-1.5 pr-3">
-                                  {/* Editable Name */}
-                                  <div>
-                                    <Label htmlFor={`name-${material.id}`} className="sr-only">Material Name</Label>
-                                    <Input
-                                      id={`name-${material.id}`}
-                                      type="text"
-                                      defaultValue={material.name || ''} // Use defaultValue for initial render
-                                      // onChange no longer calls handleEditableMaterialPropertyChange directly
-                                      onBlur={(e) => handleEditableMaterialPropertyChange(material.id, 'name', e.target.value)} // Update main state on blur
-                                      className="h-8 text-base font-semibold border-0 border-b-2 border-transparent focus:border-indigo-500 focus:ring-0 rounded-none px-1 py-0 -ml-1 w-full"
-                                      disabled={readOnly}
-                                      placeholder="Material Name"
-                                      key={`name-input-${material.id}`} // Add a key to help React with defaultValue changes if material.id changes
-                                    />
-                                  </div>
-                          
-                                  {/* Editable Price & Static Unit */}
+                            <div key={material.id} className="border rounded-md p-3 bg-card hover:bg-muted/50 transition-colors">
+                              <div className="flex flex-col lg:flex-row justify-between items-start gap-3">
+                                {/* Left Column: Material Info */}
+                                <div className="flex-1 space-y-2">
+                                  <h4 className="text-sm font-medium">{material.name}</h4>
+                                  
                                   <div className="flex items-center space-x-2">
                                     <Label htmlFor={`price-${material.id}`} className="sr-only">Price</Label>
                                     <Input
                                       id={`price-${material.id}`}
                                       type="number"
                                       step="0.01"
-                                      defaultValue={material.price !== undefined ? String(material.price) : ''} // Use defaultValue
-                                      // onChange no longer calls handleEditableMaterialPropertyChange directly
-                                      onBlur={(e) => handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)} // Update main state on blur
-                                      className="h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24 bg-gray-100 text-gray-600"
-                                      disabled={true} // Always disabled for admin-estimator release
+                                      defaultValue={material.price !== undefined ? String(material.price) : ''} 
+                                      onBlur={(e) => canEditMaterialPrices() && handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)}
+                                      className={`h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24 ${
+                                        canEditMaterialPrices() ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-600'
+                                      }`}
+                                      disabled={!canEditMaterialPrices()}
                                       placeholder="0.00"
-                                      key={`price-input-${material.id}`} // Add a key
+                                      key={`price-input-${material.id}`}
                                     />
                                     {material.unit && <span className="text-sm text-gray-600">per {material.unit}</span>}
                                     {material.approxPerSquare && material.approxPerSquare > 0 && 
                                       <span className="text-xs text-gray-500">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
                                     }
                                   </div>
+                                  
+                                  {/* Role-based pricing info */}
+                                  {!canEditMaterialPrices() && (
+                                    <div className="text-xs text-muted-foreground bg-gray-50 p-2 rounded">
+                                      <span className="font-medium">Territory Manager:</span> Material pricing is managed by administrators to ensure consistency across all estimates.
+                                    </div>
+                                  )}
                                   
                                   {/* Static Coverage Rule Description */}
                                   {material.coverageRule?.description && (

@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronRight, RefreshCw, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, ChevronRight, RefreshCw, ArrowLeft, Loader2, Shield, Info, EyeOff } from "lucide-react";
 import { MeasurementForm } from "@/components/estimates/MeasurementForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaterialsSelectionTab } from "@/components/estimates/materials/MaterialsSelectionTab";
@@ -36,6 +36,8 @@ import { ROOFING_MATERIALS } from "@/components/estimates/materials/data";
 import { calculateMaterialQuantity } from "@/components/estimates/materials/utils";
 import { withTimeout } from "@/lib/withTimeout";
 import { EstimateTypeSelector } from "@/components/estimates/EstimateTypeSelector";
+import { useAuth } from "@/contexts/AuthContext";
+import { Badge } from "@/components/ui/badge";
 
 // Convert ParsedMeasurements to MeasurementValues format
 const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
@@ -119,6 +121,7 @@ const Estimates = () => {
   const [searchParams] = useSearchParams();
   const { estimateId } = useParams<{ estimateId: string }>();
   const measurementId = searchParams.get("measurementId") || searchParams.get("measurement");
+  const { profile } = useAuth();
   
   // State for view mode
   const [isViewMode, setIsViewMode] = useState(false);
@@ -1325,6 +1328,91 @@ const Estimates = () => {
     return total;
   };
 
+  // Role-based helper functions
+  const getRoleIcon = () => {
+    switch (profile?.role) {
+      case 'admin': return <Shield className="h-4 w-4 text-blue-600" />;
+      case 'manager': return <Info className="h-4 w-4 text-green-600" />;
+      case 'rep': return <EyeOff className="h-4 w-4 text-orange-600" />;
+      default: return <Info className="h-4 w-4" />;
+    }
+  };
+
+  const getRoleBadgeColor = () => {
+    switch (profile?.role) {
+      case 'admin': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'manager': return 'bg-green-100 text-green-800 border-green-300';
+      case 'rep': return 'bg-orange-100 text-orange-800 border-orange-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  const getRoleDescription = () => {
+    switch (profile?.role) {
+      case 'admin':
+        return {
+          title: 'Administrator Access',
+          description: 'Full access to all estimates and pricing modifications',
+          restrictions: ['Can modify material prices', 'Can set any profit margin', 'Can view all territories']
+        };
+      case 'manager':
+        return {
+          title: 'Territory Manager Access',
+          description: 'Territory-specific estimate management with pricing restrictions',
+          restrictions: ['Material prices are locked', 'Minimum 30% profit margin', 'Territory-specific data only']
+        };
+      case 'rep':
+        return {
+          title: 'Sales Representative Access',
+          description: 'Package-based estimation with automatic pricing',
+          restrictions: ['Package-based pricing only', 'Fixed profit margins', 'Own estimates only']
+        };
+      default:
+        return {
+          title: 'User Access',
+          description: 'Standard estimation access',
+          restrictions: []
+        };
+    }
+  };
+
+  // Add role-based banner component
+  const RoleBanner = () => {
+    const roleInfo = getRoleDescription();
+    
+    return (
+      <Card className={`border-2 ${getRoleBadgeColor().replace('bg-', 'border-').replace('text-', 'bg-').replace('100', '200')} mb-6`}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {getRoleIcon()}
+              <div>
+                <h3 className="font-semibold text-sm">{roleInfo.title}</h3>
+                <p className="text-xs text-muted-foreground">{roleInfo.description}</p>
+              </div>
+            </div>
+            <Badge className={getRoleBadgeColor()}>
+              {profile?.role?.toUpperCase() || 'USER'}
+            </Badge>
+          </div>
+          {roleInfo.restrictions.length > 0 && (
+            <div className="mt-3 pt-3 border-t">
+              <p className="text-xs font-medium mb-1">Role Restrictions:</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                {roleInfo.restrictions.map((restriction, index) => (
+                  <li key={index} className="flex items-center gap-1">
+                    <span className="w-1 h-1 bg-current rounded-full"></span>
+                    {restriction}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <>
       <div className="container mx-auto p-4 max-w-7xl">
@@ -1362,6 +1450,9 @@ const Estimates = () => {
           ) : (
             <p className="text-muted-foreground">Follow the steps below to create a complete estimate</p>
           )}
+          
+          {/* Role-based banner */}
+          <RoleBanner />
           
           <Card>
             <CardContent className="p-6">

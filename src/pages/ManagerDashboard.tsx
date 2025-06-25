@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Estimate, updateEstimateStatus } from '@/api/estimates';
 import { MetricCard } from '@/components/ui/MetricCard';
-import { ClipboardCheck, Clock, CheckCircle2, XCircle, MapPin, Users } from 'lucide-react';
+import { ClipboardCheck, Clock, CheckCircle2, XCircle, MapPin, Users, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useNavigate } from 'react-router-dom';
 
 interface Territory {
   id: string;
@@ -26,15 +27,21 @@ interface TeamMember {
   role: string;
 }
 
+// Extend Estimate type to include rejection_reason
+interface ExtendedEstimate extends Estimate {
+  rejection_reason?: string;
+}
+
 const ManagerDashboard: React.FC = () => {
   const { profile } = useAuth();
-  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const [estimates, setEstimates] = useState<ExtendedEstimate[]>([]);
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [rejectionNote, setRejectionNote] = useState('');
   const [selectedEstimate, setSelectedEstimate] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (profile?.territory_id) {
@@ -53,33 +60,50 @@ const ManagerDashboard: React.FC = () => {
   };
 
   const fetchEstimates = async () => {
-    const { data, error } = await supabase
-      .from('estimates')
-      .select('*')
-      .eq('territory_id', profile!.territory_id)
-      .order('created_at', { ascending: false });
-    
-    if (!error) setEstimates(data as Estimate[]);
-    else toast({ variant: 'destructive', title: 'Error loading estimates', description: error.message });
+    try {
+      const { data, error } = await supabase
+        .from('estimates' as any)
+        .select('*')
+        .eq('territory_id', profile!.territory_id)
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) setEstimates(data as ExtendedEstimate[]);
+      else if (error) toast({ variant: 'destructive', title: 'Error loading estimates', description: error.message });
+    } catch (error) {
+      console.error('Error fetching estimates:', error);
+    }
   };
 
   const fetchTerritory = async () => {
-    const { data, error } = await supabase
-      .from('territories')
-      .select('*')
-      .eq('id', profile!.territory_id)
-      .single();
-    
-    if (!error) setTerritory(data as Territory);
+    try {
+      const { data, error } = await supabase
+        .from('territories' as any)
+        .select('*')
+        .eq('id', profile!.territory_id)
+        .single();
+      
+      if (!error && data) setTerritory(data as Territory);
+    } catch (error) {
+      console.error('Error fetching territory:', error);
+    }
   };
 
   const fetchTeamMembers = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, email, full_name, role')
-      .eq('territory_id', profile!.territory_id);
-    
-    if (!error) setTeamMembers(data as TeamMember[]);
+    try {
+      const { data, error } = await supabase
+        .from('profiles' as any)
+        .select('id, email, full_name, role')
+        .eq('territory_id', profile!.territory_id);
+      
+      if (!error && data) setTeamMembers(data as TeamMember[]);
+    } catch (error) {
+      console.error('Error fetching team members:', error);
+    }
+  };
+
+  const handleCreateEstimate = () => {
+    // Navigate to estimate creation with manager context
+    navigate('/estimates?role=manager');
   };
 
   const handleApprove = async (id: string) => {
@@ -127,7 +151,7 @@ const ManagerDashboard: React.FC = () => {
     }
   };
 
-  const EstimateCard = ({ estimate }: { estimate: Estimate }) => (
+  const EstimateCard = ({ estimate }: { estimate: ExtendedEstimate }) => (
     <Card className="mb-4">
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-3">
@@ -229,14 +253,23 @@ const ManagerDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 p-6">
-      {/* Territory Header */}
+      {/* Territory Header with New Estimate Button */}
       {territory && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              {territory.name} Territory
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                {territory.name} Territory
+              </CardTitle>
+              <Button 
+                onClick={handleCreateEstimate}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Estimate
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid md:grid-cols-2 gap-4">
@@ -283,6 +316,27 @@ const ManagerDashboard: React.FC = () => {
           icon={<Users className="h-4 w-4"/>}
         />
       </div>
+
+      {/* Create Estimate Quick Action Card */}
+      <Card className="border-green-200 bg-green-50">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-green-800">Create New Estimate</h3>
+              <p className="text-sm text-green-600">
+                Territory Managers can create estimates with material pricing restrictions and 30% minimum profit margin
+              </p>
+            </div>
+            <Button 
+              onClick={handleCreateEstimate}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Start New Estimate
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Estimates Tabs */}
       <Tabs defaultValue="pending" className="w-full">
