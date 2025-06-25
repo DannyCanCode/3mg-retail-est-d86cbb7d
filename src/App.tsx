@@ -17,6 +17,7 @@ import { RoleGuard } from '@/components/RoleGuard';
 import Territories from '@/pages/Territories';
 import Subtrades from '@/pages/Subtrades';
 import Register from '@/pages/Register';
+import CheckEmailPage from '@/pages/CheckEmailPage';
 
 // Role-based dashboard redirection component
 const RoleDashboardRedirect: React.FC = () => {
@@ -67,6 +68,7 @@ const AppRoutes: React.FC = () => {
     <Routes>
       <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
       <Route path="/register" element={!user ? <Register /> : <Navigate to="/" replace />} />
+      <Route path="/check-email" element={<CheckEmailPage />} />
       
       <Route path="/" element={user ? <ProtectedLayout /> : <Navigate to="/login" replace />}>
         {/* Role-based dashboard routing */}

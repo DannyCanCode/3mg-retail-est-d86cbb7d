@@ -177,36 +177,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   async function fetchProfile(uid: string) {
     console.log(`[Auth] Fetching profile for user: ${uid}`);
     try {
-      // Simple timeout approach to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Profile fetch timed out')), 10000)
-      );
-
-      const profilePromise = supabase
+      // The profile might not exist immediately after signup due to trigger delays.
+      // We will attempt to fetch it, but gracefully handle if it's not there yet.
+      const { data, error } = await supabase
         .from('profiles' as any)
         .select('id, role, org_id, territory_id, completed_onboarding, full_name')
         .eq('id', uid)
         .single();
 
-      const result = await Promise.race([profilePromise, timeoutPromise]);
-      const { data, error } = result as any;
-      
-      if (error) {
+      if (error && error.code !== 'PGRST116') {
         console.error('[Auth] Error fetching profile:', error);
         setProfile(null);
       } else {
-        console.log('[Auth] Profile fetched successfully:', data);
-        setProfile(data as Profile);
+        const profileData = data as unknown as Profile | null;
+        console.log('[Auth] Profile fetch result:', profileData);
+        setProfile(profileData);
       }
     } catch (error: any) {
-      console.error('[Auth] Network error or timeout fetching profile:', error);
+      console.error('[Auth] Critical error in fetchProfile:', error);
       setProfile(null);
-      
-      // If timeout, show a user-friendly message and continue
-      if (error?.message?.includes('timed out')) {
-        console.warn('[Auth] Profile fetch timed out, continuing with basic auth only');
-        // Don't block the UI, just continue without profile for now
-      }
     }
   }
   

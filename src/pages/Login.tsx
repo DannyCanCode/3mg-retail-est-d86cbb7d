@@ -27,7 +27,15 @@ export default function Login() {
     });
     setLoading(false);
     if (error) {
-      toast({ title: "Login Failed", description: error.message, variant: "destructive" });
+      if (error.message.includes('Email not confirmed')) {
+        toast({
+          title: "Account Not Confirmed",
+          description: "Please check your email and click the confirmation link before logging in.",
+          variant: "destructive"
+        });
+      } else {
+        toast({ title: "Login Failed", description: error.message, variant: "destructive" });
+      }
     } else {
       navigate("/", { replace: true });
     }

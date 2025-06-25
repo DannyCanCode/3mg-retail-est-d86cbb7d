@@ -39,8 +39,8 @@ const Register: React.FC = () => {
     if (error) {
       toast({ title: 'Registration Failed', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Registration Successful', description: 'Please check your email to confirm your account.' });
-      navigate('/login');
+      toast({ title: 'Registration Submitted', description: 'Please check your email to confirm your account.' });
+      navigate('/check-email');
     }
   };
 

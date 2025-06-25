@@ -7,7 +7,8 @@ This is a production-ready version of the 3MG Roofing Estimator, focused on prov
 This version is deployed on Netlify from the `release/admin-estimator-v1` branch.
 
 ### **Authentication**
-- **Registration**: `/register` - Managers can self-register with their `@3mgroofing.com` email.
+- **Registration**: `/register` - Managers can self-register with their `@3mgroofing.com` email and password.
+- **Email Confirmation**: New users must confirm their email address before logging in.
 - **Login**: `/login` - Standard email and password login.
 - **Admin Access**: Admins are created via the Supabase dashboard and have full system access.
 
@@ -18,7 +19,6 @@ This version is deployed on Netlify from the `release/admin-estimator-v1` branch
 ### **1. Role-Based Permissions**
 - **Admins**: Full control over all estimates, pricing, users, and territories.
 - **Managers**: Can create estimates, approve/reject estimates within their assigned territory, and have a restricted profit margin of 30-35%.
-- **No Sales Rep access** in this version.
 
 ### **2. Estimate Workflow**
 - Create, edit, and manage detailed roofing estimates.
