@@ -51,13 +51,7 @@ serve(async (req) => {
     console.log(`[invite-user] Processing invitation for ${email} with role ${role}`);
 
     if (!email || !role) {
-      return new Response(
-        JSON.stringify({ error: "email and role required" }), 
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      return new Response(JSON.stringify({ error: "email and role required" }), { status: 400, ...corsHeaders });
     }
 
     // Validate email domain
@@ -83,57 +77,27 @@ serve(async (req) => {
       );
     }
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase.auth.admin.listUsers();
-    const userExists = existingUser.users.some(user => user.email === email);
-    
-    if (userExists) {
-      return new Response(
-        JSON.stringify({ error: "User with this email already exists" }), 
-        { 
-          status: 409,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-    }
-
-    // 1. Create auth user (no password, email invitation)
-    const { data: user, error: createErr } = await supabase.auth.admin.createUser({
-      email,
-      email_confirm: false,
+    // Use inviteUserByEmail which handles user creation and profile data atomically
+    const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
+      data: {
+        role,
+        is_admin: role === 'admin',
+        territory_id: territory_id || null,
+        org_id: org_id || null,
+        completed_onboarding: false,
+      }
     });
-    
-    if (createErr) {
-      console.error('[invite-user] Error creating user:', createErr);
-      throw createErr;
-    }
 
-    console.log(`[invite-user] Created auth user: ${user.user?.id}`);
-
-    // 2. Insert profile row with desired role/territory/org
-    const { error: insertErr } = await supabase.from("profiles").insert({
-      id: user.user?.id,
-      email,
-      role,
-      is_admin: role === 'admin',
-      territory_id: territory_id ?? null,
-      org_id: org_id ?? null,
-      completed_onboarding: false,
-    });
-    
-    if (insertErr) {
-      console.error('[invite-user] Error creating profile:', insertErr);
-      throw insertErr;
-    }
-
-    console.log(`[invite-user] Created profile for ${email} with role ${role}`);
-
-    // 3. Send magic link (numeric OTP) via normal flow
-    const { error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(email);
-    
-    if (inviteErr) {
-      console.error('[invite-user] Error sending invitation:', inviteErr);
-      throw inviteErr;
+    if (error) {
+      console.error('[invite-user] Error sending invitation:', error);
+      // Handle case where user already exists
+      if (error.message.includes('already registered')) {
+        return new Response(
+          JSON.stringify({ error: "User with this email already exists" }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw error;
     }
 
     console.log(`[invite-user] Successfully sent invitation to ${email}`);
@@ -142,12 +106,9 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: `Invitation sent to ${email}`,
-        user_id: user.user?.id
+        user_id: data.user.id
       }), 
-      { 
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {

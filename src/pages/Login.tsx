@@ -85,11 +85,11 @@ export default function Login() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center">
+        {/* <CardFooter className="flex justify-center">
           <p className="text-sm">
             Don't have an account? <Link to="/register" className="text-primary hover:underline">Register</Link>
           </p>
-        </CardFooter>
+        </CardFooter> */}
       </Card>
     </div>
   );
