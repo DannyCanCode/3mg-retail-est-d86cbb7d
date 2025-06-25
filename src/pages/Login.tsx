@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Building2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Building2 } from "lucide-react";
 
 const brandGreen = "#0F9D58";
 
@@ -34,21 +34,27 @@ export default function Login() {
     setLoading(true);
     
     try {
-      console.log('[Login] Attempting login for:', email);
+      if (import.meta.env.DEV) {
+        console.log('[Login] Attempting login for:', email);
+      }
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
       });
       
-      console.log('[Login] Auth response:', { data: !!data, error: error?.message });
+      if (import.meta.env.DEV) {
+        console.log('[Login] Auth response:', { data: !!data, error: error?.message });
+      }
       
       if (error) {
-        console.error('[Login] Authentication error:', {
-          message: error.message,
-          status: error.status,
-          name: error.name
-        });
+        if (import.meta.env.DEV) {
+          console.error('[Login] Authentication error:', {
+            message: error.message,
+            status: error.status,
+            name: error.name
+          });
+        }
         
         // Handle specific error cases
         if (error.message.includes('Email not confirmed')) {
@@ -84,11 +90,15 @@ export default function Login() {
           });
         }
       } else {
-        console.log('[Login] Login successful, navigating to dashboard...');
+        if (import.meta.env.DEV) {
+          console.log('[Login] Login successful, navigating to dashboard...');
+        }
         navigate("/", { replace: true });
       }
     } catch (error) {
-      console.error('[Login] Unexpected error during login:', error);
+      if (import.meta.env.DEV) {
+        console.error('[Login] Unexpected error during login:', error);
+      }
       toast({
         title: "Login Error",
         description: "An unexpected error occurred. Please try again.",
@@ -100,123 +110,110 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex">
-      {/* Left Side - Branding */}
-      <div 
-        className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center p-12 text-white relative"
-        style={{ background: `linear-gradient(135deg, ${brandGreen} 0%, #0E8A4F 100%)` }}
-      >
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="relative z-10 max-w-md text-center">
-          <Building2 className="h-16 w-16 mx-auto mb-6" />
-          <h1 className="text-4xl font-bold mb-4">3MG Roofing & Solar</h1>
-          <p className="text-xl font-light mb-8 opacity-90">
-            Professional Roofing Estimation Platform
-          </p>
-          <div className="space-y-4 text-left">
-            <div className="flex items-center space-x-3">
-              <ShieldCheck className="h-5 w-5" />
-              <span>Secure Team Access</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <ShieldCheck className="h-5 w-5" />
-              <span>Territory Management</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <ShieldCheck className="h-5 w-5" />
-              <span>Real-time Estimation</span>
-            </div>
+    <div
+      className="min-h-screen w-full flex items-center justify-center p-4"
+      style={{ background: `linear-gradient(135deg, ${brandGreen} 0%, #ffffff 65%)` }}
+    >
+      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
+        <CardHeader className="text-center space-y-4 pb-6">
+          <div className="mx-auto">
+            <Building2 className="h-16 w-16 mx-auto mb-4" style={{ color: brandGreen }} />
           </div>
-        </div>
-      </div>
-
-      {/* Right Side - Login Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-gray-50">
-        <Card className="w-full max-w-md shadow-lg border-0 bg-white">
-          <CardHeader className="text-center space-y-2 pb-6">
-            {/* Mobile Branding - Only shown on mobile */}
-            <div className="lg:hidden mb-4">
-              <Building2 className="h-12 w-12 mx-auto mb-3" style={{ color: brandGreen }} />
-              <h1 className="text-2xl font-bold" style={{ color: brandGreen }}>
-                3MG Roofing & Solar
-              </h1>
-            </div>
-            <CardTitle className="text-2xl font-semibold text-gray-800">
+          <div>
+            <h1 className="text-4xl font-bold mb-2" style={{ color: brandGreen }}>
+              3MG Roofing & Solar
+            </h1>
+            <CardTitle className="text-2xl font-semibold text-gray-800 mb-2">
               Sign in to Estimator
             </CardTitle>
             <p className="text-gray-600">Enter your credentials to access the platform</p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                  Email Address
-                </label>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium text-gray-700">
+                Email Address
+              </label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="daniel.pedraza@3mgroofing.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+                className="h-12 border-2 focus:border-green-500"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <div className="relative">
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="daniel.pedraza@3mgroofing.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={loading}
-                  className="h-11"
+                  className="h-12 border-2 focus:border-green-500 pr-12"
                 />
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="password" className="text-sm font-medium text-gray-700">
-                  Password
-                </label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                    className="h-11 pr-10"
-                  />
-                  <button
-                    type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={loading}
-                  >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                  </button>
-                </div>
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full h-11 text-base font-medium"
-                disabled={loading}
-                style={{ backgroundColor: brandGreen }}
-              >
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Signing in...</span>
-                  </div>
-                ) : (
-                  'Sign In'
-                )}
-              </Button>
-            </form>
-            
-            {/* Demo Credentials Helper */}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <h4 className="text-sm font-medium text-blue-800 mb-2">Test Accounts:</h4>
-              <div className="text-xs text-blue-700 space-y-1">
-                <div><strong>Admin:</strong> daniel.pedraza@3mgroofing.com (Daniel2024!)</div>
-                <div><strong>Manager:</strong> nickolas.nell@3mgroofing.com (Nick2024!)</div>
-                <div><strong>Admin:</strong> connor@3mgroofing.com (Connor2024!)</div>
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={loading}
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <Button 
+              type="submit" 
+              className="w-full h-12 text-lg font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-200"
+              disabled={loading}
+              style={{ 
+                backgroundColor: brandGreen,
+                borderRadius: '8px'
+              }}
+            >
+              {loading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Signing in...</span>
+                </div>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+          </form>
+          
+          {/* Demo Credentials Helper */}
+          <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-lg">
+            <h4 className="text-sm font-bold text-gray-800 mb-3 flex items-center">
+              <Building2 className="h-4 w-4 mr-2" style={{ color: brandGreen }} />
+              Test Accounts:
+            </h4>
+            <div className="text-xs text-gray-700 space-y-2">
+              <div className="flex justify-between">
+                <span><strong>Admin:</strong> daniel.pedraza@3mgroofing.com</span>
+                <code className="bg-white px-1 rounded">Daniel2024!</code>
+              </div>
+              <div className="flex justify-between">
+                <span><strong>Manager:</strong> nickolas.nell@3mgroofing.com</span>
+                <code className="bg-white px-1 rounded">Nick2024!</code>
+              </div>
+              <div className="flex justify-between">
+                <span><strong>Admin:</strong> connor@3mgroofing.com</span>
+                <code className="bg-white px-1 rounded">Connor2024!</code>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 } 

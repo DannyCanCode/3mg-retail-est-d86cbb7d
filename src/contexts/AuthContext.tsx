@@ -29,139 +29,172 @@ const AuthContext = createContext<AuthCtx>({
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
-  // Simplified logout function
-  const logout = useCallback(async () => {
-    if (import.meta.env.DEV) {
-      console.log('[Auth] Manual logout initiated');
-    }
+  // Fetch user profile data
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
-      await supabase.auth.signOut();
+      if (import.meta.env.DEV) {
+        console.log('[AuthContext] Fetching profile for user:', userId);
+      }
+      
+      const { data, error } = await supabase
+        .from('profiles' as any)
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.error('[AuthContext] Profile fetch error:', error);
+        }
+        return null;
+      }
+
+      if (import.meta.env.DEV) {
+        console.log('[AuthContext] Profile fetched successfully:', data);
+      }
+      return data as unknown as Profile;
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.error('[Auth] Error during logout:', error);
+        console.error('[AuthContext] Profile fetch exception:', error);
       }
+      return null;
     }
   }, []);
 
+  // Initialize auth state
   useEffect(() => {
-    let mounted = true;
-
-    // Get initial session
-    const getInitialSession = async () => {
+    let isMounted = true;
+    
+    const initializeAuth = async () => {
       try {
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        if (import.meta.env.DEV) {
+          console.log('[AuthContext] Initializing auth state...');
+        }
         
-        if (!mounted) return;
+        // Get initial session
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
         if (error) {
           if (import.meta.env.DEV) {
-            console.error('[Auth] Error getting initial session:', error);
+            console.error('[AuthContext] Error getting initial session:', error);
           }
-          setLoading(false);
+          if (isMounted) {
+            setLoading(false);
+          }
           return;
         }
 
-        if (initialSession) {
+        if (initialSession?.user && isMounted) {
           setSession(initialSession);
           setUser(initialSession.user);
-          await fetchProfile(initialSession.user.id);
+          
+          // Fetch profile
+          const profileData = await fetchProfile(initialSession.user.id);
+          if (isMounted) {
+            setProfile(profileData);
+          }
         }
         
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          setMounted(true);
+        }
       } catch (error) {
         if (import.meta.env.DEV) {
-          console.error('[Auth] Critical error getting initial session:', error);
+          console.error('[AuthContext] Auth initialization error:', error);
         }
-        if (mounted) {
+        if (isMounted) {
           setLoading(false);
+          setMounted(true);
         }
       }
     };
+
+    initializeAuth();
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mounted) return;
-
+        if (!isMounted) return;
+        
         if (import.meta.env.DEV) {
-          console.log(`[Auth] Auth state changed: ${event}`);
+          console.log('[AuthContext] Auth state changed:', event, !!session);
         }
-        
-        setSession(session);
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
 
-        if (currentUser) {
-          await fetchProfile(currentUser.id);
-        } else {
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
           setProfile(null);
+          setSession(null);
+          setLoading(false);
+          return;
         }
-        
-        setLoading(false);
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          setSession(session);
+          setUser(session.user);
+          setLoading(true);
+          
+          // Fetch profile
+          const profileData = await fetchProfile(session.user.id);
+          if (isMounted) {
+            setProfile(profileData);
+            setLoading(false);
+          }
+        }
       }
     );
 
-    // Initialize
-    getInitialSession();
-
     return () => {
-      mounted = false;
+      isMounted = false;
       subscription.unsubscribe();
     };
+  }, [fetchProfile]);
+
+  // Logout function
+  const logout = useCallback(async () => {
+    try {
+      if (import.meta.env.DEV) {
+        console.log('[AuthContext] Logging out...');
+      }
+      
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.error('[AuthContext] Logout error:', error);
+        }
+      }
+      
+      // Clear state
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('[AuthContext] Logout exception:', error);
+      }
+    }
   }, []);
 
-  const fetchProfile = async (uid: string) => {
-    if (import.meta.env.DEV) {
-      console.log(`[Auth] Fetching profile for user: ${uid}`);
-    }
-    
-    try {
-      const { data, error } = await supabase
-        .from('profiles' as any)
-        .select('id, role, org_id, territory_id, completed_onboarding, full_name')
-        .eq('id', uid)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        if (import.meta.env.DEV) {
-          console.error('[Auth] Error fetching profile:', error);
-        }
-        setProfile(null);
-      } else {
-        const profileData = data as unknown as Profile | null;
-        if (import.meta.env.DEV) {
-          console.log('[Auth] Profile fetch result:', profileData);
-        }
-        setProfile(profileData);
-      }
-    } catch (error: any) {
-      if (import.meta.env.DEV) {
-        console.error('[Auth] Critical error in fetchProfile:', error);
-      }
-      setProfile(null);
-    }
+  const value = {
+    user,
+    loading: loading || !mounted,
+    profile,
+    session,
+    logout
   };
-  
-  const value = { session, user, profile, loading, logout };
 
-  if (import.meta.env.DEV) {
-    console.log('[DEBUG] AuthContext value updated:', { 
-      hasUser: !!user, 
-      hasProfile: !!profile, 
-      loading,
-      role: profile?.role 
-    });
-  }
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
