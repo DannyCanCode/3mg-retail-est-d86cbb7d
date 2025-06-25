@@ -591,7 +591,8 @@ const Estimates = () => {
       return;
     }
     const liveTotal = calculateLiveEstimateTotal(); // Calculate the total using the live function
-    const estimatePayload: Partial<EstimateType> = { // Changed Estimate to EstimateType
+    
+    const estimatePayload: any = { // Use 'any' type to allow additional fields
       customer_address: measurements.propertyAddress || "Address not provided",
       total_price: liveTotal, // Use the live calculated total
       materials: selectedMaterials,
@@ -600,6 +601,11 @@ const Estimates = () => {
       profit_margin: profitMargin,
       measurements: measurements,
       peel_stick_addon_cost: parseFloat(peelStickAddonCost) || 0,
+      // Add role-based fields for proper filtering (will be handled by database if columns exist)
+      ...(profile?.id && { created_by: profile.id }),
+      ...(profile?.territory_id && { territory_id: profile.territory_id }),
+      ...(estimateType && { estimate_type: estimateType }),
+      ...(selectedSubtrades.length > 0 && { selected_subtrades: selectedSubtrades }),
       // status will be set to 'pending' by the saveEstimate API if it's a new record
     };
     
@@ -682,7 +688,7 @@ const Estimates = () => {
   
   // Function to start fresh and clear all state
   const handleClearEstimate = () => {
-    setActiveTab("upload");
+    setActiveTab("type-selection");
     setExtractedPdfData(null);
     setPdfFileName(null);
     setMeasurements(null);
@@ -722,11 +728,8 @@ const Estimates = () => {
     setStoredMeasurements(null);
     setStoredFileName("");
     
-    // Clear any URL parameters
-    navigate("/estimates");
-    
-    // Force a page reload to ensure all components reset properly
-    window.location.reload();
+    // Clear any URL parameters and navigate to clean estimates page
+    navigate("/estimates", { replace: true });
     
     toast({
       title: "Started fresh",

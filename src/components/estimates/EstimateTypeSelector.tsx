@@ -134,18 +134,24 @@ export const EstimateTypeSelector: React.FC<EstimateTypeSelectorProps> = ({
             </div>
 
             {/* Roof + Subtrades Option */}
-            <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50">
-              <RadioGroupItem value="with_subtrades" id="with_subtrades" />
-              <Label htmlFor="with_subtrades" className="flex-1 cursor-pointer">
+            <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 opacity-60 cursor-not-allowed">
+              <RadioGroupItem value="with_subtrades" id="with_subtrades" disabled />
+              <Label htmlFor="with_subtrades" className="flex-1 cursor-not-allowed">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
                       <Wrench className="h-4 w-4" />
                       <span className="font-medium">Roof + Subtrades</span>
                       <Badge variant="outline">Complex</Badge>
+                      <Badge variant="destructive" className="bg-orange-100 text-orange-800 border-orange-300">
+                        In Development
+                      </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
                       Comprehensive estimate including roofing and additional services
+                    </p>
+                    <p className="text-xs text-orange-600 font-medium mt-1">
+                      🚧 In development - Do not click. Use "Roof Shingles Only" for now.
                     </p>
                   </div>
                   {estimateType === 'with_subtrades' && (

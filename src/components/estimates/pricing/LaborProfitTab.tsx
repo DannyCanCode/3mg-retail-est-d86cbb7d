@@ -12,6 +12,7 @@ import { MeasurementValues } from "../measurement/types";
 import { Material } from "../materials/types";
 import { toast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { RoleBasedProfitMargin } from "./RoleBasedProfitMargin";
 
 interface LaborProfitTabProps {
   onBack: () => void;
@@ -1229,22 +1230,12 @@ export function LaborProfitTab({
         
         {/* Profit Margin */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Profit Margin</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <Label htmlFor="profitMargin">Profit Margin (%)</Label>
-              <span className="font-medium">{profitMargin}%</span>
-            </div>
-            <Slider
-              id="profitMargin"
-              value={[profitMargin]}
-              min={0}
-              max={50}
-              step={1}
-              onValueChange={handleProfitMarginChange}
-              onValueCommit={handleProfitMarginCommit}
-            />
-          </div>
+          <RoleBasedProfitMargin
+            profitMargin={profitMargin}
+            onProfitMarginChange={handleProfitMarginChange}
+            onProfitMarginCommit={handleProfitMarginCommit}
+            readOnly={readOnly}
+          />
         </div>
         
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
