@@ -20,24 +20,82 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form inputs
+    if (!email.trim() || !password.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both email and password.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
-    if (error) {
-      if (error.message.includes('Email not confirmed')) {
-        toast({
-          title: "Account Not Confirmed",
-          description: "Please check your email and click the confirmation link before logging in.",
-          variant: "destructive"
+    
+    try {
+      console.log('[Login] Attempting login for:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      
+      console.log('[Login] Auth response:', { data: !!data, error: error?.message });
+      
+      if (error) {
+        console.error('[Login] Authentication error:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
         });
+        
+        // Handle specific error cases
+        if (error.message.includes('Email not confirmed')) {
+          toast({
+            title: "Account Not Confirmed",
+            description: "Please check your email and click the confirmation link before logging in.",
+            variant: "destructive"
+          });
+        } else if (error.message.includes('Invalid login credentials')) {
+          toast({
+            title: "Invalid Credentials",
+            description: "The email or password you entered is incorrect. Please try again.",
+            variant: "destructive"
+          });
+        } else if (error.message.includes('Too many requests')) {
+          toast({
+            title: "Too Many Attempts",
+            description: "Too many login attempts. Please wait a moment before trying again.",
+            variant: "destructive"
+          });
+        } else if (error.message.includes('Network')) {
+          toast({
+            title: "Network Error",
+            description: "Please check your internet connection and try again.",
+            variant: "destructive"
+          });
+        } else {
+          // Generic error handling
+          toast({ 
+            title: "Login Failed", 
+            description: error.message || "An unexpected error occurred during login.",
+            variant: "destructive" 
+          });
+        }
       } else {
-        toast({ title: "Login Failed", description: error.message, variant: "destructive" });
+        console.log('[Login] Login successful, navigating to dashboard...');
+        navigate("/", { replace: true });
       }
-    } else {
-      navigate("/", { replace: true });
+    } catch (error) {
+      console.error('[Login] Unexpected error during login:', error);
+      toast({
+        title: "Login Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -63,6 +121,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
             />
             <div className="relative">
               <Input
@@ -71,11 +130,13 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={loading}
               />
               <button
                 type="button"
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 onClick={() => setShowPassword(!showPassword)}
+                disabled={loading}
               >
                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>

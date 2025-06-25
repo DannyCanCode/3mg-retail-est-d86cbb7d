@@ -50,8 +50,8 @@ export const supabase = createClient<Database>(
   {
     auth: {
       persistSession: true,          // keep token in memory/localStorage via safeStorage
-      autoRefreshToken: false,
-      detectSessionInUrl: false,
+      autoRefreshToken: true,        // FIXED: Enable auto refresh to prevent authentication failures
+      detectSessionInUrl: true,      // FIXED: Enable session detection for better auth handling
       storage: safeStorage(),
     },
   }
