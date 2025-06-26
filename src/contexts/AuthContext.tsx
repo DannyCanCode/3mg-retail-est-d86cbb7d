@@ -11,30 +11,64 @@ interface Profile {
   full_name?: string | null;
 }
 
-interface AuthCtx {
+interface AuthContextType {
   user: User | null;
-  loading: boolean;
-  profile: Profile | null;
   session: Session | null;
-  logout: () => Promise<void>;
+  profile: Profile | null;
+  loading: boolean;
+  mounted: boolean;
+  profileError: string | null;
+  profileFetchAttempts: number;
 }
 
-const AuthContext = createContext<AuthCtx>({ 
-  user: null, 
-  loading: true, 
-  profile: null, 
-  session: null,
-  logout: async () => {}
-});
+const AuthContext = createContext<AuthContextType | null>(null);
+
+// PERFORMANCE OPTIMIZATION: Simple sessionStorage for current tab only (won't interfere with estimate creation)
+const SESSION_CACHE_KEY = 'auth_fast_load';
+
+const getSessionCache = () => {
+  try {
+    const cached = sessionStorage.getItem(SESSION_CACHE_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch {
+    return null;
+  }
+};
+
+const setSessionCache = (user: User | null, profile: Profile | null) => {
+  try {
+    if (user && profile) {
+      sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ user, profile, timestamp: Date.now() }));
+    } else {
+      sessionStorage.removeItem(SESSION_CACHE_KEY);
+    }
+  } catch {
+    // Ignore errors
+  }
+};
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
-  const [profileFetchAttempts, setProfileFetchAttempts] = useState(0);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileFetchAttempts, setProfileFetchAttempts] = useState(0);
+
+  // PERFORMANCE OPTIMIZATION: Load from sessionStorage for instant UI (current tab only)
+  useEffect(() => {
+    const cached = getSessionCache();
+    if (cached?.user && cached?.profile && (Date.now() - cached.timestamp < 60000)) { // 1 minute cache
+      if (import.meta.env.DEV) {
+        console.log('[AuthContext] Fast loading from session cache');
+      }
+      setUser(cached.user);
+      setProfile(cached.profile);
+      setLoading(false);
+      setMounted(true);
+    }
+  }, []);
 
   // Fetch user profile data with retry logic
   const fetchProfile = useCallback(async (userId: string, attempt: number = 1): Promise<Profile | null> => {
@@ -129,8 +163,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch profile with timeout and retry
   const fetchProfileWithTimeout = useCallback(async (userId: string) => {
-    const maxAttempts = 3;
-    const timeout = 3000; // Reduced to 3 seconds for faster response
+    const maxAttempts = 2; // Reduced from 3 to 2 attempts
+    const timeout = 1000; // Reduced from 3000ms to 1000ms for faster tab switching
     
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       setProfileFetchAttempts(attempt);
@@ -153,7 +187,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (import.meta.env.DEV) {
             console.log(`[AuthContext] Profile fetch attempt ${attempt} failed, retrying...`);
           }
-          await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // Shorter exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 200 * attempt)); // Faster retry delay
         }
       } catch (error) {
         if (import.meta.env.DEV) {
@@ -285,6 +319,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [fetchProfile]);
 
+  // PERFORMANCE OPTIMIZATION: Reduce auth initialization timeout from 8s to 3s for faster loading
   // Initialize auth state
   useEffect(() => {
     let isMounted = true;
@@ -296,64 +331,67 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log('[AuthContext] Initializing auth state...');
         }
         
-        // CRITICAL FIX: Set a maximum initialization timeout to prevent infinite loading
+        // CRITICAL FIX: Reduced timeout from 8s to 3s for faster tab switching
         initializationTimeout = setTimeout(() => {
           if (isMounted) {
             if (import.meta.env.DEV) {
-              console.warn('[AuthContext] Auth initialization timeout, forcing completion');
+              console.warn('[AuthContext] Auth initialization timeout (3s), forcing completion');
             }
             setLoading(false);
             setMounted(true);
           }
-        }, 8000); // 8 seconds max initialization time
+        }, 3000); // Reduced from 8000ms to 3000ms
         
         // Get initial session with timeout
         const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<never>((_, reject) => 
-          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
+        const timeoutPromise = new Promise<null>((_, reject) => 
+          setTimeout(() => reject(new Error('Session fetch timeout')), 2000) // 2s timeout
         );
         
-        const { data: { session: initialSession }, error } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]);
-        
-        if (error) {
-          if (import.meta.env.DEV) {
-            console.error('[AuthContext] Error getting initial session:', error);
-          }
-          if (isMounted) {
-            setLoading(false);
-            setMounted(true);
-          }
-          return;
-        }
-
-        if (initialSession?.user && isMounted) {
-          setSession(initialSession);
-          setUser(initialSession.user);
+        try {
+          const result = await Promise.race([sessionPromise, timeoutPromise]);
           
-          // Fetch profile with timeout
-          const profileData = await fetchProfileWithTimeout(initialSession.user.id);
-          if (isMounted) {
-            setProfile(profileData);
+          if (result && 'data' in result) {
+            const { data: { session }, error } = result;
+            
+            if (error) {
+              if (import.meta.env.DEV) {
+                console.error('[AuthContext] Session error:', error);
+              }
+              setLoading(false);
+              setMounted(true);
+              return;
+            }
+            
+            if (session) {
+              setSession(session);
+              setUser(session.user);
+              
+              // Fast profile fetch with shorter timeout for immediate UI
+              const profileData = await fetchProfileWithTimeout(session.user.id);
+              if (profileData && isMounted) {
+                setProfile(profileData);
+                // PERFORMANCE OPTIMIZATION: Cache successful auth state for faster future loads
+                setSessionCache(session.user, profileData);
+              }
+            }
+          }
+        } catch (timeoutError) {
+          if (import.meta.env.DEV) {
+            console.warn('[AuthContext] Session fetch timeout, continuing without session');
           }
         }
         
-        if (isMounted) {
-          clearTimeout(initializationTimeout);
-          setLoading(false);
-          setMounted(true);
-        }
+        setLoading(false);
+        setMounted(true);
+        clearTimeout(initializationTimeout);
+        
       } catch (error) {
         if (import.meta.env.DEV) {
           console.error('[AuthContext] Auth initialization error:', error);
         }
-        if (isMounted) {
-          clearTimeout(initializationTimeout);
-          setLoading(false);
-          setMounted(true);
-        }
+        setLoading(false);
+        setMounted(true);
       }
     };
 
@@ -395,6 +433,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             if (isMounted) {
               setProfile(profileData);
               setLoading(false);
+              // PERFORMANCE OPTIMIZATION: Cache successful auth state for faster future loads
+              setSessionCache(session.user, profileData);
             }
           } catch (error) {
             if (import.meta.env.DEV) {
@@ -501,10 +541,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const value = {
     user,
-    loading: loading || !mounted,
-    profile,
     session,
-    logout
+    profile,
+    loading,
+    mounted,
+    profileError,
+    profileFetchAttempts
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
