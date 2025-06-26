@@ -59,15 +59,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (import.meta.env.DEV) {
             console.log('[AuthContext] Profile not found, creating default profile');
           }
-          // Create default profile for this user
+          
+          // CRITICAL FIX: Check if this is a known admin email before creating fallback
+          const { data: { user } } = await supabase.auth.getUser();
+          const userEmail = user?.email?.toLowerCase() || '';
+          
+          // Known admin emails - these should have admin privileges
+          const adminEmails = [
+            'daniel.pedraza@3mgroofing.com',
+            'connor@3mgroofing.com',
+            'jay.moroff@3mgroofing.com',
+            'jhagan@3mgroofing.com',
+            'tyler.powell@3mgroofing.com'
+          ];
+          
+          // Known manager emails 
+          const managerEmails = [
+            'nickolas.nell@3mgroofing.com'
+          ];
+          
+          let defaultRole = 'rep';
+          let shouldCompleteOnboarding = false;
+          
+          if (adminEmails.includes(userEmail)) {
+            defaultRole = 'admin';
+            shouldCompleteOnboarding = true; // Admins should not need onboarding
+            if (import.meta.env.DEV) {
+              console.log('[AuthContext] Creating admin fallback profile for known admin email:', userEmail);
+            }
+          } else if (managerEmails.includes(userEmail)) {
+            defaultRole = 'manager';
+            shouldCompleteOnboarding = true; // Managers should not need onboarding
+            if (import.meta.env.DEV) {
+              console.log('[AuthContext] Creating manager fallback profile for known manager email:', userEmail);
+            }
+          } else if (userEmail.endsWith('@3mgroofing.com')) {
+            // For unknown 3mg emails, default to rep but don't complete onboarding
+            defaultRole = 'rep';
+            shouldCompleteOnboarding = false;
+            if (import.meta.env.DEV) {
+              console.log('[AuthContext] Creating rep fallback profile for unknown 3mg email:', userEmail);
+            }
+          }
+          
           const defaultProfile: Profile = {
             id: userId,
-            role: 'rep', // Default role
-            completed_onboarding: false,
+            role: defaultRole,
+            completed_onboarding: shouldCompleteOnboarding,
             full_name: null,
             org_id: null,
             territory_id: null
           };
+          
           setProfileError(null);
           return defaultProfile;
         }
@@ -124,34 +167,124 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         
         if (attempt === maxAttempts) {
-          // CRITICAL FIX: Always provide a fallback profile to prevent infinite loading
+          // CRITICAL FIX: Use email-based role detection for emergency fallback
           if (import.meta.env.DEV) {
-            console.log('[AuthContext] All profile fetch attempts failed, using fallback profile to prevent white screen');
+            console.log('[AuthContext] All profile fetch attempts failed, using email-based fallback profile to prevent white screen');
           }
-          return {
-            id: userId,
-            role: 'rep',
-            completed_onboarding: false,
-            full_name: null,
-            org_id: null,
-            territory_id: null
-          } as Profile;
+          
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            const userEmail = user?.email?.toLowerCase() || '';
+            
+            // Known admin emails
+            const adminEmails = [
+              'daniel.pedraza@3mgroofing.com',
+              'connor@3mgroofing.com',
+              'jay.moroff@3mgroofing.com',
+              'jhagan@3mgroofing.com',
+              'tyler.powell@3mgroofing.com'
+            ];
+            
+            // Known manager emails 
+            const managerEmails = [
+              'nickolas.nell@3mgroofing.com'
+            ];
+            
+            let defaultRole = 'rep';
+            let shouldCompleteOnboarding = false;
+            
+            if (adminEmails.includes(userEmail)) {
+              defaultRole = 'admin';
+              shouldCompleteOnboarding = true;
+            } else if (managerEmails.includes(userEmail)) {
+              defaultRole = 'manager';
+              shouldCompleteOnboarding = true;
+            } else if (userEmail.endsWith('@3mgroofing.com')) {
+              defaultRole = 'rep';
+              shouldCompleteOnboarding = false;
+            }
+            
+            return {
+              id: userId,
+              role: defaultRole,
+              completed_onboarding: shouldCompleteOnboarding,
+              full_name: null,
+              org_id: null,
+              territory_id: null
+            } as Profile;
+          } catch (getUserError) {
+            if (import.meta.env.DEV) {
+              console.error('[AuthContext] Failed to get user for email detection:', getUserError);
+            }
+            // Last resort fallback
+            return {
+              id: userId,
+              role: 'rep',
+              completed_onboarding: false,
+              full_name: null,
+              org_id: null,
+              territory_id: null
+            } as Profile;
+          }
         }
       }
     }
     
-    // CRITICAL FIX: This should never be reached, but if it is, provide fallback
+    // CRITICAL FIX: This should never be reached, but if it is, provide email-based fallback
     if (import.meta.env.DEV) {
       console.error('[AuthContext] Unexpected end of fetchProfileWithTimeout, providing emergency fallback');
     }
-    return {
-      id: userId,
-      role: 'rep',
-      completed_onboarding: false,
-      full_name: null,
-      org_id: null,
-      territory_id: null
-    } as Profile;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userEmail = user?.email?.toLowerCase() || '';
+      
+      // Same email detection logic
+      const adminEmails = [
+        'daniel.pedraza@3mgroofing.com',
+        'connor@3mgroofing.com',
+        'jay.moroff@3mgroofing.com',
+        'jhagan@3mgroofing.com',
+        'tyler.powell@3mgroofing.com'
+      ];
+      
+      const managerEmails = [
+        'nickolas.nell@3mgroofing.com'
+      ];
+      
+      let defaultRole = 'rep';
+      let shouldCompleteOnboarding = false;
+      
+      if (adminEmails.includes(userEmail)) {
+        defaultRole = 'admin';
+        shouldCompleteOnboarding = true;
+      } else if (managerEmails.includes(userEmail)) {
+        defaultRole = 'manager'; 
+        shouldCompleteOnboarding = true;
+      } else if (userEmail.endsWith('@3mgroofing.com')) {
+        defaultRole = 'rep';
+        shouldCompleteOnboarding = false;
+      }
+      
+      return {
+        id: userId,
+        role: defaultRole,
+        completed_onboarding: shouldCompleteOnboarding,
+        full_name: null,
+        org_id: null,
+        territory_id: null
+      } as Profile;
+    } catch (getUserError) {
+      // Absolute last resort
+      return {
+        id: userId,
+        role: 'rep',
+        completed_onboarding: false,
+        full_name: null,
+        org_id: null,
+        territory_id: null
+      } as Profile;
+    }
   }, [fetchProfile]);
 
   // Initialize auth state
@@ -272,14 +405,55 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             // Provide fallback profile even on timeout
             if (isMounted) {
-              setProfile({
-                id: session.user.id,
-                role: 'rep',
-                completed_onboarding: false,
-                full_name: null,
-                org_id: null,
-                territory_id: null
-              });
+              // CRITICAL FIX: Use email-based role detection for fallback
+              try {
+                const userEmail = session.user.email?.toLowerCase() || '';
+                
+                const adminEmails = [
+                  'daniel.pedraza@3mgroofing.com',
+                  'connor@3mgroofing.com',
+                  'jay.moroff@3mgroofing.com',
+                  'jhagan@3mgroofing.com',
+                  'tyler.powell@3mgroofing.com'
+                ];
+                
+                const managerEmails = [
+                  'nickolas.nell@3mgroofing.com'
+                ];
+                
+                let defaultRole = 'rep';
+                let shouldCompleteOnboarding = false;
+                
+                if (adminEmails.includes(userEmail)) {
+                  defaultRole = 'admin';
+                  shouldCompleteOnboarding = true;
+                } else if (managerEmails.includes(userEmail)) {
+                  defaultRole = 'manager';
+                  shouldCompleteOnboarding = true;
+                } else if (userEmail.endsWith('@3mgroofing.com')) {
+                  defaultRole = 'rep';
+                  shouldCompleteOnboarding = false;
+                }
+                
+                setProfile({
+                  id: session.user.id,
+                  role: defaultRole,
+                  completed_onboarding: shouldCompleteOnboarding,
+                  full_name: null,
+                  org_id: null,
+                  territory_id: null
+                });
+              } catch (emailError) {
+                // Last resort fallback
+                setProfile({
+                  id: session.user.id,
+                  role: 'rep',
+                  completed_onboarding: false,
+                  full_name: null,
+                  org_id: null,
+                  territory_id: null
+                });
+              }
               setLoading(false);
             }
           }
