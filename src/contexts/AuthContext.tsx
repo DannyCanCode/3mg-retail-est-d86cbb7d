@@ -35,10 +35,15 @@ const getSessionCache = () => {
   }
 };
 
-const setSessionCache = (user: User | null, profile: Profile | null) => {
+const setSessionCache = (user: User | null, profile: Profile | null, session?: Session | null) => {
   try {
     if (user && profile) {
-      sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ user, profile, timestamp: Date.now() }));
+      sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ 
+        user, 
+        profile, 
+        session: session || null,
+        timestamp: Date.now() 
+      }));
     } else {
       sessionStorage.removeItem(SESSION_CACHE_KEY);
     }
@@ -55,18 +60,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [mounted, setMounted] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [profileFetchAttempts, setProfileFetchAttempts] = useState(0);
+  const [cacheLoaded, setCacheLoaded] = useState(false); // Track if we loaded from cache
 
   // PERFORMANCE OPTIMIZATION: Load from sessionStorage for instant UI (current tab only)
   useEffect(() => {
     const cached = getSessionCache();
     if (cached?.user && cached?.profile && (Date.now() - cached.timestamp < 60000)) { // 1 minute cache
       if (import.meta.env.DEV) {
-        console.log('[AuthContext] Fast loading from session cache');
+        console.log('[AuthContext] Fast loading from session cache - SKIPPING auth initialization');
       }
       setUser(cached.user);
       setProfile(cached.profile);
+      setSession(cached.session || { user: cached.user } as Session); // Use cached session or create minimal one
       setLoading(false);
       setMounted(true);
+      setCacheLoaded(true); // Mark that we loaded from cache
     }
   }, []);
 
@@ -322,6 +330,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // PERFORMANCE OPTIMIZATION: Reduce auth initialization timeout from 8s to 3s for faster loading
   // Initialize auth state
   useEffect(() => {
+    // CRITICAL OPTIMIZATION: Skip auth initialization if we loaded from cache
+    if (cacheLoaded) {
+      if (import.meta.env.DEV) {
+        console.log('[AuthContext] Skipping auth initialization - using cached data');
+      }
+      return;
+    }
+
     let isMounted = true;
     let initializationTimeout: NodeJS.Timeout;
     
@@ -372,7 +388,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               if (profileData && isMounted) {
                 setProfile(profileData);
                 // PERFORMANCE OPTIMIZATION: Cache successful auth state for faster future loads
-                setSessionCache(session.user, profileData);
+                setSessionCache(session.user, profileData, session);
               }
             }
           }
@@ -426,7 +442,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const profileData = await Promise.race([
               fetchProfileWithTimeout(session.user.id),
               new Promise<Profile>((_, reject) => 
-                setTimeout(() => reject(new Error('Profile fetch timeout during auth change')), 6000)
+                setTimeout(() => reject(new Error('Profile fetch timeout during auth change')), 1000)
               )
             ]);
             
@@ -434,7 +450,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setProfile(profileData);
               setLoading(false);
               // PERFORMANCE OPTIMIZATION: Cache successful auth state for faster future loads
-              setSessionCache(session.user, profileData);
+              setSessionCache(session.user, profileData, session);
             }
           } catch (error) {
             if (import.meta.env.DEV) {
@@ -510,7 +526,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
       subscription.unsubscribe();
     };
-  }, [fetchProfileWithTimeout]);
+  }, [fetchProfileWithTimeout, cacheLoaded]);
 
   // Logout function
   const logout = useCallback(async () => {

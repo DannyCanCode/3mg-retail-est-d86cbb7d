@@ -24,7 +24,7 @@ const ProtectedLayout: React.FC = () => {
           console.warn('[ProtectedLayout] Loading timeout reached, showing recovery options');
         }
         setLoadingTimeout(true);
-      }, 10000); // 10 seconds max loading time
+      }, 500); // EXTREMELY AGGRESSIVE: 500ms for instant tab switching
     } else {
       setLoadingTimeout(false);
     }
@@ -44,8 +44,8 @@ const ProtectedLayout: React.FC = () => {
       interval = setInterval(() => {
         setProfileWaitTime((prev) => {
           const newTime = prev + 1;
-          // Show error after 8 seconds of waiting (reduced from 10)
-          if (newTime >= 8) {
+          // Show error after 1 second of waiting for instant feedback
+          if (newTime >= 1) {
             setShowProfileError(true);
           }
           return newTime;
