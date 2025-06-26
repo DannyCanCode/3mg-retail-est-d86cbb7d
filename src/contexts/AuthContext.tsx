@@ -539,14 +539,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Clear cached data immediately
       sessionStorage.removeItem('supabase-session-cache');
       
-      // Clear state immediately
-      setUser(null);
-      setProfile(null);
-      setSession(null);
-      setProfileFetchAttempts(0);
-      setProfileError(null);
-      
-      // Sign out from Supabase
+      // Sign out from Supabase first
       const { error } = await supabase.auth.signOut();
       if (error) {
         if (import.meta.env.DEV) {
@@ -554,16 +547,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       
-      // Force navigation to login page
-      window.location.href = '/login';
+      // Clear state immediately after Supabase logout
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setProfileFetchAttempts(0);
+      setProfileError(null);
+      
+      // Let React handle the navigation via AuthGuard
+      // No need for window.location.href - React will render Login component
       
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('[AuthContext] Logout exception:', error);
       }
       
-      // Even if logout fails, force navigation to login
-      window.location.href = '/login';
+      // Even if logout fails, clear state to show login
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setProfileFetchAttempts(0);
+      setProfileError(null);
     }
   }, []);
 

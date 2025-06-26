@@ -108,12 +108,16 @@ const LoadingSpinner = () => (
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const { user, loading, profile } = useAuth();
 
-  if (loading) {
-    return <LoadingSpinner />;
+  // Prioritize logout state - if no user, show login immediately
+  if (!user) {
+    if (import.meta.env.DEV) {
+      console.log('[AuthGuard] No user detected, rendering Login');
+    }
+    return <Login />;
   }
 
-  if (!user) {
-    return <Login />;
+  if (loading) {
+    return <LoadingSpinner />;
   }
 
   // Handle onboarding redirect
