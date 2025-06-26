@@ -211,7 +211,7 @@ export default function Login() {
             </h4>
             <div className="text-xs text-gray-700 space-y-2">
               <div className="mb-3">
-                <div className="font-semibold text-purple-700 mb-1">👑 Administrators:</div>
+                <div className="font-semibold text-purple-700 mb-1">Administrators:</div>
                 <div className="flex justify-between">
                   <span>daniel.pedraza@3mgroofing.com</span>
                   <code className="bg-white px-1 rounded">Daniel2024!</code>
@@ -234,7 +234,7 @@ export default function Login() {
                 </div>
               </div>
               <div>
-                <div className="font-semibold text-blue-700 mb-1">🏢 Territory Managers:</div>
+                <div className="font-semibold text-blue-700 mb-1">Territory Managers:</div>
                 <div className="flex justify-between">
                   <span>nickolas.nell@3mgroofing.com (Stuart)</span>
                   <code className="bg-white px-1 rounded">Nick2024!</code>
