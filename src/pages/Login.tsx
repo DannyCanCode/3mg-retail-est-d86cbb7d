@@ -210,17 +210,39 @@ export default function Login() {
               Test Accounts:
             </h4>
             <div className="text-xs text-gray-700 space-y-2">
-              <div className="flex justify-between">
-                <span><strong>Admin:</strong> daniel.pedraza@3mgroofing.com</span>
-                <code className="bg-white px-1 rounded">Daniel2024!</code>
+              <div className="mb-3">
+                <div className="font-semibold text-purple-700 mb-1">👑 Administrators:</div>
+                <div className="flex justify-between">
+                  <span>daniel.pedraza@3mgroofing.com</span>
+                  <code className="bg-white px-1 rounded">Daniel2024!</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>connor@3mgroofing.com</span>
+                  <code className="bg-white px-1 rounded">Connor2024!</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>jay.moroff@3mgroofing.com</span>
+                  <code className="bg-white px-1 rounded">Jay2024!</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>jhagan@3mgroofing.com</span>
+                  <code className="bg-white px-1 rounded">JHagan2024!</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>tyler.powell@3mgroofing.com</span>
+                  <code className="bg-white px-1 rounded">Tyler2024!</code>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span><strong>Manager:</strong> nickolas.nell@3mgroofing.com</span>
-                <code className="bg-white px-1 rounded">Nick2024!</code>
-              </div>
-              <div className="flex justify-between">
-                <span><strong>Admin:</strong> connor@3mgroofing.com</span>
-                <code className="bg-white px-1 rounded">Connor2024!</code>
+              <div>
+                <div className="font-semibold text-blue-700 mb-1">🏢 Territory Managers:</div>
+                <div className="flex justify-between">
+                  <span>nickolas.nell@3mgroofing.com (Stuart)</span>
+                  <code className="bg-white px-1 rounded">Nick2024!</code>
+                </div>
+                <div className="flex justify-between">
+                  <span>Harrison.Cremata@3MGRoofing.com (Jacksonville)</span>
+                  <code className="bg-white px-1 rounded">Harrison2024!</code>
+                </div>
               </div>
             </div>
           </div>
