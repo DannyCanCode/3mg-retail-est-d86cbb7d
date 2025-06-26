@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Fetch profile with timeout and retry
   const fetchProfileWithTimeout = useCallback(async (userId: string) => {
     const maxAttempts = 3;
-    const timeout = 5000; // 5 seconds
+    const timeout = 3000; // Reduced to 3 seconds for faster response
     
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       setProfileFetchAttempts(attempt);
@@ -116,7 +116,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (import.meta.env.DEV) {
             console.log(`[AuthContext] Profile fetch attempt ${attempt} failed, retrying...`);
           }
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 500 * attempt)); // Shorter exponential backoff
         }
       } catch (error) {
         if (import.meta.env.DEV) {
@@ -124,9 +124,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         
         if (attempt === maxAttempts) {
-          // Final attempt failed, create default profile
+          // CRITICAL FIX: Always provide a fallback profile to prevent infinite loading
           if (import.meta.env.DEV) {
-            console.log('[AuthContext] All profile fetch attempts failed, using default profile');
+            console.log('[AuthContext] All profile fetch attempts failed, using fallback profile to prevent white screen');
           }
           return {
             id: userId,
@@ -140,12 +140,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
     
-    return null;
+    // CRITICAL FIX: This should never be reached, but if it is, provide fallback
+    if (import.meta.env.DEV) {
+      console.error('[AuthContext] Unexpected end of fetchProfileWithTimeout, providing emergency fallback');
+    }
+    return {
+      id: userId,
+      role: 'rep',
+      completed_onboarding: false,
+      full_name: null,
+      org_id: null,
+      territory_id: null
+    } as Profile;
   }, [fetchProfile]);
 
   // Initialize auth state
   useEffect(() => {
     let isMounted = true;
+    let initializationTimeout: NodeJS.Timeout;
     
     const initializeAuth = async () => {
       try {
@@ -153,8 +165,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log('[AuthContext] Initializing auth state...');
         }
         
-        // Get initial session
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        // CRITICAL FIX: Set a maximum initialization timeout to prevent infinite loading
+        initializationTimeout = setTimeout(() => {
+          if (isMounted) {
+            if (import.meta.env.DEV) {
+              console.warn('[AuthContext] Auth initialization timeout, forcing completion');
+            }
+            setLoading(false);
+            setMounted(true);
+          }
+        }, 8000); // 8 seconds max initialization time
+        
+        // Get initial session with timeout
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise<never>((_, reject) => 
+          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
+        );
+        
+        const { data: { session: initialSession }, error } = await Promise.race([
+          sessionPromise,
+          timeoutPromise
+        ]);
         
         if (error) {
           if (import.meta.env.DEV) {
@@ -179,6 +210,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         
         if (isMounted) {
+          clearTimeout(initializationTimeout);
           setLoading(false);
           setMounted(true);
         }
@@ -187,6 +219,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.error('[AuthContext] Auth initialization error:', error);
         }
         if (isMounted) {
+          clearTimeout(initializationTimeout);
           setLoading(false);
           setMounted(true);
         }
@@ -219,11 +252,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(session.user);
           setLoading(true);
           
-          // Fetch profile with timeout
-          const profileData = await fetchProfileWithTimeout(session.user.id);
-          if (isMounted) {
-            setProfile(profileData);
-            setLoading(false);
+          // CRITICAL FIX: Add timeout protection for profile fetching during auth state changes
+          try {
+            const profileData = await Promise.race([
+              fetchProfileWithTimeout(session.user.id),
+              new Promise<Profile>((_, reject) => 
+                setTimeout(() => reject(new Error('Profile fetch timeout during auth change')), 6000)
+              )
+            ]);
+            
+            if (isMounted) {
+              setProfile(profileData);
+              setLoading(false);
+            }
+          } catch (error) {
+            if (import.meta.env.DEV) {
+              console.error('[AuthContext] Profile fetch timeout during auth state change:', error);
+            }
+            
+            // Provide fallback profile even on timeout
+            if (isMounted) {
+              setProfile({
+                id: session.user.id,
+                role: 'rep',
+                completed_onboarding: false,
+                full_name: null,
+                org_id: null,
+                territory_id: null
+              });
+              setLoading(false);
+            }
           }
         }
       }
@@ -231,6 +289,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       isMounted = false;
+      if (initializationTimeout) {
+        clearTimeout(initializationTimeout);
+      }
       subscription.unsubscribe();
     };
   }, [fetchProfileWithTimeout]);

@@ -12,6 +12,29 @@ const ProtectedLayout: React.FC = () => {
   const location = useLocation();
   const [profileWaitTime, setProfileWaitTime] = useState(0);
   const [showProfileError, setShowProfileError] = useState(false);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // CRITICAL FIX: Add safety timeout for loading state to prevent infinite white pages
+  useEffect(() => {
+    let loadingTimer: NodeJS.Timeout;
+    
+    if (loading) {
+      loadingTimer = setTimeout(() => {
+        if (import.meta.env.DEV) {
+          console.warn('[ProtectedLayout] Loading timeout reached, showing recovery options');
+        }
+        setLoadingTimeout(true);
+      }, 10000); // 10 seconds max loading time
+    } else {
+      setLoadingTimeout(false);
+    }
+
+    return () => {
+      if (loadingTimer) {
+        clearTimeout(loadingTimer);
+      }
+    };
+  }, [loading]);
 
   // Track how long we've been waiting for profile
   useEffect(() => {
@@ -21,8 +44,8 @@ const ProtectedLayout: React.FC = () => {
       interval = setInterval(() => {
         setProfileWaitTime((prev) => {
           const newTime = prev + 1;
-          // Show error after 10 seconds of waiting
-          if (newTime >= 10) {
+          // Show error after 8 seconds of waiting (reduced from 10)
+          if (newTime >= 8) {
             setShowProfileError(true);
           }
           return newTime;
@@ -87,12 +110,55 @@ const ProtectedLayout: React.FC = () => {
   }, [user, profile, loading, navigate, location.pathname]);
 
   // Show loading while auth is being determined
-  if (loading) {
+  if (loading && !loadingTimeout) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // CRITICAL FIX: Show recovery options if loading is stuck
+  if (loading && loadingTimeout) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md p-6">
+          <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Loading Issue</h2>
+          <p className="text-gray-600 mb-6">
+            The app is taking longer than usual to load. This might be due to a network issue or session conflict.
+          </p>
+          <div className="space-y-3">
+            <Button 
+              onClick={() => {
+                // Force refresh to clear any stuck states
+                window.location.reload();
+              }} 
+              className="w-full"
+              variant="default"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh App
+            </Button>
+            <Button 
+              onClick={() => {
+                // Clear local storage and redirect to login
+                localStorage.clear();
+                sessionStorage.clear();
+                window.location.href = '/login';
+              }} 
+              variant="outline"
+              className="w-full"
+            >
+              Clear Session & Login Again
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500 mt-4">
+            If this issue persists, try using a different browser or contact support.
+          </p>
         </div>
       </div>
     );
