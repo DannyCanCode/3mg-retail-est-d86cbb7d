@@ -19,6 +19,7 @@ interface AuthContextType {
   mounted: boolean;
   profileError: string | null;
   profileFetchAttempts: number;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -535,6 +536,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('[AuthContext] Logging out...');
       }
       
+      // Clear cached data immediately
+      sessionStorage.removeItem('supabase-session-cache');
+      
+      // Clear state immediately
+      setUser(null);
+      setProfile(null);
+      setSession(null);
+      setProfileFetchAttempts(0);
+      setProfileError(null);
+      
+      // Sign out from Supabase
       const { error } = await supabase.auth.signOut();
       if (error) {
         if (import.meta.env.DEV) {
@@ -542,16 +554,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
       }
       
-      // Clear state
-      setUser(null);
-      setProfile(null);
-      setSession(null);
-      setProfileFetchAttempts(0);
-      setProfileError(null);
+      // Force navigation to login page
+      window.location.href = '/login';
+      
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('[AuthContext] Logout exception:', error);
       }
+      
+      // Even if logout fails, force navigation to login
+      window.location.href = '/login';
     }
   }, []);
 
@@ -562,7 +574,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     loading,
     mounted,
     profileError,
-    profileFetchAttempts
+    profileFetchAttempts,
+    logout
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

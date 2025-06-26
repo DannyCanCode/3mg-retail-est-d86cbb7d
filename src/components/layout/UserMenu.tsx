@@ -2,18 +2,14 @@ import React from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 
 export function UserMenu() {
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const initials = (user?.email ?? "").slice(0, 2).toUpperCase();
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/login", { replace: true });
+    await logout();
   };
 
   return (
