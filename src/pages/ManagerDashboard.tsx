@@ -33,7 +33,7 @@ interface ExtendedEstimate extends Estimate {
 }
 
 const ManagerDashboard: React.FC = () => {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const [estimates, setEstimates] = useState<ExtendedEstimate[]>([]);
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -311,6 +311,22 @@ const ManagerDashboard: React.FC = () => {
       </CardContent>
     </Card>
   );
+
+  if (authLoading) {
+    return (
+      <div className="p-6">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold mb-2">Loading Dashboard</h2>
+            <p className="text-muted-foreground">
+              Setting up your territory management dashboard...
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (!profile?.territory_id && profile?.role !== 'admin') {
     return (

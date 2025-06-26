@@ -73,33 +73,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             'tyler.powell@3mgroofing.com'
           ];
           
-          // Known manager emails 
-          const managerEmails = [
-            'nickolas.nell@3mgroofing.com'
-          ];
+          // Known manager emails with their territory assignments
+          const managerConfig = {
+            'nickolas.nell@3mgroofing.com': '86eeec95-ba2d-4785-abae-520dd07ff5a0' // Stuart territory
+          };
           
           let defaultRole = 'rep';
           let shouldCompleteOnboarding = false;
+          let territoryId = null;
           
           if (adminEmails.includes(userEmail)) {
             defaultRole = 'admin';
-            shouldCompleteOnboarding = true; // Admins should not need onboarding
-            if (import.meta.env.DEV) {
-              console.log('[AuthContext] Creating admin fallback profile for known admin email:', userEmail);
-            }
-          } else if (managerEmails.includes(userEmail)) {
+            shouldCompleteOnboarding = true;
+            territoryId = null;
+          } else if (managerConfig[userEmail]) {
             defaultRole = 'manager';
-            shouldCompleteOnboarding = true; // Managers should not need onboarding
-            if (import.meta.env.DEV) {
-              console.log('[AuthContext] Creating manager fallback profile for known manager email:', userEmail);
-            }
+            shouldCompleteOnboarding = true;
+            territoryId = managerConfig[userEmail];
           } else if (userEmail.endsWith('@3mgroofing.com')) {
-            // For unknown 3mg emails, default to rep but don't complete onboarding
             defaultRole = 'rep';
             shouldCompleteOnboarding = false;
-            if (import.meta.env.DEV) {
-              console.log('[AuthContext] Creating rep fallback profile for unknown 3mg email:', userEmail);
-            }
+            territoryId = null;
           }
           
           const defaultProfile: Profile = {
@@ -108,7 +102,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             completed_onboarding: shouldCompleteOnboarding,
             full_name: null,
             org_id: null,
-            territory_id: null
+            territory_id: territoryId
           };
           
           setProfileError(null);
@@ -185,23 +179,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               'tyler.powell@3mgroofing.com'
             ];
             
-            // Known manager emails 
-            const managerEmails = [
-              'nickolas.nell@3mgroofing.com'
-            ];
+            // Known manager emails with their territory assignments
+            const managerConfig = {
+              'nickolas.nell@3mgroofing.com': '86eeec95-ba2d-4785-abae-520dd07ff5a0' // Stuart territory
+            };
             
             let defaultRole = 'rep';
             let shouldCompleteOnboarding = false;
+            let territoryId = null;
             
             if (adminEmails.includes(userEmail)) {
               defaultRole = 'admin';
               shouldCompleteOnboarding = true;
-            } else if (managerEmails.includes(userEmail)) {
+              territoryId = null;
+            } else if (managerConfig[userEmail]) {
               defaultRole = 'manager';
               shouldCompleteOnboarding = true;
+              territoryId = managerConfig[userEmail];
             } else if (userEmail.endsWith('@3mgroofing.com')) {
               defaultRole = 'rep';
               shouldCompleteOnboarding = false;
+              territoryId = null;
             }
             
             return {
@@ -210,7 +208,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               completed_onboarding: shouldCompleteOnboarding,
               full_name: null,
               org_id: null,
-              territory_id: null
+              territory_id: territoryId
             } as Profile;
           } catch (getUserError) {
             if (import.meta.env.DEV) {
@@ -417,22 +415,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   'tyler.powell@3mgroofing.com'
                 ];
                 
-                const managerEmails = [
-                  'nickolas.nell@3mgroofing.com'
-                ];
+                const managerConfig = {
+                  'nickolas.nell@3mgroofing.com': '86eeec95-ba2d-4785-abae-520dd07ff5a0' // Stuart territory
+                };
                 
                 let defaultRole = 'rep';
                 let shouldCompleteOnboarding = false;
+                let territoryId = null;
                 
                 if (adminEmails.includes(userEmail)) {
                   defaultRole = 'admin';
                   shouldCompleteOnboarding = true;
-                } else if (managerEmails.includes(userEmail)) {
+                  territoryId = null;
+                } else if (managerConfig[userEmail]) {
                   defaultRole = 'manager';
                   shouldCompleteOnboarding = true;
+                  territoryId = managerConfig[userEmail];
                 } else if (userEmail.endsWith('@3mgroofing.com')) {
                   defaultRole = 'rep';
                   shouldCompleteOnboarding = false;
+                  territoryId = null;
                 }
                 
                 setProfile({
@@ -441,7 +443,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   completed_onboarding: shouldCompleteOnboarding,
                   full_name: null,
                   org_id: null,
-                  territory_id: null
+                  territory_id: territoryId
                 });
               } catch (emailError) {
                 // Last resort fallback
