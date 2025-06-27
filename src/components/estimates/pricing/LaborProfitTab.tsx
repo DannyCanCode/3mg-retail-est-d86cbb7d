@@ -183,6 +183,18 @@ export function LaborProfitTab({
                 processedValue = 0;
             }
         }
+    } else if (field === "permitCount") {
+        const valStr = String(value).trim();
+        if (valStr === "") {
+            processedValue = 1;
+        } else {
+            const parsed = parseInt(valStr, 10);
+            if (!isNaN(parsed) && parsed >= 1) {
+                processedValue = parsed;
+            } else {
+                processedValue = 1;
+            }
+        }
     } else if (typeof value === "string" && field !== "dumpsterLocation") {
       if (value.trim() === "") {
         if (field === 'laborRate' || field === 'handloadRate') { // dumpsterCount handled above
@@ -711,7 +723,7 @@ export function LaborProfitTab({
                         id="permitCount"
                         type="number"
                         value={(laborRates.permitCount || 1).toString()}
-                        onChange={(e) => handleLaborRateChange("permitCount", parseInt(e.target.value, 10) || 1)}
+                        onChange={(e) => handleLaborRateChange("permitCount", e.target.value)}
                         min="1"
                         step="1"
                         className="h-8 rounded-none text-center"
