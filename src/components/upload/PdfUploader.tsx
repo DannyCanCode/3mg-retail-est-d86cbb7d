@@ -42,6 +42,9 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
   } = usePdfParser();
   
   const { saveToDatabase } = useMeasurementStorage();
+  
+  // Add save state management
+  const [saveState, setSaveState] = React.useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
   const uploadAndProcess = async (selectedFile: File) => {
     if (!selectedFile) return;
@@ -84,19 +87,42 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
     if (!parsedData || !file) return;
     
     try {
+      setSaveState('saving');
+      
       // Call the onDataExtracted callback if provided
       if (onDataExtracted) {
         onDataExtracted(parsedData, file.name);
       }
       
-      await saveToDatabase(file.name, parsedData, fileUrl || undefined);
+      const result = await saveToDatabase(file.name, parsedData, fileUrl || undefined);
+      
+      if (result) {
+        setSaveState('success');
+        toast({
+          title: "Success!",
+          description: "Measurements saved successfully and redirecting to estimates.",
+        });
+        
+        // Reset to idle after a delay to show success state
+        setTimeout(() => {
+          setSaveState('idle');
+        }, 2000);
+      } else {
+        throw new Error("Save operation returned null");
+      }
     } catch (error) {
       console.error("Error saving to database:", error);
+      setSaveState('error');
       toast({
         title: "Save failed",
         description: "Failed to save measurements to database. Please try again.",
         variant: "destructive",
       });
+      
+      // Reset to idle after showing error
+      setTimeout(() => {
+        setSaveState('idle');
+      }, 3000);
     }
   };
 
@@ -177,14 +203,12 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
     file, 
     parsedData, 
     onSave, 
-    fileUrl, 
-    isSaving = false 
+    fileUrl 
   }: { 
     file: File, 
     parsedData: ParsedMeasurements, 
     onSave?: () => void, 
-    fileUrl?: string | null,
-    isSaving?: boolean 
+    fileUrl?: string | null
   }) {
     return (
       <div className="w-full">
@@ -239,10 +263,28 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
             </Button>
             
             {onSave && (
-              <Button onClick={onSave} disabled={isSaving}>
-                {isSaving ? (
+              <Button 
+                onClick={onSave} 
+                disabled={saveState === 'saving'}
+                className={
+                  saveState === 'success' 
+                    ? 'bg-green-600 hover:bg-green-700 border-green-600' 
+                    : saveState === 'error'
+                    ? 'bg-red-600 hover:bg-red-700 border-red-600'
+                    : ''
+                }
+              >
+                {saveState === 'saving' ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...
+                  </>
+                ) : saveState === 'success' ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4 mr-2" /> Saved Successfully!
+                  </>
+                ) : saveState === 'error' ? (
+                  <>
+                    <Save className="h-4 w-4 mr-2" /> Retry Save
                   </>
                 ) : (
                   <>
