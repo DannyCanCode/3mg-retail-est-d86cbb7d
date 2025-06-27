@@ -2,6 +2,8 @@ import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { MeasurementValues } from "@/components/estimates/measurement/types";
 import { Material } from "@/components/estimates/materials/types";
 import { LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
+import { trackEstimateCreated, trackEvent } from "@/lib/posthog";
+import { trackEstimateCreated as trackEstimateCreatedLR, trackEstimateSold } from "@/lib/logrocket";
 
 // Define the status type for estimates
 export type EstimateStatus = "draft" | "pending" | "approved" | "rejected" | "Sold";
@@ -121,6 +123,28 @@ export const saveEstimate = async (
       labor_rates: typeof data.labor_rates === 'string' ? JSON.parse(data.labor_rates) : (data.labor_rates || {}),
       measurements: typeof data.measurements === 'string' ? JSON.parse(data.measurements) : (data.measurements || {})
     } as Estimate;
+
+    // Track estimate creation for analytics (only for new estimates, not updates)
+    if (!inputId) {
+      try {
+        // PostHog tracking
+        trackEstimateCreated({
+          estimateValue: parsedData.total_price,
+          userRole: 'unknown' // Will be updated when we have user context
+        });
+        
+        // LogRocket tracking
+        trackEstimateCreatedLR({
+          estimateId: parsedData.id,
+          customerAddress: parsedData.customer_address,
+          totalPrice: parsedData.total_price,
+          userRole: 'unknown'
+        });
+      } catch (trackingError) {
+        // Don't fail the estimate save if tracking fails
+        console.warn('Failed to track estimate creation:', trackingError);
+      }
+    }
 
     return { data: parsedData, error: null };
 
@@ -545,14 +569,39 @@ export const markEstimateAsSold = async (
      throw new Error("Failed to update estimate and retrieve the updated record.");
   }
   
-  return {
+  const finalResult = {
       ...updatedEstimate,
       status: updatedEstimate.status as EstimateStatus,
       materials: typeof updatedEstimate.materials === 'string' ? JSON.parse(updatedEstimate.materials) : (updatedEstimate.materials || {}),
       quantities: typeof updatedEstimate.quantities === 'string' ? JSON.parse(updatedEstimate.quantities) : (updatedEstimate.quantities || {}),
       labor_rates: typeof updatedEstimate.labor_rates === 'string' ? JSON.parse(updatedEstimate.labor_rates) : (updatedEstimate.labor_rates || {}),
       measurements: typeof updatedEstimate.measurements === 'string' ? JSON.parse(updatedEstimate.measurements) : (updatedEstimate.measurements || { areasByPitch: [] }),
-  } as Estimate; 
+  } as Estimate;
+
+  // Track estimate sold for analytics
+  try {
+    // PostHog tracking
+    trackEvent('estimate_sold', {
+      estimate_id: estimateId,
+      job_type: jobType,
+      insurance_company: insuranceCompany || null,
+      estimate_value: finalResult.total_price,
+      sold_at: new Date().toISOString()
+    });
+    
+    // LogRocket tracking
+    trackEstimateSold({
+      estimateId: estimateId,
+      jobType: jobType,
+      totalPrice: finalResult.total_price,
+      insuranceCompany: insuranceCompany
+    });
+  } catch (trackingError) {
+    // Don't fail the sale if tracking fails
+    console.warn('Failed to track estimate sale:', trackingError);
+  }
+
+  return finalResult; 
 };
 
 interface SoldEstimateReportData {
@@ -594,6 +643,30 @@ export const getSoldEstimates = async (filters?: { startDate?: string, endDate?:
   }
 
   return (data || []) as SoldEstimateReportData[]; 
+};
+
+/**
+ * Generate PDF for an estimate (placeholder implementation)
+ */
+export const generateEstimatePdf = async (id: string): Promise<{
+  data: { url: string } | null;
+  error: Error | null;
+}> => {
+  try {
+    // TODO: Implement actual PDF generation
+    // For now, return a placeholder URL
+    console.log(`Generating PDF for estimate ${id}`);
+    return { 
+      data: { url: `/api/estimates/${id}/pdf` }, 
+      error: null 
+    };
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    return { 
+      data: null, 
+      error: error instanceof Error ? error : new Error("Failed to generate PDF") 
+    };
+  }
 };
 
 export const updateEstimateCustomerDetails = async (

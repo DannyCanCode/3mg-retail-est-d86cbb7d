@@ -384,9 +384,9 @@ export function RecentEstimates() {
             <CardTitle className="flex items-center gap-2">
               Estimates
               {realtimeError ? (
-                <WifiOff className="h-4 w-4 text-red-500" title="Real-time updates disconnected" />
+                <WifiOff className="h-4 w-4 text-red-500" />
               ) : (
-                <Wifi className="h-4 w-4 text-green-500" title="Real-time updates active" />
+                <Wifi className="h-4 w-4 text-green-500" />
               )}
             </CardTitle>
             <CardDescription>
@@ -417,7 +417,7 @@ export function RecentEstimates() {
             <TabsList className="grid grid-cols-4">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="approved">Approved</TabsTrigger>
+              <TabsTrigger value="approved">Accepted</TabsTrigger>
               <TabsTrigger value="rejected">Rejected</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -506,7 +506,7 @@ export function RecentEstimates() {
                     </Button>
                     {estimate.status === 'pending' && (
                       <>
-                        <Button variant="outline" size="sm" onClick={() => handleStatusUpdate(estimate.id!, 'approved')} disabled={isSubmitting[estimate.id!]}>Approve</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleStatusUpdate(estimate.id!, 'approved')} disabled={isSubmitting[estimate.id!]}>Accept</Button>
                         <Button 
                           variant="outline" 
                           size="sm" 

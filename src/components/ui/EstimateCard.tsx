@@ -7,7 +7,8 @@ import {
   Estimate,
   EstimateStatus, 
   updateEstimateStatus, 
-  markEstimateAsSold
+  markEstimateAsSold,
+  generateEstimatePdf
 } from "@/api/estimates";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
@@ -192,7 +193,7 @@ export function EstimateCard({
                   setIsApproveDialogOpen(true);
                 }}
               >
-                Approve
+                Accept
               </Button>
               <Button 
                 variant="outline" 
@@ -251,9 +252,9 @@ export function EstimateCard({
       >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Approve Estimate</DialogTitle>
+            <DialogTitle>Accept Estimate</DialogTitle>
             <DialogDescription>
-              Approving this estimate will make it final and allow PDF generation. Add any notes before approving.
+              Accepting this estimate will make it final and allow PDF generation. Add any notes before accepting.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -280,12 +281,12 @@ export function EstimateCard({
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Approving...
+                  Accepting...
                 </>
               ) : (
                 <>
                   <Check className="mr-2 h-4 w-4" />
-                  Approve
+                  Accept
                 </>
               )}
             </Button>

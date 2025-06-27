@@ -1,6 +1,8 @@
 import React, { createContext, useState, useEffect, ReactNode, useContext, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from "@supabase/supabase-js";
+import { trackUserLogin } from "@/lib/posthog";
+import { identifyUser as identifyLogRocketUser } from "@/lib/logrocket";
 
 interface Profile {
   id: string;
@@ -455,6 +457,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setLoading(false);
               // PERFORMANCE OPTIMIZATION: Cache successful auth state for faster future loads
               setSessionCache(session.user, profileData, session);
+              
+              // Track successful login for analytics
+              if (event === 'SIGNED_IN') {
+                trackUserLogin(session.user.email || 'unknown', profileData.role);
+                // Identify user in LogRocket for session replay
+                identifyLogRocketUser(session.user.id, {
+                  email: session.user.email || '',
+                  role: profileData.role,
+                  name: profileData.full_name || session.user.email || 'Unknown User'
+                });
+              }
             }
           } catch (error) {
             if (import.meta.env.DEV) {

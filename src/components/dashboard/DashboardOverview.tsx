@@ -114,7 +114,7 @@ export function DashboardOverview() {
       <Card className="animate-slide-in-up" style={{ animationDelay: "0.2s" }}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">
-            Approved Estimates
+                          Accepted Estimates
           </CardTitle>
           <CheckCircle2 className="h-4 w-4 text-green-500" />
         </CardHeader>

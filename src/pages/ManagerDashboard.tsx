@@ -111,7 +111,7 @@ const ManagerDashboard: React.FC = () => {
     if (error) {
       toast({ variant: 'destructive', title: 'Error', description: error.message });
     } else {
-      toast({ title: 'Estimate approved successfully!' });
+      toast({ title: 'Estimate accepted successfully!' });
       fetchEstimates();
     }
   };
@@ -211,7 +211,7 @@ const ManagerDashboard: React.FC = () => {
               className="bg-green-600 hover:bg-green-700"
             >
               <CheckCircle2 className="h-4 w-4 mr-1" />
-              Approve
+              Accept
             </Button>
             
             <Dialog>
@@ -394,7 +394,7 @@ const ManagerDashboard: React.FC = () => {
           icon={<Clock className="h-4 w-4 text-amber-500"/>}
         />
         <MetricCard 
-          title="Approved" 
+          title="Accepted" 
           value={approved.length} 
           icon={<CheckCircle2 className="h-4 w-4 text-green-500"/>}
         />
@@ -435,7 +435,7 @@ const ManagerDashboard: React.FC = () => {
       <Tabs defaultValue="pending" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
-          <TabsTrigger value="approved">Approved ({approved.length})</TabsTrigger>
+          <TabsTrigger value="approved">Accepted ({approved.length})</TabsTrigger>
           <TabsTrigger value="rejected">Rejected ({rejected.length})</TabsTrigger>
           <TabsTrigger value="team">Team ({teamMembers.length})</TabsTrigger>
         </TabsList>
@@ -461,13 +461,13 @@ const ManagerDashboard: React.FC = () => {
         <TabsContent value="approved" className="mt-6">
           <div className="mb-4">
             <p className="text-lg font-semibold text-green-600">
-              Approved Value: {currency(approvedValue)}
+              Accepted Value: {currency(approvedValue)}
             </p>
           </div>
           {approved.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground">No approved estimates yet.</p>
+                <p className="text-muted-foreground">No accepted estimates yet.</p>
               </CardContent>
             </Card>
           ) : (

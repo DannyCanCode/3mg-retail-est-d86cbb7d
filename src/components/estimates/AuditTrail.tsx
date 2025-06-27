@@ -106,6 +106,13 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ estimateId }) => {
       .join(' ');
   };
 
+  const getDisplayAction = (action: string) => {
+    switch (action.toLowerCase()) {
+      case 'approved': return 'Accepted';
+      default: return action.charAt(0).toUpperCase() + action.slice(1);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -151,7 +158,7 @@ export const AuditTrail: React.FC<AuditTrailProps> = ({ estimateId }) => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge className={getActionColor(entry.action)}>
-                        {entry.action}
+                        {getDisplayAction(entry.action)}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
                         {new Date(entry.changed_at).toLocaleString()}

@@ -199,7 +199,7 @@ const SalesRepDashboard: React.FC = () => {
           icon={<Clock className="h-4 w-4 text-amber-500"/>}
         />
         <MetricCard 
-          title="Approved" 
+          title="Accepted" 
           value={approved.length} 
           icon={<CheckCircle2 className="h-4 w-4 text-green-500"/>}
         />
@@ -242,7 +242,7 @@ const SalesRepDashboard: React.FC = () => {
       <Tabs defaultValue="pending" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
-          <TabsTrigger value="approved">Approved ({approved.length})</TabsTrigger>
+                      <TabsTrigger value="approved">Accepted ({approved.length})</TabsTrigger>
           <TabsTrigger value="rejected">Rejected ({rejected.length})</TabsTrigger>
         </TabsList>
         
@@ -271,14 +271,14 @@ const SalesRepDashboard: React.FC = () => {
         <TabsContent value="approved" className="mt-4">
           <div className="mb-4 text-center">
             <p className="text-lg font-semibold text-green-600">
-              Approved Value: {currency(approvedValue)}
+              Accepted Value: {currency(approvedValue)}
             </p>
           </div>
           {approved.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
                 <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-500" />
-                <p className="text-muted-foreground">No approved estimates yet.</p>
+                <p className="text-muted-foreground">No accepted estimates yet.</p>
               </CardContent>
             </Card>
           ) : (

@@ -171,6 +171,18 @@ export function LaborProfitTab({
                 processedValue = 1; 
             }
         }
+    } else if (field === "skylights2x2Count" || field === "skylights2x4Count" || field === "downspoutCount" || field === "gutterLinearFeet" || field === "detachResetGutterLinearFeet") {
+        const valStr = String(value).trim();
+        if (valStr === "") {
+            processedValue = 0;
+        } else {
+            const parsed = parseInt(valStr, 10);
+            if (!isNaN(parsed) && parsed >= 0) {
+                processedValue = parsed;
+            } else {
+                processedValue = 0;
+            }
+        }
     } else if (typeof value === "string" && field !== "dumpsterLocation") {
       if (value.trim() === "") {
         if (field === 'laborRate' || field === 'handloadRate') { // dumpsterCount handled above
@@ -890,7 +902,7 @@ export function LaborProfitTab({
                       id="skylights2x2Count"
                       type="number"
                       value={(laborRates.skylights2x2Count || 0).toString()}
-                      onChange={(e) => handleLaborRateChange("skylights2x2Count", parseInt(e.target.value, 10) || 0)}
+                      onChange={(e) => handleLaborRateChange("skylights2x2Count", e.target.value)}
                       min="0"
                       step="1"
                       className="h-8 rounded-none text-center"
@@ -956,7 +968,7 @@ export function LaborProfitTab({
                       id="skylights2x4Count"
                       type="number"
                       value={(laborRates.skylights2x4Count || 0).toString()}
-                      onChange={(e) => handleLaborRateChange("skylights2x4Count", parseInt(e.target.value, 10) || 0)}
+                      onChange={(e) => handleLaborRateChange("skylights2x4Count", e.target.value)}
                       min="0"
                       step="1"
                       className="h-8 rounded-none text-center"

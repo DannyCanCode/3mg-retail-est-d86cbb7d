@@ -591,7 +591,7 @@ export function EstimateSummaryTab({
                     className="gap-2"
                   >
                     <CheckCircle className="h-4 w-4" />
-                    Approve
+                    Accept
                   </Button>
                 </div>
               </>
@@ -634,10 +634,10 @@ export function EstimateSummaryTab({
       >
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Approve Estimate</DialogTitle>
-            <DialogDescription>
-              Approving this estimate will make it final and allow PDF generation. Add any notes before approving.
-            </DialogDescription>
+            <DialogTitle>Accept Estimate</DialogTitle>
+                          <DialogDescription>
+                Accepting this estimate will make it final and allow PDF generation. Add any notes before accepting.
+              </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <Textarea
@@ -650,9 +650,9 @@ export function EstimateSummaryTab({
             <Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={() => handleUpdateStatus("approved")} disabled={isStatusUpdating}>
-              {isStatusUpdating ? "Updating..." : "Approve Estimate"}
-            </Button>
+                            <Button onClick={() => handleUpdateStatus("approved")} disabled={isStatusUpdating}>
+                  {isStatusUpdating ? "Updating..." : "Accept Estimate"}
+                </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
