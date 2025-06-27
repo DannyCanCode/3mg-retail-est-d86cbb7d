@@ -777,14 +777,15 @@ export function LaborProfitTab({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="gutterLinearFeet">Linear Feet</Label>
-                  <Input
-                    id="gutterLinearFeet"
-                    type="number"
-                    value={(laborRates.gutterLinearFeet || 0).toString()}
-                    onChange={(e) => handleLaborRateChange("gutterLinearFeet", e.target.value)}
-                    min="0"
-                    step="1"
-                  />
+                                      <Input
+                      id="gutterLinearFeet"
+                      type="number"
+                      defaultValue={(laborRates.gutterLinearFeet || 0).toString()}
+                      onBlur={(e) => handleLaborRateChange("gutterLinearFeet", e.target.value)}
+                      key={`gutterLinearFeet-${laborRates.gutterLinearFeet}`}
+                      min="0"
+                      step="1"
+                    />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="gutterTotal">Total Gutter Cost</Label>
@@ -817,8 +818,9 @@ export function LaborProfitTab({
                   <Input
                     id="detachResetGutterLinearFeet"
                     type="number"
-                    value={(laborRates.detachResetGutterLinearFeet || 0).toString()}
-                    onChange={(e) => handleLaborRateChange("detachResetGutterLinearFeet", e.target.value)}
+                    defaultValue={(laborRates.detachResetGutterLinearFeet || 0).toString()}
+                    onBlur={(e) => handleLaborRateChange("detachResetGutterLinearFeet", e.target.value)}
+                    key={`detachResetGutterLinearFeet-${laborRates.detachResetGutterLinearFeet}`}
                     min="0"
                     step="1"
                   />
@@ -854,8 +856,9 @@ export function LaborProfitTab({
                   <Input
                     id="downspoutCount"
                     type="number"
-                    value={(laborRates.downspoutCount || 0).toString()}
-                    onChange={(e) => handleLaborRateChange("downspoutCount", e.target.value)}
+                    defaultValue={(laborRates.downspoutCount || 0).toString()}
+                    onBlur={(e) => handleLaborRateChange("downspoutCount", e.target.value)}
+                    key={`downspoutCount-${laborRates.downspoutCount}`}
                     min="0"
                     step="1"
                   />
@@ -913,8 +916,9 @@ export function LaborProfitTab({
                     <Input
                       id="skylights2x2Count"
                       type="number"
-                      value={(laborRates.skylights2x2Count || 0).toString()}
-                      onChange={(e) => handleLaborRateChange("skylights2x2Count", e.target.value)}
+                      defaultValue={(laborRates.skylights2x2Count || 0).toString()}
+                      onBlur={(e) => handleLaborRateChange("skylights2x2Count", e.target.value)}
+                      key={`skylights2x2Count-${laborRates.skylights2x2Count}`}
                       min="0"
                       step="1"
                       className="h-8 rounded-none text-center"
@@ -979,8 +983,9 @@ export function LaborProfitTab({
                     <Input
                       id="skylights2x4Count"
                       type="number"
-                      value={(laborRates.skylights2x4Count || 0).toString()}
-                      onChange={(e) => handleLaborRateChange("skylights2x4Count", e.target.value)}
+                      defaultValue={(laborRates.skylights2x4Count || 0).toString()}
+                      onBlur={(e) => handleLaborRateChange("skylights2x4Count", e.target.value)}
+                      key={`skylights2x4Count-${laborRates.skylights2x4Count}`}
                       min="0"
                       step="1"
                       className="h-8 rounded-none text-center"
@@ -1039,8 +1044,9 @@ export function LaborProfitTab({
                   <Input
                     id="handloadRate"
                     type="number"
-                    value={(laborRates.handloadRate || 10).toString()}
-                    onChange={(e) => handleLaborRateChange("handloadRate", e.target.value)}
+                    defaultValue={(laborRates.handloadRate || 10).toString()}
+                    onBlur={(e) => handleLaborRateChange("handloadRate", e.target.value)}
+                    key={`handloadRate-${laborRates.handloadRate}`}
                     min="0"
                     step="0.01"
                   />
