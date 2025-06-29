@@ -356,7 +356,7 @@ export function MaterialsSelectionTab({
   
   // Initialize expanded categories
   useEffect(() => {
-    const initialExpandedCategories = [MaterialCategory.SHINGLES];
+    const initialExpandedCategories: string[] = [];
     
     // Check if there are low-slope areas on the roof
     const hasFlatRoofAreas = measurements.areasByPitch.some(
