@@ -225,6 +225,7 @@ const Estimates = () => {
   const [isRecoveringState, setIsRecoveringState] = useState(false);
   const [hasRecoveredData, setHasRecoveredData] = useState(false);
   const [stateRecoveryAttempts, setStateRecoveryAttempts] = useState(0);
+  const [userWantsFreshStart, setUserWantsFreshStart] = useState(false); // NEW: Prevent recovery when user wants fresh start
   const isInternalStateChange = useRef(false); // Prevent save loops during recovery
   const lastRecoveryTimestamp = useRef<number>(0);
   const [recoveryStats, setRecoveryStats] = useState({
@@ -278,6 +279,9 @@ const Estimates = () => {
       // and don't load from localStorage unless specified by a measurementId
       if (!measurementId) {
         setActiveTab("type-selection");
+        // FRESH START: User clicked "New Estimate" with no measurementId - prevent unwanted recovery
+        setUserWantsFreshStart(true);
+        setTimeout(() => setUserWantsFreshStart(false), 1000); // Reset after component stabilizes
     }
     }
   }, [estimateId, measurementId]);
@@ -319,8 +323,8 @@ const Estimates = () => {
   
   // PHASE 2: Smart Recovery Logic with Validation and Conflict Prevention
   useEffect(() => {
-    // Skip recovery if in view mode or already recovering/recovered
-    if (isViewMode || isRecoveringState || hasRecoveredData) return;
+    // Skip recovery if in view mode, already recovering/recovered, OR user wants fresh start
+    if (isViewMode || isRecoveringState || hasRecoveredData || userWantsFreshStart) return;
     
     // Prevent excessive recovery attempts
     const now = Date.now();
@@ -471,7 +475,7 @@ const Estimates = () => {
       console.log("🎯 PHASE 2: Recovery complete!", recoveryResults);
     }, 100);
     
-    }, [isViewMode, isRecoveringState, hasRecoveredData, stateRecoveryAttempts, storedPdfData, storedMeasurements, storedFileName, storedSelectedMaterials, storedQuantities, storedLaborRates, storedProfitMargin, storedEstimateType, storedSelectedSubtrades, storedActiveTab, storedPeelStickCost, extractedPdfData, measurements, pdfFileName, selectedMaterials, quantities, laborRates, profitMargin, estimateType, selectedSubtrades, activeTab, peelStickAddonCost]);
+    }, [isViewMode, isRecoveringState, hasRecoveredData, userWantsFreshStart, stateRecoveryAttempts, storedPdfData, storedMeasurements, storedFileName, storedSelectedMaterials, storedQuantities, storedLaborRates, storedProfitMargin, storedEstimateType, storedSelectedSubtrades, storedActiveTab, storedPeelStickCost, extractedPdfData, measurements, pdfFileName, selectedMaterials, quantities, laborRates, profitMargin, estimateType, selectedSubtrades, activeTab, peelStickAddonCost]);
   
   // PHASE 2: Smart Auto-Save Effects - Prevent save loops during recovery
   useEffect(() => {
@@ -671,6 +675,10 @@ const Estimates = () => {
 
   const handlePdfDataExtracted = (data: ParsedMeasurements | null, fileName: string) => {
     console.log("PDF data extracted:", data, fileName);
+    
+    // RESET FRESH START FLAG: User uploaded new PDF, allow recovery for this session
+    setUserWantsFreshStart(false);
+    
     setExtractedPdfData(data);
     setPdfFileName(fileName);
     
@@ -933,6 +941,9 @@ const Estimates = () => {
   
   // Function to start fresh and clear all state
   const handleClearEstimate = () => {
+    // PREVENT RECOVERY: Set flag to block recovery when user explicitly wants fresh start
+    setUserWantsFreshStart(true);
+    
     setActiveTab("type-selection");
     setExtractedPdfData(null);
     setPdfFileName(null);
@@ -1031,6 +1042,11 @@ const Estimates = () => {
       title: "🧹 Started Fresh",
       description: "All estimate data and recovery state has been cleared.",
     });
+    
+    // RESET FLAG: Allow recovery again for future sessions (after a short delay)
+    setTimeout(() => {
+      setUserWantsFreshStart(false);
+    }, 500);
   };
 
   const fetchEstimatesData = useCallback(async () => {
