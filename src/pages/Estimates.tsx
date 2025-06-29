@@ -185,6 +185,42 @@ const Estimates = () => {
   const [storedMeasurements, setStoredMeasurements] = useLocalStorage<MeasurementValues | null>("estimateMeasurements", null);
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
   
+  // Additional state persistence for complete estimate recovery
+  const [storedSelectedMaterials, setStoredSelectedMaterials] = useLocalStorage<{[key: string]: Material}>("estimateSelectedMaterials", {});
+  const [storedQuantities, setStoredQuantities] = useLocalStorage<{[key: string]: number}>("estimateQuantities", {});
+  const [storedLaborRates, setStoredLaborRates] = useLocalStorage<LaborRates>("estimateLaborRates", {
+    laborRate: 85,
+    tearOff: 0,
+    installation: 0,
+    isHandload: false,
+    handloadRate: 15,
+    dumpsterLocation: "orlando",
+    dumpsterCount: 1,
+    dumpsterRate: 400,
+    includePermits: true,
+    permitRate: 550,
+    permitCount: 1,
+    permitAdditionalRate: 450,
+    pitchRates: {},
+    wastePercentage: 12,
+    includeGutters: false,
+    gutterLinearFeet: 0,
+    gutterRate: 8,
+    includeDownspouts: false,
+    downspoutCount: 0,
+    downspoutRate: 75,
+    includeDetachResetGutters: false,
+    detachResetGutterLinearFeet: 0,
+    detachResetGutterRate: 1,
+    includeLowSlopeLabor: true,
+    includeSteepSlopeLabor: true,
+  });
+  const [storedProfitMargin, setStoredProfitMargin] = useLocalStorage<number>("estimateProfitMargin", 25);
+  const [storedEstimateType, setStoredEstimateType] = useLocalStorage<'roof_only' | 'with_subtrades' | null>("estimateType", null);
+  const [storedSelectedSubtrades, setStoredSelectedSubtrades] = useLocalStorage<string[]>("estimateSelectedSubtrades", []);
+  const [storedActiveTab, setStoredActiveTab] = useLocalStorage<string>("estimateActiveTab", "type-selection");
+  const [storedPeelStickCost, setStoredPeelStickCost] = useLocalStorage<string>("estimatePeelStickCost", "0.00");
+  
   const [estimates, setEstimates] = useState<EstimateType[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<{[key: string]: boolean}>({});
@@ -267,25 +303,117 @@ const Estimates = () => {
     }
   };
   
-  // Only load persisted data if not in view mode AND not starting a fresh estimate
+  // Enhanced recovery logic - load persisted data when not in view mode
   useEffect(() => {
-    if (!isViewMode && (estimateId || measurementId)) {
+    if (!isViewMode) {
+      // Always attempt to recover these basic items
       if (storedPdfData && !extractedPdfData) {
         setExtractedPdfData(storedPdfData);
-        console.log("Loaded PDF data from localStorage:", storedPdfData);
+        console.log("Recovered PDF data from localStorage:", storedPdfData);
       }
       
       if (storedMeasurements && !measurements) {
         setMeasurements(storedMeasurements);
-        console.log("Loaded measurements from localStorage:", storedMeasurements);
+        console.log("Recovered measurements from localStorage:", storedMeasurements);
       }
       
       if (storedFileName && !pdfFileName) {
         setPdfFileName(storedFileName);
+        console.log("Recovered filename from localStorage:", storedFileName);
+      }
+      
+      // Recover additional estimate data for complete state restoration
+      if (storedSelectedMaterials && Object.keys(storedSelectedMaterials).length > 0 && Object.keys(selectedMaterials).length === 0) {
+        setSelectedMaterials(storedSelectedMaterials);
+        console.log("Recovered selected materials from localStorage:", Object.keys(storedSelectedMaterials).length, "materials");
+      }
+      
+      if (storedQuantities && Object.keys(storedQuantities).length > 0 && Object.keys(quantities).length === 0) {
+        setQuantities(storedQuantities);
+        console.log("Recovered quantities from localStorage:", storedQuantities);
+      }
+      
+      if (storedLaborRates && Object.keys(storedLaborRates).length > 0 && laborRates.laborRate === 85) {
+        setLaborRates(storedLaborRates);
+        console.log("Recovered labor rates from localStorage:", storedLaborRates);
+      }
+      
+      if (storedProfitMargin && storedProfitMargin !== 25 && profitMargin === 25) {
+        setProfitMargin(storedProfitMargin);
+        console.log("Recovered profit margin from localStorage:", storedProfitMargin);
+      }
+      
+      if (storedEstimateType && !estimateType) {
+        setEstimateType(storedEstimateType);
+        console.log("Recovered estimate type from localStorage:", storedEstimateType);
+      }
+      
+      if (storedSelectedSubtrades && storedSelectedSubtrades.length > 0 && selectedSubtrades.length === 0) {
+        setSelectedSubtrades(storedSelectedSubtrades);
+        console.log("Recovered selected subtrades from localStorage:", storedSelectedSubtrades);
+      }
+      
+      if (storedActiveTab && storedActiveTab !== "type-selection" && activeTab === "type-selection") {
+        setActiveTab(storedActiveTab);
+        console.log("Recovered active tab from localStorage:", storedActiveTab);
+      }
+      
+      if (storedPeelStickCost && storedPeelStickCost !== "0.00" && peelStickAddonCost === "0.00") {
+        setPeelStickAddonCost(storedPeelStickCost);
+        console.log("Recovered peel stick cost from localStorage:", storedPeelStickCost);
       }
     }
-  }, [isViewMode, storedPdfData, storedMeasurements, storedFileName, estimateId, measurementId]);
+    }, [isViewMode, storedPdfData, storedMeasurements, storedFileName, storedSelectedMaterials, storedQuantities, storedLaborRates, storedProfitMargin, storedEstimateType, storedSelectedSubtrades, storedActiveTab, storedPeelStickCost, extractedPdfData, measurements, pdfFileName, selectedMaterials, quantities, laborRates, profitMargin, estimateType, selectedSubtrades, activeTab, peelStickAddonCost]);
+  
+  // Auto-save effects - persist state changes to localStorage for seamless recovery
+  useEffect(() => {
+    if (!isViewMode && Object.keys(selectedMaterials).length > 0) {
+      setStoredSelectedMaterials(selectedMaterials);
+    }
+  }, [selectedMaterials, isViewMode, setStoredSelectedMaterials]);
 
+  useEffect(() => {
+    if (!isViewMode && Object.keys(quantities).length > 0) {
+      setStoredQuantities(quantities);
+    }
+  }, [quantities, isViewMode, setStoredQuantities]);
+
+  useEffect(() => {
+    if (!isViewMode && laborRates && laborRates.laborRate !== 85) {
+      setStoredLaborRates(laborRates);
+    }
+  }, [laborRates, isViewMode, setStoredLaborRates]);
+
+  useEffect(() => {
+    if (!isViewMode && profitMargin !== 25) {
+      setStoredProfitMargin(profitMargin);
+    }
+  }, [profitMargin, isViewMode, setStoredProfitMargin]);
+
+  useEffect(() => {
+    if (!isViewMode && estimateType) {
+      setStoredEstimateType(estimateType);
+    }
+  }, [estimateType, isViewMode, setStoredEstimateType]);
+
+  useEffect(() => {
+    if (!isViewMode && selectedSubtrades.length > 0) {
+      setStoredSelectedSubtrades(selectedSubtrades);
+    }
+  }, [selectedSubtrades, isViewMode, setStoredSelectedSubtrades]);
+
+  useEffect(() => {
+    if (!isViewMode && activeTab !== "type-selection") {
+      setStoredActiveTab(activeTab);
+    }
+  }, [activeTab, isViewMode, setStoredActiveTab]);
+
+  useEffect(() => {
+    if (!isViewMode && peelStickAddonCost !== "0.00") {
+      setStoredPeelStickCost(peelStickAddonCost);
+    }
+  }, [peelStickAddonCost, isViewMode, setStoredPeelStickCost]);
+  
   // Ensure measurements are properly set from extracted PDF data
   useEffect(() => {
     // If we have extracted PDF data, convert it to MeasurementValues format
@@ -722,11 +850,48 @@ const Estimates = () => {
       includeSteepSlopeLabor: true,
     });
     setProfitMargin(25);
+    setEstimateType(null);
+    setSelectedSubtrades([]);
+    setPeelStickAddonCost("0.00");
     
-    // Clear localStorage values too
+    // Clear ALL localStorage values for complete fresh start
     setStoredPdfData(null);
     setStoredMeasurements(null);
     setStoredFileName("");
+    setStoredSelectedMaterials({});
+    setStoredQuantities({});
+    setStoredLaborRates({
+      laborRate: 85,
+      tearOff: 0,
+      installation: 0,
+      isHandload: false,
+      handloadRate: 15,
+      dumpsterLocation: "orlando",
+      dumpsterCount: 1,
+      dumpsterRate: 400,
+      includePermits: true,
+      permitRate: 550,
+      permitCount: 1,
+      permitAdditionalRate: 450,
+      pitchRates: {},
+      wastePercentage: 12,
+      includeGutters: false,
+      gutterLinearFeet: 0,
+      gutterRate: 8,
+      includeDownspouts: false,
+      downspoutCount: 0,
+      downspoutRate: 75,
+      includeDetachResetGutters: false,
+      detachResetGutterLinearFeet: 0,
+      detachResetGutterRate: 1,
+      includeLowSlopeLabor: true,
+      includeSteepSlopeLabor: true,
+    });
+    setStoredProfitMargin(25);
+    setStoredEstimateType(null);
+    setStoredSelectedSubtrades([]);
+    setStoredActiveTab("type-selection");
+    setStoredPeelStickCost("0.00");
     
     // Clear any URL parameters and navigate to clean estimates page
     navigate("/estimates", { replace: true });
