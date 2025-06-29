@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -221,6 +221,20 @@ const Estimates = () => {
   const [storedActiveTab, setStoredActiveTab] = useLocalStorage<string>("estimateActiveTab", "type-selection");
   const [storedPeelStickCost, setStoredPeelStickCost] = useLocalStorage<string>("estimatePeelStickCost", "0.00");
   
+  // PHASE 2: Smart State Management - Recovery tracking and conflict prevention
+  const [isRecoveringState, setIsRecoveringState] = useState(false);
+  const [hasRecoveredData, setHasRecoveredData] = useState(false);
+  const [stateRecoveryAttempts, setStateRecoveryAttempts] = useState(0);
+  const isInternalStateChange = useRef(false); // Prevent save loops during recovery
+  const lastRecoveryTimestamp = useRef<number>(0);
+  const [recoveryStats, setRecoveryStats] = useState({
+    materialsRecovered: false,
+    quantitiesRecovered: false,
+    laborRatesRecovered: false,
+    tabPositionRecovered: false,
+    estimateTypeRecovered: false
+  });
+  
   const [estimates, setEstimates] = useState<EstimateType[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<{[key: string]: boolean}>({});
@@ -303,116 +317,219 @@ const Estimates = () => {
     }
   };
   
-  // Enhanced recovery logic - load persisted data when not in view mode
+  // PHASE 2: Smart Recovery Logic with Validation and Conflict Prevention
   useEffect(() => {
-    if (!isViewMode) {
-      // Always attempt to recover these basic items
-      if (storedPdfData && !extractedPdfData) {
-        setExtractedPdfData(storedPdfData);
-        console.log("Recovered PDF data from localStorage:", storedPdfData);
-      }
+    // Skip recovery if in view mode or already recovering/recovered
+    if (isViewMode || isRecoveringState || hasRecoveredData) return;
+    
+    // Prevent excessive recovery attempts
+    const now = Date.now();
+    if (stateRecoveryAttempts >= 3 || (now - lastRecoveryTimestamp.current) < 1000) {
+      return;
+    }
+    
+    // Check if we have significant localStorage data to recover
+    const hasSignificantData = storedPdfData || 
+      (storedSelectedMaterials && Object.keys(storedSelectedMaterials).length > 0) ||
+      (storedQuantities && Object.keys(storedQuantities).length > 0) ||
+      (storedLaborRates && storedLaborRates.laborRate !== 85) ||
+      (storedEstimateType) ||
+      (storedActiveTab && storedActiveTab !== "type-selection");
+    
+    if (!hasSignificantData) return;
+    
+    // Begin smart recovery process
+    setIsRecoveringState(true);
+    setStateRecoveryAttempts(prev => prev + 1);
+    lastRecoveryTimestamp.current = now;
+    isInternalStateChange.current = true;
+    
+    console.log("🔄 PHASE 2: Starting smart state recovery...");
+    
+    const recoveryResults = {
+      materialsRecovered: false,
+      quantitiesRecovered: false,
+      laborRatesRecovered: false,
+      tabPositionRecovered: false,
+      estimateTypeRecovered: false
+    };
+    
+    // Recovery Phase 1: Basic PDF & Measurement Data
+    if (storedPdfData && !extractedPdfData) {
+      setExtractedPdfData(storedPdfData);
+      console.log("✅ Recovered PDF data:", storedPdfData.propertyAddress || 'Unknown address');
+    }
+    
+    if (storedMeasurements && !measurements) {
+      setMeasurements(storedMeasurements);
+      console.log("✅ Recovered measurements:", storedMeasurements.totalArea, 'sq ft');
+    }
+    
+    if (storedFileName && !pdfFileName) {
+      setPdfFileName(storedFileName);
+      console.log("✅ Recovered filename:", storedFileName);
+    }
+    
+    // Recovery Phase 2: Advanced Estimate Data with Validation
+    if (storedSelectedMaterials && Object.keys(storedSelectedMaterials).length > 0 && Object.keys(selectedMaterials).length === 0) {
+             // Validate material data integrity
+       const validMaterials = Object.fromEntries(
+         Object.entries(storedSelectedMaterials).filter(([key, material]) => 
+           material && material.name && typeof material.price === 'number'
+         )
+       );
       
-      if (storedMeasurements && !measurements) {
-        setMeasurements(storedMeasurements);
-        console.log("Recovered measurements from localStorage:", storedMeasurements);
+      if (Object.keys(validMaterials).length > 0) {
+        setSelectedMaterials(validMaterials);
+        recoveryResults.materialsRecovered = true;
+        console.log("✅ Recovered", Object.keys(validMaterials).length, "materials");
       }
+    }
+    
+    if (storedQuantities && Object.keys(storedQuantities).length > 0 && Object.keys(quantities).length === 0) {
+      // Validate quantities are positive numbers
+      const validQuantities = Object.fromEntries(
+        Object.entries(storedQuantities).filter(([key, qty]) => 
+          typeof qty === 'number' && qty > 0 && !isNaN(qty)
+        )
+      );
       
-      if (storedFileName && !pdfFileName) {
-        setPdfFileName(storedFileName);
-        console.log("Recovered filename from localStorage:", storedFileName);
+      if (Object.keys(validQuantities).length > 0) {
+        setQuantities(validQuantities);
+        recoveryResults.quantitiesRecovered = true;
+        console.log("✅ Recovered quantities for", Object.keys(validQuantities).length, "materials");
       }
-      
-      // Recover additional estimate data for complete state restoration
-      if (storedSelectedMaterials && Object.keys(storedSelectedMaterials).length > 0 && Object.keys(selectedMaterials).length === 0) {
-        setSelectedMaterials(storedSelectedMaterials);
-        console.log("Recovered selected materials from localStorage:", Object.keys(storedSelectedMaterials).length, "materials");
-      }
-      
-      if (storedQuantities && Object.keys(storedQuantities).length > 0 && Object.keys(quantities).length === 0) {
-        setQuantities(storedQuantities);
-        console.log("Recovered quantities from localStorage:", storedQuantities);
-      }
-      
-      if (storedLaborRates && Object.keys(storedLaborRates).length > 0 && laborRates.laborRate === 85) {
+    }
+    
+    if (storedLaborRates && Object.keys(storedLaborRates).length > 0 && laborRates.laborRate === 85) {
+      // Validate labor rates are reasonable numbers
+      const isValidLaborRate = storedLaborRates.laborRate > 0 && storedLaborRates.laborRate < 500;
+      if (isValidLaborRate) {
         setLaborRates(storedLaborRates);
-        console.log("Recovered labor rates from localStorage:", storedLaborRates);
+        recoveryResults.laborRatesRecovered = true;
+        console.log("✅ Recovered labor rates:", storedLaborRates.laborRate, "$/hr");
       }
-      
-      if (storedProfitMargin && storedProfitMargin !== 25 && profitMargin === 25) {
+    }
+    
+    if (storedProfitMargin && storedProfitMargin !== 25 && profitMargin === 25) {
+      const isValidMargin = storedProfitMargin >= 0 && storedProfitMargin <= 100;
+      if (isValidMargin) {
         setProfitMargin(storedProfitMargin);
-        console.log("Recovered profit margin from localStorage:", storedProfitMargin);
+        console.log("✅ Recovered profit margin:", storedProfitMargin + "%");
       }
-      
-      if (storedEstimateType && !estimateType) {
+    }
+    
+    if (storedEstimateType && !estimateType) {
+      const validTypes = ['roof_only', 'with_subtrades'];
+      if (validTypes.includes(storedEstimateType)) {
         setEstimateType(storedEstimateType);
-        console.log("Recovered estimate type from localStorage:", storedEstimateType);
+        recoveryResults.estimateTypeRecovered = true;
+        console.log("✅ Recovered estimate type:", storedEstimateType);
       }
-      
-      if (storedSelectedSubtrades && storedSelectedSubtrades.length > 0 && selectedSubtrades.length === 0) {
-        setSelectedSubtrades(storedSelectedSubtrades);
-        console.log("Recovered selected subtrades from localStorage:", storedSelectedSubtrades);
-      }
-      
-      if (storedActiveTab && storedActiveTab !== "type-selection" && activeTab === "type-selection") {
+    }
+    
+    if (storedSelectedSubtrades && storedSelectedSubtrades.length > 0 && selectedSubtrades.length === 0) {
+      setSelectedSubtrades(storedSelectedSubtrades);
+      console.log("✅ Recovered", storedSelectedSubtrades.length, "subtrades");
+    }
+    
+    // Recovery Phase 3: UI State (Tab Position)
+    if (storedActiveTab && storedActiveTab !== "type-selection" && activeTab === "type-selection") {
+      const validTabs = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
+      if (validTabs.includes(storedActiveTab)) {
         setActiveTab(storedActiveTab);
-        console.log("Recovered active tab from localStorage:", storedActiveTab);
+        recoveryResults.tabPositionRecovered = true;
+        console.log("✅ Recovered tab position:", storedActiveTab);
+      }
+    }
+    
+    if (storedPeelStickCost && storedPeelStickCost !== "0.00" && peelStickAddonCost === "0.00") {
+      const cost = parseFloat(storedPeelStickCost);
+      if (!isNaN(cost) && cost >= 0) {
+        setPeelStickAddonCost(storedPeelStickCost);
+        console.log("✅ Recovered peel stick cost:", storedPeelStickCost);
+      }
+    }
+    
+    // Finalize recovery process
+    setTimeout(() => {
+      setRecoveryStats(recoveryResults);
+      setIsRecoveringState(false);
+      setHasRecoveredData(true);
+      isInternalStateChange.current = false;
+      
+      // Show recovery toast if significant data was recovered
+      const recoveredCount = Object.values(recoveryResults).filter(Boolean).length;
+      if (recoveredCount > 0) {
+        toast({
+          title: "📋 Estimate Data Recovered",
+          description: `Successfully restored ${recoveredCount} sections from your previous session.`,
+          duration: 4000,
+        });
       }
       
-      if (storedPeelStickCost && storedPeelStickCost !== "0.00" && peelStickAddonCost === "0.00") {
-        setPeelStickAddonCost(storedPeelStickCost);
-        console.log("Recovered peel stick cost from localStorage:", storedPeelStickCost);
-      }
-    }
-    }, [isViewMode, storedPdfData, storedMeasurements, storedFileName, storedSelectedMaterials, storedQuantities, storedLaborRates, storedProfitMargin, storedEstimateType, storedSelectedSubtrades, storedActiveTab, storedPeelStickCost, extractedPdfData, measurements, pdfFileName, selectedMaterials, quantities, laborRates, profitMargin, estimateType, selectedSubtrades, activeTab, peelStickAddonCost]);
+      console.log("🎯 PHASE 2: Recovery complete!", recoveryResults);
+    }, 100);
+    
+    }, [isViewMode, isRecoveringState, hasRecoveredData, stateRecoveryAttempts, storedPdfData, storedMeasurements, storedFileName, storedSelectedMaterials, storedQuantities, storedLaborRates, storedProfitMargin, storedEstimateType, storedSelectedSubtrades, storedActiveTab, storedPeelStickCost, extractedPdfData, measurements, pdfFileName, selectedMaterials, quantities, laborRates, profitMargin, estimateType, selectedSubtrades, activeTab, peelStickAddonCost]);
   
-  // Auto-save effects - persist state changes to localStorage for seamless recovery
+  // PHASE 2: Smart Auto-Save Effects - Prevent save loops during recovery
   useEffect(() => {
-    if (!isViewMode && Object.keys(selectedMaterials).length > 0) {
+    // Don't save during recovery or view mode
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && Object.keys(selectedMaterials).length > 0) {
       setStoredSelectedMaterials(selectedMaterials);
+      console.log("💾 Auto-saved materials:", Object.keys(selectedMaterials).length, "items");
     }
-  }, [selectedMaterials, isViewMode, setStoredSelectedMaterials]);
+  }, [selectedMaterials, isViewMode, isRecoveringState, setStoredSelectedMaterials]);
 
   useEffect(() => {
-    if (!isViewMode && Object.keys(quantities).length > 0) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && Object.keys(quantities).length > 0) {
       setStoredQuantities(quantities);
+      console.log("💾 Auto-saved quantities for", Object.keys(quantities).length, "materials");
     }
-  }, [quantities, isViewMode, setStoredQuantities]);
+  }, [quantities, isViewMode, isRecoveringState, setStoredQuantities]);
 
   useEffect(() => {
-    if (!isViewMode && laborRates && laborRates.laborRate !== 85) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && laborRates && laborRates.laborRate !== 85) {
       setStoredLaborRates(laborRates);
+      console.log("💾 Auto-saved labor rates:", laborRates.laborRate, "$/hr");
     }
-  }, [laborRates, isViewMode, setStoredLaborRates]);
+  }, [laborRates, isViewMode, isRecoveringState, setStoredLaborRates]);
 
   useEffect(() => {
-    if (!isViewMode && profitMargin !== 25) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && profitMargin !== 25) {
       setStoredProfitMargin(profitMargin);
+      console.log("💾 Auto-saved profit margin:", profitMargin + "%");
     }
-  }, [profitMargin, isViewMode, setStoredProfitMargin]);
+  }, [profitMargin, isViewMode, isRecoveringState, setStoredProfitMargin]);
 
   useEffect(() => {
-    if (!isViewMode && estimateType) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && estimateType) {
       setStoredEstimateType(estimateType);
+      console.log("💾 Auto-saved estimate type:", estimateType);
     }
-  }, [estimateType, isViewMode, setStoredEstimateType]);
+  }, [estimateType, isViewMode, isRecoveringState, setStoredEstimateType]);
 
   useEffect(() => {
-    if (!isViewMode && selectedSubtrades.length > 0) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && selectedSubtrades.length > 0) {
       setStoredSelectedSubtrades(selectedSubtrades);
+      console.log("💾 Auto-saved", selectedSubtrades.length, "subtrades");
     }
-  }, [selectedSubtrades, isViewMode, setStoredSelectedSubtrades]);
+  }, [selectedSubtrades, isViewMode, isRecoveringState, setStoredSelectedSubtrades]);
 
   useEffect(() => {
-    if (!isViewMode && activeTab !== "type-selection") {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && activeTab !== "type-selection") {
       setStoredActiveTab(activeTab);
+      console.log("💾 Auto-saved tab position:", activeTab);
     }
-  }, [activeTab, isViewMode, setStoredActiveTab]);
+  }, [activeTab, isViewMode, isRecoveringState, setStoredActiveTab]);
 
   useEffect(() => {
-    if (!isViewMode && peelStickAddonCost !== "0.00") {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && peelStickAddonCost !== "0.00") {
       setStoredPeelStickCost(peelStickAddonCost);
+      console.log("💾 Auto-saved peel stick cost:", peelStickAddonCost);
     }
-  }, [peelStickAddonCost, isViewMode, setStoredPeelStickCost]);
+  }, [peelStickAddonCost, isViewMode, isRecoveringState, setStoredPeelStickCost]);
   
   // Ensure measurements are properly set from extracted PDF data
   useEffect(() => {
@@ -893,12 +1010,26 @@ const Estimates = () => {
     setStoredActiveTab("type-selection");
     setStoredPeelStickCost("0.00");
     
+    // PHASE 2: Reset recovery state flags for complete fresh start
+    setIsRecoveringState(false);
+    setHasRecoveredData(false);
+    setStateRecoveryAttempts(0);
+    lastRecoveryTimestamp.current = 0;
+    isInternalStateChange.current = false;
+    setRecoveryStats({
+      materialsRecovered: false,
+      quantitiesRecovered: false,
+      laborRatesRecovered: false,
+      tabPositionRecovered: false,
+      estimateTypeRecovered: false
+    });
+    
     // Clear any URL parameters and navigate to clean estimates page
     navigate("/estimates", { replace: true });
     
     toast({
-      title: "Started fresh",
-      description: "All estimate data has been cleared.",
+      title: "🧹 Started Fresh",
+      description: "All estimate data and recovery state has been cleared.",
     });
   };
 
