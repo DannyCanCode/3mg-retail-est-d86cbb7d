@@ -64,6 +64,15 @@ export const ROOFING_MATERIALS: Material[] = [
   },
   // UNDERLAYMENTS
   {
+    id: "full-peel-stick-system",
+    name: "Full W.W Peel & Stick System",
+    category: MaterialCategory.UNDERLAYMENTS,
+    price: 0,
+    unit: "Roll",
+    approxPerSquare: 0,
+    coverageRule: { description: "1.5 Squares Steep Area / Roll (Cost: $60/sq extra)", calculation: "Steep Slope Area / 1.5 rounded up" }
+  },
+  {
     id: "abc-pro-guard-20",
     name: "ABC Pro Guard 20 (Rhino)",
     category: MaterialCategory.UNDERLAYMENTS,
@@ -125,15 +134,6 @@ export const ROOFING_MATERIALS: Material[] = [
     unit: "Roll",
     approxPerSquare: 55.37,
     coverageRule: { description: "2 Squares/Roll (200 sq ft)", calculation: "Valley Length + Eave Length related calc" } 
-  },
-  {
-    id: "full-peel-stick-system",
-    name: "Full W.W Peel & Stick System Add-on",
-    category: MaterialCategory.UNDERLAYMENTS,
-    price: 0,
-    unit: "Roll",
-    approxPerSquare: 0,
-    coverageRule: { description: "1.5 Squares Steep Area / Roll (Cost: $60/sq extra)", calculation: "Steep Slope Area / 1.5 rounded up" }
   },
   // LOW SLOPE
   {
