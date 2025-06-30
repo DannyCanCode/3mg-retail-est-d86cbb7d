@@ -171,146 +171,219 @@ const ManagerDashboard: React.FC = () => {
     }
   };
 
-  const EstimateCard = ({ estimate }: { estimate: ExtendedEstimate }) => (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <div>
-            <h3 className="font-semibold">{estimate.customer_address}</h3>
-            <p className="text-sm text-muted-foreground">
-              {new Date(estimate.created_at).toLocaleDateString()}
-            </p>
+  const EstimateCard = ({ estimate }: { estimate: ExtendedEstimate }) => {
+    // Determine creator info and role-based styling
+    const creatorName = estimate.creator_name || estimate.customer_name || 'Unknown Creator';
+    const creatorRole = estimate.creator_role || 'rep'; // fallback to rep if no role
+    
+    // Role-based color themes
+    const getRoleTheme = (role: string) => {
+      switch (role) {
+        case 'admin':
+          return {
+            border: 'border-blue-200',
+            headerBg: 'bg-blue-50',
+            titleColor: 'text-blue-900',
+            accentColor: 'text-blue-600',
+            badgeColors: 'bg-blue-100 text-blue-800 border-blue-300'
+          };
+        case 'manager':
+          return {
+            border: 'border-green-200',
+            headerBg: 'bg-green-50',
+            titleColor: 'text-green-900',
+            accentColor: 'text-green-600',
+            badgeColors: 'bg-green-100 text-green-800 border-green-300'
+          };
+        case 'rep':
+          return {
+            border: 'border-orange-200',
+            headerBg: 'bg-orange-50',
+            titleColor: 'text-orange-900',
+            accentColor: 'text-orange-600',
+            badgeColors: 'bg-orange-100 text-orange-800 border-orange-300'
+          };
+        default:
+          return {
+            border: 'border-gray-200',
+            headerBg: 'bg-gray-50',
+            titleColor: 'text-gray-900',
+            accentColor: 'text-gray-600',
+            badgeColors: 'bg-gray-100 text-gray-800 border-gray-300'
+          };
+      }
+    };
+    
+    const theme = getRoleTheme(creatorRole);
+    
+    return (
+      <Card className={`overflow-hidden transition-all duration-200 hover:shadow-md ${theme.border}`}>
+        <CardHeader className={`p-3 ${theme.headerBg}`}>
+          <div className="flex justify-between items-start">
+            <div className="min-w-0 flex-1">
+              <h3 className={`text-sm font-semibold ${theme.titleColor} truncate`}>
+                {creatorName}
+              </h3>
+              <p className={`text-xs ${theme.accentColor} mt-1`}>
+                {creatorRole === 'admin' ? 'Administrator' : 
+                 creatorRole === 'manager' ? 'Territory Manager' : 'Sales Rep'}
+              </p>
+            </div>
+            <Badge 
+              variant="outline"
+              className={`text-xs ${theme.badgeColors} ml-2`}
+            >
+              {estimate.status?.charAt(0).toUpperCase() + estimate.status?.slice(1)}
+            </Badge>
           </div>
-          <Badge 
-            className={
-              estimate.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-              estimate.status === 'approved' ? 'bg-green-100 text-green-800' :
-              'bg-red-100 text-red-800'
-            }
-          >
-            {estimate.status?.charAt(0).toUpperCase() + estimate.status?.slice(1)}
-          </Badge>
-        </div>
+        </CardHeader>
         
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-lg font-bold text-green-600">
-            {currency(estimate.total_price || 0)}
-          </span>
-          {estimate.measurements?.totalArea && (
-            <span className="text-sm text-muted-foreground">
-              {estimate.measurements.totalArea} sq ft
-            </span>
-          )}
-        </div>
+        <CardContent className="p-3">
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-muted-foreground">Property Address</p>
+              <p className="text-sm font-medium truncate">{estimate.customer_address}</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p className="text-muted-foreground">Date</p>
+                <p className="font-medium">{new Date(estimate.created_at).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Area</p>
+                <p className="font-medium">
+                  {estimate.measurements?.totalArea ? `${estimate.measurements.totalArea} sq ft` : 'N/A'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="pt-1 border-t">
+              <p className="text-xs text-muted-foreground">Total Amount</p>
+              <p className={`text-lg font-bold ${theme.accentColor}`}>
+                {currency(estimate.total_price || 0)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
         
         {estimate.status === 'pending' && (
-          <div className="flex gap-2 mt-3">
-            <Button 
-              size="sm" 
-              onClick={() => handleApprove(estimate.id!)}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle2 className="h-4 w-4 mr-1" />
-              Accept
-            </Button>
-            
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button 
-                  size="sm" 
-                  variant="destructive"
-                  onClick={() => setSelectedEstimate(estimate.id!)}
-                >
-                  <XCircle className="h-4 w-4 mr-1" />
-                  Reject
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Reject Estimate</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <p>Please provide a reason for rejecting this estimate:</p>
-                  <Textarea
-                    placeholder="Enter rejection reason..."
-                    value={rejectionNote}
-                    onChange={(e) => setRejectionNote(e.target.value)}
-                    rows={3}
-                  />
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => {
-                      setSelectedEstimate(null);
-                      setRejectionNote('');
-                    }}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      variant="destructive" 
-                      onClick={() => handleReject(estimate.id!)}
-                      disabled={!rejectionNote.trim()}
-                    >
-                      Reject Estimate
-                    </Button>
+          <CardContent className="p-3 pt-0">
+            <div className="flex gap-2">
+              <Button 
+                size="sm" 
+                onClick={() => handleApprove(estimate.id!)}
+                className="bg-green-600 hover:bg-green-700 flex-1 text-xs"
+              >
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Accept
+              </Button>
+              
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button 
+                    size="sm" 
+                    variant="destructive"
+                    onClick={() => setSelectedEstimate(estimate.id!)}
+                    className="flex-1 text-xs"
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Reject
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Reject Estimate</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <p>Please provide a reason for rejecting this estimate:</p>
+                    <Textarea
+                      placeholder="Enter rejection reason..."
+                      value={rejectionNote}
+                      onChange={(e) => setRejectionNote(e.target.value)}
+                      rows={3}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => {
+                        setSelectedEstimate(null);
+                        setRejectionNote('');
+                      }}>
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        onClick={() => handleReject(estimate.id!)}
+                        disabled={!rejectionNote.trim()}
+                      >
+                        Reject Estimate
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardContent>
         )}
         
         {/* Enhanced functionality for approved/rejected estimates */}
         {(estimate.status === 'approved' || estimate.status === 'rejected') && (
-          <div className="flex gap-2 mt-3">
-            {estimate.status === 'approved' && (
-              <Button 
-                size="sm" 
-                onClick={() => handleGeneratePdf(estimate)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Generate PDF
-              </Button>
-            )}
-            
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => handleViewDetails(estimate)}
-            >
-              <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              View Details
-            </Button>
-            
-            {estimate.status === 'approved' && (
+          <CardContent className="p-3 pt-0">
+            <div className="flex gap-2">
+              {estimate.status === 'approved' && (
+                <Button 
+                  size="sm" 
+                  onClick={() => handleGeneratePdf(estimate)}
+                  className="bg-blue-600 hover:bg-blue-700 flex-1 text-xs"
+                >
+                  <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  PDF
+                </Button>
+              )}
+              
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={() => handleEditEstimate(estimate)}
+                onClick={() => handleViewDetails(estimate)}
+                className="flex-1 text-xs"
               >
-                <svg className="h-4 w-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                 </svg>
-                Edit
+                View
               </Button>
-            )}
-          </div>
+              
+              {estimate.status === 'approved' && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => handleEditEstimate(estimate)}
+                  className="flex-1 text-xs"
+                >
+                  <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit
+                </Button>
+              )}
+            </div>
+          </CardContent>
         )}
         
         {estimate.status === 'rejected' && estimate.rejection_reason && (
-          <div className="mt-3 p-2 bg-red-50 rounded border-l-4 border-red-200">
-            <p className="text-sm text-red-700">
-              <strong>Rejection reason:</strong> {estimate.rejection_reason}
-            </p>
-          </div>
+          <CardContent className="p-3 pt-0">
+            <div className="p-2 bg-red-50 rounded border-l-4 border-red-200">
+              <p className="text-xs text-red-700">
+                <strong>Rejection reason:</strong> {estimate.rejection_reason}
+              </p>
+            </div>
+          </CardContent>
         )}
-      </CardContent>
-    </Card>
-  );
+      </Card>
+    );
+  };
 
   if (authLoading) {
     return (

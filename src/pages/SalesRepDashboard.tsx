@@ -48,9 +48,18 @@ const SalesRepDashboard: React.FC = () => {
       .eq('created_by', profile!.id) // Only show estimates created by this sales rep
       .order('created_at', { ascending: false });
     
-    if (!error) {
-      setEstimates(data as Estimate[]);
-    } else {
+    if (!error && data) {
+      // Type assertion to handle the Json to Record conversion
+      const typedEstimates = data.map(estimate => ({
+        ...estimate,
+        materials: typeof estimate.materials === 'string' ? JSON.parse(estimate.materials) : (estimate.materials || {}),
+        quantities: typeof estimate.quantities === 'string' ? JSON.parse(estimate.quantities) : (estimate.quantities || {}),
+        labor_rates: typeof estimate.labor_rates === 'string' ? JSON.parse(estimate.labor_rates) : (estimate.labor_rates || {}),
+        measurements: typeof estimate.measurements === 'string' ? JSON.parse(estimate.measurements) : (estimate.measurements || {})
+      })) as Estimate[];
+      
+      setEstimates(typedEstimates);
+    } else if (error) {
       toast({ 
         variant: 'destructive', 
         title: 'Error loading estimates', 
@@ -62,13 +71,12 @@ const SalesRepDashboard: React.FC = () => {
   const fetchTerritory = async () => {
     if (!profile?.territory_id) return;
     
-    const { data, error } = await supabase
-      .from('territories')
-      .select('*')
-      .eq('id', profile.territory_id)
-      .single();
-    
-    if (!error) setTerritory(data as Territory);
+    // For now, set a placeholder territory name based on the territory_id
+    // This can be improved later when territory management is enhanced
+    setTerritory({
+      id: profile.territory_id,
+      name: `Territory ${profile.territory_id.substring(0, 8)}...`
+    });
   };
 
   const handleCreateEstimate = () => {
@@ -115,49 +123,117 @@ const SalesRepDashboard: React.FC = () => {
     }
   };
 
-  const EstimateCard = ({ estimate }: { estimate: Estimate }) => (
-    <Card className="mb-3">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-2">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-sm truncate">{estimate.customer_address}</h3>
-            <p className="text-xs text-muted-foreground">
-              {new Date(estimate.created_at).toLocaleDateString()}
-            </p>
+  const EstimateCard = ({ estimate }: { estimate: Estimate }) => {
+    // Determine creator info and role-based styling
+    const creatorName = estimate.creator_name || estimate.customer_name || 'Unknown Creator';
+    const creatorRole = estimate.creator_role || 'rep'; // fallback to rep if no role
+    
+    // Role-based color themes
+    const getRoleTheme = (role: string) => {
+      switch (role) {
+        case 'admin':
+          return {
+            border: 'border-blue-200',
+            headerBg: 'bg-blue-50',
+            titleColor: 'text-blue-900',
+            accentColor: 'text-blue-600',
+            badgeColors: 'bg-blue-100 text-blue-800 border-blue-300'
+          };
+        case 'manager':
+          return {
+            border: 'border-green-200',
+            headerBg: 'bg-green-50',
+            titleColor: 'text-green-900',
+            accentColor: 'text-green-600',
+            badgeColors: 'bg-green-100 text-green-800 border-green-300'
+          };
+        case 'rep':
+          return {
+            border: 'border-orange-200',
+            headerBg: 'bg-orange-50',
+            titleColor: 'text-orange-900',
+            accentColor: 'text-orange-600',
+            badgeColors: 'bg-orange-100 text-orange-800 border-orange-300'
+          };
+        default:
+          return {
+            border: 'border-gray-200',
+            headerBg: 'bg-gray-50',
+            titleColor: 'text-gray-900',
+            accentColor: 'text-gray-600',
+            badgeColors: 'bg-gray-100 text-gray-800 border-gray-300'
+          };
+      }
+    };
+    
+    const theme = getRoleTheme(creatorRole);
+    
+    return (
+      <Card className={`mb-3 overflow-hidden transition-all duration-200 hover:shadow-md ${theme.border}`}>
+        <CardHeader className={`p-3 ${theme.headerBg}`}>
+          <div className="flex justify-between items-start">
+            <div className="min-w-0 flex-1">
+              <h3 className={`text-sm font-semibold ${theme.titleColor} truncate`}>
+                {creatorName}
+              </h3>
+              <p className={`text-xs ${theme.accentColor} mt-1`}>
+                {creatorRole === 'admin' ? 'Administrator' : 
+                 creatorRole === 'manager' ? 'Territory Manager' : 'Sales Rep'}
+              </p>
+            </div>
+            <Badge className={`${getStatusColor(estimate.status)} ml-2 flex items-center gap-1 text-xs`}>
+              {getStatusIcon(estimate.status)}
+              <span className="capitalize">{estimate.status}</span>
+            </Badge>
           </div>
-          <Badge className={`${getStatusColor(estimate.status)} ml-2 flex items-center gap-1`}>
-            {getStatusIcon(estimate.status)}
-            <span className="capitalize">{estimate.status}</span>
-          </Badge>
-        </div>
+        </CardHeader>
         
-        <div className="flex justify-between items-center">
-          <span className="text-lg font-bold text-green-600">
-            {currency(estimate.total_price || 0)}
-          </span>
-          
-          {estimate.status === 'approved' && (
-            <Button size="sm" variant="outline">
-              Download PDF
-            </Button>
-          )}
-          
-          {estimate.status === 'rejected' && estimate.rejection_reason && (
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => toast({
-                title: 'Rejection Reason',
-                description: estimate.rejection_reason
-              })}
-            >
-              View Reason
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
+        <CardContent className="p-3">
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-muted-foreground">Property Address</p>
+              <p className="text-sm font-medium truncate">{estimate.customer_address}</p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p className="text-muted-foreground">Date</p>
+                <p className="font-medium">{new Date(estimate.created_at).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Total</p>
+                <p className={`text-lg font-bold ${theme.accentColor}`}>
+                  {currency(estimate.total_price || 0)}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end mt-3">
+              {estimate.status === 'approved' && (
+                <Button size="sm" variant="outline" className="text-xs">
+                  Download PDF
+                </Button>
+              )}
+              
+              {estimate.status === 'rejected' && estimate.rejection_reason && (
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="text-xs"
+                  onClick={() => toast({
+                    title: 'Rejection Reason',
+                    description: estimate.rejection_reason
+                  })}
+                >
+                  View Reason
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (!profile?.territory_id && profile?.role !== 'admin') {
     return (

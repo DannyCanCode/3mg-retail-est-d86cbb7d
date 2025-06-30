@@ -35,6 +35,11 @@ export interface Estimate {
   job_type?: 'Retail' | 'Insurance' | null;
   insurance_company?: string | null;
   peel_stick_addon_cost?: number;
+  rejection_reason?: string; // Reason for rejection if status is 'rejected'
+  // Creator information for dashboard display
+  creator_name?: string;
+  creator_role?: 'admin' | 'manager' | 'rep' | 'subtrade_manager';
+  created_by?: string; // User ID who created the estimate
 }
 
 /**

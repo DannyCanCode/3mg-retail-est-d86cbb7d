@@ -24,6 +24,9 @@ Sentry.init({
   tracesSampleRate: 1.0,
 })
 
+// Import cleanup utility for development (admin only)
+import "./utils/cleanup-test-data.ts";
+
 // Render the application
 const container = document.getElementById('root')
 if (container) {
