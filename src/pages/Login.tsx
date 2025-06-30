@@ -48,7 +48,7 @@ export default function Login() {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         password,
       });
       
@@ -217,7 +217,7 @@ export default function Login() {
                   <code className="bg-white px-1 rounded">Daniel2024!</code>
                 </div>
                 <div className="flex justify-between">
-                  <span>Connor@3mgroofing.com</span>
+                  <span>connor@3mgroofing.com</span>
                   <code className="bg-white px-1 rounded">Connor2024!</code>
                 </div>
                 <div className="flex justify-between">
@@ -225,22 +225,22 @@ export default function Login() {
                   <code className="bg-white px-1 rounded">Jay2024!</code>
                 </div>
                 <div className="flex justify-between">
-                  <span>JHagan@3mgroofing.com</span>
+                  <span>jhagan@3mgroofing.com</span>
                   <code className="bg-white px-1 rounded">JHagan2024!</code>
                 </div>
                 <div className="flex justify-between">
-                  <span>Tyler.Powell@3MGRoofing.com</span>
+                  <span>tyler.powell@3mgroofing.com</span>
                   <code className="bg-white px-1 rounded">Tyler2024!</code>
                 </div>
               </div>
               <div>
                 <div className="font-semibold text-blue-700 mb-1">Territory Managers:</div>
                 <div className="flex justify-between">
-                  <span>Nickolas.nell@3MGRoofing.com (Stuart)</span>
+                  <span>nickolas.nell@3mgroofing.com (Stuart)</span>
                   <code className="bg-white px-1 rounded">Nick2024!</code>
                 </div>
                 <div className="flex justify-between">
-                  <span>Harrison.Cremata@3MGRoofing.com (Jacksonville)</span>
+                  <span>harrison.cremata@3mgroofing.com (Jacksonville)</span>
                   <code className="bg-white px-1 rounded">Harrison2024!</code>
                 </div>
               </div>
