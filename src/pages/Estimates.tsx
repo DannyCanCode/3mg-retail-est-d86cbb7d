@@ -278,11 +278,27 @@ const Estimates = () => {
       // For a new estimate, ensure we start clean
       // and don't load from localStorage unless specified by a measurementId
       if (!measurementId) {
-        setActiveTab("type-selection");
-        // FRESH START: User clicked "New Estimate" with no measurementId - prevent unwanted recovery
+        // IMMEDIATE FRESH START: User clicked "New Estimate" - prevent any recovery
+        console.log("NEW ESTIMATE: Starting fresh workflow");
         setUserWantsFreshStart(true);
-        setTimeout(() => setUserWantsFreshStart(false), 1000); // Reset after component stabilizes
-    }
+        setActiveTab("type-selection");
+        
+        // Clear any stored state to ensure truly fresh start
+        setStoredActiveTab("type-selection");
+        setHasRecoveredData(true); // Mark as recovered to prevent further attempts
+        
+        // Clear localStorage data for fresh start
+        setTimeout(() => {
+          setStoredSelectedMaterials({});
+          setStoredQuantities({});
+          setStoredPeelStickCost("0.00");
+          setStoredEstimateType(null);
+          setStoredSelectedSubtrades([]);
+          
+          // Reset fresh start flag after component stabilizes
+          setUserWantsFreshStart(false);
+        }, 100);
+      }
     }
   }, [estimateId, measurementId]);
   
@@ -1805,36 +1821,54 @@ const Estimates = () => {
                 >
                   <TabsList className="grid grid-cols-6 mb-8">
                     {!isViewMode && (
-                      <TabsTrigger value="type-selection" disabled={false}>
+                      <TabsTrigger 
+                        id="tab-trigger-type-selection"
+                        value="type-selection" 
+                        disabled={false}
+                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      >
                         1. Estimate Type
                       </TabsTrigger>
                     )}
                     {!isViewMode && (
-                      <TabsTrigger value="upload" disabled={!estimateType}>
+                      <TabsTrigger 
+                        id="tab-trigger-upload"
+                        value="upload" 
+                        disabled={!estimateType}
+                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      >
                         2. Upload EagleView
                       </TabsTrigger>
                     )}
                     <TabsTrigger 
+                      id="tab-trigger-measurements"
                       value="measurements" 
                       disabled={!isViewMode && !extractedPdfData && !measurements}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
                       {isViewMode ? "Measurements" : "3. Enter Measurements"}
                     </TabsTrigger>
                     <TabsTrigger 
+                      id="tab-trigger-materials"
                       value="materials" 
                       disabled={!isViewMode && !measurements}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
                       {isViewMode ? "Materials" : "4. Select Materials"}
                     </TabsTrigger>
                     <TabsTrigger 
+                      id="tab-trigger-pricing"
                       value="pricing" 
                       disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
                       {isViewMode ? "Labor & Profit" : "5. Labor & Profit"}
                     </TabsTrigger>
                     <TabsTrigger 
+                      id="tab-trigger-summary"
                       value="summary" 
                       disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
                       {isViewMode ? "Summary" : "6. Summary"}
                     </TabsTrigger>
@@ -2306,7 +2340,7 @@ const Estimates = () => {
                               templateFormData.name
                       })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="presetPackageType">
                         <SelectValue placeholder="Select a predefined package" />
                       </SelectTrigger>
                       <SelectContent>
