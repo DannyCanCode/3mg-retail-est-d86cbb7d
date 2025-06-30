@@ -17,7 +17,9 @@
     "test:mobile": "playwright test --project=Mobile-Testing",
     "test:headed": "playwright test --headed",
     "test:report": "playwright show-report",
-    "test:debug": "playwright test --debug"
+    "test:debug": "playwright test --debug",
+    "test:analytics": "playwright test concurrent-users.spec.ts --headed",
+    "test:netlify": "PLAYWRIGHT_BASE_URL=https://your-netlify-url.netlify.app playwright test"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

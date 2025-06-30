@@ -1,4 +1,5 @@
 import { test, expect, Browser, BrowserContext, Page } from '@playwright/test';
+import { createUserAnalytics } from './test-helpers/user-analytics';
 
 test.describe('Concurrent Multi-User Testing', () => {
   let browser: Browser;
@@ -32,6 +33,10 @@ test.describe('Concurrent Multi-User Testing', () => {
   });
 
   test('Jay and Tyler can work simultaneously without conflicts', async () => {
+    // Initialize analytics helpers for both users
+    const jayAnalytics = createUserAnalytics(jayPage, 'Jay');
+    const tylerAnalytics = createUserAnalytics(tylerPage, 'Tyler');
+
     // Both users navigate to the app simultaneously
     const navigatePromises = Promise.all([
       jayPage.goto('http://localhost:5173'),
@@ -43,6 +48,22 @@ test.describe('Concurrent Multi-User Testing', () => {
     await expect(jayPage).toHaveTitle(/3MG Retail Estimator/);
     await expect(tylerPage).toHaveTitle(/3MG Retail Estimator/);
 
+    // Verify analytics are working on both pages
+    await Promise.all([
+      jayAnalytics.verifyAnalyticsCapture(),
+      tylerAnalytics.verifyAnalyticsCapture()
+    ]);
+
+    // Track performance metrics
+    const performancePromises = Promise.all([
+      jayAnalytics.trackPerformanceMetrics(),
+      tylerAnalytics.trackPerformanceMetrics()
+    ]);
+    const [jayMetrics, tylerMetrics] = await performancePromises;
+
+    console.log('Jay Performance:', jayMetrics);
+    console.log('Tyler Performance:', tylerMetrics);
+
     // Both users attempt to log in simultaneously
     // Jay logs in as admin
     const jayLoginPromise = jayPage.getByRole('button', { name: 'Sign In' }).click();
@@ -52,6 +73,12 @@ test.describe('Concurrent Multi-User Testing', () => {
     const tylerLoginPromise = tylerPage.getByRole('button', { name: 'Sign In' }).click();
     
     await Promise.all([jayLoginPromise, tylerLoginPromise]);
+
+    // Track login events
+    await Promise.all([
+      jayAnalytics.trackLogin(),
+      tylerAnalytics.trackLogin()
+    ]);
 
     // Both should reach admin dashboards
     await expect(jayPage.getByText('Admin Dashboard')).toBeVisible({ timeout: 10000 });
@@ -64,14 +91,20 @@ test.describe('Concurrent Multi-User Testing', () => {
     ]);
     await createEstimatePromises;
 
+    // Track estimate creation
+    await Promise.all([
+      jayAnalytics.trackEstimateCreation('concurrent-test'),
+      tylerAnalytics.trackEstimateCreation('concurrent-test')
+    ]);
+
     // Verify both are on the estimates page
     await expect(jayPage).toHaveURL(/.*\/estimates/);
     await expect(tylerPage).toHaveURL(/.*\/estimates/);
 
-    // Take screenshots for visual verification
+    // Take analytics-enhanced screenshots
     await Promise.all([
-      jayPage.screenshot({ path: 'e2e/debug-screenshots/jay-concurrent-test.png' }),
-      tylerPage.screenshot({ path: 'e2e/debug-screenshots/tyler-concurrent-test.png' })
+      jayAnalytics.screenshotWithAnalytics('concurrent-test'),
+      tylerAnalytics.screenshotWithAnalytics('concurrent-test')
     ]);
   });
 
