@@ -217,7 +217,7 @@ export default function Login() {
                   <code className="bg-white px-1 rounded">Daniel2024!</code>
                 </div>
                 <div className="flex justify-between">
-                  <span>connor@3mgroofing.com</span>
+                  <span>Connor@3mgroofing.com</span>
                   <code className="bg-white px-1 rounded">Connor2024!</code>
                 </div>
                 <div className="flex justify-between">
@@ -225,18 +225,18 @@ export default function Login() {
                   <code className="bg-white px-1 rounded">Jay2024!</code>
                 </div>
                 <div className="flex justify-between">
-                  <span>jhagan@3mgroofing.com</span>
+                  <span>JHagan@3mgroofing.com</span>
                   <code className="bg-white px-1 rounded">JHagan2024!</code>
                 </div>
                 <div className="flex justify-between">
-                  <span>tyler.powell@3mgroofing.com</span>
+                  <span>Tyler.Powell@3MGRoofing.com</span>
                   <code className="bg-white px-1 rounded">Tyler2024!</code>
                 </div>
               </div>
               <div>
                 <div className="font-semibold text-blue-700 mb-1">Territory Managers:</div>
                 <div className="flex justify-between">
-                  <span>nickolas.nell@3mgroofing.com (Stuart)</span>
+                  <span>Nickolas.nell@3MGRoofing.com (Stuart)</span>
                   <code className="bg-white px-1 rounded">Nick2024!</code>
                 </div>
                 <div className="flex justify-between">
