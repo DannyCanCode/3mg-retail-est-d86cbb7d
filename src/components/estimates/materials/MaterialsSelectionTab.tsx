@@ -1565,6 +1565,33 @@ export function MaterialsSelectionTab({
     }
   }, [selectedPackage, selectedWarranty, toast]);
 
+  // 🎯 CRITICAL FIX: Auto-sync GAF package selection with material presets
+  // When users select GAF 1 or GAF 2 in the big boxes at top, automatically apply materials
+  useEffect(() => {
+    if (!selectedPackage || !measurements) return;
+    
+    // Map package selection to preset bundle names
+    const packageToPreset: Record<string, string> = {
+      'gaf-1': 'GAF 1',
+      'gaf-2': 'GAF 2'
+    };
+    
+    const presetName = packageToPreset[selectedPackage];
+    if (presetName) {
+      console.log(`🎯 GAF Package Sync: Auto-applying ${presetName} materials from package selection`);
+      
+      // Apply the corresponding preset bundle to sync the two sections
+      applyPresetBundle(presetName);
+      
+      toast({
+        title: "GAF Package Materials Applied! ✅",
+        description: `${presetName} materials have been automatically added based on your package selection.`,
+        duration: 4000,
+        variant: "default"
+      });
+    }
+  }, [selectedPackage, measurements, applyPresetBundle, toast]); // Include all dependencies
+
   // Populate editableTemplateMaterials when activePricingTemplate changes or on initial load
   useEffect(() => {
     console.log("[EditableTemplateEffect] Active pricing template changed:", activePricingTemplate?.name);
@@ -1766,16 +1793,16 @@ export function MaterialsSelectionTab({
                <h3 className="text-md font-medium mb-2">Material Presets</h3>
                
                {/* PROMINENT GAF NOTICE */}
-               <div className="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 rounded-r-md">
+               <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-400 rounded-r-md">
                  <div className="flex items-center">
-                   <Package className="h-5 w-5 text-blue-600 mr-2" />
-                   <h4 className="text-sm font-semibold text-blue-800">🎯 FOR GAF PACKAGES:</h4>
+                   <Package className="h-5 w-5 text-green-600 mr-2" />
+                   <h4 className="text-sm font-semibold text-green-800">🎯 GAF PACKAGES NOW AUTO-SYNC! ✅</h4>
                  </div>
-                 <p className="text-sm text-blue-700 mt-1 font-medium">
-                   ⚡ IF YOU WANT GAF 1 OR GAF 2 PACKAGES, CLICK EITHER OF THESE OPTIONS BELOW! ⚡
+                 <p className="text-sm text-green-700 mt-1 font-medium">
+                   ⚡ GAF materials are automatically applied when you select packages above! ⚡
                  </p>
-                 <p className="text-xs text-blue-600 mt-1">
-                   These presets will ADD to your existing material selection (won't remove low slope materials).
+                 <p className="text-xs text-green-600 mt-1">
+                   You can also manually click these buttons to add GAF materials. Materials will ADD to your existing selection (preserves low slope materials).
                  </p>
                </div>
                
