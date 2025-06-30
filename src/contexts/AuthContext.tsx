@@ -114,7 +114,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             'daniel.pedraza@3mgroofing.com',
             'connor@3mgroofing.com',
             'jay.moroff@3mgroofing.com',
-            'jhagan@3mgroofing.com',
             'tyler.powell@3mgroofing.com'
           ];
           
@@ -221,7 +220,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               'daniel.pedraza@3mgroofing.com',
               'connor@3mgroofing.com',
               'jay.moroff@3mgroofing.com',
-              'jhagan@3mgroofing.com',
               'tyler.powell@3mgroofing.com'
             ];
             
@@ -289,7 +287,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         'daniel.pedraza@3mgroofing.com',
         'connor@3mgroofing.com',
         'jay.moroff@3mgroofing.com',
-        'jhagan@3mgroofing.com',
         'tyler.powell@3mgroofing.com'
       ];
       
@@ -484,7 +481,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   'daniel.pedraza@3mgroofing.com',
                   'connor@3mgroofing.com',
                   'jay.moroff@3mgroofing.com',
-                  'jhagan@3mgroofing.com',
                   'tyler.powell@3mgroofing.com'
                 ];
                 

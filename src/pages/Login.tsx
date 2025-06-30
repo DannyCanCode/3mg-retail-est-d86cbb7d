@@ -225,10 +225,6 @@ export default function Login() {
                   <code className="bg-white px-1 rounded">Jay2024!</code>
                 </div>
                 <div className="flex justify-between">
-                  <span>jhagan@3mgroofing.com</span>
-                  <code className="bg-white px-1 rounded">JHagan2024!</code>
-                </div>
-                <div className="flex justify-between">
                   <span>tyler.powell@3mgroofing.com</span>
                   <code className="bg-white px-1 rounded">Tyler2024!</code>
                 </div>
