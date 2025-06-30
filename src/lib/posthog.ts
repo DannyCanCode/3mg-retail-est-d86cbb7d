@@ -3,21 +3,33 @@ import posthog from 'posthog-js'
 // Initialize PostHog
 export const initPostHog = () => {
   if (typeof window !== 'undefined') {
-    posthog.init(import.meta.env.VITE_POSTHOG_KEY || 'phc_test_key_for_development', {
+    const postHogKey = import.meta.env.VITE_POSTHOG_KEY || 'phc_onikKktwt05KZvMIojBF1lAH6DqzqE6H6VjnBTkzVw1';
+    
+    posthog.init(postHogKey, {
       api_host: 'https://app.posthog.com',
       // Enable session replay to see what users do
       session_recording: {
         recordCrossOriginIframes: true,
+        maskAllInputs: false, // Allow seeing form inputs (be careful with sensitive data)
       },
       // Capture all interactions
       autocapture: true,
       // Capture page views automatically
       capture_pageview: true,
+      // Enhanced error tracking
+      capture_dead_clicks: true,
+      capture_performance: true,
       // Development settings
       loaded: (posthog) => {
         if (import.meta.env.DEV) {
-          console.log('PostHog loaded for user analytics')
+          console.log('PostHog loaded for user analytics with key:', postHogKey);
+          console.log('PostHog instance:', posthog);
         }
+        // Test event to verify it's working
+        posthog.capture('posthog_initialized', {
+          timestamp: new Date().toISOString(),
+          environment: import.meta.env.DEV ? 'development' : 'production'
+        });
       }
     })
   }

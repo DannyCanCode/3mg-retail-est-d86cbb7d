@@ -38,6 +38,7 @@ import { withTimeout } from "@/lib/withTimeout";
 import { EstimateTypeSelector } from "@/components/estimates/EstimateTypeSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
+import { trackEvent, trackEstimateCreated } from "@/lib/posthog";
 
 // Convert ParsedMeasurements to MeasurementValues format
 const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
@@ -707,6 +708,16 @@ const Estimates = () => {
       return;
     }
     
+    // Track PDF upload in PostHog
+    trackEvent('pdf_uploaded', {
+      file_name: fileName,
+      property_address: data.propertyAddress || "unknown",
+      total_area: data.totalArea || 0,
+      user_role: profile?.role || "unknown",
+      creator_name: profile?.full_name || user?.email || "unknown",
+      timestamp: new Date().toISOString()
+    });
+    
     // Store in localStorage
     setStoredPdfData(data);
     setStoredFileName(fileName);
@@ -864,6 +875,26 @@ const Estimates = () => {
     // Get creator information from current user profile
     const creatorName = profile?.full_name || user?.email || "Unknown Creator";
     const creatorRole = profile?.role || "rep";
+    
+    // Track estimate creation in PostHog
+    trackEstimateCreated({
+      territory: profile?.territory_id || "unknown",
+      packageType: estimateType || "roof_only",
+      estimateValue: liveTotal,
+      userRole: creatorRole
+    });
+    
+    // Track additional estimate details
+    trackEvent('estimate_finalized', {
+      creator_name: creatorName,
+      creator_role: creatorRole,
+      customer_address: measurements.propertyAddress || "Address not provided",
+      total_price: liveTotal,
+      material_count: Object.keys(selectedMaterials).length,
+      roof_area: measurements.totalArea,
+      estimate_type: estimateType,
+      timestamp: new Date().toISOString()
+    });
     
     const estimatePayload: any = { // Use 'any' type to allow additional fields
       customer_address: measurements.propertyAddress || "Address not provided",
