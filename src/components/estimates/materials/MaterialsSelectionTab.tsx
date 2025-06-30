@@ -1788,51 +1788,17 @@ export function MaterialsSelectionTab({
                </div>
              )}
              
-             {/* Presets Section */}
+             {/* Success Notice for GAF Package Integration */}
              <div className="border-t pt-4 pb-2">
-               <h3 className="text-md font-medium mb-2">Material Presets</h3>
-               
-               {/* PROMINENT GAF NOTICE */}
-               <div className="mb-4 p-3 bg-green-50 border-l-4 border-green-400 rounded-r-md">
+               <div className="p-3 bg-green-50 border border-green-200 rounded-md">
                  <div className="flex items-center">
                    <Package className="h-5 w-5 text-green-600 mr-2" />
-                   <h4 className="text-sm font-semibold text-green-800">🎯 GAF PACKAGES NOW AUTO-SYNC! ✅</h4>
+                   <h4 className="text-sm font-semibold text-green-800">🎯 GAF Package Integration Complete! ✅</h4>
                  </div>
-                 <p className="text-sm text-green-700 mt-1 font-medium">
-                   ⚡ GAF materials are automatically applied when you select packages above! ⚡
-                 </p>
-                 <p className="text-xs text-green-600 mt-1">
-                   You can also manually click these buttons to add GAF materials. Materials will ADD to your existing selection (preserves low slope materials).
+                 <p className="text-sm text-green-700 mt-1">
+                   Select GAF 1 or GAF 2 packages above and materials will automatically populate below.
                  </p>
                </div>
-               
-               <div className="flex flex-wrap gap-2">
-                 {[
-                   { id: "GAF 1", label: "GAF 1 - Basic Package", highlight: true },
-                   { id: "GAF 2", label: "GAF 2 - Premium Package", highlight: true },
-                   { id: "OC 1", label: "OC 1 - Oakridge", highlight: false },
-                   { id: "OC 2", label: "OC 2 - Duration", highlight: false }
-                 ].map(preset => (
-                   <Button 
-                     key={preset.id} 
-                     variant={selectedPreset === preset.id ? "default" : "outline"}
-                     size="sm" 
-                     className={`text-xs ${selectedPreset === preset.id ? 'border-2 border-primary' : ''} ${
-                       preset.highlight ? 'bg-blue-50 border-blue-300 hover:bg-blue-100' : ''
-                     }`}
-                     onClick={() => applyPresetBundle(preset.id)}
-                     disabled={readOnly}
-                   >
-                     <PackageOpen className="w-3.5 h-3.5 mr-1" />
-                     {preset.label}
-                     {selectedPreset === preset.id && <Check className="w-3.5 h-3.5 ml-1" />}
-                     {preset.highlight && <span className="ml-1">⭐</span>}
-                   </Button>
-                 ))}
-               </div>
-               <p className="text-xs text-muted-foreground mt-1">
-                 ✅ Presets now ADD to existing materials (preserves low slope selections)
-               </p>
              </div>
              
              {/* Materials Accordion */}
