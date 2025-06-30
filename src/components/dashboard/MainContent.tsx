@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import { DashboardOverview } from './DashboardOverview';
 import { RecentEstimates } from './RecentEstimates';
+import { DataCleanup } from '@/components/admin/DataCleanup';
 
 export const MainContent: React.FC = () => {
   return (
@@ -24,6 +25,9 @@ export const MainContent: React.FC = () => {
       </div>
 
       <DashboardOverview />
+      
+      {/* Admin-only cleanup component */}
+      <DataCleanup />
       
       <div className="grid grid-cols-1">
         <div className="lg:col-span-1">
