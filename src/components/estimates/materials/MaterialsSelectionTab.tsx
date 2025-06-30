@@ -1570,32 +1570,124 @@ export function MaterialsSelectionTab({
 
   // 🎯 CRITICAL FIX: Auto-sync GAF package selection with material presets
   // When users select GAF 1 or GAF 2 in the big boxes at top, automatically apply materials
-  // Use useRef to track previous selection and only apply materials on actual changes
+  // When deselected, remove GAF materials from selection
   const previousPackageRef = useRef<string | null>(null);
   
   useEffect(() => {
-    // Only run if package actually changed and is not null (ignore deselection)
-    if (!selectedPackage || !measurements || previousPackageRef.current === selectedPackage) {
+    // Only run if package selection actually changed (including null changes)
+    if (!measurements || previousPackageRef.current === selectedPackage) {
       previousPackageRef.current = selectedPackage;
       return;
     }
     
-    // Map package selection to preset bundle names
-    const packageToPreset: Record<string, string> = {
-      'gaf-1': 'GAF 1',
-      'gaf-2': 'GAF 2'
-    };
+    console.log(`🎯 GAF Package Changed: ${previousPackageRef.current} → ${selectedPackage}`);
     
-    const presetName = packageToPreset[selectedPackage];
-    if (presetName) {
-      console.log(`🎯 GAF Package Sync: Auto-applying ${presetName} materials from package selection`);
+    // Define all GAF materials that could be in either package
+    const allGafMaterials = [
+      "gaf-timberline-hdz-sg",
+      "gaf-prostart-starter-shingle-strip", 
+      "gaf-seal-a-ridge",
+      "gaf-weatherwatch-ice-water-shield",
+      "abc-pro-guard-20", // GAF 1 only
+      "gaf-feltbuster-synthetic-underlayment", // GAF 2 only
+      "gaf-cobra-rigid-vent", // GAF 2 only
+      "adjustable-lead-pipe-flashing-4inch",
+      "master-sealant"
+    ];
+    
+    // Start with current materials, but remove all GAF package materials first
+    const newMaterials = {...localSelectedMaterials};
+    const newQuantities = {...localQuantities};
+    const newWasteFactors = {...materialWasteFactors};
+    
+    // Remove all GAF materials first (clean slate)
+    allGafMaterials.forEach(materialId => {
+      delete newMaterials[materialId];
+      delete newQuantities[materialId];
+      delete newWasteFactors[materialId];
+    });
+    
+    let toastMessage = "";
+    
+    if (!selectedPackage) {
+      // Package deselected - just remove GAF materials
+      toastMessage = "GAF package materials removed from selection";
+      console.log("🎯 GAF Package Deselected: Removing all GAF materials");
+    } else {
+      // Package selected - add the appropriate GAF materials
+      const packageToPreset: Record<string, string> = {
+        'gaf-1': 'GAF 1',
+        'gaf-2': 'GAF 2'
+      };
       
-      // Apply the corresponding preset bundle to sync the two sections
-      applyPresetBundle(presetName);
-      
+      const presetName = packageToPreset[selectedPackage];
+      if (presetName) {
+        console.log(`🎯 GAF Package Selected: Adding ${presetName} materials`);
+        
+        // Get the preset bundle materials
+        const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
+          "GAF 1": [
+            { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
+            { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
+            { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
+            { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+            { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
+            { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
+            { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+          ],
+          "GAF 2": [
+            { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
+            { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
+            { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
+            { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" },
+            { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+            { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
+            { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
+            { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+          ]
+        };
+        
+        const selectedBundle = PRESET_BUNDLES[presetName];
+        if (selectedBundle) {
+          // Add the GAF package materials
+          selectedBundle.forEach(({ id, description }) => {
+            const material = ROOFING_MATERIALS.find(m => m.id === id);
+            if (material) {
+              const isGafTimberline = id === "gaf-timberline-hdz-sg";
+              const overrideWaste = isGafTimberline 
+                ? gafTimberlineWasteFactor / 100 
+                : wasteFactor / 100;
+
+              const { quantity: calculatedQuantity, actualWasteFactor } = calculateMaterialQuantity(
+                material,
+                measurements,
+                overrideWaste,
+                dbWastePercentages
+              );
+
+              newMaterials[id] = material;
+              newQuantities[id] = Math.max(1, calculatedQuantity);
+              newWasteFactors[id] = actualWasteFactor;
+              
+              console.log(`Added ${material.name} - Qty: ${newQuantities[id]}, Price: $${material.price}`);
+            }
+          });
+          
+          toastMessage = `${presetName} materials applied! Materials automatically populated.`;
+        }
+      }
+    }
+    
+    // Update all states
+    setLocalSelectedMaterials(newMaterials);
+    setLocalQuantities(newQuantities);
+    setMaterialWasteFactors(newWasteFactors);
+    
+    // Show toast notification
+    if (toastMessage) {
       toast({
-        title: "GAF Package Materials Applied! ✅",
-        description: `${presetName} materials have been automatically added based on your package selection.`,
+        title: selectedPackage ? "GAF Package Materials Applied! ✅" : "GAF Package Materials Removed",
+        description: toastMessage,
         duration: 4000,
         variant: "default"
       });
@@ -1603,7 +1695,7 @@ export function MaterialsSelectionTab({
     
     // Update previous package reference
     previousPackageRef.current = selectedPackage;
-  }, [selectedPackage, measurements, applyPresetBundle, toast]); // Include all dependencies
+  }, [selectedPackage, measurements, wasteFactor, gafTimberlineWasteFactor, dbWastePercentages, toast]); // Only include dependencies that don't cause loops
 
   // Populate editableTemplateMaterials when activePricingTemplate changes or on initial load
   useEffect(() => {
