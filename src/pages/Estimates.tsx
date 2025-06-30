@@ -359,18 +359,18 @@ const Estimates = () => {
     };
     
     // Recovery Phase 1: Basic PDF & Measurement Data
-    if (storedPdfData && !extractedPdfData) {
-      setExtractedPdfData(storedPdfData);
+      if (storedPdfData && !extractedPdfData) {
+        setExtractedPdfData(storedPdfData);
       console.log("✅ Recovered PDF data:", storedPdfData.propertyAddress || 'Unknown address');
-    }
-    
-    if (storedMeasurements && !measurements) {
-      setMeasurements(storedMeasurements);
+      }
+      
+      if (storedMeasurements && !measurements) {
+        setMeasurements(storedMeasurements);
       console.log("✅ Recovered measurements:", storedMeasurements.totalArea, 'sq ft');
-    }
-    
-    if (storedFileName && !pdfFileName) {
-      setPdfFileName(storedFileName);
+      }
+      
+      if (storedFileName && !pdfFileName) {
+        setPdfFileName(storedFileName);
       console.log("✅ Recovered filename:", storedFileName);
     }
     
@@ -534,7 +534,7 @@ const Estimates = () => {
       console.log("💾 Auto-saved peel stick cost:", peelStickAddonCost);
     }
   }, [peelStickAddonCost, isViewMode, isRecoveringState, setStoredPeelStickCost]);
-  
+
   // Ensure measurements are properly set from extracted PDF data
   useEffect(() => {
     // If we have extracted PDF data, convert it to MeasurementValues format

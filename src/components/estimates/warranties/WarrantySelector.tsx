@@ -60,7 +60,7 @@ const WarrantySelector = ({
   return (
     <div className="bg-white p-4 rounded-md shadow-sm mt-4">
       <h3 className="text-lg font-medium mb-3">GAF Warranty Options</h3>
-      <p className="text-sm text-gray-600 mb-3">Select a warranty or click again to deselect</p>
+      <p className="text-sm text-gray-600 mb-3">Click a warranty to select it (automatically switches between options)</p>
       
       <div className="flex flex-col md:grid md:grid-cols-2 gap-4 mb-4">
         {/* Silver Pledge Option */}
