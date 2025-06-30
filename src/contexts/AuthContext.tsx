@@ -65,20 +65,57 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profileFetchAttempts, setProfileFetchAttempts] = useState(0);
   const [cacheLoaded, setCacheLoaded] = useState(false); // Track if we loaded from cache
 
-  // PERFORMANCE OPTIMIZATION: Load from sessionStorage for instant UI (current tab only)
+  // PERFORMANCE OPTIMIZATION: Load from sessionStorage for instant UI, but always validate against actual session
   useEffect(() => {
-    const cached = getSessionCache();
-    if (cached?.user && cached?.profile && (Date.now() - cached.timestamp < 60000)) { // 1 minute cache
-      if (import.meta.env.DEV) {
-        console.log('[AuthContext] Fast loading from session cache - SKIPPING auth initialization');
+    const loadCacheAndValidate = async () => {
+      const cached = getSessionCache();
+      if (cached?.user && cached?.profile && (Date.now() - cached.timestamp < 60000)) { // 1 minute cache
+        if (import.meta.env.DEV) {
+          console.log('[AuthContext] Loading from session cache, but validating against Supabase...');
+        }
+        
+        // Load cached data for instant UI
+        setUser(cached.user);
+        setProfile(cached.profile);
+        setSession(cached.session || { user: cached.user } as Session);
+        setLoading(false);
+        setMounted(true);
+        
+        // CRITICAL FIX: Always validate cached session against actual Supabase session
+        try {
+          const { data: { session: actualSession }, error } = await supabase.auth.getSession();
+          
+          if (error || !actualSession) {
+            // No actual session - user was logged out, clear cached data
+            if (import.meta.env.DEV) {
+              console.log('[AuthContext] Cache validation failed - no actual session, clearing cached data');
+            }
+            setUser(null);
+            setProfile(null);
+            setSession(null);
+            sessionStorage.removeItem(SESSION_CACHE_KEY);
+            return;
+          }
+          
+          // Session exists - cache is valid, mark as loaded from cache
+          setCacheLoaded(true);
+          if (import.meta.env.DEV) {
+            console.log('[AuthContext] Cache validated successfully against actual session');
+          }
+        } catch (validationError) {
+          if (import.meta.env.DEV) {
+            console.warn('[AuthContext] Cache validation error, clearing cached data:', validationError);
+          }
+          // Clear cache on validation error
+          setUser(null);
+          setProfile(null);
+          setSession(null);
+          sessionStorage.removeItem(SESSION_CACHE_KEY);
+        }
       }
-      setUser(cached.user);
-      setProfile(cached.profile);
-      setSession(cached.session || { user: cached.user } as Session); // Use cached session or create minimal one
-      setLoading(false);
-      setMounted(true);
-      setCacheLoaded(true); // Mark that we loaded from cache
-    }
+    };
+    
+    loadCacheAndValidate();
   }, []);
 
   // Fetch user profile data with retry logic
@@ -549,8 +586,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('[AuthContext] Logging out...');
       }
       
-      // Clear cached data immediately
-      sessionStorage.removeItem('supabase-session-cache');
+      // Clear cached data immediately using the correct key
+      sessionStorage.removeItem(SESSION_CACHE_KEY);
       
       // Sign out from Supabase first
       const { error } = await supabase.auth.signOut();
