@@ -1831,6 +1831,16 @@ export function MaterialsSelectionTab({
     }
   };
 
+  // Helper function to format category names for display
+  const formatCategoryName = (category: string): string => {
+    switch (category) {
+      case MaterialCategory.LOW_SLOPE:
+        return "Low slope";
+      default:
+        return category;
+    }
+  };
+
   // Main return structure
   return (
     <div key={`materials-tab-${measurements?.totalArea || 'default'}-${Date.now()}`} className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -1931,7 +1941,7 @@ export function MaterialsSelectionTab({
                  return (
                    <AccordionItem key={category} value={category}>
                      <AccordionTrigger className="text-lg font-semibold py-3">
-                       {category}
+                       {formatCategoryName(category)}
                        {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-yellow-600 border-yellow-300 bg-yellow-50">Flat/Low-Slope Required</Badge>)}
                      </AccordionTrigger>
                      <AccordionContent>
