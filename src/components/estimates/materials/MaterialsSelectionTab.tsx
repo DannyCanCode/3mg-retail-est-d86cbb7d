@@ -1399,6 +1399,7 @@ export function MaterialsSelectionTab({
                     <div className="flex items-center mr-1">
                       <span className="mr-1">– Waste:</span>
                       <Input
+                        id={`waste-input-${materialId}`}
                         type="number"
                         min="0"
                         max="100"
@@ -1462,6 +1463,7 @@ export function MaterialsSelectionTab({
                     -
                   </Button>
                  <Input 
+                    id={`qty-gaf-${materialId}`}
                     type="number" 
                     min="0" 
                     step="0.1"
@@ -1497,6 +1499,7 @@ export function MaterialsSelectionTab({
                     aria-label={`Decrease quantity for ${baseName}`}
                   >-</Button>
                  <Input 
+                    id={`qty-${materialId}`}
                     type="number" 
                     min="0" 
                     defaultValue={initialDisplayValue()} // USE defaultValue
@@ -1567,8 +1570,15 @@ export function MaterialsSelectionTab({
 
   // 🎯 CRITICAL FIX: Auto-sync GAF package selection with material presets
   // When users select GAF 1 or GAF 2 in the big boxes at top, automatically apply materials
+  // Use useRef to track previous selection and only apply materials on actual changes
+  const previousPackageRef = useRef<string | null>(null);
+  
   useEffect(() => {
-    if (!selectedPackage || !measurements) return;
+    // Only run if package actually changed and is not null (ignore deselection)
+    if (!selectedPackage || !measurements || previousPackageRef.current === selectedPackage) {
+      previousPackageRef.current = selectedPackage;
+      return;
+    }
     
     // Map package selection to preset bundle names
     const packageToPreset: Record<string, string> = {
@@ -1590,6 +1600,9 @@ export function MaterialsSelectionTab({
         variant: "default"
       });
     }
+    
+    // Update previous package reference
+    previousPackageRef.current = selectedPackage;
   }, [selectedPackage, measurements, applyPresetBundle, toast]); // Include all dependencies
 
   // Populate editableTemplateMaterials when activePricingTemplate changes or on initial load
