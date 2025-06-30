@@ -38,14 +38,7 @@ export default function Login() {
         console.log('[Login] Attempting login for:', email);
       }
       
-      // CRITICAL FIX: Always clear any existing session first to handle multiple account logins
-      if (import.meta.env.DEV) {
-        console.log('[Login] Clearing any existing session before login...');
-      }
-      await supabase.auth.signOut();
-      
-      // Small delay to ensure session is fully cleared
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // No need to sign out before login - Supabase handles session replacement automatically
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
@@ -103,8 +96,7 @@ export default function Login() {
           console.log('[Login] Login successful, navigating to dashboard...');
         }
         
-        // Additional delay to ensure auth context picks up the new session
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Navigate immediately - auth context will handle the session
         navigate("/", { replace: true });
       }
     } catch (error) {

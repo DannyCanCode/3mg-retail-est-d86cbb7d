@@ -121,7 +121,7 @@ const Estimates = () => {
   const [searchParams] = useSearchParams();
   const { estimateId } = useParams<{ estimateId: string }>();
   const measurementId = searchParams.get("measurementId") || searchParams.get("measurement");
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   
   // State for view mode
   const [isViewMode, setIsViewMode] = useState(false);
@@ -861,6 +861,10 @@ const Estimates = () => {
     }
     const liveTotal = calculateLiveEstimateTotal(); // Calculate the total using the live function
     
+    // Get creator information from current user profile
+    const creatorName = profile?.full_name || user?.email || "Unknown Creator";
+    const creatorRole = profile?.role || "rep";
+    
     const estimatePayload: any = { // Use 'any' type to allow additional fields
       customer_address: measurements.propertyAddress || "Address not provided",
       total_price: liveTotal, // Use the live calculated total
@@ -870,8 +874,11 @@ const Estimates = () => {
       profit_margin: profitMargin,
       measurements: measurements,
       peel_stick_addon_cost: parseFloat(peelStickAddonCost) || 0,
+      // Add creator information for dashboard display
+      creator_name: creatorName,
+      creator_role: creatorRole,
+      created_by: profile?.id,
       // Add role-based fields for proper filtering (will be handled by database if columns exist)
-      ...(profile?.id && { created_by: profile.id }),
       ...(profile?.territory_id && { territory_id: profile.territory_id }),
       ...(estimateType && { estimate_type: estimateType }),
       ...(selectedSubtrades.length > 0 && { selected_subtrades: selectedSubtrades }),

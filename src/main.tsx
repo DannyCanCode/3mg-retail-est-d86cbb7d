@@ -2,7 +2,6 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
-import { AuthProvider } from '@/contexts/AuthContext'
 import * as Sentry from '@sentry/react'
 import { initLogger } from './utils/logger.ts'
 import { initPostHog } from './lib/posthog.ts'
@@ -24,9 +23,6 @@ Sentry.init({
   tracesSampleRate: 1.0,
 })
 
-// Import cleanup utility for development (admin only)
-import "./utils/cleanup-test-data.ts";
-
 // Render the application
 const container = document.getElementById('root')
 if (container) {
@@ -36,9 +32,7 @@ if (container) {
   root.render(
     <React.StrictMode>
       <Sentry.ErrorBoundary fallback={<p>An error has occurred</p>}>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
+        <App />
       </Sentry.ErrorBoundary>
     </React.StrictMode>
   )
