@@ -10,7 +10,7 @@ export default defineConfig({
     ['junit', { outputFile: 'test-results/junit.xml' }]
   ],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5173', // Will be updated with your Netlify URL
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -25,8 +25,8 @@ export default defineConfig({
       use: { 
         ...devices['Desktop Chrome'],
         viewport: { width: 1920, height: 1080 },
-        // Jay's typical setup
-        userAgent: 'Jay-Territory-Manager-Chrome'
+        // Jay's admin setup
+        userAgent: 'Jay-Admin-Chrome'
       },
     },
     {

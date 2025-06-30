@@ -11,10 +11,10 @@ test.describe('Concurrent Multi-User Testing', () => {
     browser = testBrowser;
     
     // Create separate browser contexts for Jay and Tyler
-    // This simulates completely separate user sessions
+    // This simulates completely separate admin user sessions
     jayContext = await browser.newContext({
       viewport: { width: 1920, height: 1080 },
-      userAgent: 'Jay-Territory-Manager-Chrome'  
+      userAgent: 'Jay-Admin-Chrome'  
     });
     
     tylerContext = await browser.newContext({
@@ -44,7 +44,7 @@ test.describe('Concurrent Multi-User Testing', () => {
     await expect(tylerPage).toHaveTitle(/3MG Retail Estimator/);
 
     // Both users attempt to log in simultaneously
-    // Jay logs in as territory manager
+    // Jay logs in as admin
     const jayLoginPromise = jayPage.getByRole('button', { name: 'Sign In' }).click();
     
     // Tyler logs in as admin (slight delay to test race conditions)
@@ -53,8 +53,8 @@ test.describe('Concurrent Multi-User Testing', () => {
     
     await Promise.all([jayLoginPromise, tylerLoginPromise]);
 
-    // Both should reach their respective dashboards
-    await expect(jayPage.getByText('Territory Manager Dashboard')).toBeVisible({ timeout: 10000 });
+    // Both should reach admin dashboards
+    await expect(jayPage.getByText('Admin Dashboard')).toBeVisible({ timeout: 10000 });
     await expect(tylerPage.getByText('Admin Dashboard')).toBeVisible({ timeout: 10000 });
 
     // Both users create estimates simultaneously
@@ -78,7 +78,7 @@ test.describe('Concurrent Multi-User Testing', () => {
   test('Database consistency during concurrent estimate creation', async () => {
     // Both users upload PDFs simultaneously to test database locking
     const fileUploadPromises = Promise.all([
-      simulateEstimateCreation(jayPage, 'Jay Territory Manager'),
+      simulateEstimateCreation(jayPage, 'Jay Admin'),
       simulateEstimateCreation(tylerPage, 'Tyler Admin')
     ]);
     
