@@ -596,7 +596,7 @@ const Estimates = () => {
   }, [selectedSubtrades, isViewMode, isRecoveringState, setStoredSelectedSubtrades]);
 
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && activeTab !== "type-selection") {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && activeTab !== "upload") {
       setStoredActiveTab(activeTab);
       console.log("💾 Auto-saved tab position:", activeTab);
     }
@@ -1109,7 +1109,7 @@ const Estimates = () => {
     // PREVENT RECOVERY: Set flag to block recovery when user explicitly wants fresh start
     setUserWantsFreshStart(true);
     
-    setActiveTab("type-selection");
+    setActiveTab("upload");
     setExtractedPdfData(null);
     setPdfFileName(null);
     setMeasurements(null);
@@ -1183,7 +1183,7 @@ const Estimates = () => {
     setStoredProfitMargin(25);
     setStoredEstimateType(null);
     setStoredSelectedSubtrades([]);
-    setStoredActiveTab("type-selection");
+    setStoredActiveTab("upload");
     setStoredPeelStickCost("0.00");
     
     // PHASE 2: Reset recovery state flags for complete fresh start
