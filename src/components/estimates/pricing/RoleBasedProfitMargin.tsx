@@ -13,6 +13,10 @@ interface RoleBasedProfitMarginProps {
   onProfitMarginCommit: (value: number[]) => void;
   selectedPackage?: 'gaf1' | 'gaf2' | 'custom';
   readOnly?: boolean;
+  // Admin edit mode props
+  isAdminEditMode?: boolean;
+  originalCreator?: string | null;
+  originalCreatorRole?: string | null;
 }
 
 export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
@@ -20,13 +24,30 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
   onProfitMarginChange,
   onProfitMarginCommit,
   selectedPackage,
-  readOnly = false
+  readOnly = false,
+  // Admin edit mode props
+  isAdminEditMode = false,
+  originalCreator = null,
+  originalCreatorRole = null,
 }) => {
   const { profile } = useAuth();
   const userRole = profile?.role;
 
   // Determine margin constraints based on role
   const getMarginConstraints = () => {
+    // Admin override: If in admin edit mode and current user is admin, use admin permissions
+    if (isAdminEditMode && userRole === 'admin') {
+      return {
+        min: 0,
+        max: 50,
+        step: 1,
+        isLocked: false,
+        hideInput: false,
+        description: `Admin editing ${originalCreator}'s estimate (${originalCreatorRole}) - Full access to all profit margins`
+      };
+    }
+    
+    // Normal role-based permissions (unchanged from original logic)
     switch (userRole) {
       case 'admin':
         return {

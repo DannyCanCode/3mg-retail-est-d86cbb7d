@@ -24,6 +24,10 @@ interface LaborProfitTabProps {
   onLaborProfitContinue: (laborRates: LaborRates, profitMargin: number) => void;
   readOnly?: boolean;
   laborRates?: LaborRates;
+  // Admin edit mode props
+  isAdminEditMode?: boolean;
+  originalCreator?: string | null;
+  originalCreatorRole?: string | null;
 }
 
 export interface LaborRates {
@@ -69,7 +73,11 @@ export function LaborProfitTab({
   quantities,
   onLaborProfitContinue,
   readOnly,
-  laborRates: laborRatesFromProps
+  laborRates: laborRatesFromProps,
+  // Admin edit mode props
+  isAdminEditMode = false,
+  originalCreator = null,
+  originalCreatorRole = null,
 }: LaborProfitTabProps) {
   console.log("LaborProfitTab rendering, received initialLaborRatesProp:", JSON.stringify(initialLaborRatesProp, null, 2));
   console.log("LaborProfitTab rendering, received initialProfitMarginProp:", initialProfitMarginProp);
@@ -1265,6 +1273,9 @@ export function LaborProfitTab({
             onProfitMarginChange={handleProfitMarginChange}
             onProfitMarginCommit={handleProfitMarginCommit}
             readOnly={readOnly}
+            isAdminEditMode={isAdminEditMode}
+            originalCreator={originalCreator}
+            originalCreatorRole={originalCreatorRole}
           />
         </div>
         

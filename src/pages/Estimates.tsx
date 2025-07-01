@@ -122,6 +122,12 @@ const Estimates = () => {
   const [searchParams] = useSearchParams();
   const { estimateId } = useParams<{ estimateId: string }>();
   const measurementId = searchParams.get("measurementId") || searchParams.get("measurement");
+  
+  // Admin edit mode detection
+  const isAdminEditMode = searchParams.get("adminEdit") === "true";
+  const originalCreator = searchParams.get("originalCreator");
+  const originalCreatorRole = searchParams.get("originalCreatorRole");
+  
   const { profile, user } = useAuth();
   
   // State for view mode
@@ -2109,6 +2115,9 @@ const Estimates = () => {
                               quantities={quantities}
                               onMaterialsUpdate={handleMaterialsUpdate}
                               readOnly={isViewMode}
+                              isAdminEditMode={isAdminEditMode}
+                              originalCreator={originalCreator}
+                              originalCreatorRole={originalCreatorRole}
                             />
                           </>
                         );
@@ -2127,6 +2136,9 @@ const Estimates = () => {
                       onLaborProfitContinue={handleLaborProfitContinue}
                       onBack={() => setActiveTab("materials")}
                       readOnly={isViewMode}
+                      isAdminEditMode={isAdminEditMode}
+                      originalCreator={originalCreator}
+                      originalCreatorRole={originalCreatorRole}
                     />
                   </TabsContent>
                   

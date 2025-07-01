@@ -50,6 +50,10 @@ interface MaterialsSelectionTabProps {
   activePricingTemplate?: PricingTemplate | null; // Allow null
   allPricingTemplates?: PricingTemplate[];
   onTemplateChange?: (template: PricingTemplate) => void;
+  // Admin edit mode props
+  isAdminEditMode?: boolean;
+  originalCreator?: string | null;
+  originalCreatorRole?: string | null;
 }
 
 // Interface for warranty details
@@ -84,6 +88,10 @@ export function MaterialsSelectionTab({
   activePricingTemplate, // Assuming this prop is passed down with the currently selected template object
   allPricingTemplates, // Assuming this prop is passed down with all templates for the dropdown
   onTemplateChange, // Callback to parent when a template is selected/created/updated
+  // Admin edit mode props
+  isAdminEditMode = false,
+  originalCreator = null,
+  originalCreatorRole = null,
 }: MaterialsSelectionTabProps) { // Added activePricingTemplate, allPricingTemplates, onTemplateChange to props
   // Debug log measurements
   console.log(`MaterialsSelectionTab rendering with measurements (key: ${measurements?.predominantPitch || 'no-measurements'})`);
@@ -145,6 +153,12 @@ export function MaterialsSelectionTab({
 
   // Determine if user can edit material prices based on role
   const canEditMaterialPrices = () => {
+    // Admin override: If in admin edit mode and current user is admin, allow editing
+    if (isAdminEditMode && userRole === 'admin') {
+      return true; // Admins can edit any estimate when in admin edit mode
+    }
+    
+    // Normal role-based permissions (unchanged from original logic)
     switch (userRole) {
       case 'admin':
         return true; // Admins can edit material prices
