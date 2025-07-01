@@ -29,6 +29,7 @@ import {
   XCircle, 
   Trash2, 
   Eye, 
+  Edit,
   FileDown, 
   Clock, 
   DollarSign,
@@ -219,6 +220,16 @@ export const AdminEstimateManagement: React.FC = () => {
     navigate(`/estimates/${estimate.id}`);
   };
 
+  const handleEditEstimate = (estimate: ExtendedEstimate) => {
+    trackFunnelStep('admin_estimate_edit', { 
+      estimate_id: estimate.id,
+      creator_role: estimate.creator_role 
+    });
+    
+    // Navigate to edit mode with admin override and original creator info
+    navigate(`/estimates/${estimate.id}?adminEdit=true&originalCreator=${estimate.creator_name}&originalCreatorRole=${estimate.creator_role}`);
+  };
+
   // Filter estimates based on search and filters
   const filteredEstimates = estimates.filter(estimate => {
     const matchesSearch = !searchTerm || 
@@ -372,6 +383,16 @@ export const AdminEstimateManagement: React.FC = () => {
               >
                 <Eye className="h-3 w-3 mr-1" />
                 View
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleEditEstimate(estimate)}
+                className="flex-1 text-xs hover:bg-amber-50 hover:border-amber-300 transition-colors"
+              >
+                <Edit className="h-3 w-3 mr-1" />
+                Edit
               </Button>
 
               {estimate.status === 'pending' && (
