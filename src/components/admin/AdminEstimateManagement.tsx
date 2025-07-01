@@ -305,23 +305,23 @@ export const AdminEstimateManagement: React.FC = () => {
 
   const MetricCard = ({ title, value, subtitle, icon: Icon, color = 'blue', trend }: any) => (
     <Card className={`overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-105 bg-gradient-to-br from-${color}-50 to-${color}-100 border-${color}-200`}>
-      <CardContent className="p-6">
+      <CardContent className="p-3 sm:p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <p className={`text-sm font-medium text-${color}-700`}>{title}</p>
-            <p className={`text-2xl font-bold text-${color}-900`}>{value}</p>
-            {subtitle && <p className={`text-xs text-${color}-600 mt-1`}>{subtitle}</p>}
+          <div className="flex-1 min-w-0">
+            <p className={`text-xs sm:text-sm font-medium text-${color}-700 truncate`}>{title}</p>
+            <p className={`text-lg sm:text-xl lg:text-2xl font-bold text-${color}-900 truncate`}>{value}</p>
+            {subtitle && <p className={`text-xs text-${color}-600 mt-0.5 truncate`}>{subtitle}</p>}
             {trend !== undefined && (
-              <div className={`flex items-center mt-2 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`flex items-center mt-1 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 <TrendingUp className="h-3 w-3 mr-1" />
                 <span className="text-xs font-medium">
-                  {trend >= 0 ? '+' : ''}{trend}% from last week
+                  {trend >= 0 ? '+' : ''}{trend}%
                 </span>
               </div>
             )}
           </div>
-          <div className={`p-3 rounded-full bg-${color}-200`}>
-            <Icon className={`h-8 w-8 text-${color}-600`} />
+          <div className={`p-2 sm:p-3 rounded-full bg-${color}-200 flex-shrink-0 ml-2`}>
+            <Icon className={`h-5 w-5 sm:h-6 sm:w-6 lg:h-8 lg:w-8 text-${color}-600`} />
           </div>
         </div>
       </CardContent>
@@ -333,134 +333,179 @@ export const AdminEstimateManagement: React.FC = () => {
     const creatorName = estimate.creator_name || 'Unknown Creator';
     
     return (
-      <Card className={`overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-102 ${theme.border} backdrop-blur-sm`}>
-        <CardHeader className={`pb-3 ${theme.headerBg} relative`}>
-          <div className="absolute top-0 right-0 w-20 h-20 bg-white/20 rounded-full -mr-10 -mt-10"></div>
-          <div className="flex justify-between items-start relative z-10">
+      <Card className={`overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-102 ${theme.border} backdrop-blur-sm h-fit`}>
+        <CardHeader className={`pb-2 ${theme.headerBg} relative p-3 sm:p-4`}>
+          <div className="absolute top-0 right-0 w-16 h-16 bg-white/20 rounded-full -mr-8 -mt-8"></div>
+          <div className="flex justify-between items-start relative z-10 gap-2">
             <div className="flex-1 min-w-0">
-              <h3 className={`font-semibold text-sm truncate ${theme.titleColor}`}>
+              <h3 className={`font-semibold text-xs sm:text-sm truncate ${theme.titleColor} leading-tight`}>
                 {estimate.customer_address}
               </h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`text-xs font-medium ${theme.accentColor}`}>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mt-0.5">
+                <span className={`text-xs font-medium ${theme.accentColor} truncate`}>
                   {creatorName}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  ({estimate.creator_role === 'admin' ? 'Administrator' : 
-                    estimate.creator_role === 'manager' ? 'Territory Manager' : 'Sales Rep'})
+                <span className="text-xs text-muted-foreground truncate">
+                  ({estimate.creator_role === 'admin' ? 'Admin' : 
+                    estimate.creator_role === 'manager' ? 'Manager' : 'Rep'})
                 </span>
               </div>
             </div>
-            <Badge className={`text-xs ${getStatusColor(estimate.status)} shadow-sm`}>
+            <Badge className={`text-xs ${getStatusColor(estimate.status)} shadow-sm flex-shrink-0`}>
               {estimate.status}
             </Badge>
           </div>
         </CardHeader>
         
-        <CardContent className="pt-0 bg-white/50 backdrop-blur-sm">
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3 text-xs">
+        <CardContent className="pt-0 bg-white/50 backdrop-blur-sm p-3 sm:p-4">
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
-                <p className="text-muted-foreground">Date</p>
-                <p className="font-medium">
-                  {new Date(estimate.created_at || '').toLocaleDateString()}
+                <p className="text-muted-foreground mb-0.5">Date</p>
+                <p className="font-medium text-xs">
+                  {new Date(estimate.created_at || '').toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
                 </p>
               </div>
               <div>
-                <p className="text-muted-foreground">Total</p>
-                <p className={`text-lg font-bold ${theme.accentColor}`}>
+                <p className="text-muted-foreground mb-0.5">Total</p>
+                <p className={`text-sm sm:text-base font-bold ${theme.accentColor}`}>
                   {currency(estimate.total_price || 0)}
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-2 pt-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleViewEstimate(estimate)}
-                className="flex-1 text-xs hover:bg-blue-50 hover:border-blue-300 transition-colors"
-              >
-                <Eye className="h-3 w-3 mr-1" />
-                View
-              </Button>
+            {/* Mobile-first button layout */}
+            <div className="space-y-2 pt-1">
+              {/* Top row: View and Edit (always visible) */}
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleViewEstimate(estimate)}
+                  className="text-xs h-7 hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                >
+                  <Eye className="h-3 w-3 mr-1" />
+                  View
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleEditEstimate(estimate)}
+                  className="text-xs h-7 hover:bg-amber-50 hover:border-amber-300 transition-colors"
+                >
+                  <Edit className="h-3 w-3 mr-1" />
+                  Edit
+                </Button>
+              </div>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleEditEstimate(estimate)}
-                className="flex-1 text-xs hover:bg-amber-50 hover:border-amber-300 transition-colors"
-              >
-                <Edit className="h-3 w-3 mr-1" />
-                Edit
-              </Button>
-
-              {estimate.status === 'pending' && (
-                <>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedEstimate(estimate);
-                      setIsApproveDialogOpen(true);
-                    }}
-                    className="flex-1 text-xs bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-sm"
-                  >
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setSelectedEstimate(estimate);
-                      setIsRejectDialogOpen(true);
-                    }}
-                    className="flex-1 text-xs bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-md transform hover:scale-105 transition-all duration-200"
-                  >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Reject
-                  </Button>
-                </>
-              )}
-
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 transition-colors hover:shadow-md"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="sm:max-w-lg">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2 text-rose-600">
-                      <AlertTriangle className="h-5 w-5" />
-                      Delete Estimate
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-base">
-                      Are you sure you want to permanently delete this estimate for{' '}
-                      <strong className="text-gray-900">{estimate.customer_address}</strong>?{' '}
-                      <span className="text-rose-600 font-medium">This action cannot be undone.</span>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-md"
-                      onClick={() => handleDelete(estimate)}
+              {/* Bottom row: Pending actions or Delete */}
+              <div className="flex gap-1.5">
+                {estimate.status === 'pending' ? (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedEstimate(estimate);
+                        setIsApproveDialogOpen(true);
+                      }}
+                      className="flex-1 text-xs h-7 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-sm"
                     >
-                      Delete Permanently
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedEstimate(estimate);
+                        setIsRejectDialogOpen(true);
+                      }}
+                      className="flex-1 text-xs h-7 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-md"
+                    >
+                      <XCircle className="h-3 w-3 mr-1" />
+                      Reject
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7 w-8 p-0 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="sm:max-w-lg">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2 text-rose-600">
+                            <AlertTriangle className="h-5 w-5" />
+                            Delete Estimate
+                          </AlertDialogTitle>
+                          <AlertDialogDescription className="text-base">
+                            Are you sure you want to permanently delete this estimate for{' '}
+                            <strong className="text-gray-900">{estimate.customer_address}</strong>?{' '}
+                            <span className="text-rose-600 font-medium">This action cannot be undone.</span>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-md"
+                            onClick={() => handleDelete(estimate)}
+                          >
+                            Delete Permanently
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </>
+                ) : (
+                  <div className="flex justify-end w-full">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs h-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Delete
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent className="sm:max-w-lg">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle className="flex items-center gap-2 text-rose-600">
+                            <AlertTriangle className="h-5 w-5" />
+                            Delete Estimate
+                          </AlertDialogTitle>
+                          <AlertDialogDescription className="text-base">
+                            Are you sure you want to permanently delete this estimate for{' '}
+                            <strong className="text-gray-900">{estimate.customer_address}</strong>?{' '}
+                            <span className="text-rose-600 font-medium">This action cannot be undone.</span>
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-md"
+                            onClick={() => handleDelete(estimate)}
+                          >
+                            Delete Permanently
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                )}
+              </div>
             </div>
 
             {estimate.status === 'rejected' && estimate.rejection_reason && (
-              <div className="p-3 bg-gradient-to-r from-rose-50 to-pink-50 rounded-lg border-l-4 border-rose-400 mt-3 shadow-sm">
+              <div className="p-2 bg-gradient-to-r from-rose-50 to-pink-50 rounded border-l-2 border-rose-400 mt-2">
                 <p className="text-xs text-rose-800">
-                  <strong>Rejection reason:</strong> {estimate.rejection_reason}
+                  <strong>Rejected:</strong> {estimate.rejection_reason}
                 </p>
               </div>
             )}
@@ -485,21 +530,21 @@ export const AdminEstimateManagement: React.FC = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header Section */}
-      <div className="text-center pb-4">
-        <div className="mb-2">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+      <div className="text-center pb-2">
+        <div className="mb-1">
+          <h2 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             Admin Estimate Management
           </h2>
         </div>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto px-4">
           Comprehensive dashboard for managing all estimates across territories with role-based insights and advanced analytics
         </p>
       </div>
 
       {/* Metrics Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <MetricCard
           title="Total Estimates"
           value={estimates.length}
@@ -544,11 +589,11 @@ export const AdminEstimateManagement: React.FC = () => {
 
       {/* Search and Management Section */}
       <Card className="backdrop-blur-sm bg-white/80 border-0 shadow-xl">
-        <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-100 border-b">
-          <CardTitle className="text-xl text-gray-800">Estimate Management Console</CardTitle>
+        <CardHeader className="bg-gradient-to-r from-slate-50 to-gray-100 border-b p-4 sm:p-6">
+          <CardTitle className="text-lg sm:text-xl text-gray-800">Estimate Management Console</CardTitle>
         </CardHeader>
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-3 mb-4 sm:mb-6">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -556,12 +601,12 @@ export const AdminEstimateManagement: React.FC = () => {
                   placeholder="Search by address, creator, or ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  className="pl-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500 h-10"
                 />
               </div>
             </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px] border-gray-300 focus:border-blue-500">
+              <SelectTrigger className="w-full sm:w-[180px] border-gray-300 focus:border-blue-500 h-10">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -590,17 +635,17 @@ export const AdminEstimateManagement: React.FC = () => {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="pending" className="mt-8">
+            <TabsContent value="pending" className="mt-4 sm:mt-6">
               {pendingEstimates.length === 0 ? (
                 <Card className="border-dashed border-2 border-gray-300 bg-gradient-to-br from-gray-50 to-slate-100">
-                  <CardContent className="p-12 text-center">
-                    <Clock className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-xl font-semibold text-gray-600 mb-2">No Pending Estimates</h3>
-                    <p className="text-muted-foreground">All estimates have been reviewed. Great job!</p>
+                  <CardContent className="p-8 sm:p-12 text-center">
+                    <Clock className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-600 mb-2">No Pending Estimates</h3>
+                    <p className="text-sm sm:text-base text-muted-foreground">All estimates have been reviewed. Great job!</p>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
                   {pendingEstimates.map(estimate => (
                     <EstimateCard key={estimate.id} estimate={estimate} />
                   ))}
@@ -608,25 +653,25 @@ export const AdminEstimateManagement: React.FC = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="approved" className="mt-8">
-              <div className="mb-6">
-                <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-100 rounded-lg border border-green-200">
-                  <p className="text-lg font-semibold text-green-800">
+            <TabsContent value="approved" className="mt-4 sm:mt-6">
+              <div className="mb-4 sm:mb-6">
+                <div className="p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-100 rounded-lg border border-green-200">
+                  <p className="text-base sm:text-lg font-semibold text-green-800">
                     💰 Approved Value: {currency(approvedValue)}
                   </p>
-                  <p className="text-sm text-green-600">Ready for client presentation and sale</p>
+                  <p className="text-xs sm:text-sm text-green-600">Ready for client presentation and sale</p>
                 </div>
               </div>
               {approvedEstimates.length === 0 ? (
                 <Card className="border-dashed border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-100">
-                  <CardContent className="p-12 text-center">
-                    <CheckCircle2 className="h-16 w-16 mx-auto mb-4 text-green-500" />
-                    <h3 className="text-xl font-semibold text-green-700 mb-2">No Approved Estimates</h3>
-                    <p className="text-green-600">Approved estimates will appear here</p>
+                  <CardContent className="p-8 sm:p-12 text-center">
+                    <CheckCircle2 className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 text-green-500" />
+                    <h3 className="text-lg sm:text-xl font-semibold text-green-700 mb-2">No Approved Estimates</h3>
+                    <p className="text-sm sm:text-base text-green-600">Approved estimates will appear here</p>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
                   {approvedEstimates.map(estimate => (
                     <EstimateCard key={estimate.id} estimate={estimate} />
                   ))}
@@ -634,17 +679,17 @@ export const AdminEstimateManagement: React.FC = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="rejected" className="mt-8">
+            <TabsContent value="rejected" className="mt-4 sm:mt-6">
               {rejectedEstimates.length === 0 ? (
                 <Card className="border-dashed border-2 border-rose-300 bg-gradient-to-br from-rose-50 to-pink-100">
-                  <CardContent className="p-12 text-center">
-                    <XCircle className="h-16 w-16 mx-auto mb-4 text-rose-500" />
-                    <h3 className="text-xl font-semibold text-rose-700 mb-2">No Rejected Estimates</h3>
-                    <p className="text-rose-600">Excellent! No estimates have been rejected.</p>
+                  <CardContent className="p-8 sm:p-12 text-center">
+                    <XCircle className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 text-rose-500" />
+                    <h3 className="text-lg sm:text-xl font-semibold text-rose-700 mb-2">No Rejected Estimates</h3>
+                    <p className="text-sm sm:text-base text-rose-600">Excellent! No estimates have been rejected.</p>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
                   {rejectedEstimates.map(estimate => (
                     <EstimateCard key={estimate.id} estimate={estimate} />
                   ))}
@@ -652,17 +697,17 @@ export const AdminEstimateManagement: React.FC = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="all" className="mt-8">
+            <TabsContent value="all" className="mt-4 sm:mt-6">
               {filteredEstimates.length === 0 ? (
                 <Card className="border-dashed border-2 border-gray-300 bg-gradient-to-br from-gray-50 to-slate-100">
-                  <CardContent className="p-12 text-center">
-                    <Search className="h-16 w-16 mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-xl font-semibold text-gray-600 mb-2">No Matching Estimates</h3>
-                    <p className="text-muted-foreground">Try adjusting your search criteria</p>
+                  <CardContent className="p-8 sm:p-12 text-center">
+                    <Search className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 text-gray-400" />
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-600 mb-2">No Matching Estimates</h3>
+                    <p className="text-sm sm:text-base text-muted-foreground">Try adjusting your search criteria</p>
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 sm:gap-4">
                   {filteredEstimates.map(estimate => (
                     <EstimateCard key={estimate.id} estimate={estimate} />
                   ))}
