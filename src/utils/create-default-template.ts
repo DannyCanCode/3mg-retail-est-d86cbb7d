@@ -70,10 +70,10 @@ const UPDATED_MATERIALS: Material[] = [
     category: MaterialCategory.UNDERLAYMENTS,
     price: 87.88,
     unit: "Roll",
-    approxPerSquare: 19.53,
+    approxPerSquare: 8.79,
     coverageRule: {
-      description: "4.5 Squares/Roll (450 sq ft)",
-      calculation: "Total Roof Area ÷ 4.5, rounded up",
+      description: "10 Squares/Roll (1000 sq ft)",
+      calculation: "Total Roof Area ÷ 10, rounded up",
     }
   },
   // LOW SLOPE
