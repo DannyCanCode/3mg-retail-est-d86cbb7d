@@ -80,13 +80,23 @@ export const AdminEstimateManagement: React.FC = () => {
   }, []);
 
   const fetchEstimates = async () => {
+    console.log('🔄 [Admin] fetchEstimates called');
     setLoading(true);
     try {
       const { data, error } = await getEstimates();
       if (error) throw error;
+      
+      console.log('📊 [Admin] Fetched estimates data:', data?.length || 0, 'estimates');
+      console.log('📊 [Admin] Status breakdown:', {
+        pending: data?.filter(e => e.status === 'pending').length || 0,
+        approved: data?.filter(e => e.status === 'approved').length || 0,
+        rejected: data?.filter(e => e.status === 'rejected').length || 0,
+        sold: data?.filter(e => e.status === 'Sold').length || 0
+      });
+      
       setEstimates(data || []);
     } catch (error) {
-      console.error('Error fetching estimates:', error);
+      console.error('🚨 [Admin] Error fetching estimates:', error);
       toast({
         title: 'Error',
         description: 'Failed to load estimates',
@@ -98,38 +108,58 @@ export const AdminEstimateManagement: React.FC = () => {
   };
 
   const handleApprove = async () => {
-    if (!selectedEstimate?.id) return;
+    if (!selectedEstimate?.id) {
+      console.error('No selected estimate or estimate ID');
+      return;
+    }
     
-    setIsActionLoading(true);
-    try {
-      const { error } = await updateEstimateStatus(selectedEstimate.id, 'approved', approvalNotes);
-      if (error) throw error;
-
-      // Track admin action
-      trackAdminEstimateAction('approve', {
-        estimateId: selectedEstimate.id,
-        creatorRole: selectedEstimate.creator_role,
-        estimateValue: selectedEstimate.total_price,
-        territory: selectedEstimate.creator_name || 'unknown'
-      });
-
-      toast({
-        title: 'Estimate Approved',
-        description: `Estimate for ${selectedEstimate.customer_address} has been approved.`
-      });
-
-      setIsApproveDialogOpen(false);
-      setApprovalNotes('');
-      setSelectedEstimate(null);
-      fetchEstimates();
-    } catch (error) {
-      console.error('Error approving estimate:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to approve estimate',
-        variant: 'destructive'
-      });
-    } finally {
+          console.log('🎯 [Admin] Starting acceptance for estimate:', selectedEstimate.id);
+      console.log('🎯 [Admin] Current estimate status:', selectedEstimate.status);
+      
+      setIsActionLoading(true);
+      try {
+        console.log('🎯 [Admin] Calling updateEstimateStatus with approved status...');
+        const { data, error } = await updateEstimateStatus(selectedEstimate.id, 'approved', approvalNotes);
+        
+        if (error) {
+          console.error('🚨 [Admin] API Error during acceptance:', error);
+          throw error;
+        }
+  
+        console.log('✅ [Admin] API call successful, returned data:', data);
+  
+        // Track admin action
+        trackAdminEstimateAction('approve', {
+          estimateId: selectedEstimate.id,
+          creatorRole: selectedEstimate.creator_role,
+          estimateValue: selectedEstimate.total_price,
+          territory: selectedEstimate.creator_name || 'unknown'
+        });
+  
+        // Close dialog and reset state first
+        setIsApproveDialogOpen(false);
+        setApprovalNotes('');
+        setSelectedEstimate(null);
+  
+        // Show success message
+        toast({
+          title: 'Estimate Accepted ✅',
+          description: `Estimate for ${selectedEstimate.customer_address} has been accepted and moved to the Accepted tab.`
+        });
+  
+        console.log('🔄 [Admin] Refreshing estimates list...');
+        // Refresh the estimates list
+        await fetchEstimates();
+        console.log('✅ [Admin] Estimates list refreshed');
+      
+          } catch (error) {
+        console.error('🚨 [Admin] Error accepting estimate:', error);
+        toast({
+          title: 'Error',
+          description: `Failed to accept estimate: ${error.message || 'Unknown error'}`,
+          variant: 'destructive'
+        });
+      } finally {
       setIsActionLoading(false);
     }
   };
@@ -144,10 +174,19 @@ export const AdminEstimateManagement: React.FC = () => {
       return;
     }
 
+    console.log('🎯 [Admin] Starting rejection for estimate:', selectedEstimate.id);
+    console.log('🎯 [Admin] Rejection reason:', rejectionReason);
+
     setIsActionLoading(true);
     try {
-      const { error } = await updateEstimateStatus(selectedEstimate.id, 'rejected', rejectionReason);
-      if (error) throw error;
+      console.log('🎯 [Admin] Calling updateEstimateStatus with rejected status...');
+      const { data, error } = await updateEstimateStatus(selectedEstimate.id, 'rejected', rejectionReason);
+      if (error) {
+        console.error('🚨 [Admin] API Error during rejection:', error);
+        throw error;
+      }
+
+      console.log('✅ [Admin] Rejection API call successful, returned data:', data);
 
       // Track admin action
       trackAdminEstimateAction('reject', {
@@ -158,20 +197,25 @@ export const AdminEstimateManagement: React.FC = () => {
         reason: rejectionReason
       });
 
-      toast({
-        title: 'Estimate Rejected',
-        description: `Estimate for ${selectedEstimate.customer_address} has been rejected.`
-      });
-
+      // Close dialog and reset state first
       setIsRejectDialogOpen(false);
       setRejectionReason('');
       setSelectedEstimate(null);
-      fetchEstimates();
+
+      toast({
+        title: 'Estimate Rejected ❌',
+        description: `Estimate for ${selectedEstimate.customer_address} has been rejected and moved to the Rejected tab.`
+      });
+
+      console.log('🔄 [Admin] Refreshing estimates list after rejection...');
+      await fetchEstimates();
+      console.log('✅ [Admin] Estimates list refreshed after rejection');
+      
     } catch (error) {
-      console.error('Error rejecting estimate:', error);
+      console.error('🚨 [Admin] Error rejecting estimate:', error);
       toast({
         title: 'Error',
-        description: 'Failed to reject estimate',
+        description: `Failed to reject estimate: ${error.message || 'Unknown error'}`,
         variant: 'destructive'
       });
     } finally {
@@ -353,6 +397,8 @@ export const AdminEstimateManagement: React.FC = () => {
             </div>
             <Badge className={`text-xs ${getStatusColor(estimate.status)} shadow-sm flex-shrink-0`}>
               {estimate.status}
+              {/* Debug info */}
+              <span className="sr-only">Status: {estimate.status}</span>
             </Badge>
           </div>
         </CardHeader>
@@ -414,7 +460,7 @@ export const AdminEstimateManagement: React.FC = () => {
                       className="flex-1 text-xs h-7 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-sm"
                     >
                       <CheckCircle2 className="h-3 w-3 mr-1" />
-                      Approve
+                      Accept
                     </Button>
                     <Button
                       size="sm"
@@ -562,7 +608,7 @@ export const AdminEstimateManagement: React.FC = () => {
           trend={-5.2}
         />
         <MetricCard
-          title="Approved"
+          title="Accepted"
           value={approvedEstimates.length}
           subtitle="Ready for sale"
           icon={CheckCircle2}
@@ -625,7 +671,7 @@ export const AdminEstimateManagement: React.FC = () => {
                 Pending ({pendingEstimates.length})
               </TabsTrigger>
               <TabsTrigger value="approved" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                Approved ({approvedEstimates.length})
+                Accepted ({approvedEstimates.length})
               </TabsTrigger>
               <TabsTrigger value="rejected" className="data-[state=active]:bg-white data-[state=active]:shadow-sm">
                 Rejected ({rejectedEstimates.length})
@@ -657,7 +703,7 @@ export const AdminEstimateManagement: React.FC = () => {
               <div className="mb-4 sm:mb-6">
                 <div className="p-3 sm:p-4 bg-gradient-to-r from-green-50 to-emerald-100 rounded-lg border border-green-200">
                   <p className="text-base sm:text-lg font-semibold text-green-800">
-                    💰 Approved Value: {currency(approvedValue)}
+                    💰 Accepted Value: {currency(approvedValue)}
                   </p>
                   <p className="text-xs sm:text-sm text-green-600">Ready for client presentation and sale</p>
                 </div>
@@ -666,8 +712,8 @@ export const AdminEstimateManagement: React.FC = () => {
                 <Card className="border-dashed border-2 border-green-300 bg-gradient-to-br from-green-50 to-emerald-100">
                   <CardContent className="p-8 sm:p-12 text-center">
                     <CheckCircle2 className="h-12 w-12 sm:h-16 sm:w-16 mx-auto mb-4 text-green-500" />
-                    <h3 className="text-lg sm:text-xl font-semibold text-green-700 mb-2">No Approved Estimates</h3>
-                    <p className="text-sm sm:text-base text-green-600">Approved estimates will appear here</p>
+                    <h3 className="text-lg sm:text-xl font-semibold text-green-700 mb-2">No Accepted Estimates</h3>
+                    <p className="text-sm sm:text-base text-green-600">Accepted estimates will appear here</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -724,11 +770,11 @@ export const AdminEstimateManagement: React.FC = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-600">
               <CheckCircle2 className="h-5 w-5" />
-              Approve Estimate
+              Accept Estimate
             </DialogTitle>
             <DialogDescription>
-              Approving this estimate will finalize it and allow PDF generation. 
-              Add any notes before approving.
+              Accepting this estimate will finalize it and allow PDF generation. 
+              Add any notes before accepting.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -749,7 +795,7 @@ export const AdminEstimateManagement: React.FC = () => {
               disabled={isActionLoading}
               className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
             >
-              {isActionLoading ? 'Approving...' : 'Approve Estimate'}
+              {isActionLoading ? 'Accepting...' : 'Accept Estimate'}
             </Button>
           </DialogFooter>
         </DialogContent>

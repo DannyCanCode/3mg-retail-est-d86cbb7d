@@ -258,14 +258,26 @@ export const updateEstimateStatus = async (
       return { data: null, error: new Error("Supabase not configured") };
     }
 
-    const updateData: { status: EstimateStatus, updated_at: string, notes?: string } = {
+    console.log(`🔧 [API] updateEstimateStatus called - ID: ${id}, Status: ${status}, Notes: ${notes ? 'provided' : 'none'}`);
+
+    const updateData: { status: EstimateStatus, updated_at: string, notes?: string, rejection_reason?: string } = {
       status,
       updated_at: new Date().toISOString()
     };
     
     if (notes) {
-      updateData.notes = notes;
+      if (status === 'rejected') {
+        // For rejections, save to rejection_reason field
+        updateData.rejection_reason = notes;
+        console.log(`🔧 [API] Setting rejection_reason: ${notes}`);
+      } else {
+        // For approvals and other statuses, save to notes field
+        updateData.notes = notes;
+        console.log(`🔧 [API] Setting notes: ${notes}`);
+      }
     }
+
+    console.log(`🔧 [API] Update payload:`, updateData);
 
     const { data, error } = await supabase
       .from("estimates")
@@ -275,12 +287,14 @@ export const updateEstimateStatus = async (
       .single();
 
     if (error) {
+      console.error(`🚨 [API] Supabase error:`, error);
       throw error;
     }
 
+    console.log(`✅ [API] Status update successful, returned data:`, data);
     return { data, error: null };
   } catch (error) {
-    console.error("Error updating estimate status:", error);
+    console.error("🚨 [API] Error updating estimate status:", error);
     return {
       data: null,
       error: error instanceof Error ? error : new Error("Unknown error occurred")
