@@ -377,12 +377,28 @@ export function MaterialsSelectionTab({
       area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
     );
     
+    // Check if there are steep slope areas (3/12 or higher)
+    const hasSteepSlopeAreas = measurements.areasByPitch.some(
+      area => {
+        const pitchParts = area.pitch.split(/[:\\/]/);
+        const rise = parseInt(pitchParts[0] || '0');
+        return !isNaN(rise) && rise >= 3;
+      }
+    );
+    
     setShowLowSlope(hasFlatRoofAreas);
     
-    // If there are flat roof areas, auto-expand that category
+    // If there are low slope areas, auto-expand that category
     if (hasFlatRoofAreas) {
       initialExpandedCategories.push(MaterialCategory.LOW_SLOPE);
     }
+    
+    // If there are steep slope areas, expand shingles category
+    if (hasSteepSlopeAreas) {
+      initialExpandedCategories.push(MaterialCategory.SHINGLES);
+    }
+    
+    console.log(`[CategoryExpansion] Low slope: ${hasFlatRoofAreas}, Steep slope: ${hasSteepSlopeAreas}, Expanding: ${initialExpandedCategories.join(', ')}`);
     
     setExpandedCategories(initialExpandedCategories);
   }, [measurements]);
@@ -1641,18 +1657,36 @@ export function MaterialsSelectionTab({
         toastMessage = "GAF package materials removed from selection";
         console.log("🎯 GAF Package Deselected: Removing all GAF materials");
       } else {
-        // Package selected - add the appropriate GAF materials
-        const packageToPreset: Record<string, string> = {
-          'gaf-1': 'GAF 1',
-          'gaf-2': 'GAF 2'
-        };
+        // Check if roof has steep slope areas before applying GAF packages
+        let steepSlopeArea = 0;
+        if (measurements && measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+          steepSlopeArea = measurements.areasByPitch
+            .filter(area => {
+              const pitchParts = area.pitch.split(/[:\\/]/);
+              const rise = parseInt(pitchParts[0] || '0');
+              return !isNaN(rise) && rise >= 3;
+            })
+            .reduce((sum, area) => sum + (area.area || 0), 0);
+        }
         
-        const presetName = packageToPreset[selectedPackage];
-        if (presetName) {
-          console.log(`🎯 GAF Package Selected: Adding ${presetName} materials`);
+        console.log(`🎯 GAF Package Selected: Steep slope area = ${steepSlopeArea.toFixed(1)} sq ft`);
+        
+        if (steepSlopeArea <= 0) {
+          toastMessage = "GAF packages are only applicable to roofs with steep slope areas (3/12 pitch or higher). This roof appears to be low slope only.";
+          console.log("🚫 GAF Package Not Applied: No steep slope areas found");
+        } else {
+          // Package selected - add the appropriate GAF materials
+          const packageToPreset: Record<string, string> = {
+            'gaf-1': 'GAF 1',
+            'gaf-2': 'GAF 2'
+          };
           
-          // Get the preset bundle materials
-          const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
+          const presetName = packageToPreset[selectedPackage];
+          if (presetName) {
+            console.log(`🎯 GAF Package Selected: Adding ${presetName} materials`);
+            
+            // Get the preset bundle materials
+            const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
             "GAF 1": [
               { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
               { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
@@ -1692,15 +1726,20 @@ export function MaterialsSelectionTab({
                   dbWastePercentages
                 );
 
-                newMaterials[id] = material;
-                newQuantities[id] = Math.max(1, calculatedQuantity);
-                newWasteFactors[id] = actualWasteFactor;
-                
-                console.log(`Added ${material.name} - Qty: ${newQuantities[id]}, Price: $${material.price}`);
+                // Only add materials with positive calculated quantities
+                if (calculatedQuantity > 0) {
+                  newMaterials[id] = material;
+                  newQuantities[id] = calculatedQuantity;
+                  newWasteFactors[id] = actualWasteFactor;
+                  console.log(`Added ${material.name} - Qty: ${calculatedQuantity}, Price: $${material.price}`);
+                } else {
+                  console.log(`Skipped ${material.name} - Qty: ${calculatedQuantity} (not applicable)`);
+                }
               }
             });
             
             toastMessage = `${presetName} materials applied! Materials automatically populated.`;
+          }
           }
         }
       }
@@ -1712,11 +1751,12 @@ export function MaterialsSelectionTab({
       
       // Show toast notification
       if (toastMessage) {
+        const isLowSlopeWarning = toastMessage.includes("only applicable to roofs with steep slope areas");
         toast({
           title: selectedPackage ? "GAF Package Materials Applied! ✅" : "GAF Package Materials Removed",
           description: toastMessage,
           duration: 4000,
-          variant: "default"
+          variant: isLowSlopeWarning ? "destructive" : "default"
         });
       }
       
