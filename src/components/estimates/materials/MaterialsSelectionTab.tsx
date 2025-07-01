@@ -114,6 +114,10 @@ export function MaterialsSelectionTab({
   // Special waste factor for GAF Timberline HDZ
   const [gafTimberlineWasteFactor, setGafTimberlineWasteFactor] = useState(12); // Minimum 12%
   
+  // CRITICAL FIX: Add loading state to prevent white screens during material population
+  const [isAutoPopulating, setIsAutoPopulating] = useState(false);
+  const [autoPopulationError, setAutoPopulationError] = useState<string | null>(null);
+  
   // State for GAF packages and warranty options
   const [selectedPackage, setSelectedPackage] = useState<string | null>('gaf-1');
   const [selectedWarranty, setSelectedWarranty] = useState<string | null>('silver-pledge');
@@ -368,38 +372,66 @@ export function MaterialsSelectionTab({
   }, [localSelectedMaterials, localQuantities, peelStickPrice, warrantyDetails, onMaterialsUpdate, selectedMaterials, quantities]); // Keep dependencies as they are
   // materialWasteFactors removed from dependency array as it's not sent to parent
   
-  // Initialize expanded categories
+  // Initialize expanded categories with improved low slope detection
   useEffect(() => {
+    if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
+      // Default to shingles if no measurements
+      setExpandedCategories([MaterialCategory.SHINGLES]);
+      return;
+    }
+    
     const initialExpandedCategories: string[] = [];
     
-    // Check if there are low-slope areas on the roof
-    const hasFlatRoofAreas = measurements.areasByPitch.some(
-      area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
-    );
+    // Calculate area percentages for better roof type detection
+    const totalArea = measurements.areasByPitch.reduce((sum, area) => sum + area.area, 0);
     
-    // Check if there are steep slope areas (3/12 or higher)
-    const hasSteepSlopeAreas = measurements.areasByPitch.some(
-      area => {
+    const lowSlopeArea = measurements.areasByPitch
+      .filter(area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch))
+      .reduce((sum, area) => sum + area.area, 0);
+      
+    const steepSlopeArea = measurements.areasByPitch
+      .filter(area => {
         const pitchParts = area.pitch.split(/[:\\/]/);
         const rise = parseInt(pitchParts[0] || '0');
         return !isNaN(rise) && rise >= 3;
-      }
-    );
+      })
+      .reduce((sum, area) => sum + area.area, 0);
+    
+    const lowSlopePercentage = totalArea > 0 ? (lowSlopeArea / totalArea) * 100 : 0;
+    const steepSlopePercentage = totalArea > 0 ? (steepSlopeArea / totalArea) * 100 : 0;
+    
+    const hasFlatRoofAreas = lowSlopeArea > 0;
+    const hasSteepSlopeAreas = steepSlopeArea > 0;
     
     setShowLowSlope(hasFlatRoofAreas);
     
-    // If there are low slope areas, auto-expand that category
-    if (hasFlatRoofAreas) {
+    // CRITICAL FIX: Enhanced category expansion logic for better UX
+    if (lowSlopePercentage > 80) {
+      // Pure low slope roof - prioritize low slope materials
       initialExpandedCategories.push(MaterialCategory.LOW_SLOPE);
-    }
-    
-    // If there are steep slope areas, expand shingles category
-    if (hasSteepSlopeAreas) {
+      console.log(`[CategoryExpansion] Pure low slope roof detected (${lowSlopePercentage.toFixed(1)}%), prioritizing LOW_SLOPE`);
+    } else if (steepSlopePercentage > 80) {
+      // Pure steep slope roof - prioritize shingles
       initialExpandedCategories.push(MaterialCategory.SHINGLES);
+      console.log(`[CategoryExpansion] Pure steep slope roof detected (${steepSlopePercentage.toFixed(1)}%), prioritizing SHINGLES`);
+    } else {
+      // Mixed roof - expand both relevant categories
+      if (hasFlatRoofAreas) {
+        initialExpandedCategories.push(MaterialCategory.LOW_SLOPE);
+      }
+      if (hasSteepSlopeAreas) {
+        initialExpandedCategories.push(MaterialCategory.SHINGLES);
+      }
+      console.log(`[CategoryExpansion] Mixed roof detected - Low: ${lowSlopePercentage.toFixed(1)}%, Steep: ${steepSlopePercentage.toFixed(1)}%`);
     }
     
-    console.log(`[CategoryExpansion] Low slope: ${hasFlatRoofAreas}, Steep slope: ${hasSteepSlopeAreas}, Expanding: ${initialExpandedCategories.join(', ')}`);
+    // Always expand at least one category for better UX
+    if (initialExpandedCategories.length === 0) {
+      initialExpandedCategories.push(MaterialCategory.SHINGLES);
+      console.log(`[CategoryExpansion] No roof areas detected, defaulting to SHINGLES`);
+    }
     
+    console.log(`[CategoryExpansion] Final expanded categories: ${initialExpandedCategories.join(', ')}`);
     setExpandedCategories(initialExpandedCategories);
   }, [measurements]);
 
@@ -411,8 +443,14 @@ export function MaterialsSelectionTab({
     
     if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
       console.log("[Low-Slope Auto-Add] No valid measurements or areasByPitch");
+      setIsAutoPopulating(false);
+      setAutoPopulationError(null);
       return;
     }
+    
+    // CRITICAL FIX: Set loading state to prevent white screen during material population
+    setIsAutoPopulating(true);
+    setAutoPopulationError(null);
     
     const hasLowPitch = measurements.areasByPitch.some(
       area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
@@ -535,23 +573,40 @@ export function MaterialsSelectionTab({
     if (materialsUpdated) {
       console.log("[Low-Slope Auto-Add] Materials updated, setting state and notifying parent");
       
-      setLocalSelectedMaterials(newSelectedMaterials);
-      setLocalQuantities(newQuantities);
-      setDisplayQuantities(newDisplayQuantities);
-      setMaterialWasteFactors(newMaterialWasteFactors); 
-      setUserOverriddenWaste(newUserOverriddenWaste); 
-      
-      toast({
-        title: "Low-Slope Materials Added",
-        description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.`,
-      });
-      
-      // Note: Don't call onMaterialsUpdate directly here - let the useEffect that watches 
-      // localSelectedMaterials and localQuantities handle the parent notification
-      // This prevents timing issues and feedback loops
+      try {
+        setLocalSelectedMaterials(newSelectedMaterials);
+        setLocalQuantities(newQuantities);
+        setDisplayQuantities(newDisplayQuantities);
+        setMaterialWasteFactors(newMaterialWasteFactors); 
+        setUserOverriddenWaste(newUserOverriddenWaste); 
+        
+        toast({
+          title: "Low-Slope Materials Added",
+          description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.`,
+        });
+        
+        // Note: Don't call onMaterialsUpdate directly here - let the useEffect that watches 
+        // localSelectedMaterials and localQuantities handle the parent notification
+        // This prevents timing issues and feedback loops
+      } catch (error) {
+        console.error("[Low-Slope Auto-Add] Error updating materials:", error);
+        setAutoPopulationError("Failed to add low-slope materials automatically");
+      }
     }
     
-  }, [measurements?.totalArea, measurements?.areasByPitch, wasteFactor]); // Only depend on measurement changes
+    // Clear loading state when processing is complete
+    setIsAutoPopulating(false);
+    
+  }, [
+    // CRITICAL FIX: Use deep dependencies to ensure effect runs when measurements object changes
+    measurements, 
+    // Include these specific checks to trigger when pitch data actually changes
+    JSON.stringify(measurements?.areasByPitch || []),
+    measurements?.totalArea,
+    wasteFactor,
+    // Add these to ensure effect runs when material state is properly initialized
+    Object.keys(localSelectedMaterials).length
+  ]); // Fixed dependencies to catch all measurement changes
 
   // Group all available materials by category for rendering the accordion
   const materialsByCategory = useMemo(() => {

@@ -34,12 +34,15 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
 
   const { 
     parsedData, 
-    setParsedData, 
     parsePdf, 
     processingMode,
     processingProgress,
-    fileUrl
+    fileUrl,
+    isProcessing
   } = usePdfParser();
+  
+  // Local state for parsed data management
+  const [localParsedData, setLocalParsedData] = useState<ParsedMeasurements | null>(null);
   
   const { saveToDatabase } = useMeasurementStorage();
   

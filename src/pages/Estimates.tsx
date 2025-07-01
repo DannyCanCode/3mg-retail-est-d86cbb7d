@@ -7,7 +7,7 @@ import { Plus, ChevronRight, RefreshCw, ArrowLeft, Loader2, Shield, Info, EyeOff
 import { MeasurementForm } from "@/components/estimates/MeasurementForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaterialsSelectionTab } from "@/components/estimates/materials/MaterialsSelectionTab";
-import { MeasurementValues } from "@/components/estimates/measurement/types";
+import { MeasurementValues, AreaByPitch } from "@/components/estimates/measurement/types";
 import { Material } from "@/components/estimates/materials/types";
 import { useToast } from "@/hooks/use-toast";
 import { LaborProfitTab, LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
@@ -39,8 +39,10 @@ import { EstimateTypeSelector } from "@/components/estimates/EstimateTypeSelecto
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { trackEvent, trackEstimateCreated } from "@/lib/posthog";
+import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/integrations/supabase/client";
 
-// Convert ParsedMeasurements to MeasurementValues format
+// Convert from ParsedMeasurements to MeasurementValues
 const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
   // Allow both direct ParsedMeasurements and the wrapper { measurements, parsedMeasurements }
   const parsedData: ParsedMeasurements | null = parsedDataRaw?.parsedMeasurements ?? parsedDataRaw ?? null;
@@ -388,8 +390,33 @@ const Estimates = () => {
       }
       
       if (storedMeasurements && !measurements) {
-        setMeasurements(storedMeasurements);
-      console.log("✅ Recovered measurements:", storedMeasurements.totalArea, 'sq ft');
+        // CRITICAL FIX: Check data freshness and source before recovery
+        const currentTime = Date.now();
+        const dataTimestamp = (storedMeasurements as any)?._freshDataTimestamp || 0;
+        const dataSource = (storedMeasurements as any)?._dataSource || 'unknown';
+        const dataAge = currentTime - dataTimestamp;
+        const maxDataAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        // Only recover if data is fresh and from a reliable source
+        if (dataAge < maxDataAge && dataSource === 'fresh_pdf_upload') {
+          // Clean the metadata before setting measurements
+          const cleanMeasurements = { ...storedMeasurements };
+          delete (cleanMeasurements as any)._freshDataTimestamp;
+          delete (cleanMeasurements as any)._dataSource;
+          
+          setMeasurements(cleanMeasurements);
+          console.log("✅ Recovered FRESH measurements:", cleanMeasurements.totalArea, 'sq ft', `(age: ${Math.round(dataAge/1000)}s)`);
+        } else {
+          console.log("🚫 Skipping recovery of STALE measurements:", {
+            age: Math.round(dataAge/1000/60), 
+            source: dataSource,
+            totalArea: storedMeasurements.totalArea
+          });
+          
+          // Clear stale data
+          setStoredMeasurements(null);
+          setStoredPdfData(null);
+        }
       }
       
       if (storedFileName && !pdfFileName) {
@@ -699,7 +726,8 @@ const Estimates = () => {
   const handlePdfDataExtracted = (data: ParsedMeasurements | null, fileName: string) => {
     console.log("PDF data extracted:", data, fileName);
     
-    // RESET FRESH START FLAG: User uploaded new PDF, allow recovery for this session
+    // CRITICAL FIX: Mark this as fresh PDF data to prevent recovery conflicts
+    const freshDataTimestamp = Date.now();
     setUserWantsFreshStart(false);
     
     setExtractedPdfData(data);
@@ -724,14 +752,34 @@ const Estimates = () => {
       timestamp: new Date().toISOString()
     });
     
-    // Store in localStorage
-    setStoredPdfData(data);
-    setStoredFileName(fileName);
-    
     // Force immediate conversion to ensure measurements are available
     const convertedMeasurements = convertToMeasurementValues(data);
+    
+    // CRITICAL FIX: Add timestamp to prevent old data recovery
+    const freshMeasurementsWithTimestamp = {
+      ...convertedMeasurements,
+      _freshDataTimestamp: freshDataTimestamp,
+      _dataSource: 'fresh_pdf_upload'
+    };
+    
+    // Set state FIRST before localStorage to establish priority
     setMeasurements(convertedMeasurements);
-    setStoredMeasurements(convertedMeasurements);
+    
+    // CRITICAL FIX: Clear old localStorage data before storing fresh data
+    console.log("🧹 Clearing old localStorage measurements to prevent conflicts");
+    localStorage.removeItem("estimateMeasurements");
+    localStorage.removeItem("estimateExtractedPdfData");
+    
+    // Small delay to ensure state is set, then store to localStorage
+    setTimeout(() => {
+      setStoredPdfData(data);
+      setStoredFileName(fileName);
+      setStoredMeasurements(freshMeasurementsWithTimestamp);
+      
+      // Block recovery for a brief period to let fresh data settle
+      setHasRecoveredData(true);
+      console.log("🆕 Fresh PDF data stored with timestamp:", freshDataTimestamp);
+    }, 100);
     
     // Calculate areaDisplay *after* conversion, using the reliable converted value
     const areaDisplay = convertedMeasurements.totalArea && !isNaN(convertedMeasurements.totalArea) && convertedMeasurements.totalArea > 0 
@@ -1842,23 +1890,34 @@ const Estimates = () => {
                   onValueChange={(value) => {
                     console.log(`Tab changing from ${activeTab} to ${value}`);
                     
-                    // Special case for materials tab
-                    if (value === "materials" && measurements) {
-                      console.log("Validating measurements before navigating to materials tab");
-                      // Make sure measurements and areasByPitch are properly set
-                      if (!measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
-                        console.warn("Measurements are missing areasByPitch data, staying on current tab");
-                        toast({
-                          title: "Missing Data",
-                          description: "Please complete the measurements form before selecting materials.",
-                          variant: "destructive"
-                        });
-                        return;
+                    // CRITICAL FIX: Prevent white screen during tab switching
+                    // Use requestAnimationFrame to ensure smooth transition
+                    requestAnimationFrame(() => {
+                      // Special case for materials tab
+                      if (value === "materials" && measurements) {
+                        console.log("Validating measurements before navigating to materials tab");
+                        // Make sure measurements and areasByPitch are properly set
+                        if (!measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+                          console.warn("Measurements are missing areasByPitch data, staying on current tab");
+                          toast({
+                            title: "Missing Data",
+                            description: "Please complete the measurements form before selecting materials.",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
                       }
-                    }
-                    
-                    setActiveTab(value);
-                    console.log(`Tab changed, activeTab is now ${value}`);
+                      
+                      // Batch state updates to prevent multiple renders
+                      requestAnimationFrame(() => {
+                        setActiveTab(value);
+                        // Update stored tab for persistence
+                        if (!isViewMode) {
+                          setStoredActiveTab(value);
+                        }
+                        console.log(`Tab changed, activeTab is now ${value}`);
+                      });
+                    });
                   }} 
                   className="w-full"
                   defaultValue={isViewMode ? "summary" : "type-selection"}
