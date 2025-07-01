@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useFileUpload } from "./hooks/useFileUpload";
 import { usePdfParser } from "./hooks/usePdfParser";
 import { useMeasurementStorage } from "./hooks/useMeasurementStorage";
@@ -41,8 +41,7 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
     isProcessing
   } = usePdfParser();
   
-  // Local state for parsed data management
-  const [localParsedData, setLocalParsedData] = useState<ParsedMeasurements | null>(null);
+  // Local state for parsed data management - REMOVED: Not needed
   
   const { saveToDatabase } = useMeasurementStorage();
   
@@ -72,7 +71,8 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
         });
       } else if (result && onDataExtracted) {
         // If we have a result and the parent component provided the onDataExtracted callback
-        onDataExtracted(result, selectedFile.name);
+        // Extract the parsedMeasurements from the result object
+        onDataExtracted(result.parsedMeasurements, selectedFile.name);
       }
     } catch (error) {
       console.error("Error in upload and process flow:", error);
