@@ -413,34 +413,12 @@ const Estimates = () => {
       console.log("✅ Recovered PDF data:", storedPdfData.propertyAddress || 'Unknown address');
       }
       
+      // DISABLED MEASUREMENTS RECOVERY: Causing pitch data corruption
+      // The fresh PDF parsing works perfectly - don't override it with localStorage
       if (storedMeasurements && !measurements) {
-        // CRITICAL FIX: Check data freshness and source before recovery
-        const currentTime = Date.now();
-        const dataTimestamp = (storedMeasurements as any)?._freshDataTimestamp || 0;
-        const dataSource = (storedMeasurements as any)?._dataSource || 'unknown';
-        const dataAge = currentTime - dataTimestamp;
-        const maxDataAge = 24 * 60 * 60 * 1000; // 24 hours
-        
-        // Only recover if data is fresh and from a reliable source
-        if (dataAge < maxDataAge && dataSource === 'fresh_pdf_upload') {
-          // Clean the metadata before setting measurements
-          const cleanMeasurements = { ...storedMeasurements };
-          delete (cleanMeasurements as any)._freshDataTimestamp;
-          delete (cleanMeasurements as any)._dataSource;
-          
-          setMeasurements(cleanMeasurements);
-          console.log("✅ Recovered FRESH measurements:", cleanMeasurements.totalArea, 'sq ft', `(age: ${Math.round(dataAge/1000)}s)`);
-        } else {
-          console.log("🚫 Skipping recovery of STALE measurements:", {
-            age: Math.round(dataAge/1000/60), 
-            source: dataSource,
-            totalArea: storedMeasurements.totalArea
-          });
-          
-          // Clear stale data
-          setStoredMeasurements(null);
-          setStoredPdfData(null);
-        }
+        console.log("🚫 DISABLED measurements recovery to prevent pitch corruption");
+        // Clear any stored measurements to prevent future corruption
+        setStoredMeasurements(null);
       }
       
       if (storedFileName && !pdfFileName) {
@@ -621,7 +599,7 @@ const Estimates = () => {
       
       // Store in localStorage
       setStoredPdfData(extractedPdfData);
-      setStoredMeasurements(convertedMeasurements);
+      // DISABLED: setStoredMeasurements(convertedMeasurements); // Causes pitch corruption
       
       // Debug measurements conversion
       console.log("Converted measurements:", convertedMeasurements);
@@ -800,11 +778,11 @@ const Estimates = () => {
     setTimeout(() => {
       setStoredPdfData(data);
       setStoredFileName(fileName);
-      setStoredMeasurements(freshMeasurementsWithTimestamp);
+      // DISABLED: setStoredMeasurements(freshMeasurementsWithTimestamp); // Causes pitch corruption
       
       // Block recovery for a brief period to let fresh data settle
       setHasRecoveredData(true);
-      console.log("🆕 Fresh PDF data stored with timestamp:", freshDataTimestamp);
+      console.log("🆕 Fresh PDF data stored (measurements not stored to prevent corruption)");
     }, 100);
     
     // Calculate areaDisplay *after* conversion, using the reliable converted value
