@@ -5,6 +5,24 @@ import { ParsedMeasurements } from './measurements';
 // Get the bucket name from environment variables
 const PDF_BUCKET_NAME = import.meta.env.VITE_PDF_BUCKET_NAME || 'pdf-uploads';
 
+// Lightweight helper: upload file and return public URL without invoking Edge Function
+export async function uploadPdfToStorage(file: File): Promise<string> {
+  if (!isSupabaseConfigured()) throw new Error("Supabase not configured");
+
+  const timestamp = Date.now();
+  const fileName = `${timestamp}-${file.name}`;
+  const { error: uploadErr } = await supabase.storage
+    .from(PDF_BUCKET_NAME)
+    .upload(fileName, file, { contentType: "application/pdf", cacheControl: "3600" });
+
+  if (uploadErr) throw uploadErr;
+
+  return supabase.storage.from(PDF_BUCKET_NAME).getPublicUrl(fileName).data.publicUrl;
+}
+
+// Feature flag – default false. If false we skip the edge-function path.
+const USE_EDGE_PARSER = import.meta.env.VITE_USE_EDGE_PARSER === "true";
+
 /**
  * Uploads a PDF file to Supabase Storage and then invokes the edge function for processing
  */
@@ -45,28 +63,20 @@ export async function processPdfWithSupabase(file: File): Promise<{
       
     console.log('File uploaded successfully. Public URL:', publicUrl);
 
-    // Now call the Supabase Edge Function to process the PDF
+    // Optionally invoke edge parser
+    if (USE_EDGE_PARSER) {
     console.log('Invoking Supabase Edge Function for PDF processing...');
-    
-    const { data, error: functionError } = await supabase.functions.invoke(
-      'process-pdf', 
-      {
-        body: { fileUrl: publicUrl, fileName: file.name },
-      }
-    );
-
+      const { data, error: functionError } = await supabase.functions.invoke('process-pdf', { body: { fileUrl: publicUrl, fileName: file.name } });
     if (functionError) {
       console.error('Function error:', functionError);
       throw new Error(`Error processing PDF: ${functionError.message}`);
     }
+      console.log('Edge parser success:', data);
+      return { data: data as ParsedMeasurements, error: null, fileUrl: publicUrl };
+    }
 
-    console.log('PDF processed successfully by Edge Function:', data);
-    
-    return { 
-      data: data as ParsedMeasurements, 
-      error: null,
-      fileUrl: publicUrl 
-    };
+    // If not using edge parser, just return with null data
+    return { data: null, error: null, fileUrl: publicUrl };
   } catch (error) {
     console.error('PDF processing service error:', error);
     return { 

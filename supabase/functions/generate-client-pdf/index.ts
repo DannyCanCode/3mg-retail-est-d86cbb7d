@@ -1,58 +1,72 @@
 // supabase/functions/generate-client-pdf/index.ts
 
+// @ts-ignore deno types
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+// @ts-ignore deno types
+import * as Sentry from "https://deno.land/x/sentry_deno@0.7.0/mod.ts";
 
 console.log("Simplified generate-client-pdf function started. V2");
+
+Sentry.init({
+  // @ts-ignore deno global
+  dsn: Deno.env.get("SENTRY_DSN") || "",
+  tracesSampleRate: 0.2,
+  // @ts-ignore deno global
+  environment: Deno.env.get("SENTRY_ENV") || "development",
+});
 
 serve(async (req) => {
   // 1. Handle CORS
   const corsHeaders = {
-    'Access-Control-Allow-Origin': '*' // Allow all for testing, restrict in prod
+    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   }
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  console.log("--- Checking Secrets --- (Simplified Function)");
-  let errorMsg: string | null = null;
+  try {
+    const { estimateData } = await req.json();
 
-  // 2. Attempt to read secrets using the original RESERVED names
-  const supabaseUrl = Deno.env.get('SUPABASE_URL'); // Reverted to original name
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'); // Reverted to original name
+    if (!estimateData) {
+      throw new Error("No estimate data provided.");
+    }
 
-  console.log(`Found SUPABASE_URL: ${!!supabaseUrl}`);
-  console.log(`Found SUPABASE_SERVICE_ROLE_KEY: ${!!serviceRoleKey}`);
+    // Create a client-safe version of the estimate materials
+    const clientSafeMaterials = {};
+    if (estimateData.materials) {
+      for (const key in estimateData.materials) {
+        const material = estimateData.materials[key];
+        clientSafeMaterials[key] = {
+          id: material.id,
+          name: material.name,
+          category: material.category,
+          unit: material.unit,
+          // Explicitly OMIT price, approxPerSquare, and any other cost-related fields
+        };
+      }
+    }
 
-  if (!supabaseUrl || !serviceRoleKey) {
-    errorMsg = "Missing Supabase reserved environment variables/secrets.";
-    if (!supabaseUrl) console.error("ERROR: SUPABASE_URL was not found!");
-    if (!serviceRoleKey) console.error("ERROR: SUPABASE_SERVICE_ROLE_KEY was not found!");
-  }
-
-  // 3. Prepare response
-  let responseBody = {};
-  let status = 200;
-
-  if (errorMsg) {
-    responseBody = { error: errorMsg };
-    status = 500;
-  } else {
-    // If secrets were found, return them (partially masked for safety in logs)
-    responseBody = {
-      message: "Reserved Secrets found!",
-      urlFound: !!supabaseUrl,
-      keyFound: !!serviceRoleKey,
-      // Avoid logging full secrets, just confirm presence
-      // url: supabaseUrl,
-      // serviceKeyPart: serviceRoleKey?.substring(0, 10) + '...'
+    // Create the final client-safe estimate object
+    const clientSafeEstimate = {
+      customer_name: estimateData.customer_name,
+      customer_address: estimateData.customer_address,
+      total_price: estimateData.total_price, // The final price is safe to show
+      materials: clientSafeMaterials,
+      quantities: estimateData.quantities,
+      // Add other top-level fields that are safe to show
     };
+
+    return new Response(
+      JSON.stringify(clientSafeEstimate),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    Sentry.captureException(error);
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
-
-  console.log(`Responding with status ${status}`, responseBody);
-
-  return new Response(
-      JSON.stringify(responseBody), 
-      { status: status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } } 
-  )
-}) 
+}); 

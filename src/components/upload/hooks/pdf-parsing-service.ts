@@ -3,7 +3,7 @@ import { ParsedMeasurements } from "@/api/measurements";
 import { FileUploadStatus } from "./useFileUpload";
 import { ProcessingMode } from "./pdf-constants";
 import { 
-  handleEdgeFunctionError, 
+  handleGeneralPdfError, 
   handleSuccessfulParsing 
 } from "./pdf-error-handler";
 import { toast } from "@/hooks/use-toast";
@@ -71,8 +71,8 @@ export const parsePdfWithSupabase = async (
         error.message.includes("context length") ||
         error.message.includes("maximum context length")
       )) {
-        // If in regular mode, try fallback mode
-        if (processingMode === "regular") {
+        // If in supabase mode, try client mode
+        if (processingMode === "supabase") {
           console.log("Switching to fallback processing mode due to size issues");
           toast({
             title: "Using optimized processing",
@@ -140,15 +140,16 @@ export const parsePdfWithSupabase = async (
     console.log("Parsed measurements:", data.measurements);
     
     // Handle success
-    handleSuccessfulParsing(file.name, setStatus, false);
+    handleSuccessfulParsing(file.name, setStatus);
     
-    // Clean up the uploaded file
-    await supabase.storage.from('pdf-uploads').remove([filePath]);
+    // Keep the PDF available for viewing - don't delete it immediately
+    // This allows the "View PDF" link to work in the success component
+    console.log("PDF will remain available at:", pdfUrl);
     
     return data.measurements;
     
   } catch (functionError: any) {
-    handleEdgeFunctionError(functionError, fileSizeMB, setErrorDetails, setStatus);
+    handleGeneralPdfError(functionError, setStatus, setErrorDetails);
     throw functionError;
   }
 };
@@ -201,12 +202,12 @@ const tryFallbackProcessing = async (
     // Handle success
     handleSuccessfulParsing(file.name, setStatus);
     
-    // Clean up the uploaded file
-    await supabase.storage.from('pdf-uploads').remove([filePath]);
+    // Keep the PDF available for viewing - don't delete it immediately
+    console.log("PDF (fallback) will remain available at:", pdfUrl);
     
     return fallbackData.measurements;
   } catch (error: any) {
-    handleEdgeFunctionError(error, fileSizeMB, setErrorDetails, setStatus);
+    handleGeneralPdfError(error, setStatus, setErrorDetails);
     throw error;
   }
 };

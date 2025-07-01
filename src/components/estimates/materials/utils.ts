@@ -237,7 +237,7 @@ export const calculateMaterialQuantity = (
         quantity = Math.ceil(squaresNeeded);
     } else if (material.id === "polyglass-elastoflex-sbs") {
         const coverageSqFtPerRoll = 114; // Approx 1.06 squares
-        quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
+            quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
     } else if (material.id === "polyglass-polyflex-app") {
         const coverageSqFtPerRoll = 100; // Approx 1.0 squares
         quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);

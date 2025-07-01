@@ -10,7 +10,8 @@ import {
 import { EstimateCard } from "@/components/ui/EstimateCard";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
-import { getEstimates, EstimateStatus, Estimate, updateEstimateStatus, markEstimateAsSold, updateEstimateCustomerDetails } from "@/api/estimates";
+import { getEstimates, EstimateStatus, Estimate, updateEstimateStatus, markEstimateAsSold, updateEstimateCustomerDetails } from "@/api/estimatesFacade";
+import { withTimeout } from "@/lib/withTimeout";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -40,13 +41,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { saveAs } from 'file-saver';
+import { useRealTimeEstimates } from "@/hooks/useRealTimeEstimates";
+import { WifiOff, Wifi } from "lucide-react";
 
 const INITIAL_VISIBLE_COUNT = 12; // Show 12 estimates initially
 
 export function RecentEstimates() {
-  const [estimates, setEstimates] = useState<Estimate[]>([]);
+  const { estimates, isLoading, error: realtimeError, refreshEstimates } = useRealTimeEstimates();
   const [filteredEstimates, setFilteredEstimates] = useState<Estimate[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<EstimateStatus | "all">("all");
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -74,10 +76,6 @@ export function RecentEstimates() {
   // --- End State ---
 
   useEffect(() => {
-    fetchEstimates();
-  }, []);
-
-  useEffect(() => {
     if (activeFilter === "all") {
       setFilteredEstimates(estimates);
     } else {
@@ -85,28 +83,18 @@ export function RecentEstimates() {
     }
   }, [activeFilter, estimates]);
 
-  const fetchEstimates = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await getEstimates();
-      
-      if (error) {
-        throw error;
-      }
-      
-      setEstimates(data);
-      setFilteredEstimates(data);
-    } catch (error) {
-      console.error("Error fetching estimates:", error);
+  // Handle real-time connection errors
+  useEffect(() => {
+    if (realtimeError) {
       toast({
-        title: "Error",
-        description: "Failed to load estimates. Please try again.",
+        title: "Connection Issue",
+        description: "Real-time updates disconnected. Click refresh to reconnect.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, [realtimeError, toast]);
+
+  // Removed manual fetchEstimates - now using real-time hook
   
   const formatEstimateDate = (dateString?: string) => {
     if (!dateString) return "N/A";
@@ -138,7 +126,7 @@ export function RecentEstimates() {
     try {
       await updateEstimateStatus(id, status);
       toast({ title: "Success", description: `Estimate ${status}.` });
-      fetchEstimates(); // Refresh list
+      // Real-time updates will automatically refresh the list
     } catch (err: any) {
       toast({ title: "Error", description: `Failed to update status: ${err.message}`, variant: "destructive" });
     } finally {
@@ -203,11 +191,8 @@ export function RecentEstimates() {
       page.drawText('Customer Information', { x: margin, y: currentY, font: boldFont, size: 12, color: greenColor });
       currentY -= 15;
       page.drawText(estimate.customer_name || 'N/A', { x: margin, y: currentY, font: boldFont, size: 10 });
-      currentY -= 12;
       page.drawText(estimate.customer_address || 'N/A', { x: margin + 5, y: currentY, font: font, size: 10 });
-      currentY -= 12;
       page.drawText(`Email: ${estimate.customer_email || 'N/A'}`, { x: margin + 5, y: currentY, font: font, size: 10 });
-      currentY -= 12;
       page.drawText(`Phone: ${estimate.customer_phone || 'N/A'}`, { x: margin + 5, y: currentY, font: font, size: 10 });
 
       currentY -= 30;
@@ -319,8 +304,7 @@ export function RecentEstimates() {
 
       if (error) throw error;
 
-      // Update local estimates state
-      setEstimates(prev => prev.map(est => est.id === estimateId ? { ...est, ...updatedEstimateData } : est));
+      // Real-time updates will handle the state automatically
       
       toast({ title: "Success", description: "Customer details updated." });
       setIsCustomerInfoDialogOpen(false);
@@ -370,7 +354,7 @@ export function RecentEstimates() {
       await markEstimateAsSold(estimateId, jobType, insuranceCompany.trim());
       toast({ title: "Success", description: `Estimate #${estimateId.substring(0, 8)} marked as ${jobType} Sale.` });
       setEstimateToMarkSold(null);
-      fetchEstimates(); // Refresh the list to show updated status
+      // Real-time updates will automatically refresh the list
     } catch (err: any) {
       console.error("Error marking estimate as sold:", err);
       toast({ title: "Error", description: `Failed to mark estimate as sold: ${err.message}`, variant: "destructive" });
@@ -394,14 +378,30 @@ export function RecentEstimates() {
       <Card className="animate-slide-in-up" style={{ animationDelay: "0.2s" }}>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Estimates</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Estimates
+              {realtimeError ? (
+                <WifiOff className="h-4 w-4 text-red-500" />
+              ) : (
+                <Wifi className="h-4 w-4 text-green-500" />
+              )}
+            </CardTitle>
             <CardDescription>
-              View and manage your roofing estimates
+              View and manage your roofing estimates {realtimeError ? '(offline mode)' : '(live updates)'}
             </CardDescription>
           </div>
-          <Button asChild>
-            <Link to="/estimates">New Estimate</Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={refreshEstimates}
+              disabled={isLoading}
+            >
+              {isLoading ? 'Loading...' : 'Refresh'}
+            </Button>
+            <Button asChild>
+              <Link to="/estimates">New Estimate</Link>
+            </Button>
+          </div>
         </CardHeader>
         
         <div className="px-6 mb-4">
@@ -414,7 +414,7 @@ export function RecentEstimates() {
             <TabsList className="grid grid-cols-4">
               <TabsTrigger value="all">All</TabsTrigger>
               <TabsTrigger value="pending">Pending</TabsTrigger>
-              <TabsTrigger value="approved">Approved</TabsTrigger>
+              <TabsTrigger value="approved">Accepted</TabsTrigger>
               <TabsTrigger value="rejected">Rejected</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -452,97 +452,121 @@ export function RecentEstimates() {
               ))}
             </div>
           ) : filteredEstimates.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              {filteredEstimates.slice(0, visibleCount).map((estimate) => (
-                <Card key={estimate.id} className="overflow-hidden">
-                  <CardHeader className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-base font-semibold">
-                          Estimate #{estimate.id?.substring(0, 8)}...
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground truncate mt-1">
-                          {estimate.customer_address || 'Address N/A'}
-                        </p>
-                      </div>
-                      <Badge 
-                        variant={ 
-                           estimate.status === 'approved' ? 'secondary' :
-                           estimate.status === 'rejected' ? 'destructive' : 
-                           estimate.status === 'Sold' ? 'outline' :
-                           'default'
-                        }
-                      >
-                        {estimate.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 text-sm">
-                    <div className="flex justify-between mb-2">
-                      <span>Date:</span>
-                      <span>{formatEstimateDate(estimate.created_at)}</span>
-                    </div>
-                    <div className="flex justify-between mb-2">
-                      <span>Area:</span>
-                      <span>{formatSquares(estimate.measurements?.totalArea)}</span>
-                    </div>
-                    <div className="flex justify-between font-semibold">
-                      <span>Total Amount:</span>
-                      <span>{formatCurrency(estimate.total_price || 0)}</span>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="bg-muted/50 p-3 flex flex-wrap gap-2 justify-end">
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/estimates/${estimate.id}`)}>View Details</Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleGeneratePdf(estimate)} 
-                      disabled={generatingPdfId === estimate.id}
-                    >
-                      {generatingPdfId === estimate.id ? 'Generating...' : 'Generate PDF'}
-                    </Button>
-                    {estimate.status === 'pending' && (
-                      <>
-                        <Button variant="outline" size="sm" onClick={() => handleStatusUpdate(estimate.id!, 'approved')} disabled={isSubmitting[estimate.id!]}>Approve</Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-red-600 hover:bg-red-50 border-red-300 hover:text-red-700"
-                          onClick={() => handleStatusUpdate(estimate.id!, 'rejected')}
-                          disabled={isSubmitting[estimate.id!]}
+            <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredEstimates.slice(0, visibleCount).map((estimate) => {
+                // Determine creator info and role-based styling
+                const creatorName = estimate.creator_name || estimate.customer_name || 'Unknown Creator';
+                const creatorRole = estimate.creator_role || 'rep'; // fallback to rep if no role
+                
+                // Role-based color themes
+                const getRoleTheme = (role: string) => {
+                  switch (role) {
+                    case 'admin':
+                      return {
+                        border: 'border-blue-200',
+                        headerBg: 'bg-blue-50',
+                        titleColor: 'text-blue-900',
+                        accentColor: 'text-blue-600',
+                        badgeColors: 'bg-blue-100 text-blue-800 border-blue-300'
+                      };
+                    case 'manager':
+                      return {
+                        border: 'border-green-200',
+                        headerBg: 'bg-green-50',
+                        titleColor: 'text-green-900',
+                        accentColor: 'text-green-600',
+                        badgeColors: 'bg-green-100 text-green-800 border-green-300'
+                      };
+                    case 'rep':
+                      return {
+                        border: 'border-orange-200',
+                        headerBg: 'bg-orange-50',
+                        titleColor: 'text-orange-900',
+                        accentColor: 'text-orange-600',
+                        badgeColors: 'bg-orange-100 text-orange-800 border-orange-300'
+                      };
+                    default:
+                      return {
+                        border: 'border-gray-200',
+                        headerBg: 'bg-gray-50',
+                        titleColor: 'text-gray-900',
+                        accentColor: 'text-gray-600',
+                        badgeColors: 'bg-gray-100 text-gray-800 border-gray-300'
+                      };
+                  }
+                };
+                
+                const theme = getRoleTheme(creatorRole);
+                
+                return (
+                  <Card key={estimate.id} className={`overflow-hidden transition-all duration-200 hover:shadow-md ${theme.border}`}>
+                    <CardHeader className={`p-3 ${theme.headerBg}`}>
+                      <div className="flex justify-between items-start">
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className={`text-sm font-semibold ${theme.titleColor} truncate`}>
+                            {creatorName}
+                          </CardTitle>
+                          <p className={`text-xs ${theme.accentColor} mt-1`}>
+                            {creatorRole === 'admin' ? 'Administrator' : 
+                             creatorRole === 'manager' ? 'Territory Manager' : 'Sales Rep'}
+                          </p>
+                        </div>
+                        <Badge 
+                          variant="outline"
+                          className={`text-xs ${theme.badgeColors} ml-2`}
                         >
-                          Reject
-                        </Button>
-                      </>
-                    )}
-                    {estimate.status === 'approved' && !estimate.is_sold && (
-                      <>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="secondary" size="sm" disabled={isSubmitting[estimate.id || '']}>
-                              Mark as Sold
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Mark Estimate as Sold?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This estimate will be marked as sold. You will be asked for sale details next. Are you sure?
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleOpenSoldDialog(estimate)}>
-                                Yes, Proceed
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </>
-                    )}
-                  </CardFooter>
-                </Card>
-              ))}
+                          {estimate.status}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Property Address</p>
+                          <p className="text-sm font-medium truncate">{estimate.customer_address || 'Address N/A'}</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <p className="text-muted-foreground">Date</p>
+                            <p className="font-medium">{formatEstimateDate(estimate.created_at)}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Area</p>
+                            <p className="font-medium">{formatSquares(estimate.measurements?.totalArea)}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="pt-1 border-t">
+                          <p className="text-xs text-muted-foreground">Total Amount</p>
+                          <p className={`text-lg font-bold ${theme.accentColor}`}>
+                            {formatCurrency(estimate.total_price || 0)}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="bg-muted/30 p-2 flex gap-1">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs flex-1"
+                        onClick={() => navigate(`/estimates/${estimate.id}`)}
+                      >
+                        View
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-xs flex-1"
+                        onClick={() => handleGeneratePdf(estimate)} 
+                        disabled={generatingPdfId === estimate.id}
+                      >
+                        {generatingPdfId === estimate.id ? 'PDF...' : 'PDF'}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-8">

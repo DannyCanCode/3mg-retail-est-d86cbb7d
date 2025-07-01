@@ -59,8 +59,7 @@ VALUES
 INSERT INTO warranties (name, description, package_id, is_active)
 VALUES 
 ('Silver Pledge', 'Standard GAF warranty coverage - requires GAF 1 package', 1, true),
-('Gold Pledge', 'Premium GAF warranty with enhanced coverage - requires GAF 2 package', 2, true),
-('Full W.W Peel & Stick', 'Enhanced waterproofing with full peel & stick underlayment system', null, true);
+('Gold Pledge', 'Premium GAF warranty with enhanced coverage - requires GAF 2 package', 2, true);
 
 -- Insert warranty requirements
 INSERT INTO warranty_requirements (warranty_id, material_id)

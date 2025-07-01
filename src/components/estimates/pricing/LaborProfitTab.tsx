@@ -12,6 +12,8 @@ import { MeasurementValues } from "../measurement/types";
 import { Material } from "../materials/types";
 import { toast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { RoleBasedProfitMargin } from "./RoleBasedProfitMargin";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LaborProfitTabProps {
   onBack: () => void;
@@ -23,6 +25,10 @@ interface LaborProfitTabProps {
   onLaborProfitContinue: (laborRates: LaborRates, profitMargin: number) => void;
   readOnly?: boolean;
   laborRates?: LaborRates;
+  // Admin edit mode props
+  isAdminEditMode?: boolean;
+  originalCreator?: string | null;
+  originalCreatorRole?: string | null;
 }
 
 export interface LaborRates {
@@ -49,6 +55,12 @@ export interface LaborRates {
   includeDetachResetGutters?: boolean; // Whether to include detach and reset gutters
   detachResetGutterLinearFeet?: number; // Linear feet of gutters to detach and reset
   detachResetGutterRate?: number; // Rate per linear foot for detach and reset
+  includeSkylights2x2?: boolean; // Whether to include 2x2 skylights
+  skylights2x2Count?: number; // Number of 2x2 skylights
+  skylights2x2Rate?: number; // Rate per 2x2 skylight ($280)
+  includeSkylights2x4?: boolean; // Whether to include 2x4 skylights
+  skylights2x4Count?: number; // Number of 2x4 skylights
+  skylights2x4Rate?: number; // Rate per 2x4 skylight ($370)
   includeLowSlopeLabor?: boolean; // New: Toggle for low slope area labor
   includeSteepSlopeLabor?: boolean; // New: Toggle for steep slope area labor
 }
@@ -62,11 +74,29 @@ export function LaborProfitTab({
   quantities,
   onLaborProfitContinue,
   readOnly,
-  laborRates: laborRatesFromProps
+  laborRates: laborRatesFromProps,
+  // Admin edit mode props
+  isAdminEditMode = false,
+  originalCreator = null,
+  originalCreatorRole = null,
 }: LaborProfitTabProps) {
   console.log("LaborProfitTab rendering, received initialLaborRatesProp:", JSON.stringify(initialLaborRatesProp, null, 2));
   console.log("LaborProfitTab rendering, received initialProfitMarginProp:", initialProfitMarginProp);
   
+  const { profile } = useAuth();
+  const userRole = profile?.role;
+  
+  // Determine if user can edit labor rates based on role and admin edit mode
+  const canEditLaborRates = () => {
+    // Admin override: If in admin edit mode and current user is admin, allow editing
+    if (isAdminEditMode && userRole === 'admin') {
+      return true; // Admins can edit any estimate when in admin edit mode
+    }
+    
+    // Normal readOnly logic (unchanged from original)
+    return !readOnly;
+  };
+
   const getSafeInitialRates = useCallback((initialRates?: LaborRates): LaborRates => {
     const defaults: LaborRates = {
       laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
@@ -77,6 +107,8 @@ export function LaborProfitTab({
       pitchRates: {}, wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, 
       gutterRate: 8, includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
       includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
+      includeSkylights2x2: false, skylights2x2Count: 0, skylights2x2Rate: 280,
+      includeSkylights2x4: false, skylights2x4Count: 0, skylights2x4Rate: 370,
       includeLowSlopeLabor: true, // Default to true
       includeSteepSlopeLabor: true, // Default to true
     };
@@ -160,6 +192,30 @@ export function LaborProfitTab({
                 // If parsing fails or value is less than 1, enforce minimum
                 // This ensures the state always holds a valid number for the controlled input
                 processedValue = 1; 
+            }
+        }
+    } else if (field === "skylights2x2Count" || field === "skylights2x4Count" || field === "downspoutCount" || field === "gutterLinearFeet" || field === "detachResetGutterLinearFeet") {
+        const valStr = String(value).trim();
+        if (valStr === "") {
+            processedValue = 0;
+        } else {
+            const parsed = parseInt(valStr, 10);
+            if (!isNaN(parsed) && parsed >= 0) {
+                processedValue = parsed;
+            } else {
+                processedValue = 0;
+            }
+        }
+    } else if (field === "permitCount") {
+        const valStr = String(value).trim();
+        if (valStr === "") {
+            processedValue = 1;
+        } else {
+            const parsed = parseInt(valStr, 10);
+            if (!isNaN(parsed) && parsed >= 1) {
+                processedValue = parsed;
+            } else {
+                processedValue = 1;
             }
         }
     } else if (typeof value === "string" && field !== "dumpsterLocation") {
@@ -399,7 +455,7 @@ export function LaborProfitTab({
             // it implies a specific user-set value (e.g., loaded estimate). Honor it.
             determinedDumpsterCount = propDumpsterCount;
             // console.log(`DUMPSTER_EFFECT: Using specific prop count over calculation: ${determinedDumpsterCount}`);
-        } else {
+    } else {
             // Otherwise, use the calculation (either prop was undefined, or was the generic default 1, or matched calculation).
             determinedDumpsterCount = calculatedByArea;
             // console.log(`DUMPSTER_EFFECT: Using calculated count from area: ${determinedDumpsterCount}`);
@@ -576,14 +632,14 @@ export function LaborProfitTab({
               value={laborRates.dumpsterLocation}
               onValueChange={handleDumpsterLocationChange}
               className="flex flex-col space-y-1"
-              disabled={readOnly}
+              disabled={!canEditLaborRates()}
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="orlando" id="orlando" disabled={readOnly}/>
+                <RadioGroupItem value="orlando" id="orlando" disabled={!canEditLaborRates()}/>
                 <Label htmlFor="orlando">Orlando</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="outside" id="outside" disabled={readOnly}/>
+                <RadioGroupItem value="outside" id="outside" disabled={!canEditLaborRates()}/>
                 <Label htmlFor="outside">Outside Orlando</Label>
               </div>
             </RadioGroup>
@@ -599,7 +655,7 @@ export function LaborProfitTab({
                   key={`dumpsterRate-input-${laborRates.dumpsterLocation}-${laborRates.dumpsterRate}`}
                   min="0"
                   step="0.01"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                   placeholder={laborRates.dumpsterLocation === "orlando" ? "400" : "500"}
                 />
               </div>
@@ -612,7 +668,7 @@ export function LaborProfitTab({
                   onChange={(e) => handleLaborRateChange("dumpsterCount", e.target.value)}
                   min="1"
                   step="1"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                 />
               </div>
               <div className="space-y-2">
@@ -623,7 +679,7 @@ export function LaborProfitTab({
                   value={`$${((laborRates.dumpsterCount || 0) * (laborRates.dumpsterRate || 0)).toFixed(2)}`}
                   readOnly
                   className="bg-muted"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                 />
               </div>
             </div>
@@ -690,7 +746,7 @@ export function LaborProfitTab({
                         id="permitCount"
                         type="number"
                         value={(laborRates.permitCount || 1).toString()}
-                        onChange={(e) => handleLaborRateChange("permitCount", parseInt(e.target.value, 10) || 1)}
+                        onChange={(e) => handleLaborRateChange("permitCount", e.target.value)}
                         min="1"
                         step="1"
                         className="h-8 rounded-none text-center"
@@ -744,14 +800,15 @@ export function LaborProfitTab({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="gutterLinearFeet">Linear Feet</Label>
-                  <Input
-                    id="gutterLinearFeet"
-                    type="number"
-                    value={(laborRates.gutterLinearFeet || 0).toString()}
-                    onChange={(e) => handleLaborRateChange("gutterLinearFeet", e.target.value)}
-                    min="0"
-                    step="1"
-                  />
+                                      <Input
+                      id="gutterLinearFeet"
+                      type="number"
+                      defaultValue={(laborRates.gutterLinearFeet || 0).toString()}
+                      onBlur={(e) => handleLaborRateChange("gutterLinearFeet", e.target.value)}
+                      key={`gutterLinearFeet-${laborRates.gutterLinearFeet}`}
+                      min="0"
+                      step="1"
+                    />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="gutterTotal">Total Gutter Cost</Label>
@@ -784,8 +841,9 @@ export function LaborProfitTab({
                   <Input
                     id="detachResetGutterLinearFeet"
                     type="number"
-                    value={(laborRates.detachResetGutterLinearFeet || 0).toString()}
-                    onChange={(e) => handleLaborRateChange("detachResetGutterLinearFeet", e.target.value)}
+                    defaultValue={(laborRates.detachResetGutterLinearFeet || 0).toString()}
+                    onBlur={(e) => handleLaborRateChange("detachResetGutterLinearFeet", e.target.value)}
+                    key={`detachResetGutterLinearFeet-${laborRates.detachResetGutterLinearFeet}`}
                     min="0"
                     step="1"
                   />
@@ -821,8 +879,9 @@ export function LaborProfitTab({
                   <Input
                     id="downspoutCount"
                     type="number"
-                    value={(laborRates.downspoutCount || 0).toString()}
-                    onChange={(e) => handleLaborRateChange("downspoutCount", e.target.value)}
+                    defaultValue={(laborRates.downspoutCount || 0).toString()}
+                    onBlur={(e) => handleLaborRateChange("downspoutCount", e.target.value)}
+                    key={`downspoutCount-${laborRates.downspoutCount}`}
                     min="0"
                     step="1"
                   />
@@ -835,6 +894,148 @@ export function LaborProfitTab({
                     value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 75)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <Separator />
+        
+        {/* Skylights Section */}
+        <div>
+          <h3 className="text-lg font-semibold mb-4">Skylights</h3>
+          <div className="space-y-4">
+            {/* 2x2 Skylights */}
+            <div className="flex items-center space-x-4">
+              <Switch
+                id="includeSkylights2x2"
+                checked={!!laborRates.includeSkylights2x2}
+                onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x2", checked)}
+                disabled={!canEditLaborRates()}
+              />
+              <Label htmlFor="includeSkylights2x2">
+                2X2 Skylight ($280 per unit)
+              </Label>
+            </div>
+            
+            {!!laborRates.includeSkylights2x2 && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x2Count">Number of 2X2 Skylights</Label>
+                  <div className="flex items-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleLaborRateChange("skylights2x2Count", Math.max(0, (laborRates.skylights2x2Count || 0) - 1))}
+                      disabled={(laborRates.skylights2x2Count || 0) <= 0 || !canEditLaborRates()}
+                      className="h-8 w-8 rounded-r-none"
+                    >
+                      <span className="sr-only">Decrease</span>
+                      <span className="text-lg font-bold">-</span>
+                    </Button>
+                    <Input
+                      id="skylights2x2Count"
+                      type="number"
+                      defaultValue={(laborRates.skylights2x2Count || 0).toString()}
+                      onBlur={(e) => handleLaborRateChange("skylights2x2Count", e.target.value)}
+                      key={`skylights2x2Count-${laborRates.skylights2x2Count}`}
+                      min="0"
+                      step="1"
+                      className="h-8 rounded-none text-center"
+                      disabled={!canEditLaborRates()}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleLaborRateChange("skylights2x2Count", (laborRates.skylights2x2Count || 0) + 1)}
+                      disabled={!canEditLaborRates()}
+                      className="h-8 w-8 rounded-l-none"
+                    >
+                      <span className="sr-only">Increase</span>
+                      <span className="text-lg font-bold">+</span>
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x2Total">Total 2X2 Skylight Cost</Label>
+                  <Input
+                    id="skylights2x2Total"
+                    type="text"
+                    value={`$${((laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                    disabled={!canEditLaborRates()}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* 2x4 Skylights */}
+            <div className="flex items-center space-x-4 mt-4">
+              <Switch
+                id="includeSkylights2x4"
+                checked={!!laborRates.includeSkylights2x4}
+                onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x4", checked)}
+                disabled={!canEditLaborRates()}
+              />
+              <Label htmlFor="includeSkylights2x4">
+                2X4 Skylight ($370 per unit)
+              </Label>
+            </div>
+            
+            {!!laborRates.includeSkylights2x4 && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x4Count">Number of 2X4 Skylights</Label>
+                  <div className="flex items-center">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleLaborRateChange("skylights2x4Count", Math.max(0, (laborRates.skylights2x4Count || 0) - 1))}
+                      disabled={(laborRates.skylights2x4Count || 0) <= 0 || !canEditLaborRates()}
+                      className="h-8 w-8 rounded-r-none"
+                    >
+                      <span className="sr-only">Decrease</span>
+                      <span className="text-lg font-bold">-</span>
+                    </Button>
+                    <Input
+                      id="skylights2x4Count"
+                      type="number"
+                      defaultValue={(laborRates.skylights2x4Count || 0).toString()}
+                      onBlur={(e) => handleLaborRateChange("skylights2x4Count", e.target.value)}
+                      key={`skylights2x4Count-${laborRates.skylights2x4Count}`}
+                      min="0"
+                      step="1"
+                      className="h-8 rounded-none text-center"
+                      disabled={!canEditLaborRates()}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => handleLaborRateChange("skylights2x4Count", (laborRates.skylights2x4Count || 0) + 1)}
+                      disabled={!canEditLaborRates()}
+                      className="h-8 w-8 rounded-l-none"
+                    >
+                      <span className="sr-only">Increase</span>
+                      <span className="text-lg font-bold">+</span>
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x4Total">Total 2X4 Skylight Cost</Label>
+                  <Input
+                    id="skylights2x4Total"
+                    type="text"
+                    value={`$${((laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                    disabled={!canEditLaborRates()}
                   />
                 </div>
               </div>
@@ -866,8 +1067,9 @@ export function LaborProfitTab({
                   <Input
                     id="handloadRate"
                     type="number"
-                    value={(laborRates.handloadRate || 10).toString()}
-                    onChange={(e) => handleLaborRateChange("handloadRate", e.target.value)}
+                    defaultValue={(laborRates.handloadRate || 10).toString()}
+                    onBlur={(e) => handleLaborRateChange("handloadRate", e.target.value)}
+                    key={`handloadRate-${laborRates.handloadRate}`}
                     min="0"
                     step="0.01"
                   />
@@ -898,7 +1100,7 @@ export function LaborProfitTab({
                   key={`laborRate-input-${laborRates.laborRate}`}
                   min="0"
                   step="0.01"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Combined rate for tear off and installation (3/12-7/12 pitches)
@@ -913,7 +1115,7 @@ export function LaborProfitTab({
                   value={(laborRates.wastePercentage || 12).toString()}
                   readOnly
                   className="bg-muted"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                 />
               </div>
             </div>
@@ -951,7 +1153,7 @@ export function LaborProfitTab({
                 id="includeLowSlopeLabor"
                 checked={laborRates.includeLowSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeLowSlopeLabor", checked)}
-                disabled={readOnly}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includeLowSlopeLabor" className="flex flex-col space-y-1">
                 <span>Include Low Slope Labor</span>
@@ -965,7 +1167,7 @@ export function LaborProfitTab({
                 id="includeSteepSlopeLabor"
                 checked={laborRates.includeSteepSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeSteepSlopeLabor", checked)}
-                disabled={readOnly}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includeSteepSlopeLabor" className="flex flex-col space-y-1">
                 <span>Include Steep Slope Labor</span>
@@ -1025,7 +1227,7 @@ export function LaborProfitTab({
                           onBlur={(e) => handlePitchRateChange(pitch, e.target.value)}
                           key={`low_pitch_rate_input_${pitch}`}
                           className="h-9 text-sm flex-1"
-                          disabled={readOnly}
+                          disabled={!canEditLaborRates()}
                           placeholder={getPitchRate(pitch).toString()}
                         />
                         <span className="text-sm text-muted-foreground">/square</span>
@@ -1052,7 +1254,7 @@ export function LaborProfitTab({
                           onBlur={(e) => handlePitchRateChange(pitch, e.target.value)}
                           key={`steep_pitch_rate_input_${pitch}`}
                           className="h-9 text-sm flex-1"
-                          disabled={readOnly}
+                          disabled={!canEditLaborRates()}
                           placeholder={getPitchRate(pitch).toString()}
                         />
                         <span className="text-sm text-muted-foreground">/square</span>
@@ -1081,22 +1283,15 @@ export function LaborProfitTab({
         
         {/* Profit Margin */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Profit Margin</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <Label htmlFor="profitMargin">Profit Margin (%)</Label>
-              <span className="font-medium">{profitMargin}%</span>
-            </div>
-            <Slider
-              id="profitMargin"
-              value={[profitMargin]}
-              min={0}
-              max={50}
-              step={1}
-              onValueChange={handleProfitMarginChange}
-              onValueCommit={handleProfitMarginCommit}
-            />
-          </div>
+          <RoleBasedProfitMargin
+            profitMargin={profitMargin}
+            onProfitMarginChange={handleProfitMarginChange}
+            onProfitMarginCommit={handleProfitMarginCommit}
+            readOnly={readOnly}
+            isAdminEditMode={isAdminEditMode}
+            originalCreator={originalCreator}
+            originalCreatorRole={originalCreatorRole}
+          />
         </div>
         
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">

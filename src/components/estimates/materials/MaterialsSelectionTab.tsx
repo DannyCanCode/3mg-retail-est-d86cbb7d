@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen, Info } from "lucide-react";
+import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen, Info, Package } from "lucide-react";
 import { MeasurementValues } from "../measurement/types";
 import { ROOFING_MATERIALS } from "./data";
 import { Material, MaterialCategory } from "./types";
@@ -29,6 +29,7 @@ import {
 import { getAllMaterialWastePercentages, updateMaterialWastePercentage } from "@/lib/supabase/material-waste";
 import { supabase } from "@/integrations/supabase/client"; // Added supabase import
 import { determineWasteFactor } from "./utils";
+import { useAuth } from '@/contexts/AuthContext';
 
 // *** UPDATED LOG HERE ***
 console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: WASTE FACTOR UPDATE v1"); 
@@ -49,6 +50,10 @@ interface MaterialsSelectionTabProps {
   activePricingTemplate?: PricingTemplate | null; // Allow null
   allPricingTemplates?: PricingTemplate[];
   onTemplateChange?: (template: PricingTemplate) => void;
+  // Admin edit mode props
+  isAdminEditMode?: boolean;
+  originalCreator?: string | null;
+  originalCreatorRole?: string | null;
 }
 
 // Interface for warranty details
@@ -83,6 +88,10 @@ export function MaterialsSelectionTab({
   activePricingTemplate, // Assuming this prop is passed down with the currently selected template object
   allPricingTemplates, // Assuming this prop is passed down with all templates for the dropdown
   onTemplateChange, // Callback to parent when a template is selected/created/updated
+  // Admin edit mode props
+  isAdminEditMode = false,
+  originalCreator = null,
+  originalCreatorRole = null,
 }: MaterialsSelectionTabProps) { // Added activePricingTemplate, allPricingTemplates, onTemplateChange to props
   // Debug log measurements
   console.log(`MaterialsSelectionTab rendering with measurements (key: ${measurements?.predominantPitch || 'no-measurements'})`);
@@ -91,7 +100,7 @@ export function MaterialsSelectionTab({
     count: Object.keys(selectedMaterials).length,
     ids: Object.keys(selectedMaterials)
   });
-  
+
   // Local state for managing selected materials
   const [localSelectedMaterials, setLocalSelectedMaterials] = useState<{[key: string]: Material}>(selectedMaterials);
   const [localQuantities, setLocalQuantities] = useState<{[key: string]: number}>(quantities);
@@ -104,6 +113,10 @@ export function MaterialsSelectionTab({
   const [showLowSlope, setShowLowSlope] = useState(false);
   // Special waste factor for GAF Timberline HDZ
   const [gafTimberlineWasteFactor, setGafTimberlineWasteFactor] = useState(12); // Minimum 12%
+  
+  // CRITICAL FIX: Add loading state to prevent white screens during material population
+  const [isAutoPopulating, setIsAutoPopulating] = useState(false);
+  const [autoPopulationError, setAutoPopulationError] = useState<string | null>(null);
   
   // State for GAF packages and warranty options
   const [selectedPackage, setSelectedPackage] = useState<string | null>('gaf-1');
@@ -139,6 +152,29 @@ export function MaterialsSelectionTab({
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateDescription, setNewTemplateDescription] = useState("");
   
+  const { profile } = useAuth();
+  const userRole = profile?.role;
+
+  // Determine if user can edit material prices based on role
+  const canEditMaterialPrices = () => {
+    // Admin override: If in admin edit mode and current user is admin, allow editing
+    if (isAdminEditMode && userRole === 'admin') {
+      return true; // Admins can edit any estimate when in admin edit mode
+    }
+    
+    // Normal role-based permissions (unchanged from original logic)
+    switch (userRole) {
+      case 'admin':
+        return true; // Admins can edit material prices
+      case 'manager':
+        return false; // Territory managers CANNOT edit material prices
+      case 'rep':
+        return false; // Sales reps cannot edit material prices
+      default:
+        return false;
+    }
+  };
+
   // Load database waste percentages on component mount
   useEffect(() => {
     const loadDbWastePercentages = async () => {
@@ -336,35 +372,85 @@ export function MaterialsSelectionTab({
   }, [localSelectedMaterials, localQuantities, peelStickPrice, warrantyDetails, onMaterialsUpdate, selectedMaterials, quantities]); // Keep dependencies as they are
   // materialWasteFactors removed from dependency array as it's not sent to parent
   
-  // Initialize expanded categories
+  // Initialize expanded categories with improved low slope detection
   useEffect(() => {
-    const initialExpandedCategories = [MaterialCategory.SHINGLES];
+    if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
+      // Default to shingles if no measurements
+      setExpandedCategories([MaterialCategory.SHINGLES]);
+      return;
+    }
     
-    // Check if there are low-slope areas on the roof
-    const hasFlatRoofAreas = measurements.areasByPitch.some(
-      area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
-    );
+    const initialExpandedCategories: string[] = [];
+    
+    // Calculate area percentages for better roof type detection
+    const totalArea = measurements.areasByPitch.reduce((sum, area) => sum + area.area, 0);
+    
+    const lowSlopeArea = measurements.areasByPitch
+      .filter(area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch))
+      .reduce((sum, area) => sum + area.area, 0);
+      
+    const steepSlopeArea = measurements.areasByPitch
+      .filter(area => {
+        const pitchParts = area.pitch.split(/[:\\/]/);
+        const rise = parseInt(pitchParts[0] || '0');
+        return !isNaN(rise) && rise >= 3;
+      })
+      .reduce((sum, area) => sum + area.area, 0);
+    
+    const lowSlopePercentage = totalArea > 0 ? (lowSlopeArea / totalArea) * 100 : 0;
+    const steepSlopePercentage = totalArea > 0 ? (steepSlopeArea / totalArea) * 100 : 0;
+    
+    const hasFlatRoofAreas = lowSlopeArea > 0;
+    const hasSteepSlopeAreas = steepSlopeArea > 0;
     
     setShowLowSlope(hasFlatRoofAreas);
     
-    // If there are flat roof areas, auto-expand that category
-    if (hasFlatRoofAreas) {
+    // CRITICAL FIX: Enhanced category expansion logic for better UX
+    if (lowSlopePercentage > 80) {
+      // Pure low slope roof - prioritize low slope materials
       initialExpandedCategories.push(MaterialCategory.LOW_SLOPE);
+      console.log(`[CategoryExpansion] Pure low slope roof detected (${lowSlopePercentage.toFixed(1)}%), prioritizing LOW_SLOPE`);
+    } else if (steepSlopePercentage > 80) {
+      // Pure steep slope roof - prioritize shingles
+      initialExpandedCategories.push(MaterialCategory.SHINGLES);
+      console.log(`[CategoryExpansion] Pure steep slope roof detected (${steepSlopePercentage.toFixed(1)}%), prioritizing SHINGLES`);
+    } else {
+      // Mixed roof - expand both relevant categories
+      if (hasFlatRoofAreas) {
+        initialExpandedCategories.push(MaterialCategory.LOW_SLOPE);
+      }
+      if (hasSteepSlopeAreas) {
+        initialExpandedCategories.push(MaterialCategory.SHINGLES);
+      }
+      console.log(`[CategoryExpansion] Mixed roof detected - Low: ${lowSlopePercentage.toFixed(1)}%, Steep: ${steepSlopePercentage.toFixed(1)}%`);
     }
     
+    // Always expand at least one category for better UX
+    if (initialExpandedCategories.length === 0) {
+      initialExpandedCategories.push(MaterialCategory.SHINGLES);
+      console.log(`[CategoryExpansion] No roof areas detected, defaulting to SHINGLES`);
+    }
+    
+    console.log(`[CategoryExpansion] Final expanded categories: ${initialExpandedCategories.join(', ')}`);
     setExpandedCategories(initialExpandedCategories);
   }, [measurements]);
 
   // Check for flat/low-slope areas and add required materials
   useEffect(() => {
-    // Temporarily commented out for debugging navigation issue
-    
-    console.log("[MaterialsSelectionTab] Checking for low-slope areas in measurements");
+    console.log("[Low-Slope Auto-Add] Checking for low-slope areas in measurements");
+    console.log("[Low-Slope Auto-Add] Current measurements:", measurements);
+    console.log("[Low-Slope Auto-Add] Current localSelectedMaterials:", Object.keys(localSelectedMaterials));
     
     if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
-      console.log("[MaterialsSelectionTab] No valid measurements or areasByPitch");
+      console.log("[Low-Slope Auto-Add] No valid measurements or areasByPitch");
+      setIsAutoPopulating(false);
+      setAutoPopulationError(null);
       return;
     }
+    
+    // CRITICAL FIX: Set loading state to prevent white screen during material population
+    setIsAutoPopulating(true);
+    setAutoPopulationError(null);
     
     const hasLowPitch = measurements.areasByPitch.some(
       area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
@@ -485,25 +571,47 @@ export function MaterialsSelectionTab({
       } 
     }
     if (materialsUpdated) {
-      isInternalChange.current = true;
-      setLocalSelectedMaterials(newSelectedMaterials);
-      setLocalQuantities(newQuantities);
-      setDisplayQuantities(newDisplayQuantities);
-      setMaterialWasteFactors(newMaterialWasteFactors); 
-      setUserOverriddenWaste(newUserOverriddenWaste); 
-      toast({
-        title: "Low-Slope Materials Added",
-        description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.` +
-                     ` Actual waste factors applied have been stored.`,
-      });
+      console.log("[Low-Slope Auto-Add] Materials updated, setting state and notifying parent");
+      
+      try {
+        setLocalSelectedMaterials(newSelectedMaterials);
+        setLocalQuantities(newQuantities);
+        setDisplayQuantities(newDisplayQuantities);
+        setMaterialWasteFactors(newMaterialWasteFactors); 
+        setUserOverriddenWaste(newUserOverriddenWaste); 
+        
+        toast({
+          title: "Low-Slope Materials Added",
+          description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.`,
+        });
+        
+        // Note: Don't call onMaterialsUpdate directly here - let the useEffect that watches 
+        // localSelectedMaterials and localQuantities handle the parent notification
+        // This prevents timing issues and feedback loops
+      } catch (error) {
+        console.error("[Low-Slope Auto-Add] Error updating materials:", error);
+        setAutoPopulationError("Failed to add low-slope materials automatically");
+      }
     }
     
-  }, [measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
+    // Clear loading state when processing is complete
+    setIsAutoPopulating(false);
+    
+  }, [
+    // CRITICAL FIX: Use deep dependencies to ensure effect runs when measurements object changes
+    measurements, 
+    // Include these specific checks to trigger when pitch data actually changes
+    JSON.stringify(measurements?.areasByPitch || []),
+    measurements?.totalArea,
+    wasteFactor,
+    // Add these to ensure effect runs when material state is properly initialized
+    Object.keys(localSelectedMaterials).length
+  ]); // Fixed dependencies to catch all measurement changes
 
   // Group all available materials by category for rendering the accordion
   const materialsByCategory = useMemo(() => {
     console.log("[MaterialsByCategoryMemo] Grouping materials from ROOFING_MATERIALS.");
-    return groupMaterialsByCategory(ROOFING_MATERIALS);
+      return groupMaterialsByCategory(ROOFING_MATERIALS);
   }, []); // This now only depends on the static list, not the template
 
   // Handle Peel & Stick system add-on
@@ -902,54 +1010,74 @@ export function MaterialsSelectionTab({
         { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
         { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
       ],
-      "OC 1": [ 
-        { id: "oc-oakridge", description: "OC Oakridge (Shingles)" },
-        { id: "oc-hip-ridge", description: "OC Hip & Ridge (Ridge Cap)" },
-        { id: "oc-starter", description: "OC Starter Shingle Strip" },
-        { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
-        { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" }
+      "OC 1": [
+        { id: "oc-oakridge-shingles", description: "OC Oakridge Shingles" },
+        { id: "oc-proedge-starter-shingle", description: "OC ProEdge Starter Shingle" },
+        { id: "oc-proshield-ice-water-protector", description: "OC ProShield Ice & Water Protector" },
+        { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" }
       ],
-      "OC 2": [ 
-        { id: "oc-duration", description: "OC Duration (Shingles)" },
-        { id: "oc-hip-ridge", description: "OC Hip & Ridge (Ridge Cap)" },
-        { id: "oc-starter", description: "OC Starter Shingle Strip" },
-        { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
-        { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" }
+      "OC 2": [
+        { id: "oc-duration-shingles", description: "OC Duration Shingles" },
+        { id: "oc-proedge-starter-shingle", description: "OC ProEdge Starter Shingle" },
+        { id: "oc-proshield-ice-water-protector", description: "OC ProShield Ice & Water Protector" },
+        { id: "oc-prodeck-synthetic-underlayment", description: "OC ProDeck Synthetic Underlayment" }
       ]
     };
-  
-    const materialsToAddFromPreset = PRESET_BUNDLES[preset];
-    if (!materialsToAddFromPreset) {
-      console.error(`Preset ${preset} not found!`);
-      toast({ title: "Error", description: `Preset ${preset} not found.`, variant: "destructive" });
+
+    const selectedBundle = PRESET_BUNDLES[preset];
+    if (!selectedBundle) {
+      console.warn(`Preset bundle '${preset}' not found`);
       return;
     }
-  
-    const newSelectedMaterials: { [key: string]: Material } = {};
-    const newQuantities: { [key: string]: number } = {};
-  
-    materialsToAddFromPreset.forEach(({ id: materialId }) => {
-      const material = ROOFING_MATERIALS.find(m => m.id === materialId);
+
+    console.log(`Found ${selectedBundle.length} materials for bundle: ${preset}`);
+
+    // CRITICAL FIX: Merge with existing materials instead of replacing
+    const newMaterials = { ...localSelectedMaterials }; // Start with existing materials
+    const newQuantities = { ...localQuantities }; // Start with existing quantities
+    const newWasteFactors = { ...materialWasteFactors }; // Preserve existing waste factors
+
+    selectedBundle.forEach(({ id, description }) => {
+      const material = ROOFING_MATERIALS.find(m => m.id === id);
       if (material) {
-        const { quantity } = calculateMaterialQuantity(material, measurements, undefined, dbWastePercentages);
-        if (quantity > 0) {
-          newSelectedMaterials[materialId] = material;
-          newQuantities[materialId] = quantity;
-        }
+        const isGafTimberline = id === "gaf-timberline-hdz-sg";
+        const overrideWaste = isGafTimberline 
+          ? gafTimberlineWasteFactor / 100 
+          : wasteFactor / 100;
+
+        const { quantity: calculatedQuantity, actualWasteFactor } = calculateMaterialQuantity(
+          material,
+          measurements,
+          overrideWaste,
+          dbWastePercentages
+        );
+
+        // Only add if not already present, or if it's a replacement for same category
+        console.log(`Adding material: ${material.name} (${id}) - Qty: ${calculatedQuantity}`);
+        newMaterials[id] = material;
+        newQuantities[id] = Math.max(1, calculatedQuantity);
+        newWasteFactors[id] = actualWasteFactor;
+      } else {
+        console.warn(`Material with id '${id}' not found in ROOFING_MATERIALS`);
       }
     });
-  
-    // Update local state directly
-    setLocalSelectedMaterials(newSelectedMaterials);
+
+    // Update state with merged materials
+    setLocalSelectedMaterials(newMaterials);
     setLocalQuantities(newQuantities);
+    setMaterialWasteFactors(newWasteFactors);
     setSelectedPreset(preset);
-  
+
     toast({
-      title: `Preset Applied: ${preset}`,
-      description: "Materials have been updated.",
+      title: "Materials Added Successfully! ✅",
+      description: `${preset} package materials have been added to your existing selection (${Object.keys(newMaterials).length} total materials).`,
+      duration: 4000,
+      variant: "default"
     });
+
+    console.log(`Successfully applied ${preset} preset. Total materials now: ${Object.keys(newMaterials).length}`);
   };
-  
+
   // Reset selected preset when materials are changed manually
   useEffect(() => {
     // If user manually adds/removes materials, reset the selected preset
@@ -1361,6 +1489,7 @@ export function MaterialsSelectionTab({
                     <div className="flex items-center mr-1">
                       <span className="mr-1">– Waste:</span>
                       <Input
+                        id={`waste-input-${materialId}`}
                         type="number"
                         min="0"
                         max="100"
@@ -1424,6 +1553,7 @@ export function MaterialsSelectionTab({
                     -
                   </Button>
                  <Input 
+                    id={`qty-gaf-${materialId}`}
                     type="number" 
                     min="0" 
                     step="0.1"
@@ -1459,6 +1589,7 @@ export function MaterialsSelectionTab({
                     aria-label={`Decrease quantity for ${baseName}`}
                   >-</Button>
                  <Input 
+                    id={`qty-${materialId}`}
                     type="number" 
                     min="0" 
                     defaultValue={initialDisplayValue()} // USE defaultValue
@@ -1526,6 +1657,175 @@ export function MaterialsSelectionTab({
       });
     }
   }, [selectedPackage, selectedWarranty, toast]);
+
+  // 🎯 CRITICAL FIX: Auto-sync GAF package selection with material presets
+  // When users select GAF 1 or GAF 2 in the big boxes at top, automatically apply materials
+  // When deselected, remove GAF materials from selection
+  const previousPackageRef = useRef<string | null>(null);
+  const packageUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  useEffect(() => {
+    // Only run if package selection actually changed (including null changes)
+    if (!measurements || previousPackageRef.current === selectedPackage) {
+      previousPackageRef.current = selectedPackage;
+      return;
+    }
+    
+    // Clear any pending updates to prevent rapid-fire updates
+    if (packageUpdateTimeoutRef.current) {
+      clearTimeout(packageUpdateTimeoutRef.current);
+    }
+    
+    // Debounce the package updates to prevent state loops
+    packageUpdateTimeoutRef.current = setTimeout(() => {
+      console.log(`🎯 GAF Package Changed: ${previousPackageRef.current} → ${selectedPackage}`);
+      
+      // Define all GAF materials that could be in either package
+      const allGafMaterials = [
+        "gaf-timberline-hdz-sg",
+        "gaf-prostart-starter-shingle-strip", 
+        "gaf-seal-a-ridge",
+        "gaf-weatherwatch-ice-water-shield",
+        "abc-pro-guard-20", // GAF 1 only
+        "gaf-feltbuster-synthetic-underlayment", // GAF 2 only
+        "gaf-cobra-rigid-vent", // GAF 2 only
+        "adjustable-lead-pipe-flashing-4inch",
+        "master-sealant"
+      ];
+      
+      // Start with current materials, but remove all GAF package materials first
+      const newMaterials = {...localSelectedMaterials};
+      const newQuantities = {...localQuantities};
+      const newWasteFactors = {...materialWasteFactors};
+      
+      // Remove all GAF materials first (clean slate)
+      allGafMaterials.forEach(materialId => {
+        delete newMaterials[materialId];
+        delete newQuantities[materialId];
+        delete newWasteFactors[materialId];
+      });
+      
+      let toastMessage = "";
+      
+      if (!selectedPackage) {
+        // Package deselected - just remove GAF materials
+        toastMessage = "GAF package materials removed from selection";
+        console.log("🎯 GAF Package Deselected: Removing all GAF materials");
+      } else {
+        // Check if roof has steep slope areas before applying GAF packages
+        let steepSlopeArea = 0;
+        if (measurements && measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+          steepSlopeArea = measurements.areasByPitch
+            .filter(area => {
+              const pitchParts = area.pitch.split(/[:\\/]/);
+              const rise = parseInt(pitchParts[0] || '0');
+              return !isNaN(rise) && rise >= 3;
+            })
+            .reduce((sum, area) => sum + (area.area || 0), 0);
+        }
+        
+        console.log(`🎯 GAF Package Selected: Steep slope area = ${steepSlopeArea.toFixed(1)} sq ft`);
+        
+        if (steepSlopeArea <= 0) {
+          toastMessage = "GAF packages are only applicable to roofs with steep slope areas (3/12 pitch or higher). This roof appears to be low slope only.";
+          console.log("🚫 GAF Package Not Applied: No steep slope areas found");
+        } else {
+          // Package selected - add the appropriate GAF materials
+          const packageToPreset: Record<string, string> = {
+            'gaf-1': 'GAF 1',
+            'gaf-2': 'GAF 2'
+          };
+          
+          const presetName = packageToPreset[selectedPackage];
+          if (presetName) {
+            console.log(`🎯 GAF Package Selected: Adding ${presetName} materials`);
+            
+            // Get the preset bundle materials
+            const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
+            "GAF 1": [
+              { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
+              { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
+              { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
+              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+              { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
+              { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
+              { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+            ],
+            "GAF 2": [
+              { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
+              { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
+              { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
+              { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" },
+              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+              { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
+              { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
+              { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+            ]
+          };
+          
+          const selectedBundle = PRESET_BUNDLES[presetName];
+          if (selectedBundle) {
+            // Add the GAF package materials
+            selectedBundle.forEach(({ id, description }) => {
+              const material = ROOFING_MATERIALS.find(m => m.id === id);
+              if (material) {
+                const isGafTimberline = id === "gaf-timberline-hdz-sg";
+                const overrideWaste = isGafTimberline 
+                  ? gafTimberlineWasteFactor / 100 
+                  : wasteFactor / 100;
+
+                const { quantity: calculatedQuantity, actualWasteFactor } = calculateMaterialQuantity(
+                  material,
+                  measurements,
+                  overrideWaste,
+                  dbWastePercentages
+                );
+
+                // Only add materials with positive calculated quantities
+                if (calculatedQuantity > 0) {
+                  newMaterials[id] = material;
+                  newQuantities[id] = calculatedQuantity;
+                  newWasteFactors[id] = actualWasteFactor;
+                  console.log(`Added ${material.name} - Qty: ${calculatedQuantity}, Price: $${material.price}`);
+                } else {
+                  console.log(`Skipped ${material.name} - Qty: ${calculatedQuantity} (not applicable)`);
+                }
+              }
+            });
+            
+            toastMessage = `${presetName} materials applied! Materials automatically populated.`;
+          }
+          }
+        }
+      }
+      
+      // Update all states in a batch
+      setLocalSelectedMaterials(newMaterials);
+      setLocalQuantities(newQuantities);
+      setMaterialWasteFactors(newWasteFactors);
+      
+      // Show toast notification
+      if (toastMessage) {
+        const isLowSlopeWarning = toastMessage.includes("only applicable to roofs with steep slope areas");
+        toast({
+          title: selectedPackage ? "GAF Package Materials Applied! ✅" : "GAF Package Materials Removed",
+          description: toastMessage,
+          duration: 4000,
+          variant: isLowSlopeWarning ? "destructive" : "default"
+        });
+      }
+      
+      // Update previous package reference
+      previousPackageRef.current = selectedPackage;
+    }, 150); // 150ms debounce to prevent rapid updates
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (packageUpdateTimeoutRef.current) {
+        clearTimeout(packageUpdateTimeoutRef.current);
+      }
+    };
+  }, [selectedPackage, measurements, wasteFactor, gafTimberlineWasteFactor, dbWastePercentages, toast]);
 
   // Populate editableTemplateMaterials when activePricingTemplate changes or on initial load
   useEffect(() => {
@@ -1661,6 +1961,16 @@ export function MaterialsSelectionTab({
     }
   };
 
+  // Helper function to format category names for display
+  const formatCategoryName = (category: string): string => {
+    switch (category) {
+      case MaterialCategory.LOW_SLOPE:
+        return "Low slope";
+      default:
+        return category;
+    }
+  };
+
   // Main return structure
   return (
     <div key={`materials-tab-${measurements?.totalArea || 'default'}-${Date.now()}`} className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -1689,7 +1999,20 @@ export function MaterialsSelectionTab({
         
         {/* Material Selection Card */}
         <Card>
-          <CardHeader><CardTitle>Select Materials</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Select Materials</CardTitle>
+            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+              {canEditMaterialPrices() ? (
+                <p className="text-sm text-blue-800">
+                  🔓 <strong>Admin Access:</strong> You can modify material prices for this estimate.
+                </p>
+              ) : (
+                <p className="text-sm text-blue-800">
+                  🔒 <strong>Territory Manager:</strong> Material prices are locked for consistency across estimates.
+                </p>
+              )}
+            </div>
+          </CardHeader>
           <CardContent className="space-y-4">
              {/* Waste Factor Inputs */}
              <div className="flex items-center space-x-4 pb-4">
@@ -1710,33 +2033,17 @@ export function MaterialsSelectionTab({
                </div>
              )}
              
-             {/* Presets Section */}
+             {/* Success Notice for GAF Package Integration */}
              <div className="border-t pt-4 pb-2">
-               <h3 className="text-md font-medium mb-2">Material Presets</h3>
-               <div className="flex flex-wrap gap-2">
-                 {[
-                   { id: "GAF 1", label: "GAF 1 - Basic Package" },
-                   { id: "GAF 2", label: "GAF 2 - Premium Package" },
-                   { id: "OC 1", label: "OC 1 - Oakridge" },
-                   { id: "OC 2", label: "OC 2 - Duration" }
-                 ].map(preset => (
-                   <Button 
-                     key={preset.id} 
-                     variant={selectedPreset === preset.id ? "default" : "outline"}
-                     size="sm" 
-                     className={`text-xs ${selectedPreset === preset.id ? 'border-2 border-primary' : ''}`}
-                     onClick={() => applyPresetBundle(preset.id)}
-                     disabled={readOnly}
-                   >
-                     <PackageOpen className="w-3.5 h-3.5 mr-1" />
-                     {preset.label}
-                     {selectedPreset === preset.id && <Check className="w-3.5 h-3.5 ml-1" />}
-                   </Button>
-                 ))}
+               <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                 <div className="flex items-center">
+                   <Package className="h-5 w-5 text-green-600 mr-2" />
+                   <h4 className="text-sm font-semibold text-green-800">🎯 GAF Package Integration Complete! ✅</h4>
+                 </div>
+                 <p className="text-sm text-green-700 mt-1">
+                   Select GAF 1 or GAF 2 packages above and materials will automatically populate below.
+                 </p>
                </div>
-               <p className="text-xs text-muted-foreground mt-1">
-                 Click a preset to automatically add a pre-configured bundle of materials
-               </p>
              </div>
              
              {/* Materials Accordion */}
@@ -1764,8 +2071,8 @@ export function MaterialsSelectionTab({
                  return (
                    <AccordionItem key={category} value={category}>
                      <AccordionTrigger className="text-lg font-semibold py-3">
-                       {category}
-                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-yellow-600 border-yellow-300 bg-yellow-50">Flat/Low-Slope Required</Badge>)}
+                       {formatCategoryName(category)}
+                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-600 border-blue-300 bg-blue-50">Flat/Low-Slope Required</Badge>)}
                      </AccordionTrigger>
                      <AccordionContent>
                        <div className="space-y-2 pt-2">
@@ -1774,46 +2081,39 @@ export function MaterialsSelectionTab({
                            const isSelected = !!localSelectedMaterials[material.id];
 
                            return (
-                            <div key={material.id} className="p-3 rounded-md border border-gray-200 hover:shadow-sm transition-shadow duration-150 ease-in-out">
-                              <div className="flex justify-between items-start">
-                                {/* Left Column: Details */}
-                                <div className="flex-grow space-y-1.5 pr-3">
-                                  {/* Editable Name */}
-                                  <div>
-                                    <Label htmlFor={`name-${material.id}`} className="sr-only">Material Name</Label>
-                                    <Input
-                                      id={`name-${material.id}`}
-                                      type="text"
-                                      defaultValue={material.name || ''} // Use defaultValue for initial render
-                                      // onChange no longer calls handleEditableMaterialPropertyChange directly
-                                      onBlur={(e) => handleEditableMaterialPropertyChange(material.id, 'name', e.target.value)} // Update main state on blur
-                                      className="h-8 text-base font-semibold border-0 border-b-2 border-transparent focus:border-indigo-500 focus:ring-0 rounded-none px-1 py-0 -ml-1 w-full"
-                                      disabled={readOnly}
-                                      placeholder="Material Name"
-                                      key={`name-input-${material.id}`} // Add a key to help React with defaultValue changes if material.id changes
-                                    />
-                                  </div>
-                          
-                                  {/* Editable Price & Static Unit */}
+                            <div key={material.id} className="border rounded-md p-3 bg-card hover:bg-muted/50 transition-colors">
+                              <div className="flex flex-col lg:flex-row justify-between items-start gap-3">
+                                {/* Left Column: Material Info */}
+                                <div className="flex-1 space-y-2">
+                                  <h4 className="text-sm font-medium">{material.name}</h4>
+                                  
                                   <div className="flex items-center space-x-2">
                                     <Label htmlFor={`price-${material.id}`} className="sr-only">Price</Label>
                                     <Input
                                       id={`price-${material.id}`}
                                       type="number"
                                       step="0.01"
-                                      defaultValue={material.price !== undefined ? String(material.price) : ''} // Use defaultValue
-                                      // onChange no longer calls handleEditableMaterialPropertyChange directly
-                                      onBlur={(e) => handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)} // Update main state on blur
-                                      className="h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24"
-                                      disabled={readOnly}
+                                      defaultValue={material.price !== undefined ? String(material.price) : ''} 
+                                      onBlur={(e) => canEditMaterialPrices() && handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)}
+                                      className={`h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24 ${
+                                        canEditMaterialPrices() ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-600'
+                                      }`}
+                                      disabled={!canEditMaterialPrices()}
                                       placeholder="0.00"
-                                      key={`price-input-${material.id}`} // Add a key
+                                      key={`price-input-${material.id}`}
                                     />
                                     {material.unit && <span className="text-sm text-gray-600">per {material.unit}</span>}
                                     {material.approxPerSquare && material.approxPerSquare > 0 && 
                                       <span className="text-xs text-gray-500">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
                                     }
                                   </div>
+                                  
+                                  {/* Role-based pricing info */}
+                                  {!canEditMaterialPrices() && (
+                                    <div className="text-xs text-muted-foreground bg-gray-50 p-2 rounded">
+                                      <span className="font-medium">Territory Manager:</span> Material pricing is managed by administrators to ensure consistency across all estimates.
+                                    </div>
+                                  )}
                                   
                                   {/* Static Coverage Rule Description */}
                                   {material.coverageRule?.description && (
@@ -1879,7 +2179,7 @@ export function MaterialsSelectionTab({
               <ChevronLeft className="h-4 w-4" />
               Back to Measurements
             </Button>
-          </CardFooter>
+           </CardFooter>
         </Card>
       </div>
 

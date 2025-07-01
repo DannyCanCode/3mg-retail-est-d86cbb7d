@@ -2,6 +2,8 @@ import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { MeasurementValues } from "@/components/estimates/measurement/types";
 import { Material } from "@/components/estimates/materials/types";
 import { LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
+import { trackEstimateCreated, trackEvent, trackPerformanceMetric } from "@/lib/posthog";
+import { trackEstimateCreated as trackEstimateCreatedLR, trackEstimateSold } from "@/lib/logrocket";
 
 // Define the status type for estimates
 export type EstimateStatus = "draft" | "pending" | "approved" | "rejected" | "Sold";
@@ -33,6 +35,11 @@ export interface Estimate {
   job_type?: 'Retail' | 'Insurance' | null;
   insurance_company?: string | null;
   peel_stick_addon_cost?: number;
+  rejection_reason?: string; // Reason for rejection if status is 'rejected'
+  // Creator information for dashboard display
+  creator_name?: string;
+  creator_role?: 'admin' | 'manager' | 'rep' | 'subtrade_manager';
+  created_by?: string; // User ID who created the estimate
 }
 
 /**
@@ -41,6 +48,7 @@ export interface Estimate {
 export const saveEstimate = async (
   estimateInput: Partial<Estimate> & { id?: string } 
 ): Promise<{ data: Estimate | null; error: Error | null; }> => {
+  const startTime = performance.now();
   try {
     if (!isSupabaseConfigured()) {
       console.warn("Supabase not configured, estimate will not be saved to database");
@@ -122,9 +130,46 @@ export const saveEstimate = async (
       measurements: typeof data.measurements === 'string' ? JSON.parse(data.measurements) : (data.measurements || {})
     } as Estimate;
 
+    // Track estimate creation for analytics (only for new estimates, not updates)
+    if (!inputId) {
+      try {
+        // PostHog tracking
+        trackEstimateCreated({
+          estimateValue: parsedData.total_price,
+          userRole: 'unknown' // Will be updated when we have user context
+        });
+        
+        // LogRocket tracking
+        trackEstimateCreatedLR({
+          estimateId: parsedData.id,
+          customerAddress: parsedData.customer_address,
+          totalPrice: parsedData.total_price,
+          userRole: 'unknown'
+        });
+      } catch (trackingError) {
+        // Don't fail the estimate save if tracking fails
+        console.warn('Failed to track estimate creation:', trackingError);
+      }
+    }
+
+    // Track API performance
+    const apiResponseTime = performance.now() - startTime;
+    trackPerformanceMetric('api_response_time', apiResponseTime, {
+      operation: estimateInput.id ? 'update_estimate' : 'create_estimate',
+      success: true,
+      estimate_id: parsedData.id
+    });
+
     return { data: parsedData, error: null };
 
   } catch (e: any) {
+    // Track failed API performance
+    const apiResponseTime = performance.now() - startTime;
+    trackPerformanceMetric('api_response_time', apiResponseTime, {
+      operation: estimateInput.id ? 'update_estimate' : 'create_estimate',
+      success: false,
+      error: e.message
+    });
     console.error("Error in saveEstimate function:", e);
     return { data: null, error: e instanceof Error ? e : new Error("Unknown error in saveEstimate") };
   }
@@ -213,14 +258,26 @@ export const updateEstimateStatus = async (
       return { data: null, error: new Error("Supabase not configured") };
     }
 
-    const updateData: { status: EstimateStatus, updated_at: string, notes?: string } = {
+    console.log(`🔧 [API] updateEstimateStatus called - ID: ${id}, Status: ${status}, Notes: ${notes ? 'provided' : 'none'}`);
+
+    const updateData: { status: EstimateStatus, updated_at: string, notes?: string, rejection_reason?: string } = {
       status,
       updated_at: new Date().toISOString()
     };
     
     if (notes) {
-      updateData.notes = notes;
+      if (status === 'rejected') {
+        // For rejections, save to rejection_reason field
+        updateData.rejection_reason = notes;
+        console.log(`🔧 [API] Setting rejection_reason: ${notes}`);
+      } else {
+        // For approvals and other statuses, save to notes field
+        updateData.notes = notes;
+        console.log(`🔧 [API] Setting notes: ${notes}`);
+      }
     }
+
+    console.log(`🔧 [API] Update payload:`, updateData);
 
     const { data, error } = await supabase
       .from("estimates")
@@ -230,12 +287,14 @@ export const updateEstimateStatus = async (
       .single();
 
     if (error) {
+      console.error(`🚨 [API] Supabase error:`, error);
       throw error;
     }
 
+    console.log(`✅ [API] Status update successful, returned data:`, data);
     return { data, error: null };
   } catch (error) {
-    console.error("Error updating estimate status:", error);
+    console.error("🚨 [API] Error updating estimate status:", error);
     return {
       data: null,
       error: error instanceof Error ? error : new Error("Unknown error occurred")
@@ -261,6 +320,8 @@ export const calculateEstimateTotal = (
     wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, gutterRate: 8,
     includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
     includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
+    includeSkylights2x2: false, skylights2x2Count: 0, skylights2x2Rate: 280,
+    includeSkylights2x4: false, skylights2x4Count: 0, skylights2x4Rate: 370,
   };
   const laborRates: LaborRates = { ...defaultLaborRates, ...(laborRatesInput || {}) };
 
@@ -334,6 +395,12 @@ export const calculateEstimateTotal = (
   if (laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet && laborRates.detachResetGutterRate) {
     calculated_labor_cost += laborRates.detachResetGutterLinearFeet * laborRates.detachResetGutterRate;
   }
+  if (laborRates.includeSkylights2x2 && laborRates.skylights2x2Count && laborRates.skylights2x2Rate) {
+    calculated_labor_cost += laborRates.skylights2x2Count * laborRates.skylights2x2Rate;
+  }
+  if (laborRates.includeSkylights2x4 && laborRates.skylights2x4Count && laborRates.skylights2x4Rate) {
+    calculated_labor_cost += laborRates.skylights2x4Count * laborRates.skylights2x4Rate;
+  }
 
   const subtotal = materialCost + calculated_labor_cost;
   const margin = profitMargin / 100;
@@ -349,6 +416,8 @@ const calculateFinalCosts = (estimateData: Estimate) => {
     wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, gutterRate: 8,
     includeDownspouts: false, downspoutCount: 0, downspoutRate: 75,
     includeDetachResetGutters: false, detachResetGutterLinearFeet: 0, detachResetGutterRate: 1,
+    includeSkylights2x2: false, skylights2x2Count: 0, skylights2x2Rate: 280,
+    includeSkylights2x4: false, skylights2x4Count: 0, skylights2x4Rate: 370,
   };
 
   const safeMeasurements = estimateData.measurements as MeasurementValues || { totalArea: 0, areasByPitch: [] };
@@ -407,8 +476,8 @@ const calculateFinalCosts = (estimateData: Estimate) => {
       });
   } else if (totalSquares > 0) {
       if (laborRates.includeSteepSlopeLabor !== false) {
-        const fallbackRate = laborRates.laborRate || 85;
-        calculated_labor_cost += fallbackRate * totalSquares * (1 + wasteFactor);
+      const fallbackRate = laborRates.laborRate || 85;
+      calculated_labor_cost += fallbackRate * totalSquares * (1 + wasteFactor);
       }
   }
 
@@ -445,6 +514,16 @@ const calculateFinalCosts = (estimateData: Estimate) => {
   if (laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet && laborRates.detachResetGutterLinearFeet > 0) {
       const detachCost = (laborRates.detachResetGutterRate || 1) * laborRates.detachResetGutterLinearFeet;
       calculated_labor_cost += detachCost;
+  }
+
+  if (laborRates.includeSkylights2x2 && laborRates.skylights2x2Count && laborRates.skylights2x2Count > 0) {
+      const skylights2x2Cost = (laborRates.skylights2x2Rate || 280) * laborRates.skylights2x2Count;
+      calculated_labor_cost += skylights2x2Cost;
+  }
+
+  if (laborRates.includeSkylights2x4 && laborRates.skylights2x4Count && laborRates.skylights2x4Count > 0) {
+      const skylights2x4Cost = (laborRates.skylights2x4Rate || 370) * laborRates.skylights2x4Count;
+      calculated_labor_cost += skylights2x4Cost;
   }
 
   const calculated_subtotal = calculated_material_cost + calculated_labor_cost;
@@ -525,14 +604,39 @@ export const markEstimateAsSold = async (
      throw new Error("Failed to update estimate and retrieve the updated record.");
   }
   
-  return {
+  const finalResult = {
       ...updatedEstimate,
       status: updatedEstimate.status as EstimateStatus,
       materials: typeof updatedEstimate.materials === 'string' ? JSON.parse(updatedEstimate.materials) : (updatedEstimate.materials || {}),
       quantities: typeof updatedEstimate.quantities === 'string' ? JSON.parse(updatedEstimate.quantities) : (updatedEstimate.quantities || {}),
       labor_rates: typeof updatedEstimate.labor_rates === 'string' ? JSON.parse(updatedEstimate.labor_rates) : (updatedEstimate.labor_rates || {}),
       measurements: typeof updatedEstimate.measurements === 'string' ? JSON.parse(updatedEstimate.measurements) : (updatedEstimate.measurements || { areasByPitch: [] }),
-  } as Estimate; 
+  } as Estimate;
+
+  // Track estimate sold for analytics
+  try {
+    // PostHog tracking
+    trackEvent('estimate_sold', {
+      estimate_id: estimateId,
+      job_type: jobType,
+      insurance_company: insuranceCompany || null,
+      estimate_value: finalResult.total_price,
+      sold_at: new Date().toISOString()
+    });
+    
+    // LogRocket tracking
+    trackEstimateSold({
+      estimateId: estimateId,
+      jobType: jobType,
+      totalPrice: finalResult.total_price,
+      insuranceCompany: insuranceCompany
+    });
+  } catch (trackingError) {
+    // Don't fail the sale if tracking fails
+    console.warn('Failed to track estimate sale:', trackingError);
+  }
+
+  return finalResult; 
 };
 
 interface SoldEstimateReportData {
@@ -574,6 +678,30 @@ export const getSoldEstimates = async (filters?: { startDate?: string, endDate?:
   }
 
   return (data || []) as SoldEstimateReportData[]; 
+};
+
+/**
+ * Generate PDF for an estimate (placeholder implementation)
+ */
+export const generateEstimatePdf = async (id: string): Promise<{
+  data: { url: string } | null;
+  error: Error | null;
+}> => {
+  try {
+    // TODO: Implement actual PDF generation
+    // For now, return a placeholder URL
+    console.log(`Generating PDF for estimate ${id}`);
+    return { 
+      data: { url: `/api/estimates/${id}/pdf` }, 
+      error: null 
+    };
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    return { 
+      data: null, 
+      error: error instanceof Error ? error : new Error("Failed to generate PDF") 
+    };
+  }
 };
 
 export const updateEstimateCustomerDetails = async (
@@ -622,4 +750,62 @@ export const updateEstimateCustomerDetails = async (
   } : null;
 
   return { data: parsedData as Estimate | null, error: null };
+};
+
+/**
+ * Delete an estimate by ID (Admin only)
+ */
+export const deleteEstimate = async (id: string): Promise<{
+  data: boolean;
+  error: Error | null;
+}> => {
+  try {
+    if (!isSupabaseConfigured()) {
+      return { data: false, error: new Error("Supabase not configured") };
+    }
+
+    const { error } = await supabase
+      .from("estimates")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+
+    // Track estimate deletion for analytics
+    try {
+      trackEvent('admin_estimate_deleted', {
+        estimate_id: id,
+        timestamp: new Date().toISOString(),
+        action: 'delete'
+      });
+    } catch (trackingError) {
+      console.warn('Failed to track estimate deletion:', trackingError);
+    }
+
+    return { data: true, error: null };
+  } catch (error) {
+    console.error("Error deleting estimate:", error);
+    return {
+      data: false,
+      error: error instanceof Error ? error : new Error("Unknown error occurred")
+    };
+  }
+};
+
+/**
+ * Admin action tracking for PostHog
+ */
+export const trackAdminAction = (action: string, estimateId: string, additionalData?: Record<string, any>) => {
+  try {
+    trackEvent('admin_action', {
+      action,
+      estimate_id: estimateId,
+      timestamp: new Date().toISOString(),
+      ...additionalData
+    });
+  } catch (error) {
+    console.warn('Failed to track admin action:', error);
+  }
 };

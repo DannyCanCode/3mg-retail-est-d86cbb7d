@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronRight, RefreshCw, ArrowLeft, Loader2 } from "lucide-react";
+import { Plus, ChevronRight, RefreshCw, ArrowLeft, Loader2, Shield, Info, EyeOff } from "lucide-react";
 import { MeasurementForm } from "@/components/estimates/MeasurementForm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaterialsSelectionTab } from "@/components/estimates/materials/MaterialsSelectionTab";
-import { MeasurementValues } from "@/components/estimates/measurement/types";
+import { MeasurementValues, AreaByPitch } from "@/components/estimates/measurement/types";
 import { Material } from "@/components/estimates/materials/types";
 import { useToast } from "@/hooks/use-toast";
 import { LaborProfitTab, LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
@@ -15,7 +15,7 @@ import { EstimateSummaryTab } from "@/components/estimates/pricing/EstimateSumma
 import { ParsedMeasurements } from "@/api/measurements";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { saveEstimate, calculateEstimateTotal as calculateEstimateTotalFromAPI, getEstimateById, Estimate as EstimateType, markEstimateAsSold, getEstimates } from "@/api/estimates";
+import { saveEstimate, calculateEstimateTotal as calculateEstimateTotalFromAPI, getEstimateById, Estimate as EstimateType, markEstimateAsSold, getEstimates, updateEstimateStatus, updateEstimateCustomerDetails, EstimateStatus } from "@/api/estimatesFacade";
 import { getMeasurementById } from "@/api/measurements";
 import {
   Dialog,
@@ -34,9 +34,18 @@ import { getPricingTemplates, getPricingTemplateById, PricingTemplate, createPri
 import { Checkbox } from "@/components/ui/checkbox";
 import { ROOFING_MATERIALS } from "@/components/estimates/materials/data";
 import { calculateMaterialQuantity } from "@/components/estimates/materials/utils";
+import { withTimeout } from "@/lib/withTimeout";
+import { EstimateTypeSelector } from "@/components/estimates/EstimateTypeSelector";
+import { useAuth } from "@/contexts/AuthContext";
+import { Badge } from "@/components/ui/badge";
+import { trackEvent, trackEstimateCreated } from "@/lib/posthog";
+import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/integrations/supabase/client";
 
-// Convert ParsedMeasurements to MeasurementValues format
-const convertToMeasurementValues = (parsedData: ParsedMeasurements | null): MeasurementValues => {
+// Convert from ParsedMeasurements to MeasurementValues
+const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
+  // Allow both direct ParsedMeasurements and the wrapper { measurements, parsedMeasurements }
+  const parsedData: ParsedMeasurements | null = parsedDataRaw?.parsedMeasurements ?? parsedDataRaw ?? null;
   console.log("Converting PDF data to measurement values");
   
   // Handle null/undefined data safely
@@ -116,13 +125,24 @@ const Estimates = () => {
   const { estimateId } = useParams<{ estimateId: string }>();
   const measurementId = searchParams.get("measurementId") || searchParams.get("measurement");
   
+  // Admin edit mode detection
+  const isAdminEditMode = searchParams.get("adminEdit") === "true";
+  const originalCreator = searchParams.get("originalCreator");
+  const originalCreatorRole = searchParams.get("originalCreatorRole");
+  
+  const { profile, user } = useAuth();
+  
   // State for view mode
   const [isViewMode, setIsViewMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [estimateData, setEstimateData] = useState<EstimateType | null>(null);
 
   // Workflow state 
-  const [activeTab, setActiveTab] = useState("upload");
+  const [activeTab, setActiveTab] = useState("type-selection");
+  
+  // Estimate type selection state
+  const [estimateType, setEstimateType] = useState<'roof_only' | 'with_subtrades' | null>(null);
+  const [selectedSubtrades, setSelectedSubtrades] = useState<string[]>([]);
   
   // Store extracted PDF data
   const [extractedPdfData, setExtractedPdfData] = useState<ParsedMeasurements | null>(null);
@@ -174,6 +194,57 @@ const Estimates = () => {
   const [storedMeasurements, setStoredMeasurements] = useLocalStorage<MeasurementValues | null>("estimateMeasurements", null);
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
   
+  // Additional state persistence for complete estimate recovery
+  const [storedSelectedMaterials, setStoredSelectedMaterials] = useLocalStorage<{[key: string]: Material}>("estimateSelectedMaterials", {});
+  const [storedQuantities, setStoredQuantities] = useLocalStorage<{[key: string]: number}>("estimateQuantities", {});
+  const [storedLaborRates, setStoredLaborRates] = useLocalStorage<LaborRates>("estimateLaborRates", {
+    laborRate: 85,
+    tearOff: 0,
+    installation: 0,
+    isHandload: false,
+    handloadRate: 15,
+    dumpsterLocation: "orlando",
+    dumpsterCount: 1,
+    dumpsterRate: 400,
+    includePermits: true,
+    permitRate: 550,
+    permitCount: 1,
+    permitAdditionalRate: 450,
+    pitchRates: {},
+    wastePercentage: 12,
+    includeGutters: false,
+    gutterLinearFeet: 0,
+    gutterRate: 8,
+    includeDownspouts: false,
+    downspoutCount: 0,
+    downspoutRate: 75,
+    includeDetachResetGutters: false,
+    detachResetGutterLinearFeet: 0,
+    detachResetGutterRate: 1,
+    includeLowSlopeLabor: true,
+    includeSteepSlopeLabor: true,
+  });
+  const [storedProfitMargin, setStoredProfitMargin] = useLocalStorage<number>("estimateProfitMargin", 25);
+  const [storedEstimateType, setStoredEstimateType] = useLocalStorage<'roof_only' | 'with_subtrades' | null>("estimateType", null);
+  const [storedSelectedSubtrades, setStoredSelectedSubtrades] = useLocalStorage<string[]>("estimateSelectedSubtrades", []);
+  const [storedActiveTab, setStoredActiveTab] = useLocalStorage<string>("estimateActiveTab", "type-selection");
+  const [storedPeelStickCost, setStoredPeelStickCost] = useLocalStorage<string>("estimatePeelStickCost", "0.00");
+  
+  // PHASE 2: Smart State Management - Recovery tracking and conflict prevention
+  const [isRecoveringState, setIsRecoveringState] = useState(false);
+  const [hasRecoveredData, setHasRecoveredData] = useState(false);
+  const [stateRecoveryAttempts, setStateRecoveryAttempts] = useState(0);
+  const [userWantsFreshStart, setUserWantsFreshStart] = useState(false); // NEW: Prevent recovery when user wants fresh start
+  const isInternalStateChange = useRef(false); // Prevent save loops during recovery
+  const lastRecoveryTimestamp = useRef<number>(0);
+  const [recoveryStats, setRecoveryStats] = useState({
+    materialsRecovered: false,
+    quantitiesRecovered: false,
+    laborRatesRecovered: false,
+    tabPositionRecovered: false,
+    estimateTypeRecovered: false
+  });
+  
   const [estimates, setEstimates] = useState<EstimateType[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<{[key: string]: boolean}>({});
@@ -216,7 +287,26 @@ const Estimates = () => {
       // For a new estimate, ensure we start clean
       // and don't load from localStorage unless specified by a measurementId
       if (!measurementId) {
-        setActiveTab("upload");
+        // IMMEDIATE FRESH START: User clicked "New Estimate" - prevent any recovery
+        console.log("NEW ESTIMATE: Starting fresh workflow");
+        setUserWantsFreshStart(true);
+        setActiveTab("type-selection");
+        
+        // Clear any stored state to ensure truly fresh start
+        setStoredActiveTab("type-selection");
+        setHasRecoveredData(true); // Mark as recovered to prevent further attempts
+        
+        // Clear localStorage data for fresh start
+        setTimeout(() => {
+          setStoredSelectedMaterials({});
+          setStoredQuantities({});
+          setStoredPeelStickCost("0.00");
+          setStoredEstimateType(null);
+          setStoredSelectedSubtrades([]);
+          
+          // Reset fresh start flag after component stabilizes
+          setUserWantsFreshStart(false);
+        }, 100);
       }
     }
   }, [estimateId, measurementId]);
@@ -256,24 +346,244 @@ const Estimates = () => {
     }
   };
   
-  // Only load persisted data if not in view mode AND not starting a fresh estimate
+  // PHASE 2: Smart Recovery Logic with Validation and Conflict Prevention
   useEffect(() => {
-    if (!isViewMode && (estimateId || measurementId)) {
+    // Skip recovery if in view mode, already recovering/recovered, OR user wants fresh start
+    if (isViewMode || isRecoveringState || hasRecoveredData || userWantsFreshStart) return;
+    
+    // Prevent excessive recovery attempts
+    const now = Date.now();
+    if (stateRecoveryAttempts >= 3 || (now - lastRecoveryTimestamp.current) < 1000) {
+      return;
+    }
+    
+    // Check if we have significant localStorage data to recover
+    const hasSignificantData = storedPdfData || 
+      (storedSelectedMaterials && Object.keys(storedSelectedMaterials).length > 0) ||
+      (storedQuantities && Object.keys(storedQuantities).length > 0) ||
+      (storedLaborRates && storedLaborRates.laborRate !== 85) ||
+      (storedEstimateType) ||
+      (storedActiveTab && storedActiveTab !== "type-selection");
+    
+    if (!hasSignificantData) return;
+    
+    // Begin smart recovery process
+    setIsRecoveringState(true);
+    setStateRecoveryAttempts(prev => prev + 1);
+    lastRecoveryTimestamp.current = now;
+    isInternalStateChange.current = true;
+    
+    console.log("🔄 PHASE 2: Starting smart state recovery...");
+    
+    const recoveryResults = {
+      materialsRecovered: false,
+      quantitiesRecovered: false,
+      laborRatesRecovered: false,
+      tabPositionRecovered: false,
+      estimateTypeRecovered: false
+    };
+    
+    // Recovery Phase 1: Basic PDF & Measurement Data
       if (storedPdfData && !extractedPdfData) {
         setExtractedPdfData(storedPdfData);
-        console.log("Loaded PDF data from localStorage:", storedPdfData);
+      console.log("✅ Recovered PDF data:", storedPdfData.propertyAddress || 'Unknown address');
       }
       
       if (storedMeasurements && !measurements) {
-        setMeasurements(storedMeasurements);
-        console.log("Loaded measurements from localStorage:", storedMeasurements);
+        // CRITICAL FIX: Check data freshness and source before recovery
+        const currentTime = Date.now();
+        const dataTimestamp = (storedMeasurements as any)?._freshDataTimestamp || 0;
+        const dataSource = (storedMeasurements as any)?._dataSource || 'unknown';
+        const dataAge = currentTime - dataTimestamp;
+        const maxDataAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        // Only recover if data is fresh and from a reliable source
+        if (dataAge < maxDataAge && dataSource === 'fresh_pdf_upload') {
+          // Clean the metadata before setting measurements
+          const cleanMeasurements = { ...storedMeasurements };
+          delete (cleanMeasurements as any)._freshDataTimestamp;
+          delete (cleanMeasurements as any)._dataSource;
+          
+          setMeasurements(cleanMeasurements);
+          console.log("✅ Recovered FRESH measurements:", cleanMeasurements.totalArea, 'sq ft', `(age: ${Math.round(dataAge/1000)}s)`);
+        } else {
+          console.log("🚫 Skipping recovery of STALE measurements:", {
+            age: Math.round(dataAge/1000/60), 
+            source: dataSource,
+            totalArea: storedMeasurements.totalArea
+          });
+          
+          // Clear stale data
+          setStoredMeasurements(null);
+          setStoredPdfData(null);
+        }
       }
       
       if (storedFileName && !pdfFileName) {
         setPdfFileName(storedFileName);
+      console.log("✅ Recovered filename:", storedFileName);
+    }
+    
+    // Recovery Phase 2: Advanced Estimate Data with Validation
+    if (storedSelectedMaterials && Object.keys(storedSelectedMaterials).length > 0 && Object.keys(selectedMaterials).length === 0) {
+             // Validate material data integrity
+       const validMaterials = Object.fromEntries(
+         Object.entries(storedSelectedMaterials).filter(([key, material]) => 
+           material && material.name && typeof material.price === 'number'
+         )
+       );
+      
+      if (Object.keys(validMaterials).length > 0) {
+        setSelectedMaterials(validMaterials);
+        recoveryResults.materialsRecovered = true;
+        console.log("✅ Recovered", Object.keys(validMaterials).length, "materials");
       }
     }
-  }, [isViewMode, storedPdfData, storedMeasurements, storedFileName, estimateId, measurementId]);
+    
+    if (storedQuantities && Object.keys(storedQuantities).length > 0 && Object.keys(quantities).length === 0) {
+      // Validate quantities are positive numbers
+      const validQuantities = Object.fromEntries(
+        Object.entries(storedQuantities).filter(([key, qty]) => 
+          typeof qty === 'number' && qty > 0 && !isNaN(qty)
+        )
+      );
+      
+      if (Object.keys(validQuantities).length > 0) {
+        setQuantities(validQuantities);
+        recoveryResults.quantitiesRecovered = true;
+        console.log("✅ Recovered quantities for", Object.keys(validQuantities).length, "materials");
+      }
+    }
+    
+    if (storedLaborRates && Object.keys(storedLaborRates).length > 0 && laborRates.laborRate === 85) {
+      // Validate labor rates are reasonable numbers
+      const isValidLaborRate = storedLaborRates.laborRate > 0 && storedLaborRates.laborRate < 500;
+      if (isValidLaborRate) {
+        setLaborRates(storedLaborRates);
+        recoveryResults.laborRatesRecovered = true;
+        console.log("✅ Recovered labor rates:", storedLaborRates.laborRate, "$/hr");
+      }
+    }
+    
+    if (storedProfitMargin && storedProfitMargin !== 25 && profitMargin === 25) {
+      const isValidMargin = storedProfitMargin >= 0 && storedProfitMargin <= 100;
+      if (isValidMargin) {
+        setProfitMargin(storedProfitMargin);
+        console.log("✅ Recovered profit margin:", storedProfitMargin + "%");
+      }
+    }
+    
+    if (storedEstimateType && !estimateType) {
+      const validTypes = ['roof_only', 'with_subtrades'];
+      if (validTypes.includes(storedEstimateType)) {
+        setEstimateType(storedEstimateType);
+        recoveryResults.estimateTypeRecovered = true;
+        console.log("✅ Recovered estimate type:", storedEstimateType);
+      }
+    }
+    
+    if (storedSelectedSubtrades && storedSelectedSubtrades.length > 0 && selectedSubtrades.length === 0) {
+      setSelectedSubtrades(storedSelectedSubtrades);
+      console.log("✅ Recovered", storedSelectedSubtrades.length, "subtrades");
+    }
+    
+    // Recovery Phase 3: UI State (Tab Position)
+    if (storedActiveTab && storedActiveTab !== "type-selection" && activeTab === "type-selection") {
+      const validTabs = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
+      if (validTabs.includes(storedActiveTab)) {
+        setActiveTab(storedActiveTab);
+        recoveryResults.tabPositionRecovered = true;
+        console.log("✅ Recovered tab position:", storedActiveTab);
+      }
+    }
+    
+    if (storedPeelStickCost && storedPeelStickCost !== "0.00" && peelStickAddonCost === "0.00") {
+      const cost = parseFloat(storedPeelStickCost);
+      if (!isNaN(cost) && cost >= 0) {
+        setPeelStickAddonCost(storedPeelStickCost);
+        console.log("✅ Recovered peel stick cost:", storedPeelStickCost);
+      }
+    }
+    
+    // Finalize recovery process
+    setTimeout(() => {
+      setRecoveryStats(recoveryResults);
+      setIsRecoveringState(false);
+      setHasRecoveredData(true);
+      isInternalStateChange.current = false;
+      
+      // Show recovery toast if significant data was recovered
+      const recoveredCount = Object.values(recoveryResults).filter(Boolean).length;
+      if (recoveredCount > 0) {
+        toast({
+          title: "📋 Estimate Data Recovered",
+          description: `Successfully restored ${recoveredCount} sections from your previous session.`,
+          duration: 4000,
+        });
+      }
+      
+      console.log("🎯 PHASE 2: Recovery complete!", recoveryResults);
+    }, 100);
+    
+    }, [isViewMode, isRecoveringState, hasRecoveredData, userWantsFreshStart, stateRecoveryAttempts, storedPdfData, storedMeasurements, storedFileName, storedSelectedMaterials, storedQuantities, storedLaborRates, storedProfitMargin, storedEstimateType, storedSelectedSubtrades, storedActiveTab, storedPeelStickCost, extractedPdfData, measurements, pdfFileName, selectedMaterials, quantities, laborRates, profitMargin, estimateType, selectedSubtrades, activeTab, peelStickAddonCost]);
+  
+  // PHASE 2: Smart Auto-Save Effects - Prevent save loops during recovery
+  useEffect(() => {
+    // Don't save during recovery or view mode
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && Object.keys(selectedMaterials).length > 0) {
+      setStoredSelectedMaterials(selectedMaterials);
+      console.log("💾 Auto-saved materials:", Object.keys(selectedMaterials).length, "items");
+    }
+  }, [selectedMaterials, isViewMode, isRecoveringState, setStoredSelectedMaterials]);
+
+  useEffect(() => {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && Object.keys(quantities).length > 0) {
+      setStoredQuantities(quantities);
+      console.log("💾 Auto-saved quantities for", Object.keys(quantities).length, "materials");
+    }
+  }, [quantities, isViewMode, isRecoveringState, setStoredQuantities]);
+
+  useEffect(() => {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && laborRates && laborRates.laborRate !== 85) {
+      setStoredLaborRates(laborRates);
+      console.log("💾 Auto-saved labor rates:", laborRates.laborRate, "$/hr");
+    }
+  }, [laborRates, isViewMode, isRecoveringState, setStoredLaborRates]);
+
+  useEffect(() => {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && profitMargin !== 25) {
+      setStoredProfitMargin(profitMargin);
+      console.log("💾 Auto-saved profit margin:", profitMargin + "%");
+    }
+  }, [profitMargin, isViewMode, isRecoveringState, setStoredProfitMargin]);
+
+  useEffect(() => {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && estimateType) {
+      setStoredEstimateType(estimateType);
+      console.log("💾 Auto-saved estimate type:", estimateType);
+    }
+  }, [estimateType, isViewMode, isRecoveringState, setStoredEstimateType]);
+
+  useEffect(() => {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && selectedSubtrades.length > 0) {
+      setStoredSelectedSubtrades(selectedSubtrades);
+      console.log("💾 Auto-saved", selectedSubtrades.length, "subtrades");
+    }
+  }, [selectedSubtrades, isViewMode, isRecoveringState, setStoredSelectedSubtrades]);
+
+  useEffect(() => {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && activeTab !== "type-selection") {
+      setStoredActiveTab(activeTab);
+      console.log("💾 Auto-saved tab position:", activeTab);
+    }
+  }, [activeTab, isViewMode, isRecoveringState, setStoredActiveTab]);
+
+  useEffect(() => {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && peelStickAddonCost !== "0.00") {
+      setStoredPeelStickCost(peelStickAddonCost);
+      console.log("💾 Auto-saved peel stick cost:", peelStickAddonCost);
+    }
+  }, [peelStickAddonCost, isViewMode, isRecoveringState, setStoredPeelStickCost]);
 
   // Ensure measurements are properly set from extracted PDF data
   useEffect(() => {
@@ -415,6 +725,11 @@ const Estimates = () => {
 
   const handlePdfDataExtracted = (data: ParsedMeasurements | null, fileName: string) => {
     console.log("PDF data extracted:", data, fileName);
+    
+    // CRITICAL FIX: Mark this as fresh PDF data to prevent recovery conflicts
+    const freshDataTimestamp = Date.now();
+    setUserWantsFreshStart(false);
+    
     setExtractedPdfData(data);
     setPdfFileName(fileName);
     
@@ -427,14 +742,44 @@ const Estimates = () => {
       return;
     }
     
-    // Store in localStorage
-    setStoredPdfData(data);
-    setStoredFileName(fileName);
+    // Track PDF upload in PostHog
+    trackEvent('pdf_uploaded', {
+      file_name: fileName,
+      property_address: data.propertyAddress || "unknown",
+      total_area: data.totalArea || 0,
+      user_role: profile?.role || "unknown",
+      creator_name: profile?.full_name || user?.email || "unknown",
+      timestamp: new Date().toISOString()
+    });
     
     // Force immediate conversion to ensure measurements are available
     const convertedMeasurements = convertToMeasurementValues(data);
+    
+    // CRITICAL FIX: Add timestamp to prevent old data recovery
+    const freshMeasurementsWithTimestamp = {
+      ...convertedMeasurements,
+      _freshDataTimestamp: freshDataTimestamp,
+      _dataSource: 'fresh_pdf_upload'
+    };
+    
+    // Set state FIRST before localStorage to establish priority
     setMeasurements(convertedMeasurements);
-    setStoredMeasurements(convertedMeasurements);
+    
+    // CRITICAL FIX: Clear old localStorage data before storing fresh data
+    console.log("🧹 Clearing old localStorage measurements to prevent conflicts");
+    localStorage.removeItem("estimateMeasurements");
+    localStorage.removeItem("estimateExtractedPdfData");
+    
+    // Small delay to ensure state is set, then store to localStorage
+    setTimeout(() => {
+      setStoredPdfData(data);
+      setStoredFileName(fileName);
+      setStoredMeasurements(freshMeasurementsWithTimestamp);
+      
+      // Block recovery for a brief period to let fresh data settle
+      setHasRecoveredData(true);
+      console.log("🆕 Fresh PDF data stored with timestamp:", freshDataTimestamp);
+    }, 100);
     
     // Calculate areaDisplay *after* conversion, using the reliable converted value
     const areaDisplay = convertedMeasurements.totalArea && !isNaN(convertedMeasurements.totalArea) && convertedMeasurements.totalArea > 0 
@@ -454,6 +799,19 @@ const Estimates = () => {
 
   const handleGoToMaterials = () => {
     setActiveTab("materials");
+  };
+
+  const handleEstimateTypeSelection = (selection: { type: 'roof_only' | 'with_subtrades'; selectedSubtrades: string[] }) => {
+    setEstimateType(selection.type);
+    setSelectedSubtrades(selection.selectedSubtrades);
+    setActiveTab("upload");
+    
+    toast({
+      title: "Estimate Type Selected",
+      description: selection.type === 'roof_only' 
+        ? "Standard roofing estimate workflow selected"
+        : `Roof + ${selection.selectedSubtrades.length} subtrade(s) selected`,
+    });
   };
 
   const handleMeasurementsSaved = (savedMeasurements: MeasurementValues) => {
@@ -567,7 +925,32 @@ const Estimates = () => {
       return;
     }
     const liveTotal = calculateLiveEstimateTotal(); // Calculate the total using the live function
-    const estimatePayload: Partial<EstimateType> = { // Changed Estimate to EstimateType
+    
+    // Get creator information from current user profile
+    const creatorName = profile?.full_name || user?.email || "Unknown Creator";
+    const creatorRole = profile?.role || "rep";
+    
+    // Track estimate creation in PostHog
+    trackEstimateCreated({
+      territory: profile?.territory_id || "unknown",
+      packageType: estimateType || "roof_only",
+      estimateValue: liveTotal,
+      userRole: creatorRole
+    });
+    
+    // Track additional estimate details
+    trackEvent('estimate_finalized', {
+      creator_name: creatorName,
+      creator_role: creatorRole,
+      customer_address: measurements.propertyAddress || "Address not provided",
+      total_price: liveTotal,
+      material_count: Object.keys(selectedMaterials).length,
+      roof_area: measurements.totalArea,
+      estimate_type: estimateType,
+      timestamp: new Date().toISOString()
+    });
+    
+    const estimatePayload: any = { // Use 'any' type to allow additional fields
       customer_address: measurements.propertyAddress || "Address not provided",
       total_price: liveTotal, // Use the live calculated total
       materials: selectedMaterials,
@@ -576,6 +959,14 @@ const Estimates = () => {
       profit_margin: profitMargin,
       measurements: measurements,
       peel_stick_addon_cost: parseFloat(peelStickAddonCost) || 0,
+      // Add creator information for dashboard display
+      creator_name: creatorName,
+      creator_role: creatorRole,
+      created_by: profile?.id,
+      // Add role-based fields for proper filtering (will be handled by database if columns exist)
+      ...(profile?.territory_id && { territory_id: profile.territory_id }),
+      ...(estimateType && { estimate_type: estimateType }),
+      ...(selectedSubtrades.length > 0 && { selected_subtrades: selectedSubtrades }),
       // status will be set to 'pending' by the saveEstimate API if it's a new record
     };
     
@@ -658,7 +1049,10 @@ const Estimates = () => {
   
   // Function to start fresh and clear all state
   const handleClearEstimate = () => {
-    setActiveTab("upload");
+    // PREVENT RECOVERY: Set flag to block recovery when user explicitly wants fresh start
+    setUserWantsFreshStart(true);
+    
+    setActiveTab("type-selection");
     setExtractedPdfData(null);
     setPdfFileName(null);
     setMeasurements(null);
@@ -692,29 +1086,82 @@ const Estimates = () => {
       includeSteepSlopeLabor: true,
     });
     setProfitMargin(25);
+    setEstimateType(null);
+    setSelectedSubtrades([]);
+    setPeelStickAddonCost("0.00");
     
-    // Clear localStorage values too
+    // Clear ALL localStorage values for complete fresh start
     setStoredPdfData(null);
     setStoredMeasurements(null);
     setStoredFileName("");
+    setStoredSelectedMaterials({});
+    setStoredQuantities({});
+    setStoredLaborRates({
+      laborRate: 85,
+      tearOff: 0,
+      installation: 0,
+      isHandload: false,
+      handloadRate: 15,
+      dumpsterLocation: "orlando",
+      dumpsterCount: 1,
+      dumpsterRate: 400,
+      includePermits: true,
+      permitRate: 550,
+      permitCount: 1,
+      permitAdditionalRate: 450,
+      pitchRates: {},
+      wastePercentage: 12,
+      includeGutters: false,
+      gutterLinearFeet: 0,
+      gutterRate: 8,
+      includeDownspouts: false,
+      downspoutCount: 0,
+      downspoutRate: 75,
+      includeDetachResetGutters: false,
+      detachResetGutterLinearFeet: 0,
+      detachResetGutterRate: 1,
+      includeLowSlopeLabor: true,
+      includeSteepSlopeLabor: true,
+    });
+    setStoredProfitMargin(25);
+    setStoredEstimateType(null);
+    setStoredSelectedSubtrades([]);
+    setStoredActiveTab("type-selection");
+    setStoredPeelStickCost("0.00");
     
-    // Clear any URL parameters
-    navigate("/estimates");
+    // PHASE 2: Reset recovery state flags for complete fresh start
+    setIsRecoveringState(false);
+    setHasRecoveredData(false);
+    setStateRecoveryAttempts(0);
+    lastRecoveryTimestamp.current = 0;
+    isInternalStateChange.current = false;
+    setRecoveryStats({
+      materialsRecovered: false,
+      quantitiesRecovered: false,
+      laborRatesRecovered: false,
+      tabPositionRecovered: false,
+      estimateTypeRecovered: false
+    });
     
-    // Force a page reload to ensure all components reset properly
-    window.location.reload();
+    // Clear any URL parameters and navigate to clean estimates page
+    navigate("/estimates", { replace: true });
     
     toast({
-      title: "Started fresh",
-      description: "All estimate data has been cleared.",
+      title: "🧹 Started Fresh",
+      description: "All estimate data and recovery state has been cleared.",
     });
+    
+    // RESET FLAG: Allow recovery again for future sessions (after a short delay)
+    setTimeout(() => {
+      setUserWantsFreshStart(false);
+    }, 500);
   };
 
   const fetchEstimatesData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await getEstimates();
+      const { data, error: fetchError } = await withTimeout(getEstimates(), 5000);
       if (fetchError) {
         throw fetchError;
       }
@@ -735,6 +1182,13 @@ const Estimates = () => {
   useEffect(() => {
     fetchEstimatesData();
   }, [fetchEstimatesData]);
+
+  // Safety guard: ensure isLoading cannot remain true longer than 6 s
+  useEffect(() => {
+    if (!isLoading) return;
+    const id = setTimeout(() => setIsLoading(false), 6000);
+    return () => clearTimeout(id);
+  }, [isLoading]);
 
   const handleApprove = async (id: string) => {
     // ... existing approve logic ...
@@ -1297,8 +1751,93 @@ const Estimates = () => {
     return total;
   };
 
+  // Role-based helper functions
+  const getRoleIcon = () => {
+    switch (profile?.role) {
+      case 'admin': return <Shield className="h-4 w-4 text-blue-600" />;
+      case 'manager': return <Info className="h-4 w-4 text-green-600" />;
+      case 'rep': return <EyeOff className="h-4 w-4 text-orange-600" />;
+      default: return <Info className="h-4 w-4" />;
+    }
+  };
+
+  const getRoleBadgeColor = () => {
+    switch (profile?.role) {
+      case 'admin': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'manager': return 'bg-green-100 text-green-800 border-green-300';
+      case 'rep': return 'bg-orange-100 text-orange-800 border-orange-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
+
+  const getRoleDescription = () => {
+    switch (profile?.role) {
+      case 'admin':
+        return {
+          title: 'Administrator Access',
+          description: 'Full access to all estimates and pricing modifications',
+          restrictions: ['Can modify material prices', 'Can set any profit margin', 'Can view all territories']
+        };
+      case 'manager':
+        return {
+          title: 'Territory Manager Access',
+          description: 'Territory-specific estimate management with pricing restrictions',
+          restrictions: ['Material prices are locked', 'Minimum 30% profit margin', 'Territory-specific data only']
+        };
+      case 'rep':
+        return {
+          title: 'Sales Representative Access',
+          description: 'Package-based estimation with automatic pricing',
+          restrictions: ['Package-based pricing only', 'Fixed profit margins', 'Own estimates only']
+        };
+      default:
+        return {
+          title: 'User Access',
+          description: 'Standard estimation access',
+          restrictions: []
+        };
+    }
+  };
+
+  // Add role-based banner component
+  const RoleBanner = () => {
+    const roleInfo = getRoleDescription();
+    
+    return (
+      <Card className={`border-2 ${getRoleBadgeColor().replace('bg-', 'border-').replace('text-', 'bg-').replace('100', '200')} mb-6`}>
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {getRoleIcon()}
+              <div>
+                <h3 className="font-semibold text-sm">{roleInfo.title}</h3>
+                <p className="text-xs text-muted-foreground">{roleInfo.description}</p>
+              </div>
+            </div>
+            <Badge className={getRoleBadgeColor()}>
+              {profile?.role?.toUpperCase() || 'USER'}
+            </Badge>
+          </div>
+          {roleInfo.restrictions.length > 0 && (
+            <div className="mt-3 pt-3 border-t">
+              <p className="text-xs font-medium mb-1">Role Restrictions:</p>
+              <ul className="text-xs text-muted-foreground space-y-1">
+                {roleInfo.restrictions.map((restriction, index) => (
+                  <li key={index} className="flex items-center gap-1">
+                    <span className="w-1 h-1 bg-current rounded-full"></span>
+                    {restriction}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
-    <MainLayout>
+    <>
       <div className="container mx-auto p-4 max-w-7xl">
         <div className="flex flex-col gap-4">
           <div className="flex justify-between items-center">
@@ -1335,6 +1874,9 @@ const Estimates = () => {
             <p className="text-muted-foreground">Follow the steps below to create a complete estimate</p>
           )}
           
+          {/* Role-based banner */}
+          <RoleBanner />
+          
           <Card>
             <CardContent className="p-6">
               {isLoading ? (
@@ -1348,56 +1890,90 @@ const Estimates = () => {
                   onValueChange={(value) => {
                     console.log(`Tab changing from ${activeTab} to ${value}`);
                     
-                    // Special case for materials tab
-                    if (value === "materials" && measurements) {
-                      console.log("Validating measurements before navigating to materials tab");
-                      // Make sure measurements and areasByPitch are properly set
-                      if (!measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
-                        console.warn("Measurements are missing areasByPitch data, staying on current tab");
-                        toast({
-                          title: "Missing Data",
-                          description: "Please complete the measurements form before selecting materials.",
-                          variant: "destructive"
-                        });
-                        return;
+                    // CRITICAL FIX: Prevent white screen during tab switching
+                    // Use requestAnimationFrame to ensure smooth transition
+                    requestAnimationFrame(() => {
+                      // Special case for materials tab
+                      if (value === "materials" && measurements) {
+                        console.log("Validating measurements before navigating to materials tab");
+                        // Make sure measurements and areasByPitch are properly set
+                        if (!measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+                          console.warn("Measurements are missing areasByPitch data, staying on current tab");
+                          toast({
+                            title: "Missing Data",
+                            description: "Please complete the measurements form before selecting materials.",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
                       }
-                    }
-                    
-                    setActiveTab(value);
-                    console.log(`Tab changed, activeTab is now ${value}`);
+                      
+                      // Batch state updates to prevent multiple renders
+                      requestAnimationFrame(() => {
+                        setActiveTab(value);
+                        // Update stored tab for persistence
+                        if (!isViewMode) {
+                          setStoredActiveTab(value);
+                        }
+                        console.log(`Tab changed, activeTab is now ${value}`);
+                      });
+                    });
                   }} 
                   className="w-full"
-                  defaultValue={isViewMode ? "summary" : "upload"}
+                  defaultValue={isViewMode ? "summary" : "type-selection"}
                 >
-                  <TabsList className="grid grid-cols-5 mb-8">
+                  <TabsList className="grid grid-cols-6 mb-8">
                     {!isViewMode && (
-                      <TabsTrigger value="upload" disabled={false}>
-                        1. Upload EagleView
+                      <TabsTrigger 
+                        id="tab-trigger-type-selection"
+                        value="type-selection" 
+                        disabled={false}
+                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      >
+                        1. Estimate Type
+                      </TabsTrigger>
+                    )}
+                    {!isViewMode && (
+                      <TabsTrigger 
+                        id="tab-trigger-upload"
+                        value="upload" 
+                        disabled={!estimateType}
+                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      >
+                        2. Upload EagleView
                       </TabsTrigger>
                     )}
                     <TabsTrigger 
+                      id="tab-trigger-measurements"
                       value="measurements" 
                       disabled={!isViewMode && !extractedPdfData && !measurements}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
-                      {isViewMode ? "Measurements" : "2. Enter Measurements"}
+                      {isViewMode ? "Measurements" : "3. Enter Measurements"}
                     </TabsTrigger>
                     <TabsTrigger 
+                      id="tab-trigger-materials"
                       value="materials" 
                       disabled={!isViewMode && !measurements}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
-                      {isViewMode ? "Materials" : "3. Select Materials"}
+                      {isViewMode ? "Materials" : "4. Select Materials"}
                     </TabsTrigger>
                     <TabsTrigger 
+                      id="tab-trigger-pricing"
                       value="pricing" 
                       disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
-                      {isViewMode ? "Labor & Profit" : "4. Labor & Profit"}
+                      {isViewMode ? "Labor & Profit" : "5. Labor & Profit"}
                     </TabsTrigger>
                     <TabsTrigger 
+                      id="tab-trigger-summary"
                       value="summary" 
                       disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
-                      {isViewMode ? "Summary" : "5. Summary"}
+                      {isViewMode ? "Summary" : "6. Summary"}
                     </TabsTrigger>
                   </TabsList>
 
@@ -1420,200 +1996,232 @@ const Estimates = () => {
                     </div>
                   )}
 
+                  {activeTab === 'type-selection' && (
+                    <EstimateTypeSelector 
+                      onSelectionComplete={handleEstimateTypeSelection}
+                    />
+                  )}
+
                   {activeTab === 'upload' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
+                        </div>
+                        
+                        <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
+                          <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
+                          <p className="text-sm text-slate-600 mb-4">
+                            Follow these steps to create a complete estimate
+                          </p>
+                          
+                          {/* Show selected estimate type */}
+                          {estimateType && (
+                            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                              <h4 className="font-medium text-blue-900 mb-1">Selected Estimate Type</h4>
+                              <p className="text-sm text-blue-800">
+                                {estimateType === 'roof_only' ? '🏠 Roof Shingles Only' : `🔧 Roof + ${selectedSubtrades.length} Subtrade(s)`}
+                              </p>
+                              {estimateType === 'with_subtrades' && selectedSubtrades.length > 0 && (
+                                <p className="text-xs text-blue-700 mt-1">
+                                  Subtrades: {selectedSubtrades.join(', ')}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
+                          <ol className="space-y-2 text-sm">
+                            <li className="flex items-start gap-2">
+                              <span className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">✓</span>
+                              <span>Estimate Type Selected - {estimateType === 'roof_only' ? 'Standard roofing' : 'Roof + subtrades'}</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
+                              <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
+                              <span>Review Measurements - Verify or enter the roof measurements</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
+                              <span>Select Materials - Choose roofing materials and options</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
+                              <span>Set Labor & Profit - Define labor rates and profit margin</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">6</span>
+                              <span>Review Summary - Finalize and prepare for customer approval</span>
+                            </li>
+                          </ol>
+                        </div>
                       </div>
-                      
-                      <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
-                        <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
-                        <p className="text-sm text-slate-600 mb-4">
-                          Follow these steps to create a complete estimate
-                        </p>
-                        <ol className="space-y-2 text-sm">
-                          <li className="flex items-start gap-2">
-                            <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">1</span>
-                            <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
-                            <span>Review Measurements - Verify or enter the roof measurements</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
-                            <span>Select Materials - Choose roofing materials and options</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
-                            <span>Set Labor & Profit - Define labor rates and profit margin</span>
-                          </li>
-                          <li className="flex items-start gap-2">
-                            <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
-                            <span>Review Summary - Finalize and prepare for customer approval</span>
-                          </li>
-                        </ol>
-                      </div>
-                    </div>
                   )}
                   
                   {activeTab !== 'upload' && (
                     <>
-                      <TabsContent value="measurements">
-                        <MeasurementForm
-                          initialMeasurements={measurements || undefined}
-                          onMeasurementsSaved={handleMeasurementsSaved}
-                          extractedFileName={pdfFileName || undefined}
-                          onBack={() => setActiveTab("upload")}
-                          readOnly={isViewMode}
-                        />
-                      </TabsContent>
+                  <TabsContent value="measurements">
+                    <MeasurementForm
+                      initialMeasurements={measurements || undefined}
+                      onMeasurementsSaved={handleMeasurementsSaved}
+                      extractedFileName={pdfFileName || undefined}
+                      onBack={() => setActiveTab("upload")}
+                      readOnly={isViewMode}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="materials">
+                    {(() => {
+                      // Debug measurements for MaterialsSelectionTab
+                      console.log("About to render MaterialsSelectionTab with measurements:", measurements);
+                      console.log("areasByPitch type:", measurements?.areasByPitch ? (Array.isArray(measurements.areasByPitch) ? "array" : typeof measurements.areasByPitch) : "undefined");
                       
-                      <TabsContent value="materials">
-                        {(() => {
-                          // Debug measurements for MaterialsSelectionTab
-                          console.log("About to render MaterialsSelectionTab with measurements:", measurements);
-                          console.log("areasByPitch type:", measurements?.areasByPitch ? (Array.isArray(measurements.areasByPitch) ? "array" : typeof measurements.areasByPitch) : "undefined");
-                          
-                          if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
-                            return (
-                              <Card>
+                      if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
+                        return (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Missing Measurements</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
+                            </CardContent>
+                            <CardFooter>
+                              <Button onClick={() => setActiveTab("measurements")} variant="outline">Go to Measurements</Button>
+                            </CardFooter>
+                          </Card>
+                        );
+                      } else {
+                        return (
+                          <>
+                            {/* UPDATED: Template Selector Card with Management Options */}
+                            {!isViewMode && (
+                              <Card className="mb-6">
                                 <CardHeader>
-                                  <CardTitle>Missing Measurements</CardTitle>
+                                  <CardTitle>Select Pricing Template</CardTitle>
+                                  <CardDescription>Choose a pricing template to apply to this estimate</CardDescription>
                                 </CardHeader>
-                                <CardContent>
-                                  <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
+                                <CardContent className="space-y-4">
+                                  <div className="flex items-end gap-4">
+                                    <div className="flex-1">
+                                      <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
+                                      <Select
+                                        value={selectedTemplateId || undefined}
+                                        onValueChange={setSelectedTemplateId}
+                                        disabled={isLoadingTemplates || templates.length === 0}
+                                      >
+                                        <SelectTrigger id="template-select" className="w-full">
+                                          <SelectValue placeholder="Select a template" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {templates.map(template => (
+                                            <SelectItem key={template.id} value={template.id}>
+                                              {template.name} {template.is_default && "(Default)"}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    
+                                    {/* Template Action Buttons */}
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        onClick={handleApplyTemplate} 
+                                        disabled={!selectedTemplateId || isLoadingTemplates}
+                                      >
+                                        Apply Template
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        onClick={() => handleOpenTemplateDialog('edit')}
+                                        disabled={!selectedTemplateId || isLoadingTemplates}
+                                      >
+                                        Edit
+                                      </Button>
+                                      <Button 
+                                        variant="secondary" 
+                                        onClick={() => handleOpenTemplateDialog('create')}
+                                        disabled={isLoadingTemplates}
+                                      >
+                                        New Template
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  {isLoadingTemplates && (
+                                    <div className="flex items-center justify-center py-2">
+                                      <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
+                                      <p className="text-sm text-muted-foreground">Loading template data...</p>
+                                    </div>
+                                  )}
+                                  {selectedTemplateData && (
+                                    <div className="text-sm text-muted-foreground">
+                                      <p>Template: <span className="font-medium">{selectedTemplateData.name}</span></p>
+                                      <p>Materials: {selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</p>
+                                      {selectedTemplateData.description && (
+                                        <p>Description: {selectedTemplateData.description}</p>
+                                      )}
+                                    </div>
+                                  )}
                                 </CardContent>
-                                <CardFooter>
-                                  <Button onClick={() => setActiveTab("measurements")} variant="outline">Go to Measurements</Button>
-                                </CardFooter>
                               </Card>
-                            );
-                          } else {
-                            return (
-                              <>
-                                {/* UPDATED: Template Selector Card with Management Options */}
-                                {!isViewMode && (
-                                  <Card className="mb-6">
-                                    <CardHeader>
-                                      <CardTitle>Select Pricing Template</CardTitle>
-                                      <CardDescription>Choose a pricing template to apply to this estimate</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
-                                      <div className="flex items-end gap-4">
-                                        <div className="flex-1">
-                                          <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
-                                          <Select
-                                            value={selectedTemplateId || undefined}
-                                            onValueChange={setSelectedTemplateId}
-                                            disabled={isLoadingTemplates || templates.length === 0}
-                                          >
-                                            <SelectTrigger id="template-select" className="w-full">
-                                              <SelectValue placeholder="Select a template" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {templates.map(template => (
-                                                <SelectItem key={template.id} value={template.id}>
-                                                  {template.name} {template.is_default && "(Default)"}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </div>
-                                        
-                                        {/* Template Action Buttons */}
-                                        <div className="flex gap-2">
-                                          <Button 
-                                            onClick={handleApplyTemplate} 
-                                            disabled={!selectedTemplateId || isLoadingTemplates}
-                                          >
-                                            Apply Template
-                                          </Button>
-                                          <Button 
-                                            variant="outline" 
-                                            onClick={() => handleOpenTemplateDialog('edit')}
-                                            disabled={!selectedTemplateId || isLoadingTemplates}
-                                          >
-                                            Edit
-                                          </Button>
-                                          <Button 
-                                            variant="secondary" 
-                                            onClick={() => handleOpenTemplateDialog('create')}
-                                            disabled={isLoadingTemplates}
-                                          >
-                                            New Template
-                                          </Button>
-                                        </div>
-                                      </div>
-                                      {isLoadingTemplates && (
-                                        <div className="flex items-center justify-center py-2">
-                                          <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
-                                          <p className="text-sm text-muted-foreground">Loading template data...</p>
-                                        </div>
-                                      )}
-                                      {selectedTemplateData && (
-                                        <div className="text-sm text-muted-foreground">
-                                          <p>Template: <span className="font-medium">{selectedTemplateData.name}</span></p>
-                                          <p>Materials: {selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</p>
-                                          {selectedTemplateData.description && (
-                                            <p>Description: {selectedTemplateData.description}</p>
-                                          )}
-                                        </div>
-                                      )}
-                                    </CardContent>
-                                  </Card>
-                                )}
-                                
-                                {/* MaterialsSelectionTab component remains the same */}
-                                <MaterialsSelectionTab
-                                  key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
-                                  measurements={measurements}
-                                  selectedMaterials={selectedMaterials}
-                                  quantities={quantities}
-                                  onMaterialsUpdate={handleMaterialsUpdate}
-                                  readOnly={isViewMode}
-                                />
-                              </>
-                            );
-                          }
-                        })()}
-                      </TabsContent>
-                      
-                      <TabsContent value="pricing">
-                        <LaborProfitTab
-                          key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
-                          measurements={measurements!}
-                          selectedMaterials={selectedMaterials}
-                          quantities={quantities}
-                          initialLaborRates={laborRates}
-                          initialProfitMargin={profitMargin}
-                          onLaborProfitContinue={handleLaborProfitContinue}
-                          onBack={() => setActiveTab("materials")}
-                          readOnly={isViewMode}
-                        />
-                      </TabsContent>
-                      
-                      <TabsContent value="summary">
-                        <EstimateSummaryTab
-                          measurements={measurements || undefined}
-                          selectedMaterials={selectedMaterials}
-                          quantities={quantities}
-                          laborRates={laborRates}
-                          profitMargin={profitMargin}
-                          peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
-                          onFinalizeEstimate={handleFinalizeEstimate} 
-                          isSubmitting={isSubmittingFinal} 
-                          estimate={estimateData} 
-                          isReviewMode={isViewMode}
-                          calculateLiveTotal={calculateLiveEstimateTotal}
-                          onEstimateUpdated={() => { 
-                            fetchEstimatesData(); 
-                            if (estimateId) { 
-                              fetchEstimateData(estimateId);
-                            }
-                          }}
-                        />
-                      </TabsContent>
+                            )}
+                            
+                            {/* MaterialsSelectionTab component remains the same */}
+                            <MaterialsSelectionTab
+                              key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
+                              measurements={measurements}
+                              selectedMaterials={selectedMaterials}
+                              quantities={quantities}
+                              onMaterialsUpdate={handleMaterialsUpdate}
+                              readOnly={isViewMode}
+                              isAdminEditMode={isAdminEditMode}
+                              originalCreator={originalCreator}
+                              originalCreatorRole={originalCreatorRole}
+                            />
+                          </>
+                        );
+                      }
+                    })()}
+                  </TabsContent>
+                  
+                  <TabsContent value="pricing">
+                    <LaborProfitTab
+                      key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
+                      measurements={measurements!}
+                      selectedMaterials={selectedMaterials}
+                      quantities={quantities}
+                      initialLaborRates={laborRates}
+                      initialProfitMargin={profitMargin}
+                      onLaborProfitContinue={handleLaborProfitContinue}
+                      onBack={() => setActiveTab("materials")}
+                      readOnly={isViewMode}
+                      isAdminEditMode={isAdminEditMode}
+                      originalCreator={originalCreator}
+                      originalCreatorRole={originalCreatorRole}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="summary">
+                    <EstimateSummaryTab
+                      measurements={measurements || undefined}
+                      selectedMaterials={selectedMaterials}
+                      quantities={quantities}
+                      laborRates={laborRates}
+                      profitMargin={profitMargin}
+                      peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
+                      onFinalizeEstimate={handleFinalizeEstimate} 
+                      isSubmitting={isSubmittingFinal} 
+                      estimate={estimateData} 
+                      isReviewMode={isViewMode}
+                      calculateLiveTotal={calculateLiveEstimateTotal}
+                      onEstimateUpdated={() => { 
+                        fetchEstimatesData(); 
+                        if (estimateId) { 
+                          fetchEstimateData(estimateId);
+                        }
+                      }}
+                    />
+                  </TabsContent>
                     </>
                   )}
                 </Tabs>
@@ -1621,21 +2229,13 @@ const Estimates = () => {
 
               {/* Add Continue buttons at the bottom of each tab */}
               <div className="flex justify-between mt-8">
-                {activeTab !== "upload" && (
+                {activeTab !== "type-selection" && (
                   <Button 
                     variant="outline" 
                     onClick={() => {
-                      const tabOrder = ["upload", "measurements", "materials", "pricing", "summary"];
+                      const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
                       const currentIndex = tabOrder.indexOf(activeTab);
                       if (currentIndex > 0) {
-                        // Special handling when going back FROM pricing TO materials
-                        if (activeTab === 'pricing' && handleLaborProfitContinue) {
-                            // Call onLaborProfitContinue to ensure latest labor rates are synced before leaving
-                            // This assumes onLaborProfitContinue is designed to just sync data without navigating if called this way
-                            // Or, ensure data is already synced via its internal useEffect in LaborProfitTab
-                            console.log("Back from Pricing: ensuring labor/profit data is synced.");
-                            // handleLaborProfitContinue(laborRates, profitMargin); // This might be too aggressive or cause loops
-                        }
                         setActiveTab(tabOrder[currentIndex - 1]);
                       }
                     }}
@@ -1648,13 +2248,24 @@ const Estimates = () => {
                   <Button 
                     className="ml-auto"
                     onClick={() => {
-                      const tabOrder = ["upload", "measurements", "materials", "pricing", "summary"];
+                      const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
                       const currentIndex = tabOrder.indexOf(activeTab);
 
                       if (currentIndex < tabOrder.length - 1) {
                         const nextTab = tabOrder[currentIndex + 1];
                         
                         // Validations before navigating FROM a specific tab
+                        if (activeTab === 'type-selection') {
+                          if (!estimateType) {
+                            toast({ 
+                              title: "No Estimate Type Selected", 
+                              description: "Please select an estimate type to continue.",
+                              variant: "destructive"
+                            });
+                            return; 
+                          }
+                        }
+                        
                         if (activeTab === 'materials') {
                           if (Object.keys(selectedMaterials).length === 0) {
                             toast({ 
@@ -1695,6 +2306,7 @@ const Estimates = () => {
                       }
                     }}
                     disabled={ // Review and adjust disabled logic as needed
+                      (activeTab === "type-selection" && !estimateType) ||
                       (activeTab === "upload" && !extractedPdfData) ||
                       (activeTab === "measurements" && !measurements) ||
                       (activeTab === "materials" && Object.keys(selectedMaterials).length === 0) ||
@@ -1837,7 +2449,7 @@ const Estimates = () => {
                               templateFormData.name
                       })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger id="presetPackageType">
                         <SelectValue placeholder="Select a predefined package" />
                       </SelectTrigger>
                       <SelectContent>
@@ -1888,7 +2500,7 @@ const Estimates = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </>
   );
 };
 

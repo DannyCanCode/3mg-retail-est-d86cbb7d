@@ -1,188 +1,226 @@
-# 3MG Retail Roofing Estimator
+# 3MG Roofing Estimator - Admin & Manager Release
 
-A modern roofing estimation tool for 3MG Retail Roofing.
+This is a production-ready version of the 3MG Roofing Estimator, focused on providing immediate, stable functionality for Admins and Territory Managers.
 
-## Features
+## 🚀 **Deployment & Access**
 
-### Dashboard
-- Overview of estimate counts and statuses
-- Quick access to recent estimates
-- EagleView PDF uploader for measurements extraction
+This version is deployed on Netlify from the `release/admin-estimator-v1` branch.
 
-### Estimates
-- Create detailed roofing estimates with material selections
-- Select from GAF or other manufacturer packages
-- Configure labor rates and profit margins
-- View and manage all estimate statuses (Draft, Pending, Approved, Rejected)
-
-### Measurements
-- View all properties with extracted measurements from EagleView reports
-- Detailed breakdown of roof areas by pitch
-- Comprehensive roof measurements including ridges, hips, valleys, eaves, and rakes
-- Create new estimates directly from measurement data
-- Export measurement data for offline use or sharing
-
-### Pricing Templates
-- Create and manage pricing templates with default material selections
-- Customize labor rates, profit margins, and permit fees
-- Duplicate templates to create variations for different project types
-- Apply templates during estimate creation for faster workflow
-
-## Getting Started
-
-### Installation
-
-```bash
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-### Configuration
-
-The application connects to a Supabase backend for data storage. Configure your environment variables:
-
-```
-VITE_SUPABASE_URL=your-supabase-url
-VITE_SUPABASE_ANON_KEY=your-supabase-key
-```
-
-## Workflow
-
-1. Upload an EagleView PDF to extract measurements
-2. Review the measurements in the Measurements tab
-3. Create a new estimate from the measurements
-4. Select materials and configure pricing
-5. Save the estimate and share with the customer
-
-## Technologies
-
-- React + TypeScript
-- Vite for development and building
-- Shadcn UI components
-- Supabase for backend storage
-- PDF.js for PDF parsing
-
-## License
-
-[MIT](LICENSE)
-
-## Project info
-
-
-## How can I edit this code?
-
-There are several ways of editing your application.
-
-
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+### **Authentication**
+- **Registration**: `/register` - Managers can self-register with their `@3mgroofing.com` email and password.
+- **Email Confirmation**: New users must confirm their email address before logging in.
+- **Login**: `/login` - Standard email and password login.
+- **Admin Access**: Admins are created via the Supabase dashboard and have full system access.
 
 ---
 
-## Project Roadmap (as of 6/10/2025)
+## ✅ **Core Features**
 
-This section outlines the strategic initiatives for the 3MG Estimating Tool, based on business goals and recent development analysis. Our primary goal is to prepare the tool for a company-wide rollout by July.
+### **1. Role-Based Permissions**
+- **Admins**: Full control over all estimates, pricing, users, and territories.
+- **Managers**: Can create estimates, approve/reject estimates within their assigned territory, and have a restricted profit margin of 30-35%.
 
-### 📍 Initiative 1: Core Logic & Foundational Fixes (Immediate Priority)
+### **2. Estimate Workflow**
+- Create, edit, and manage detailed roofing estimates.
+- Territory-based approval workflow for managers.
+- Real-time updates for new estimates and status changes.
 
-These are critical issues that must be addressed to ensure the accuracy and reliability of the platform.
+### **3. Pricing & Materials**
+- Admins can manage material prices and pricing templates.
+- **Managers cannot change material prices.**
+- Profit margins are enforced based on user role.
 
-- **[x] Change Profit Calculation from Markup to Margin:**
-  - **Task:** Update the core profit calculation formula.
-  - **Context:** This is a fundamental business logic change requested by the GM.
-  - **Action:** Identify the current formula and change it to the correct margin formula.
+### **4. User & Territory Management**
+- Admins can invite new users and assign them to roles and territories.
+- A simplified user management interface for admins.
 
-- **[x] Fix Flat Roof Labor & Waste Calculations:**
-  - **Task:** Correct the labor and material waste calculations specifically for low-slope/flat roof areas.
-  - **Context:** Essential for generating accurate material orders from "sold" estimates.
+---
 
-- **[ ] Resolve Preset Bundle Application Bug:**
-  - **Task:** Debug the state management issue in the `MaterialsSelectionTab` component.
-  - **Context:** Our E2E test has confirmed that applying a material preset does not correctly update the UI. This is a critical bug.
-  - **Action:** Fix the state flow between `Estimates.tsx` and `MaterialsSelectionTab.tsx`.
+## 🚨 **PRODUCTION URGENCY FIXES - RELEASE ADMIN v1**
 
-### 📱 Initiative 2: Mobile-First Responsive UI (High Priority)
+### **Critical Issues Requiring Immediate Fix**
 
-To support reps in the field, the application must be fully functional and easy to use on mobile phones and tablets.
+#### **Issue #1: Wording Consistency - "Approve" → "Accepted"**
+- **Problem**: Finalized estimates show "Approve" which is confusing
+- **Solution**: Replace all instances of "Approve" with "Accepted" for finalized estimates
+- **Files to Update**:
+  - `src/components/ui/EstimateCard.tsx` - Button text and dialog titles
+  - `src/components/estimates/pricing/EstimateSummaryTab.tsx` - Approve button/dialog
+  - `src/components/dashboard/RecentEstimates.tsx` - Button text and tabs
+  - `src/pages/ManagerDashboard.tsx` - Button text and status displays
+  - `src/pages/SalesRepDashboard.tsx` - Tab labels and status text
+  - `src/components/dashboard/DashboardOverview.tsx` - Metric labels
+  - `src/components/estimates/AuditTrail.tsx` - Status icons and badges
+- **Priority**: HIGH - User Experience
 
-- **[ ] Comprehensive UI Audit & Refactoring:**
-  - **Task:** Systematically review every view and component, ensuring it is responsive and usable on small screens.
-  - **Priority Areas:**
-    - The 5-step estimate workflow (tabs may become a stepper or dropdown on mobile).
-    - Data tables (columns should stack vertically).
-    - All forms and buttons must be easily tappable.
+#### **Issue #2: Input Field Typing Restrictions**
+- **Problem**: Several input fields only allow one integer at a time instead of full numbers
+- **Affected Fields**:
+  - Labor and Profit tab: `gutterLinearFeet` input (Line 756-759)
+  - Labor and Profit tab: `downspoutCount` input (Line 830-833)
+  - Labor and Profit tab: `skylights2x2Count` input (Line 889-892)
+  - Labor and Profit tab: `skylights2x4Count` input (Line 902+)
+  - Waste factor: `wastePercentage` input (Line 1059-1061)
+- **Root Cause**: Likely `maxLength={1}` or incorrect input event handling
+- **Solution**: Review input field configurations in `LaborProfitTab.tsx` and remove typing restrictions
+- **Files to Fix**:
+  - `src/components/estimates/pricing/LaborProfitTab.tsx` - All quantity/percentage inputs
+- **Priority**: HIGH - Functional Blocker
 
-### ✨ Initiative 3: Future Feature Development
+#### **Issue #3: Material Categories Reorganization**
+- **Problem**: "Full W.W Peel & Stick System" needs to be moved from Warranties to UNDERLAYMENTS
+- **Solution**: Move "Full W.W Peel & Stick System" to be the first option in UNDERLAYMENTS section
+- **Changes Required**:
+  - Remove "Full W.W Peel & Stick System" from Warranties section
+  - Add "Full W.W Peel & Stick System" as the first option in UNDERLAYMENTS accordion
+  - Ensure proper material categorization logic
+- **Files to Update**:
+  - `src/components/estimates/warranties/WarrantySelector.tsx` - Remove peel stick from warranties
+  - `src/components/estimates/materials/MaterialsSelectionTab.tsx` - Add to UNDERLAYMENTS section
+  - Material categorization logic in material utils
+- **Priority**: MEDIUM - Organization & UX
 
-These are longer-term goals to be addressed after the initial rollout.
+#### **Issue #4: Save Measurements Feedback Enhancement**
+- **Problem**: Users don't get clear confirmation when measurements are saved
+- **Current Issues**:
+  - Toast messages don't appear on all screens  
+  - No visual button feedback after successful save
+- **Solution**: 
+  - Ensure toast messages appear consistently across all screen sizes
+  - Make "Save Measurements" button turn green after successful save
+  - Add button state management (saving → success → reset)
+  - Maintain existing functionality without breaking anything
+- **Files to Update**:
+  - `src/components/upload/PdfUploader.tsx` - "Save Measurements" button (Line 248)
+  - `src/components/estimates/measurement/ReviewTab.tsx` - Button text and state (Line 142)
+  - `src/components/estimates/measurement/MeasurementForm.tsx` - Save logic and toast handling
+  - `src/hooks/useMeasurementStorage.ts` - Storage callback handling
+- **Priority**: HIGH - User Feedback
 
-- **[ ] Customer-Facing PDF Proposal Generation:**
-  - **Task:** Create a feature to generate a "blue chip / white glove" PDF of the final estimate.
-  - **Context:** A key request from the marketing team to enhance the customer experience.
+#### **Issue #5: Navigation/Caching State Persistence**
+- **Problem**: Estimate creation progress is lost when switching tabs
+- **Impact**: Users (Jay, admins, managers) lose upload progress and data
+- **Solution**: Implement proper state caching for estimate creation flow
+- **Requirements**:
+  - Preserve upload progress during tab navigation
+  - Maintain form data across tab switches
+  - Keep user's current view/state intact
+- **Technical Approach**:
+  - Implement localStorage or sessionStorage caching
+  - Add state persistence hooks
+  - Ensure data recovery on tab return
+- **Files to Impact**:
+  - Estimate creation flow components
+  - Upload state management
+  - Navigation routing
+- **Priority**: CRITICAL - Data Loss Prevention
 
-- **[ ] Customer & Estimate Management (CRM-Lite):**
-  - **Task:** Allow associating estimates with specific customers.
+#### **Issue #6: JHagan Account Fix**
+- **Problem**: JHagan account had null job title in Supabase
+- **Solution**: ✅ MANUALLY FIXED - Set to "administrator"
+- **Follow-up**: Test login functionality
+- **Priority**: MEDIUM - Account Access
 
-- **[ ] Expand Sub-Trade Support:**
-  - **Task:** Add features for Stucco, siding, painting, solar D&R, screen replacements estimates.
+#### **Issue #7: SHINGLES Accordion Default Closed State**
+- **Problem**: SHINGLES accordion is open by default when users reach Select Materials tab
+- **Solution**: Set SHINGLES accordion to be closed by default for cleaner UX
+- **Changes Required**:
+  - Modify accordion default state to have SHINGLES section collapsed by default
+  - Keep all material categories (SHINGLES, UNDERLAYMENTS, LOW_SLOPE, METAL, VENTILATION, ACCESSORIES) collapsed by default
+  - Users can click to open any section they need
+- **Files to Update**:
+  - `src/components/estimates/materials/MaterialsSelectionTab.tsx` - Accordion default state
+  - Material category accordion component logic
+- **Priority**: LOW - UX Enhancement
 
-- **[ ] Tile & Metal Roofing Functionality:**
-  - **Task:** Add support for different roofing material types, we have shingle now we need metal/tile. 
-  
-- **[ ] API Integrations:**
-  - **Task:** Plan for future integrations with AccuLynx, ServiceTitan, and measurement report providers.
+#### **Issue #8: GAF Package Selection Redundancy Review**
+- **Problem**: Redundancy between GAF1 Basic Package and GAF2 Premium Package selection and warranty options
+- **Solution**: Review and streamline the GAF package + warranty selection flow
+- **Investigation Required**:
+  - Analyze current GAF package selection flow (two big squares at top)
+  - Review warranty options section relationship to packages
+  - Determine optimal user flow for package + warranty selection
+- **Files to Review**:
+  - `src/components/estimates/packages/GAFPackageSelector.tsx`
+  - `src/components/estimates/warranties/WarrantySelector.tsx`
+  - Package selection workflow logic
+- **Priority**: LOW - UX Optimization
 
-### 🧪 Initiative 4: Solidify Testing Framework
+---
 
-A robust testing suite is non-negotiable for an enterprise platform. It ensures we can add features without breaking existing functionality.
+### **🚀 IMPLEMENTATION TIMELINE**
 
-- **[ ] Complete and Fix the "Golden Path" E2E Test:**
-  - **Task:** Once the preset bundle bug is fixed, get the `create-estimate.spec.ts` test to pass reliably.
-  - **Context:** This test validates the entire core user journey.
-  
-- **[ ] Add Unit Tests for Core Calculations:**
-  - **Task:** Implement unit tests for functions like `calculateMaterialQuantity` and `calculateFinalCosts`.
-  - **Context:** These tests are fast and ensure our core business logic is always mathematically correct.
+#### **Phase 1: Critical Functional Fixes (Day 1)**
+1. **Input Field Typing Restrictions** (Issue #2) - 2 hours
+2. **Save Measurements Feedback** (Issue #4) - 3 hours  
+3. **Approve → Accepted Wording** (Issue #1) - 2 hours
+
+#### **Phase 2: UX Improvements (Day 2)**
+4. **Material Categories Reorganization** (Issue #3) - 3 hours
+5. **SHINGLES Accordion Default Closed** (Issue #7) - 1 hour
+6. **Navigation/Caching State Persistence** (Issue #5) - 4-6 hours
+
+#### **Phase 3: Testing & Deployment (Day 3)**
+7. **Comprehensive Testing** - All scenarios with Jay's account
+8. **Production Deployment** - Release to admin users
+
+#### **Future Considerations (Post-Release)**
+- **GAF Package Selection Redundancy Review** (Issue #8) - For next sprint after user feedback
+
+---
+
+### **🧪 TESTING CHECKLIST**
+
+#### **Pre-Deployment Testing Requirements:**
+- [ ] **Input Fields**: Test all quantity inputs can accept multi-digit numbers
+- [ ] **Button Feedback**: Verify "Save Measurements" turns green after save
+- [ ] **Toast Messages**: Confirm toasts appear on all screen sizes
+- [ ] **Wording Changes**: Verify all "Approve" text changed to "Accepted"
+- [ ] **Material Categories**: Confirm "Full W.W Peel & Stick System" moved to first option in UNDERLAYMENTS section
+- [ ] **SHINGLES Accordion**: Verify SHINGLES section is closed by default in Select Materials tab
+- [ ] **State Persistence**: Test estimate creation flow maintains data across tab switches
+- [ ] **Account Access**: Verify JHagan can login successfully
+- [ ] **Regression Testing**: Ensure existing functionality still works (estimate creation, PDF upload, pricing calculations)
+
+#### **User Acceptance Testing:**
+- [ ] **Jay's Account**: Complete estimate creation flow from start to finish
+- [ ] **Admin Functions**: Test all admin dashboard features
+- [ ] **Manager Functions**: Test territory-based estimate approval workflow
+- [ ] **Cross-Browser**: Test on Chrome, Safari, Edge (fix previous Edge issues)
+- [ ] **Mobile/Tablet**: Verify responsive design works on various screen sizes
+
+---
+
+## 📋 **Next Sprint: Enhancements & Polish**
+
+### **Priority 1: Subtrade Workflow**
+- **Objective**: Integrate subtrade pricing and management into the estimate process.
+- **Tasks**:
+  1.  **Meet with Subtrade Team**: Finalize the list of services and their pricing models.
+  2.  **Subtrade Manager Role**: Create a new `subtrade_manager` role with a dedicated dashboard to view and price requested jobs.
+  3.  **UI Integration**: Add a "Request Subtrade Pricing" button to the estimate creation flow.
+  4.  **Notifications**: Implement real-time notifications to alert subtrade managers of new requests.
+
+### **Priority 2: Client-Facing PDF Generation**
+- **Objective**: Create a professional, customer-facing PDF proposal.
+- **Tasks**:
+  1.  **Finalize Marketing Template**: Incorporate the theme, colors, and terms provided by the marketing team.
+  2.  **Implement PDF Generation**: Use a Supabase Edge Function to generate the PDF from the client-safe estimate data.
+  3.  **"Download Proposal" Button**: Add a button to the estimate summary for managers and admins to download the final PDF.
+
+### **Priority 3: Mobile Experience**
+- **Objective**: Ensure a seamless experience for managers and admins on tablets and mobile devices.
+- **Tasks**:
+  1.  **Full Responsive Audit**: Test and refine all components on various screen sizes.
+  2.  **Touch-Friendly UI**: Increase tap targets and ensure easy navigation on mobile.
+  3.  **Performance Optimization**: Optimize image sizes and lazy-load components for faster mobile loading.
+
+### **Priority 4: Testing & QA**
+- **Objective**: Ensure the stability and reliability of the platform.
+- **Tasks**:
+  1.  **E2E Testing**: Create Playwright tests for the core admin and manager workflows (login → create estimate → approve).
+  2.  **Unit Testing**: Add unit tests for critical business logic, such as the estimate calculation engine.
+
+---
+
+This README provides a clear overview of the current release and a detailed plan for the upcoming sprints. Let me know if you'd like any adjustments.

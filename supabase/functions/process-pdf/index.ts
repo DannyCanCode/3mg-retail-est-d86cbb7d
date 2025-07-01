@@ -2,6 +2,7 @@
 // https://deno.land/manual/examples/deploy_node_server
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import * as Sentry from "https://deno.land/x/sentry_deno@0.7.0/mod.ts";
 
 interface ProcessPdfRequest {
   fileUrl: string;
@@ -32,6 +33,12 @@ interface ParsedMeasurements {
   areasByPitch: Record<string, number>;
   [key: string]: any;
 }
+
+Sentry.init({
+  dsn: Deno.env.get("SENTRY_DSN") || "",
+  tracesSampleRate: 0.2,
+  environment: Deno.env.get("SENTRY_ENV") || "development",
+});
 
 serve(async (req) => {
   // Handle CORS
@@ -231,6 +238,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error('Error processing PDF:', error);
+    Sentry.captureException(error);
     
     return new Response(
       JSON.stringify({ error: `Error processing PDF: ${error.message}` }),

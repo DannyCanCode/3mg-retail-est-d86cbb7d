@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, CheckCircle2, Loader2, Save } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MeasurementValues } from "./types";
+import { toast } from "@/hooks/use-toast";
 
 interface ReviewTabProps {
   measurements: MeasurementValues;
@@ -19,24 +20,57 @@ export function ReviewTab({
   goToPreviousTab,
   onSubmit,
 }: ReviewTabProps) {
+  // Add save state management
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  
   // Calculate totals
   const totalSquares = Math.round(measurements.totalArea / 100 * 10) / 10;
   
   // Prepare the final measurement object with all required properties
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Make sure propertyAddress is included
-    const finalMeasurements = {
-      ...measurements,
-      // Add a default propertyAddress if none exists
-      propertyAddress: measurements.propertyAddress || "Manual Entry"
-    };
-    
-    console.log("Enhanced measurements with address:", finalMeasurements);
-    
-    // Submit with the original event
-    onSubmit(e);
+    try {
+      setSaveState('saving');
+      
+      // Make sure propertyAddress is included
+      const finalMeasurements = {
+        ...measurements,
+        // Add a default propertyAddress if none exists
+        propertyAddress: measurements.propertyAddress || "Manual Entry"
+      };
+      
+      console.log("Enhanced measurements with address:", finalMeasurements);
+      
+      // Submit with the original event
+      await onSubmit(e);
+      
+      // Set success state
+      setSaveState('success');
+      toast({
+        title: "Success!",
+        description: "Measurements saved successfully.",
+      });
+      
+      // Reset to idle after a delay to show success state
+      setTimeout(() => {
+        setSaveState('idle');
+      }, 2000);
+      
+    } catch (error) {
+      console.error("Error saving measurements:", error);
+      setSaveState('error');
+      toast({
+        title: "Save failed",
+        description: "Failed to save measurements. Please try again.",
+        variant: "destructive",
+      });
+      
+      // Reset to idle after showing error
+      setTimeout(() => {
+        setSaveState('idle');
+      }, 3000);
+    }
   };
   
   return (
@@ -138,9 +172,32 @@ export function ReviewTab({
         <Button 
           type="button" 
           onClick={handleSubmit}
-          disabled={isSubmitting}
+          disabled={isSubmitting || saveState === 'saving'}
+          className={
+            saveState === 'success' 
+              ? 'bg-green-600 hover:bg-green-700 border-green-600' 
+              : saveState === 'error'
+              ? 'bg-red-600 hover:bg-red-700 border-red-600'
+              : ''
+          }
         >
-          {isSubmitting ? "Saving..." : "Save Measurements"}
+          {isSubmitting || saveState === 'saving' ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...
+            </>
+          ) : saveState === 'success' ? (
+            <>
+              <CheckCircle2 className="h-4 w-4 mr-2" /> Saved Successfully!
+            </>
+          ) : saveState === 'error' ? (
+            <>
+              <Save className="h-4 w-4 mr-2" /> Retry Save
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" /> Save Measurements
+            </>
+          )}
         </Button>
       </CardFooter>
     </Card>

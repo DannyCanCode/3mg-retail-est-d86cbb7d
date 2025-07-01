@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,9 +12,16 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
-// Import the API functions (we'll create these later)
-import { getPricingTemplates, createPricingTemplate, updatePricingTemplate, deletePricingTemplate } from "@/api/pricing-templates";
+// Import the API functions and the unified type
+import { 
+  getPricingTemplates, 
+  createPricingTemplate, 
+  updatePricingTemplate, 
+  deletePricingTemplate,
+  PricingTemplate // Import the type
+} from "@/api/pricing-templates";
 // Import our utility to create the updated default template
 import { createDefaultTemplate } from "@/utils/create-default-template";
 
@@ -24,29 +30,17 @@ import { Material, MaterialCategory } from "@/components/estimates/materials/typ
 import { LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
 import { ROOFING_MATERIALS } from "@/components/estimates/materials/data";
 
-// Template type definition
-interface PricingTemplate {
-  id?: string;
-  name: string;
-  description: string;
-  materials: {[key: string]: Material};
-  quantities: {[key: string]: number};
-  labor_rates: LaborRates;
-  profit_margin: number;
-  created_at?: string;
-  updated_at?: string;
-  is_default?: boolean;
-}
-
 // Material Editor component for editing material properties in a template
 const MaterialEditor = ({ 
   materials, 
   quantities, 
-  onUpdate 
+  onUpdate,
+  readOnly = false
 }: { 
   materials: {[key: string]: Material}, 
   quantities: {[key: string]: number},
-  onUpdate: (materials: {[key: string]: Material}, quantities: {[key: string]: number}) => void
+  onUpdate: (materials: {[key: string]: Material}, quantities: {[key: string]: number}) => void,
+  readOnly?: boolean
 }) => {
   const [editedMaterials, setEditedMaterials] = useState<{[key: string]: Material}>(materials);
   const [editedQuantities, setEditedQuantities] = useState<{[key: string]: number}>(quantities);
@@ -151,6 +145,7 @@ const MaterialEditor = ({
                       step="0.01"
                       value={editedMaterials[material.id]?.price || 0}
                       onChange={(e) => handlePriceChange(material.id, e.target.value)}
+                      disabled={readOnly}
                     />
                   </div>
                   
@@ -163,6 +158,7 @@ const MaterialEditor = ({
                       min="0"
                       value={editedQuantities[material.id] || 0}
                       onChange={(e) => handleQuantityChange(material.id, e.target.value)}
+                      disabled={readOnly}
                     />
                   </div>
                 </div>
@@ -178,6 +174,8 @@ const MaterialEditor = ({
 const Pricing = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { profile } = useAuth();
+  const isManager = profile?.role === 'manager';
   
   // State for templates
   const [templates, setTemplates] = useState<PricingTemplate[]>([]);
@@ -228,141 +226,6 @@ const Pricing = () => {
       });
     } finally {
       setLoading(false);
-    }
-  };
-  
-  const createDefaultTemplate = async () => {
-    // Create a default template with the current materials and pricing logic
-    const defaultTemplate: PricingTemplate = {
-      name: "Standard GAF Package",
-      description: "Default pricing template with comprehensive GAF materials and standard labor rates",
-      materials: {},
-      quantities: {},
-      labor_rates: {
-        laborRate: 85,
-        isHandload: false,
-        handloadRate: 15,
-        dumpsterLocation: "orlando",
-        dumpsterCount: 1,
-        dumpsterRate: 400,
-        includePermits: true,
-        permitRate: 550,
-        pitchRates: {},
-        wastePercentage: 12
-      },
-      profit_margin: 25,
-      is_default: true
-    };
-    
-    // Comprehensive list of materials by category from current estimation workflow
-    const materialsByCategory = {
-      // Shingles category
-      shingles: [
-        "gaf-timberline-hdz-sg",
-        "gaf-seal-a-ridge", 
-        "gaf-prostart-starter-shingle-strip",
-        "oc-oakridge",
-        "oc-duration",
-        "oc-hip-ridge",
-        "oc-starter"
-      ],
-      // Underlayments category
-      underlayments: [
-        "abc-pro-guard-20",
-        "gaf-weatherwatch-ice-water-shield", 
-        "gaf-feltbuster-synthetic-underlayment",
-        "maxfelt-nc",
-        "rhino-synthetic",
-        "poly-glass-irxe",
-        "rhino-g-ps",
-        "polyglass-elastoflex-sbs",
-        "polyglass-polyflex-app"
-      ],
-      // Ventilation category
-      ventilation: [
-        "gaf-cobra-ridge-vent",
-        "gaf-cobra-rigid-vent",
-        "galvanized-steel-off-ridge-vent"
-      ],
-      // Metal components
-      metal: [
-        "drip-edge-26ga",
-        "millennium-galvanized-drip-edge",
-        "millennium-galvanized-rake-edge",
-        "millennium-galvanized-wall-flashing",
-        "millennium-galvanized-step-flashing",
-        "millennium-galvanized-counter-flashing",
-        "millennium-galvanized-valley-metal",
-        "aluminum-eave-drip-edge",
-        "valley-metal-26ga"
-      ],
-      // Low slope materials
-      lowSlope: [
-        "gaf-poly-iso-4x8"
-      ],
-      // Accessories
-      accessories: [
-        "nails-roofing-1.75in",
-        "gaf-tigerguard-starter",
-        "black-roof-mastic",
-        "synthetic-oil-caulk",
-        "silver-ultraflash-aluminum-caulk",
-        "lumber-2x4-8ft",
-        "lumber-2x6-8ft",
-        "lumber-2x8-8ft"
-      ]
-    };
-    
-    // Add all materials to the template with appropriate quantities
-    Object.entries(materialsByCategory).forEach(([category, materialIds]) => {
-      console.log(`Adding ${materialIds.length} materials from category ${category}`);
-      
-      materialIds.forEach(id => {
-        const material = ROOFING_MATERIALS.find(m => m.id === id);
-        if (material) {
-          defaultTemplate.materials[id] = material;
-          
-          // Set sensible default quantities based on material type and category
-          let defaultQuantity = 1;
-          
-          // Adjust quantities for common material types based on coverage rules
-          if (material.coverageRule.description.includes("Bundle")) {
-            defaultQuantity = 3; // Most shingle bundles come in threes for a square
-          } else if (material.unit === "Roll" && material.coverageRule.description.includes("Squares/Roll")) {
-            defaultQuantity = 1; // Default for rolls
-          } else if (material.id.includes("flashing") || material.id.includes("drip-edge")) {
-            defaultQuantity = 5; // Common number of metal pieces
-          } else if (material.category === MaterialCategory.VENTILATION) {
-            defaultQuantity = 2; // Ventilation items
-          } else if (material.category === MaterialCategory.ACCESSORIES) {
-            defaultQuantity = material.id.includes("nail") ? 5 : 2; // Nails vs. other accessories
-          }
-          
-          defaultTemplate.quantities[id] = defaultQuantity;
-        } else {
-          console.warn(`Material ${id} not found in ROOFING_MATERIALS`);
-        }
-      });
-    });
-    
-    try {
-      const { data, error } = await createPricingTemplate(defaultTemplate);
-      if (error) throw error;
-      
-      setTemplates([data]);
-      setSelectedTemplate(data);
-      
-      toast({
-        title: "Success",
-        description: "Default template created successfully",
-      });
-    } catch (error) {
-      console.error("Failed to create default template:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create default template",
-        variant: "destructive"
-      });
     }
   };
   
@@ -452,14 +315,14 @@ const Pricing = () => {
   
   const handleDuplicateClick = async (template: PricingTemplate) => {
     // Create a deep copy of the template to ensure all nested objects are duplicated
-    const duplicatedTemplate: PricingTemplate = {
+    const duplicatedTemplate: Omit<PricingTemplate, "id" | "created_at" | "updated_at"> = {
       ...JSON.parse(JSON.stringify(template)), // Deep copy to avoid reference issues
       name: `${template.name} (Copy)`,
       is_default: false,
     };
     
     // Remove the id to create a new record
-    delete duplicatedTemplate.id;
+    delete (duplicatedTemplate as any).id;
     
     try {
       toast({
@@ -489,7 +352,7 @@ const Pricing = () => {
   
   const handleCreateNew = () => {
     // Initialize with default values for a new template
-    const newTemplate: PricingTemplate = {
+    const newTemplate: Omit<PricingTemplate, "id" | "created_at" | "updated_at"> = {
       name: "New Template",
       description: "Custom pricing template",
       materials: {},
@@ -503,15 +366,26 @@ const Pricing = () => {
         dumpsterRate: 400,
         includePermits: true,
         permitRate: 550,
+        permitCount: 1,
+        permitAdditionalRate: 450,
         pitchRates: {},
         wastePercentage: 12
       },
-      profit_margin: 25
+      profit_margin: 25,
+      is_default: false,
     };
     
-    setEditingTemplate(newTemplate);
-    setEditedMaterials({});
-    setEditedQuantities({});
+    // Create a complete temporary template object for the editing state
+    const tempEditingTemplate: PricingTemplate = {
+      ...newTemplate,
+      id: `new-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    setEditingTemplate(tempEditingTemplate);
+    setEditedMaterials(tempEditingTemplate.materials);
+    setEditedQuantities(tempEditingTemplate.quantities);
     setIsEditDialogOpen(true);
   };
   
@@ -764,357 +638,10 @@ const Pricing = () => {
   };
   
   return (
-    <MainLayout>
-      <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-4xl font-bold tracking-tight">Pricing Templates</h1>
-            <p className="text-muted-foreground mt-1">
-              Create and manage pricing templates for estimates
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleCreateUpdatedTemplate} 
-              disabled={creatingUpdatedTemplate}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              {creatingUpdatedTemplate ? "Creating..." : "Create Updated Template"}
-            </Button>
-            <Button onClick={handleCreateNew} className="flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              <span>New Template</span>
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Templates list */}
-          <div className="lg:col-span-1 space-y-4">
-            <h2 className="text-xl font-semibold">Templates</h2>
-            
-            {loading ? (
-              <div className="flex justify-center p-8">
-                <p>Loading templates...</p>
-              </div>
-            ) : templates.length === 0 ? (
-              <Card className="border border-dashed">
-                <CardContent className="flex flex-col items-center justify-center p-8">
-                  <p className="text-muted-foreground mb-4">No templates found</p>
-                  <Button onClick={createDefaultTemplate}>Create Default Template</Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <ScrollArea className="h-[600px]">
-                <div className="space-y-4 pr-4">
-                  {templates.map(template => (
-                    <Card 
-                      key={template.id} 
-                      className={cn(
-                        "cursor-pointer hover:bg-accent/5",
-                        selectedTemplate?.id === template.id && "border-primary bg-accent/10"
-                      )}
-                      onClick={() => setSelectedTemplate(template)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-lg">{template.name}</CardTitle>
-                          {template.is_default && (
-                            <Badge variant="secondary">Default</Badge>
-                          )}
-                        </div>
-                        <CardDescription>{template.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent className="pb-2">
-                        <div className="text-sm space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Materials:</span>
-                            <span>{Object.keys(template.materials).length}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Labor Rate:</span>
-                            <span>${template.labor_rates.laborRate}/sq</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Profit Margin:</span>
-                            <span>{template.profit_margin}%</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="pt-2 flex justify-between items-center">
-                        <span className="text-xs text-muted-foreground">
-                          Updated: {formatDate(template.updated_at)}
-                        </span>
-                        <div className="flex space-x-1">
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditClick(template);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDuplicateClick(template);
-                            }}
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          {!template.is_default && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteClick(template);
-                              }}
-                            >
-                              <Trash className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </CardFooter>
-                    </Card>
-                  ))}
-                </div>
-              </ScrollArea>
-            )}
-          </div>
-          
-          {/* Template details */}
-          <div className="lg:col-span-2">
-            {selectedTemplate ? (
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <CardTitle>{selectedTemplate.name}</CardTitle>
-                      <CardDescription>{selectedTemplate.description}</CardDescription>
-                    </div>
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleEditClick(selectedTemplate)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleUseInEstimate(selectedTemplate)}
-                      >
-                        <ChevronRight className="h-4 w-4 mr-2" />
-                        Use in Estimate
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <Tabs defaultValue="materials">
-                    <TabsList>
-                      <TabsTrigger value="materials">Materials</TabsTrigger>
-                      <TabsTrigger value="labor">Labor & Profit</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="materials" className="space-y-6 mt-4">
-                      {renderMaterialsList(selectedTemplate.materials, selectedTemplate.quantities)}
-                    </TabsContent>
-                    <TabsContent value="labor" className="mt-4">
-                      {renderLaborRates(selectedTemplate.labor_rates, selectedTemplate.profit_margin)}
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center p-12">
-                  <p className="text-muted-foreground mb-4">Select a template to view details</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Template</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{templateToDelete?.name}"? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={handleDeleteConfirm}
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Edit/Create Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingTemplate?.id ? "Edit Template" : "Create New Template"}
-            </DialogTitle>
-            <DialogDescription>
-              Update the template details. Click save when you're done.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Tabs defaultValue="basic">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="basic">Basic Details</TabsTrigger>
-              <TabsTrigger value="advanced" disabled={!editingTemplate?.id}>Materials & Coverage</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="basic" className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Template Name</Label>
-                <Input 
-                  id="name" 
-                  value={editingTemplate?.name || ""} 
-                  onChange={(e) => setEditingTemplate(prev => prev ? {...prev, name: e.target.value} : null)} 
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Input 
-                  id="description" 
-                  value={editingTemplate?.description || ""} 
-                  onChange={(e) => setEditingTemplate(prev => prev ? {...prev, description: e.target.value} : null)} 
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="profitMargin">Profit Margin (%)</Label>
-                <Input 
-                  id="profitMargin" 
-                  type="number" 
-                  min="0"
-                  max="100"
-                  value={editingTemplate?.profit_margin || 25} 
-                  onChange={(e) => setEditingTemplate(prev => prev ? {...prev, profit_margin: Number(e.target.value)} : null)} 
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label>Labor Rate (per square)</Label>
-                <Input 
-                  type="number" 
-                  min="0"
-                  step="0.01"
-                  value={editingTemplate?.labor_rates.laborRate || 85} 
-                  onChange={(e) => setEditingTemplate(prev => prev ? {
-                    ...prev, 
-                    labor_rates: {
-                      ...prev.labor_rates,
-                      laborRate: Number(e.target.value)
-                    }
-                  } : null)} 
-                />
-              </div>
-              
-              <p className="text-sm text-muted-foreground">
-                Note: For new templates, save first to enable materials editing.
-              </p>
-            </TabsContent>
-            
-            <TabsContent value="advanced" className="space-y-4 py-4">
-              <div className="text-sm mb-4">
-                <p className="font-medium">Materials & Coverage Rules</p>
-                <p className="text-muted-foreground">Edit material details and coverage rules for this template.</p>
-              </div>
-              
-              {editingTemplate && Object.keys(editingTemplate.materials).length > 0 ? (
-                <MaterialEditor 
-                  materials={editedMaterials}
-                  quantities={editedQuantities}
-                  onUpdate={handleMaterialsUpdate}
-                />
-              ) : (
-                <p className="text-sm text-blue-600 mb-4">
-                  No materials in this template. Add materials or duplicate an existing template.
-                </p>
-              )}
-              
-              <div className="border rounded-md p-4">
-                <p className="text-sm font-medium mb-2">Advanced Labor Settings</p>
-                
-                <div className="space-y-2 mb-4">
-                  <Label>Waste Percentage (%)</Label>
-                  <Input 
-                    type="number" 
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    value={editingTemplate?.labor_rates.wastePercentage || 12} 
-                    onChange={(e) => setEditingTemplate(prev => prev ? {
-                      ...prev, 
-                      labor_rates: {
-                        ...prev.labor_rates,
-                        wastePercentage: Number(e.target.value)
-                      }
-                    } : null)} 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>Handload Rate (per square)</Label>
-                  <Input 
-                    type="number" 
-                    min="0"
-                    step="0.01"
-                    value={editingTemplate?.labor_rates.handloadRate || 15} 
-                    onChange={(e) => setEditingTemplate(prev => prev ? {
-                      ...prev, 
-                      labor_rates: {
-                        ...prev.labor_rates,
-                        handloadRate: Number(e.target.value)
-                      }
-                    } : null)} 
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsEditDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleEditSave}>
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </MainLayout>
+    <div className="p-8">
+      <h1 className="text-2xl font-semibold mb-4">Pricing Templates (Work in Progress)</h1>
+      <p className="text-muted-foreground">This page is being refactored. Functionality will return once migration is complete.</p>
+    </div>
   );
 };
 

@@ -6,18 +6,76 @@ import type { Database } from './database.types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Check if we have valid Supabase credentials
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  console.error('Supabase URL or Anon Key is missing. Check environment variables.');
+// Only log in development
+if (import.meta.env.DEV) {
+  console.log('[DEBUG] SUPABASE_URL =', SUPABASE_URL?.slice(0, 40) || 'undefined', '...');
+  console.log('[DEBUG] ANON_KEY present =', !!SUPABASE_ANON_KEY);
 }
 
-// Create the Supabase client
+// Check if we have valid Supabase credentials
+if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+  const error = 'Supabase URL or Anon Key is missing. Check environment variables.';
+  if (import.meta.env.DEV) {
+    console.error(error);
+  }
+  // In production, silently handle the error but still create a client
+}
+
+// ---------- Safe storage helper ----------
+function safeStorage(): Storage {
+  try {
+    localStorage.setItem('__probe', '1');
+    localStorage.removeItem('__probe');
+    return localStorage;
+  } catch (err) {
+    if (import.meta.env.DEV) {
+      console.warn('[Supabase] localStorage blocked – falling back to in-memory store');
+    }
+    let mem: Record<string, string> = {};
+    return {
+      getItem: (k: string) => (k in mem ? mem[k] : null),
+      setItem: (k: string, v: string) => {
+        mem[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete mem[k];
+      },
+      clear: () => {
+        mem = {};
+      },
+      key: () => null,
+      get length() {
+        return Object.keys(mem).length;
+      },
+    } as unknown as Storage;
+  }
+}
+
+// ---------- Supabase client with production-safe configuration ----------
 export const supabase = createClient<Database>(
-  SUPABASE_URL || "",
-  SUPABASE_ANON_KEY || ""
+  SUPABASE_URL || 'https://xtdyirvhfyxmpexvjjcb.supabase.co', // Fallback to production URL
+  SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0ZHlpcnZoZnl4bXBleHZqamNiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ0NzQ5MzQsImV4cCI6MjA1MDA1MDkzNH0.U7ZEafrNEJAeKGlQZUZoZOQgOeaJM7rD3q6JYhI54IU', // Fallback to production key
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: safeStorage(),
+      flowType: 'implicit', // Better for SPA deployments
+    },
+    global: {
+      headers: {
+        'x-client-info': '3mg-retail-estimator@1.0.0',
+      },
+    },
+  }
 );
 
-// Helper function to check if Supabase is properly configured
-export const isSupabaseConfigured = (): boolean => {
-  return !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
-};
+// Only expose for debugging in development
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  // @ts-ignore
+  window.supabase = supabase;
+}
+
+// Helper to confirm env vars
+export const isSupabaseConfigured = (): boolean => !!SUPABASE_URL && !!SUPABASE_ANON_KEY;
