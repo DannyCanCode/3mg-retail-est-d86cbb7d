@@ -137,7 +137,7 @@ export const getMeasurements = async () => {
 
 export const getMeasurementById = async (id: string) => {
   try {
-    const { data, error } = await supabase
+    const { data: rawData, error } = await supabase
       .from('measurements')
       .select('*')
       .eq('id', id)
@@ -147,7 +147,85 @@ export const getMeasurementById = async (id: string) => {
       throw error;
     }
 
-    return { data, error: null };
+    if (!rawData) {
+      throw new Error("No measurement data found");
+    }
+
+    // Transform the database record back into the expected format
+    let areasByPitch: PitchArea[] = [];
+    
+    // Parse areas_per_pitch from JSON string back to array format
+    if (rawData.areas_per_pitch) {
+      try {
+        const areasPerPitchData = typeof rawData.areas_per_pitch === 'string' 
+          ? JSON.parse(rawData.areas_per_pitch) 
+          : rawData.areas_per_pitch;
+        
+        areasByPitch = Object.entries(areasPerPitchData).map(([pitch, areaInfo]: [string, any]) => ({
+          pitch: pitch,
+          area: areaInfo.area || 0,
+          percentage: areaInfo.percentage || 0
+        }));
+      } catch (parseError) {
+        console.error('Error parsing areas_per_pitch:', parseError);
+        areasByPitch = [];
+      }
+    }
+
+    // Create the measurements object in the expected format
+    const measurements: ParsedMeasurements = {
+      totalArea: rawData.total_area || 0,
+      penetrationsArea: rawData.penetrations || 0,
+      predominantPitch: rawData.predominant_pitch || 'Unknown',
+      ridgeLength: rawData.ridges || 0,
+      hipLength: rawData.hips || 0,
+      valleyLength: rawData.valleys || 0,
+      rakeLength: rawData.rakes || 0,
+      eaveLength: rawData.eaves || 0,
+      stepFlashingLength: rawData.step_flashing || 0,
+      flashingLength: rawData.flashing || 0,
+      dripEdgeLength: 0, // Not stored in database yet
+      penetrationsPerimeter: rawData.penetrations_perimeter || 0,
+      areasByPitch: areasByPitch,
+      
+      // Parse counts from length_measurements JSON if available
+      ridgeCount: 0,
+      hipCount: 0,
+      valleyCount: 0,
+      rakeCount: 0,
+      eaveCount: 0,
+      
+      // Property information
+      propertyAddress: (rawData as any).address || 'Unknown Address',
+      latitude: '',
+      longitude: ''
+    };
+
+    // Try to parse length_measurements for counts
+    if (rawData.length_measurements) {
+      try {
+        const lengthData = typeof rawData.length_measurements === 'string' 
+          ? JSON.parse(rawData.length_measurements) 
+          : rawData.length_measurements;
+        
+        measurements.ridgeCount = lengthData.ridge?.count || 0;
+        measurements.hipCount = lengthData.hip?.count || 0;
+        measurements.valleyCount = lengthData.valley?.count || 0;
+        measurements.rakeCount = lengthData.rake?.count || 0;
+        measurements.eaveCount = lengthData.eave?.count || 0;
+      } catch (parseError) {
+        console.error('Error parsing length_measurements:', parseError);
+      }
+    }
+
+    // Return in the expected format with measurements nested
+    const transformedData = {
+      ...rawData,
+      measurements: measurements
+    };
+
+    console.log('Successfully transformed measurement data:', transformedData);
+    return { data: transformedData, error: null };
   } catch (error) {
     console.error('Error fetching measurement:', error);
     return { data: null, error };
