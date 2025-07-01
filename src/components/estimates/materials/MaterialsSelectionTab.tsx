@@ -389,12 +389,12 @@ export function MaterialsSelectionTab({
 
   // Check for flat/low-slope areas and add required materials
   useEffect(() => {
-    // Temporarily commented out for debugging navigation issue
-    
-    console.log("[MaterialsSelectionTab] Checking for low-slope areas in measurements");
+    console.log("[Low-Slope Auto-Add] Checking for low-slope areas in measurements");
+    console.log("[Low-Slope Auto-Add] Current measurements:", measurements);
+    console.log("[Low-Slope Auto-Add] Current localSelectedMaterials:", Object.keys(localSelectedMaterials));
     
     if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
-      console.log("[MaterialsSelectionTab] No valid measurements or areasByPitch");
+      console.log("[Low-Slope Auto-Add] No valid measurements or areasByPitch");
       return;
     }
     
@@ -517,20 +517,25 @@ export function MaterialsSelectionTab({
       } 
     }
     if (materialsUpdated) {
-      isInternalChange.current = true;
+      console.log("[Low-Slope Auto-Add] Materials updated, setting state and notifying parent");
+      
       setLocalSelectedMaterials(newSelectedMaterials);
       setLocalQuantities(newQuantities);
       setDisplayQuantities(newDisplayQuantities);
       setMaterialWasteFactors(newMaterialWasteFactors); 
       setUserOverriddenWaste(newUserOverriddenWaste); 
+      
       toast({
         title: "Low-Slope Materials Added",
-        description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.` +
-                     ` Actual waste factors applied have been stored.`,
+        description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.`,
       });
+      
+      // Note: Don't call onMaterialsUpdate directly here - let the useEffect that watches 
+      // localSelectedMaterials and localQuantities handle the parent notification
+      // This prevents timing issues and feedback loops
     }
     
-  }, [measurements, wasteFactor, ROOFING_MATERIALS, toast]); // KEEPING existing deps for now
+  }, [measurements?.totalArea, measurements?.areasByPitch, wasteFactor]); // Only depend on measurement changes
 
   // Group all available materials by category for rendering the accordion
   const materialsByCategory = useMemo(() => {
