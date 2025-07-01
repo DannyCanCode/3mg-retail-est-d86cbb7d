@@ -232,7 +232,7 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
               value={[effectiveMargin]}
               onValueChange={onProfitMarginChange}
               onValueCommit={onProfitMarginCommit}
-              disabled={readOnly}
+              disabled={readOnly && !(isAdminEditMode && userRole === 'admin')}
               className="w-full"
             />
             

@@ -13,6 +13,7 @@ import { Material } from "../materials/types";
 import { toast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { RoleBasedProfitMargin } from "./RoleBasedProfitMargin";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface LaborProfitTabProps {
   onBack: () => void;
@@ -82,6 +83,20 @@ export function LaborProfitTab({
   console.log("LaborProfitTab rendering, received initialLaborRatesProp:", JSON.stringify(initialLaborRatesProp, null, 2));
   console.log("LaborProfitTab rendering, received initialProfitMarginProp:", initialProfitMarginProp);
   
+  const { profile } = useAuth();
+  const userRole = profile?.role;
+  
+  // Determine if user can edit labor rates based on role and admin edit mode
+  const canEditLaborRates = () => {
+    // Admin override: If in admin edit mode and current user is admin, allow editing
+    if (isAdminEditMode && userRole === 'admin') {
+      return true; // Admins can edit any estimate when in admin edit mode
+    }
+    
+    // Normal readOnly logic (unchanged from original)
+    return !readOnly;
+  };
+
   const getSafeInitialRates = useCallback((initialRates?: LaborRates): LaborRates => {
     const defaults: LaborRates = {
       laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
@@ -617,14 +632,14 @@ export function LaborProfitTab({
               value={laborRates.dumpsterLocation}
               onValueChange={handleDumpsterLocationChange}
               className="flex flex-col space-y-1"
-              disabled={readOnly}
+              disabled={!canEditLaborRates()}
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="orlando" id="orlando" disabled={readOnly}/>
+                <RadioGroupItem value="orlando" id="orlando" disabled={!canEditLaborRates()}/>
                 <Label htmlFor="orlando">Orlando</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="outside" id="outside" disabled={readOnly}/>
+                <RadioGroupItem value="outside" id="outside" disabled={!canEditLaborRates()}/>
                 <Label htmlFor="outside">Outside Orlando</Label>
               </div>
             </RadioGroup>
@@ -640,7 +655,7 @@ export function LaborProfitTab({
                   key={`dumpsterRate-input-${laborRates.dumpsterLocation}-${laborRates.dumpsterRate}`}
                   min="0"
                   step="0.01"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                   placeholder={laborRates.dumpsterLocation === "orlando" ? "400" : "500"}
                 />
               </div>
@@ -653,7 +668,7 @@ export function LaborProfitTab({
                   onChange={(e) => handleLaborRateChange("dumpsterCount", e.target.value)}
                   min="1"
                   step="1"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                 />
               </div>
               <div className="space-y-2">
@@ -664,7 +679,7 @@ export function LaborProfitTab({
                   value={`$${((laborRates.dumpsterCount || 0) * (laborRates.dumpsterRate || 0)).toFixed(2)}`}
                   readOnly
                   className="bg-muted"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                 />
               </div>
             </div>
@@ -898,7 +913,7 @@ export function LaborProfitTab({
                 id="includeSkylights2x2"
                 checked={!!laborRates.includeSkylights2x2}
                 onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x2", checked)}
-                disabled={readOnly}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includeSkylights2x2">
                 2X2 Skylight ($280 per unit)
@@ -915,7 +930,7 @@ export function LaborProfitTab({
                       variant="outline"
                       size="icon"
                       onClick={() => handleLaborRateChange("skylights2x2Count", Math.max(0, (laborRates.skylights2x2Count || 0) - 1))}
-                      disabled={(laborRates.skylights2x2Count || 0) <= 0 || readOnly}
+                      disabled={(laborRates.skylights2x2Count || 0) <= 0 || !canEditLaborRates()}
                       className="h-8 w-8 rounded-r-none"
                     >
                       <span className="sr-only">Decrease</span>
@@ -930,14 +945,14 @@ export function LaborProfitTab({
                       min="0"
                       step="1"
                       className="h-8 rounded-none text-center"
-                      disabled={readOnly}
+                      disabled={!canEditLaborRates()}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
                       onClick={() => handleLaborRateChange("skylights2x2Count", (laborRates.skylights2x2Count || 0) + 1)}
-                      disabled={readOnly}
+                      disabled={!canEditLaborRates()}
                       className="h-8 w-8 rounded-l-none"
                     >
                       <span className="sr-only">Increase</span>
@@ -953,7 +968,7 @@ export function LaborProfitTab({
                     value={`$${((laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
-                    disabled={readOnly}
+                    disabled={!canEditLaborRates()}
                   />
                 </div>
               </div>
@@ -965,7 +980,7 @@ export function LaborProfitTab({
                 id="includeSkylights2x4"
                 checked={!!laborRates.includeSkylights2x4}
                 onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x4", checked)}
-                disabled={readOnly}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includeSkylights2x4">
                 2X4 Skylight ($370 per unit)
@@ -982,7 +997,7 @@ export function LaborProfitTab({
                       variant="outline"
                       size="icon"
                       onClick={() => handleLaborRateChange("skylights2x4Count", Math.max(0, (laborRates.skylights2x4Count || 0) - 1))}
-                      disabled={(laborRates.skylights2x4Count || 0) <= 0 || readOnly}
+                      disabled={(laborRates.skylights2x4Count || 0) <= 0 || !canEditLaborRates()}
                       className="h-8 w-8 rounded-r-none"
                     >
                       <span className="sr-only">Decrease</span>
@@ -997,14 +1012,14 @@ export function LaborProfitTab({
                       min="0"
                       step="1"
                       className="h-8 rounded-none text-center"
-                      disabled={readOnly}
+                      disabled={!canEditLaborRates()}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
                       onClick={() => handleLaborRateChange("skylights2x4Count", (laborRates.skylights2x4Count || 0) + 1)}
-                      disabled={readOnly}
+                      disabled={!canEditLaborRates()}
                       className="h-8 w-8 rounded-l-none"
                     >
                       <span className="sr-only">Increase</span>
@@ -1020,7 +1035,7 @@ export function LaborProfitTab({
                     value={`$${((laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
-                    disabled={readOnly}
+                    disabled={!canEditLaborRates()}
                   />
                 </div>
               </div>
@@ -1085,7 +1100,7 @@ export function LaborProfitTab({
                   key={`laborRate-input-${laborRates.laborRate}`}
                   min="0"
                   step="0.01"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Combined rate for tear off and installation (3/12-7/12 pitches)
@@ -1100,7 +1115,7 @@ export function LaborProfitTab({
                   value={(laborRates.wastePercentage || 12).toString()}
                   readOnly
                   className="bg-muted"
-                  disabled={readOnly}
+                  disabled={!canEditLaborRates()}
                 />
               </div>
             </div>
@@ -1138,7 +1153,7 @@ export function LaborProfitTab({
                 id="includeLowSlopeLabor"
                 checked={laborRates.includeLowSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeLowSlopeLabor", checked)}
-                disabled={readOnly}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includeLowSlopeLabor" className="flex flex-col space-y-1">
                 <span>Include Low Slope Labor</span>
@@ -1152,7 +1167,7 @@ export function LaborProfitTab({
                 id="includeSteepSlopeLabor"
                 checked={laborRates.includeSteepSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeSteepSlopeLabor", checked)}
-                disabled={readOnly}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includeSteepSlopeLabor" className="flex flex-col space-y-1">
                 <span>Include Steep Slope Labor</span>
@@ -1212,7 +1227,7 @@ export function LaborProfitTab({
                           onBlur={(e) => handlePitchRateChange(pitch, e.target.value)}
                           key={`low_pitch_rate_input_${pitch}`}
                           className="h-9 text-sm flex-1"
-                          disabled={readOnly}
+                          disabled={!canEditLaborRates()}
                           placeholder={getPitchRate(pitch).toString()}
                         />
                         <span className="text-sm text-muted-foreground">/square</span>
@@ -1239,7 +1254,7 @@ export function LaborProfitTab({
                           onBlur={(e) => handlePitchRateChange(pitch, e.target.value)}
                           key={`steep_pitch_rate_input_${pitch}`}
                           className="h-9 text-sm flex-1"
-                          disabled={readOnly}
+                          disabled={!canEditLaborRates()}
                           placeholder={getPitchRate(pitch).toString()}
                         />
                         <span className="text-sm text-muted-foreground">/square</span>
