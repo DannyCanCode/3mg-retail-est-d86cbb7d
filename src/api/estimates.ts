@@ -2,7 +2,7 @@ import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
 import { MeasurementValues } from "@/components/estimates/measurement/types";
 import { Material } from "@/components/estimates/materials/types";
 import { LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
-import { trackEstimateCreated, trackEvent } from "@/lib/posthog";
+import { trackEstimateCreated, trackEvent, trackPerformanceMetric } from "@/lib/posthog";
 import { trackEstimateCreated as trackEstimateCreatedLR, trackEstimateSold } from "@/lib/logrocket";
 
 // Define the status type for estimates
@@ -48,6 +48,7 @@ export interface Estimate {
 export const saveEstimate = async (
   estimateInput: Partial<Estimate> & { id?: string } 
 ): Promise<{ data: Estimate | null; error: Error | null; }> => {
+  const startTime = performance.now();
   try {
     if (!isSupabaseConfigured()) {
       console.warn("Supabase not configured, estimate will not be saved to database");
@@ -151,9 +152,24 @@ export const saveEstimate = async (
       }
     }
 
+    // Track API performance
+    const apiResponseTime = performance.now() - startTime;
+    trackPerformanceMetric('api_response_time', apiResponseTime, {
+      operation: estimateInput.id ? 'update_estimate' : 'create_estimate',
+      success: true,
+      estimate_id: parsedData.id
+    });
+
     return { data: parsedData, error: null };
 
   } catch (e: any) {
+    // Track failed API performance
+    const apiResponseTime = performance.now() - startTime;
+    trackPerformanceMetric('api_response_time', apiResponseTime, {
+      operation: estimateInput.id ? 'update_estimate' : 'create_estimate',
+      success: false,
+      error: e.message
+    });
     console.error("Error in saveEstimate function:", e);
     return { data: null, error: e instanceof Error ? e : new Error("Unknown error in saveEstimate") };
   }
@@ -720,4 +736,62 @@ export const updateEstimateCustomerDetails = async (
   } : null;
 
   return { data: parsedData as Estimate | null, error: null };
+};
+
+/**
+ * Delete an estimate by ID (Admin only)
+ */
+export const deleteEstimate = async (id: string): Promise<{
+  data: boolean;
+  error: Error | null;
+}> => {
+  try {
+    if (!isSupabaseConfigured()) {
+      return { data: false, error: new Error("Supabase not configured") };
+    }
+
+    const { error } = await supabase
+      .from("estimates")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      throw error;
+    }
+
+    // Track estimate deletion for analytics
+    try {
+      trackEvent('admin_estimate_deleted', {
+        estimate_id: id,
+        timestamp: new Date().toISOString(),
+        action: 'delete'
+      });
+    } catch (trackingError) {
+      console.warn('Failed to track estimate deletion:', trackingError);
+    }
+
+    return { data: true, error: null };
+  } catch (error) {
+    console.error("Error deleting estimate:", error);
+    return {
+      data: false,
+      error: error instanceof Error ? error : new Error("Unknown error occurred")
+    };
+  }
+};
+
+/**
+ * Admin action tracking for PostHog
+ */
+export const trackAdminAction = (action: string, estimateId: string, additionalData?: Record<string, any>) => {
+  try {
+    trackEvent('admin_action', {
+      action,
+      estimate_id: estimateId,
+      timestamp: new Date().toISOString(),
+      ...additionalData
+    });
+  } catch (error) {
+    console.warn('Failed to track admin action:', error);
+  }
 };

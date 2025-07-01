@@ -11,6 +11,7 @@ import {
 import { processPdfWithSupabase, uploadPdfToStorage } from "@/api/pdf-service";
 import { isSupabaseConfigured } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { trackPerformanceMetric, trackEvent } from "@/lib/posthog";
 // Import PDF.js for client-side parsing
 import * as pdfjs from 'pdfjs-dist';
 import { GlobalWorkerOptions } from 'pdfjs-dist';
@@ -43,6 +44,7 @@ export function usePdfParser() {
     setStatus: React.Dispatch<React.SetStateAction<FileUploadStatus>>,
     setErrorDetails: React.Dispatch<React.SetStateAction<string>>
   ) => {
+    const pdfProcessingStartTime = performance.now();
     try {
     setStatus("uploading");
     setErrorDetails("");
@@ -88,6 +90,25 @@ export function usePdfParser() {
         setParsedData(parsedMeasurements);
         setStatus("success");
         
+        // Track successful PDF processing performance
+        const pdfProcessingTime = performance.now() - pdfProcessingStartTime;
+        trackPerformanceMetric('pdf_processing_time', pdfProcessingTime, {
+          file_size_mb: fileSizeMB,
+          processing_mode: 'client',
+          success: true,
+          total_area: parsedMeasurements.totalArea,
+          has_measurements: parsedMeasurements.totalArea > 0
+        });
+        
+        // Track PDF processing event
+        trackEvent('pdf_processed', {
+          processing_mode: 'client',
+          file_size_mb: fileSizeMB,
+          processing_time_ms: pdfProcessingTime,
+          extracted_area: parsedMeasurements.totalArea,
+          success: true
+        });
+        
         // If we have Supabase configured, we can still upload the file for storage
         if (isSupabaseConfigured()) {
           try {
@@ -110,10 +131,42 @@ export function usePdfParser() {
       } catch (clientSideError) {
         console.warn("Client-side PDF parsing failed, falling back to Supabase:", clientSideError);
         
+        // Track failed PDF processing
+        const pdfProcessingTime = performance.now() - pdfProcessingStartTime;
+        trackPerformanceMetric('pdf_processing_time', pdfProcessingTime, {
+          file_size_mb: fileSizeMB,
+          processing_mode: 'client',
+          success: false,
+          error_type: 'client_parsing_failed'
+        });
+        
+        trackEvent('pdf_processing_failed', {
+          processing_mode: 'client',
+          file_size_mb: fileSizeMB,
+          processing_time_ms: pdfProcessingTime,
+          error: clientSideError instanceof Error ? clientSideError.message : 'Unknown error'
+        });
+        
         // Edge parser disabled by default – skip fallback
             return null;
       }
     } catch (error: any) {
+      // Track general error
+      const pdfProcessingTime = performance.now() - pdfProcessingStartTime;
+      trackPerformanceMetric('pdf_processing_time', pdfProcessingTime, {
+        file_size_mb: file.size / (1024 * 1024),
+        processing_mode: 'client',
+        success: false,
+        error_type: 'general_error'
+      });
+      
+      trackEvent('pdf_processing_failed', {
+        processing_mode: 'client',
+        file_size_mb: file.size / (1024 * 1024),
+        processing_time_ms: pdfProcessingTime,
+        error: error.message || 'Unknown error'
+      });
+      
       handleGeneralPdfError(error, setStatus, setErrorDetails);
       return null;
     } finally {
