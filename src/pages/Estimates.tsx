@@ -2220,6 +2220,7 @@ const Estimates = () => {
                           fetchEstimateData(estimateId);
                         }
                       }}
+                      onBack={() => setActiveTab("pricing")}
                     />
                   </TabsContent>
                     </>
