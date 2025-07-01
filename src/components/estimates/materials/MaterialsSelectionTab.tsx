@@ -437,176 +437,168 @@ export function MaterialsSelectionTab({
 
   // Check for flat/low-slope areas and add required materials
   useEffect(() => {
-    console.log("[Low-Slope Auto-Add] Checking for low-slope areas in measurements");
-    console.log("[Low-Slope Auto-Add] Current measurements:", measurements);
-    console.log("[Low-Slope Auto-Add] Current localSelectedMaterials:", Object.keys(localSelectedMaterials));
+    console.log("🔄 [LOW-SLOPE FIX] Checking for low-slope areas in measurements");
+    console.log("🔄 [LOW-SLOPE FIX] Current measurements:", measurements);
+    console.log("🔄 [LOW-SLOPE FIX] Current localSelectedMaterials count:", Object.keys(localSelectedMaterials).length);
     
-    if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
-      console.log("[Low-Slope Auto-Add] No valid measurements or areasByPitch");
-      setIsAutoPopulating(false);
-      setAutoPopulationError(null);
+    // CRITICAL FIX: Enhanced validation to prevent timing issues
+    if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+      console.log("⚠️ [LOW-SLOPE FIX] No valid measurements or areasByPitch - skipping auto-population");
       return;
     }
     
-    // CRITICAL FIX: Set loading state to prevent white screen during material population
+    // CRITICAL FIX: Validate that measurements have proper pitch data
+    const hasValidPitchData = measurements.areasByPitch.every(area => 
+      area.pitch && 
+      typeof area.area === 'number' && 
+      area.area > 0 &&
+      (area.pitch.includes('/') || area.pitch.includes(':'))
+    );
+    
+    if (!hasValidPitchData) {
+      console.warn("⚠️ [LOW-SLOPE FIX] Invalid pitch data detected, skipping auto-population");
+      return;
+    }
+    
     setIsAutoPopulating(true);
     setAutoPopulationError(null);
     
-    const hasLowPitch = measurements.areasByPitch.some(
-      area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
-    );
-    
-    const has0Pitch = measurements.areasByPitch.some(area => ["0:12", "0/12"].includes(area.pitch));
-    
-    let lowSlopeArea = 0;
-    if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
-      lowSlopeArea = measurements.areasByPitch
-        .filter(area => {
-          const pitchParts = area.pitch.split(/[:\\/]/);
-          const rise = parseInt(pitchParts[0] || '0');
-          return !isNaN(rise) && rise <= 2;
-        })
-        .reduce((sum, area) => sum + (area.area || 0), 0);
-    }
-    
-    let zeroPitchArea = 0;
-    if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
-      zeroPitchArea = measurements.areasByPitch
-        .filter(area => ["0:12", "0/12"].includes(area.pitch))
-        .reduce((sum, area) => sum + (area.area || 0), 0);
-    }
-    
-    if (!hasLowPitch) {
-      return;
-    }
-    
-    const newSelectedMaterials = { ...localSelectedMaterials };
-    const newQuantities = { ...localQuantities };
-    const newDisplayQuantities = { ...displayQuantities };
-    const newMaterialWasteFactors = { ...materialWasteFactors }; 
-    const newUserOverriddenWaste = { ...userOverriddenWaste }; 
-    let materialsUpdated = false; 
-    
-    if (has0Pitch && zeroPitchArea > 0) {
-      const polyIsoMaterial = ROOFING_MATERIALS.find(m => m.id === "gaf-poly-iso-4x8");
-      if (polyIsoMaterial) {
-        const { quantity: boardsNeeded, actualWasteFactor: isoWasteFactor } = calculateMaterialQuantity(
-          polyIsoMaterial,
-          measurements,
-          wasteFactor / 100 
-        );
-        const finalQuantity = Math.max(1, boardsNeeded);
-        const currentQty = newQuantities["gaf-poly-iso-4x8"] || 0;
-        if (!newSelectedMaterials["gaf-poly-iso-4x8"] || currentQty !== finalQuantity) {
-        const mandatoryMaterial = { 
-          ...polyIsoMaterial,
-          name: `${polyIsoMaterial.name} (Required for 0/12 pitch - cannot be removed)`
-        };
-        newSelectedMaterials["gaf-poly-iso-4x8"] = mandatoryMaterial;
-          newQuantities["gaf-poly-iso-4x8"] = finalQuantity;
-          newDisplayQuantities["gaf-poly-iso-4x8"] = finalQuantity.toString();
-          newMaterialWasteFactors["gaf-poly-iso-4x8"] = isoWasteFactor; 
-          newUserOverriddenWaste["gaf-poly-iso-4x8"] = false; 
-          materialsUpdated = true;
-        }
-      } 
-    }
-    
-    if (hasLowPitch && lowSlopeArea > 0) {
-      const baseSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
-      const capSheetMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
-      if (baseSheetMaterial && capSheetMaterial) {
-        // Only calculate cap quantity first
-        const { quantity: capQuantity, actualWasteFactor: capWaste } = calculateMaterialQuantity( capSheetMaterial, measurements, wasteFactor / 100 );
-        const finalCapQuantity = Math.max(1, capQuantity);
-        
-        // Calculate base quantity as half of cap quantity, rounded up
-        const baseQuantity = Math.ceil(finalCapQuantity / 2);
-        const baseWaste = capWaste; // Use same waste factor as cap
-        
-        const finalBaseQuantity = baseQuantity; // Already rounded up
-        const currentBaseQty = newQuantities["polyglass-elastoflex-sbs"] || 0;
-        if (!newSelectedMaterials["polyglass-elastoflex-sbs"] || currentBaseQty !== finalBaseQuantity) {
-          const mandatoryBaseSheet = { ...baseSheetMaterial, name: `${baseSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)` };
-          newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBaseSheet;
-          newQuantities["polyglass-elastoflex-sbs"] = finalBaseQuantity;
-          newDisplayQuantities["polyglass-elastoflex-sbs"] = finalBaseQuantity.toString();
-          newMaterialWasteFactors["polyglass-elastoflex-sbs"] = baseWaste; 
-          newUserOverriddenWaste["polyglass-elastoflex-sbs"] = false; 
-          materialsUpdated = true;
-        }
-        const currentCapQty = newQuantities["polyglass-polyflex-app"] || 0;
-        if (!newSelectedMaterials["polyglass-polyflex-app"] || currentCapQty !== finalCapQuantity) {
-          const mandatoryCapSheet = { ...capSheetMaterial, name: `${capSheetMaterial.name} (Required for <= 2/12 pitch - cannot be removed)` };
-          newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCapSheet;
-          newQuantities["polyglass-polyflex-app"] = finalCapQuantity;
-          newDisplayQuantities["polyglass-polyflex-app"] = finalCapQuantity.toString();
-          newMaterialWasteFactors["polyglass-polyflex-app"] = capWaste; 
-          newUserOverriddenWaste["polyglass-polyflex-app"] = false; 
-          materialsUpdated = true;
-        }
-        if (lowSlopeArea >= 50) {
-          const karnak19 = ROOFING_MATERIALS.find(m => m.id === "karnak-19");
-          if (karnak19 && (!newSelectedMaterials["karnak-19"])) {
-            const { quantity: karnakQuantity, actualWasteFactor: karnakWaste } = calculateMaterialQuantity( karnak19, measurements, undefined );
-            newSelectedMaterials["karnak-19"] = karnak19;
-            newQuantities["karnak-19"] = Math.max(1, karnakQuantity); 
-            newDisplayQuantities["karnak-19"] = Math.max(1, karnakQuantity).toString();
-            newMaterialWasteFactors["karnak-19"] = karnakWaste; 
-            newUserOverriddenWaste["karnak-19"] = false; 
-            materialsUpdated = true;
-          }
-          const karnakSpray = ROOFING_MATERIALS.find(m => m.id === "karnak-asphalt-primer-spray");
-          if (karnakSpray && (!newSelectedMaterials["karnak-asphalt-primer-spray"])) {
-             const { quantity: sprayQuantityCalculated, actualWasteFactor: sprayWaste } = calculateMaterialQuantity( karnakSpray, measurements, undefined );
-            const sprayQuantity = Math.max(lowSlopeArea > 200 ? 2 : 1, sprayQuantityCalculated); 
-            newSelectedMaterials["karnak-asphalt-primer-spray"] = karnakSpray;
-            newQuantities["karnak-asphalt-primer-spray"] = sprayQuantity;
-            newDisplayQuantities["karnak-asphalt-primer-spray"] = sprayQuantity.toString();
-            newMaterialWasteFactors["karnak-asphalt-primer-spray"] = sprayWaste; 
-            newUserOverriddenWaste["karnak-asphalt-primer-spray"] = false; 
-            materialsUpdated = true;
-          }
-        }
-      } 
-    }
-    if (materialsUpdated) {
-      console.log("[Low-Slope Auto-Add] Materials updated, setting state and notifying parent");
+    try {
+      const hasLowPitch = measurements.areasByPitch.some(
+        area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
+      );
       
-      try {
-        setLocalSelectedMaterials(newSelectedMaterials);
-        setLocalQuantities(newQuantities);
-        setDisplayQuantities(newDisplayQuantities);
-        setMaterialWasteFactors(newMaterialWasteFactors); 
-        setUserOverriddenWaste(newUserOverriddenWaste); 
+      console.log("✅ [LOW-SLOPE FIX] Has low pitch areas:", hasLowPitch);
+      
+      if (!hasLowPitch) {
+        console.log("✅ [LOW-SLOPE FIX] No low slope areas found, skipping low slope material auto-add");
+        setIsAutoPopulating(false);
+        return;
+      }
+      
+      // Calculate total low-slope area
+      const lowSlopeArea = measurements.areasByPitch
+        .filter(area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch))
+        .reduce((sum, area) => sum + (area.area || 0), 0);
+      
+      console.log("📊 [LOW-SLOPE FIX] Total low slope area:", lowSlopeArea, "sq ft");
+      
+      if (lowSlopeArea <= 0) {
+        console.log("⚠️ [LOW-SLOPE FIX] Low slope area is 0, skipping auto-add");
+        setIsAutoPopulating(false);
+        return;
+      }
+      
+      // Check if low slope materials are already added
+      const hasPolyglassBase = "polyglass-elastoflex-sbs" in localSelectedMaterials;
+      const hasPolyglasCap = "polyglass-polyflex-app" in localSelectedMaterials;
+      
+      if (hasPolyglassBase && hasPolyglasCap) {
+        console.log("✅ [LOW-SLOPE FIX] Low slope materials already present, skipping auto-add");
+        setIsAutoPopulating(false);
+        return;
+      }
+      
+      console.log("🚀 [LOW-SLOPE FIX] Auto-adding required low slope materials");
+      
+      // Find the required materials
+      const baseMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-elastoflex-sbs");
+      const capMaterial = ROOFING_MATERIALS.find(m => m.id === "polyglass-polyflex-app");
+      
+      if (!baseMaterial || !capMaterial) {
+        console.error("❌ [LOW-SLOPE FIX] Required low slope materials not found in database");
+        setAutoPopulationError("Required low slope materials not found");
+        setIsAutoPopulating(false);
+        return;
+      }
+      
+      // Calculate quantities
+      const squaresNeeded = lowSlopeArea / 100;
+      const effectiveWasteFactorLowSlope = parseFloat(((materialWasteFactors["polyglass-polyflex-app"] || wasteFactor) * 100).toFixed(0)) / 100;
+      const squaresWithWaste = squaresNeeded * (1 + effectiveWasteFactorLowSlope);
+      
+      const capQuantity = Math.ceil(squaresWithWaste / 0.8); // Polyglas cap coverage
+      const baseQuantity = Math.ceil(capQuantity / 2); // Base is half of cap, rounded up
+      
+      // Create copies of the materials and mark them as mandatory
+      const newSelectedMaterials = { ...localSelectedMaterials };
+      const newQuantities = { ...localQuantities };
+      const newDisplayQuantities = { ...displayQuantities };
+      const newMaterialWasteFactors = { ...materialWasteFactors };
+      const newUserOverriddenWaste = { ...userOverriddenWaste };
+      
+      let materialsUpdated = false;
+      
+      // Add cap sheet (always required for low slope)
+      if (!hasPolyglasCap) {
+        const mandatoryCap = {
+          ...capMaterial,
+          name: `${capMaterial.name} (Required for ≤ 2/12 pitch - cannot be removed)`
+        };
+        newSelectedMaterials["polyglass-polyflex-app"] = mandatoryCap;
+                 newQuantities["polyglass-polyflex-app"] = capQuantity;
+         newDisplayQuantities["polyglass-polyflex-app"] = capQuantity.toString();
+        newMaterialWasteFactors["polyglass-polyflex-app"] = effectiveWasteFactorLowSlope;
+        newUserOverriddenWaste["polyglass-polyflex-app"] = false;
+        materialsUpdated = true;
+        console.log("✅ [LOW-SLOPE FIX] Added cap sheet:", capQuantity, "rolls");
+      }
+      
+      // Add base sheet  
+      if (!hasPolyglassBase) {
+        const mandatoryBase = {
+          ...baseMaterial,
+          name: `${baseMaterial.name} (Required for ≤ 2/12 pitch - cannot be removed)`
+        };
+        newSelectedMaterials["polyglass-elastoflex-sbs"] = mandatoryBase;
+                 newQuantities["polyglass-elastoflex-sbs"] = baseQuantity;
+         newDisplayQuantities["polyglass-elastoflex-sbs"] = baseQuantity.toString();
+        newMaterialWasteFactors["polyglass-elastoflex-sbs"] = effectiveWasteFactorLowSlope;
+        newUserOverriddenWaste["polyglass-elastoflex-sbs"] = false;
+        materialsUpdated = true;
+        console.log("✅ [LOW-SLOPE FIX] Added base sheet:", baseQuantity, "rolls");
+      }
+      
+      if (materialsUpdated) {
+        console.log("🔄 [LOW-SLOPE FIX] Applying updated materials and quantities");
         
+        // Apply updates using React's batched updates for better performance
+        React.startTransition(() => {
+          setLocalSelectedMaterials(newSelectedMaterials);
+          setLocalQuantities(newQuantities);
+          setDisplayQuantities(newDisplayQuantities);
+          setMaterialWasteFactors(newMaterialWasteFactors); 
+          setUserOverriddenWaste(newUserOverriddenWaste);
+        });
+        
+        // Show success notification
         toast({
           title: "Low-Slope Materials Added",
           description: `Required materials for ${lowSlopeArea.toFixed(1)} sq ft of low-slope area have been automatically added.`,
         });
         
-        // Note: Don't call onMaterialsUpdate directly here - let the useEffect that watches 
-        // localSelectedMaterials and localQuantities handle the parent notification
-        // This prevents timing issues and feedback loops
-      } catch (error) {
-        console.error("[Low-Slope Auto-Add] Error updating materials:", error);
-        setAutoPopulationError("Failed to add low-slope materials automatically");
+        console.log("✅ [LOW-SLOPE FIX] Materials successfully auto-populated");
       }
+      
+    } catch (error) {
+      console.error("❌ [LOW-SLOPE FIX] Error during auto-population:", error);
+      setAutoPopulationError(`Failed to auto-add materials: ${error.message}`);
+    } finally {
+      setIsAutoPopulating(false);
     }
     
-    // Clear loading state when processing is complete
-    setIsAutoPopulating(false);
-    
   }, [
-    // CRITICAL FIX: Use deep dependencies to ensure effect runs when measurements object changes
-    measurements, 
-    // Include these specific checks to trigger when pitch data actually changes
-    JSON.stringify(measurements?.areasByPitch || []),
+    // CRITICAL FIX: Enhanced dependencies to catch all state changes
     measurements?.totalArea,
+    measurements?.areasByPitch?.length,
+    JSON.stringify(measurements?.areasByPitch || []), // Deep dependency on pitch data
+    Object.keys(localSelectedMaterials).length,
     wasteFactor,
-    // Add these to ensure effect runs when material state is properly initialized
-    Object.keys(localSelectedMaterials).length
-  ]); // Fixed dependencies to catch all measurement changes
+    toast,
+    // Add dependency on the specific materials to prevent re-adding
+    localSelectedMaterials["polyglass-elastoflex-sbs"],
+    localSelectedMaterials["polyglass-polyflex-app"]
+  ]);
 
   // Group all available materials by category for rendering the accordion
   const materialsByCategory = useMemo(() => {
