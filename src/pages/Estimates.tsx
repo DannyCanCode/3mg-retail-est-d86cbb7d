@@ -609,34 +609,7 @@ const Estimates = () => {
     }
   }, [peelStickAddonCost, isViewMode, isRecoveringState, setStoredPeelStickCost]);
 
-  // CRITICAL FIX: Add measurements auto-save with corruption prevention
-  useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && measurements) {
-      // Validate measurements data before saving to prevent corruption
-      const isValidMeasurements = measurements.totalArea > 0 && 
-                                 measurements.areasByPitch && 
-                                 Array.isArray(measurements.areasByPitch) &&
-                                 measurements.areasByPitch.length > 0 &&
-                                 measurements.areasByPitch.every(area => 
-                                   area.pitch && 
-                                   typeof area.area === 'number' && 
-                                   area.area > 0 &&
-                                   area.pitch.includes('/') || area.pitch.includes(':') // Valid pitch format
-                                 );
-      
-      if (isValidMeasurements) {
-        setStoredMeasurements(measurements);
-        console.log("💾 [CORRUPTION FIX] Auto-saved validated measurements with", measurements.areasByPitch.length, "pitch areas");
-        console.log("💾 [CORRUPTION FIX] Pitch formats:", measurements.areasByPitch.map(a => a.pitch));
-      } else {
-        console.warn("⚠️ [CORRUPTION FIX] Skipping save of invalid measurements data:", {
-          totalArea: measurements.totalArea,
-          areasByPitchLength: measurements.areasByPitch?.length,
-          areasByPitchValid: measurements.areasByPitch?.every(area => area.pitch && area.area > 0)
-        });
-      }
-    }
-  }, [measurements, isViewMode, isRecoveringState, setStoredMeasurements]);
+
 
   // Ensure measurements are properly set from extracted PDF data
   useEffect(() => {
@@ -683,33 +656,34 @@ const Estimates = () => {
         }
         
         if (data && data.measurements) {
-          console.log("✅ [CORRUPTION FIX] Received measurement data:", data);
-          console.log("✅ [CORRUPTION FIX] Original areasByPitch:", data.measurements.areasByPitch);
-          console.log("✅ [CORRUPTION FIX] Type check - Is array:", Array.isArray(data.measurements.areasByPitch));
-          
-          // CRITICAL FIX: Prevent data corruption by properly handling areasByPitch format
-          let validatedMeasurements = { ...data.measurements };
-          
-          // Validate and fix areasByPitch data format
+          console.log("Received measurement data:", data);
+          console.log("Original areasByPitch:", data.measurements.areasByPitch);
+          console.log("Type of areasByPitch:", typeof data.measurements.areasByPitch);
           if (data.measurements.areasByPitch) {
+            console.log("Is array:", Array.isArray(data.measurements.areasByPitch));
+          }
+          
+          // Ensure areasByPitch exists and is an array
+          let areasByPitchArray = [];
+          
+          // Check if areasByPitch exists
+          if (data.measurements.areasByPitch) {
+            // If it's already an array, use it
             if (Array.isArray(data.measurements.areasByPitch)) {
-              // Data is already in correct array format - use as-is
-              console.log("✅ [CORRUPTION FIX] areasByPitch is already in correct array format");
-              validatedMeasurements.areasByPitch = data.measurements.areasByPitch;
-            } else if (typeof data.measurements.areasByPitch === 'object') {
-              // Data is in object format - convert to array safely
-              console.log("✅ [CORRUPTION FIX] Converting object format to array format");
-              
-              const areasByPitchArray = Object.entries(data.measurements.areasByPitch).map(([pitch, areaInfo]) => {
+              areasByPitchArray = data.measurements.areasByPitch;
+            } 
+            // If it's an object with pitch keys, convert to array
+            else if (typeof data.measurements.areasByPitch === 'object') {
+              areasByPitchArray = Object.entries(data.measurements.areasByPitch).map(([pitch, areaInfo]) => {
                 // Handle different possible formats
                 if (typeof areaInfo === 'number') {
                   // Simple {pitch: area} format
                   return {
                     pitch: pitch,
                     area: areaInfo,
-                    percentage: 0 // Will be calculated below
+                    percentage: 0 // Default, will be calculated below
                   };
-                } else if (typeof areaInfo === 'object' && areaInfo !== null) {
+                } else if (typeof areaInfo === 'object') {
                   // Format with nested structure {pitch: {area, percentage}}
                   const typedAreaInfo = areaInfo as any;
                   return {
@@ -722,31 +696,26 @@ const Estimates = () => {
               }).filter(Boolean); // Remove any null entries
               
               // Calculate percentages if missing
-              const totalArea = areasByPitchArray.reduce((sum, area) => sum + (area?.area || 0), 0);
+              const totalArea = areasByPitchArray.reduce((sum, area) => sum + area.area, 0);
               if (totalArea > 0) {
-                areasByPitchArray.forEach(area => {
-                  if (area && (!area.percentage || area.percentage === 0)) {
-                    area.percentage = Math.round((area.area / totalArea) * 100);
-                  }
-                });
+                areasByPitchArray = areasByPitchArray.map(area => ({
+                  ...area,
+                  percentage: area.percentage || Math.round((area.area / totalArea) * 100)
+                }));
               }
-              
-              validatedMeasurements.areasByPitch = areasByPitchArray;
             }
-          } else {
-            // No areasByPitch data - create default from total area if available
-            console.log("⚠️ [CORRUPTION FIX] No areasByPitch data found, creating default");
-            validatedMeasurements.areasByPitch = [{
-              pitch: data.measurements.roofPitch || data.measurements.predominantPitch || "6:12",
-              area: data.measurements.totalArea || 0,
-              percentage: 100
-            }];
           }
           
-          console.log("✅ [CORRUPTION FIX] Final validated areasByPitch:", validatedMeasurements.areasByPitch);
+          console.log("Transformed areasByPitch:", areasByPitchArray);
           
-          // Set measurements using the validated data
-          setMeasurements(validatedMeasurements);
+          // Create processed measurements with the corrected areasByPitch
+          const processedMeasurements = {
+            ...data.measurements,
+            areasByPitch: areasByPitchArray
+          };
+          
+          // Set measurements using the processed data
+          setMeasurements(processedMeasurements);
           
           // First go to the measurements tab
           setActiveTab("measurements");
@@ -764,7 +733,7 @@ const Estimates = () => {
           throw new Error("No measurement data found");
         }
       } catch (error) {
-        console.error("❌ [CORRUPTION FIX] Error fetching measurement data:", error);
+        console.error("Error fetching measurement data:", error);
         toast({
           title: "Error",
           description: "Failed to load measurement data",
