@@ -215,7 +215,16 @@ const Estimates = () => {
   
   // Add localStorage hooks to persist state across refreshes and tabs
   const [storedPdfData, setStoredPdfData] = useLocalStorage<ParsedMeasurements | null>("estimateExtractedPdfData", null);
-  const [storedMeasurements, setStoredMeasurements] = useLocalStorage<MeasurementValues | null>("estimateMeasurements", null);
+  // FORCE CLEAR CORRUPTED MEASUREMENTS DATA - DO NOT USE LOCALSTORAGE FOR MEASUREMENTS
+  const [storedMeasurements, setStoredMeasurements] = useState<MeasurementValues | null>(null);
+  
+  // Clear any existing corrupted measurements data from localStorage on component mount
+  useEffect(() => {
+    // Force clear corrupted localStorage data
+    localStorage.removeItem("estimateMeasurements");
+    localStorage.removeItem("3mg_stored_measurements");
+    console.log("🗑️ CLEARED corrupted measurements from localStorage");
+  }, []);
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
   
   // Additional state persistence for complete estimate recovery
@@ -593,16 +602,37 @@ const Estimates = () => {
   useEffect(() => {
     // If we have extracted PDF data, convert it to MeasurementValues format
     if (extractedPdfData) {
-      console.log("Setting initial measurements from extracted PDF data:", extractedPdfData);
+      console.log("🆕 Setting fresh measurements from extracted PDF data:", extractedPdfData);
+      
+      // CRITICAL: Force clear any potential localStorage corruption first
+      localStorage.removeItem("estimateMeasurements");
+      localStorage.removeItem("3mg_stored_measurements");
+      
       const convertedMeasurements = convertToMeasurementValues(extractedPdfData);
-      setMeasurements(convertedMeasurements);
+      console.log("🆕 Fresh converted measurements:", convertedMeasurements);
+      console.log("🆕 Pitch data check:", convertedMeasurements.areasByPitch);
       
-      // Store in localStorage
+      // Validate pitch data before setting
+      if (convertedMeasurements.areasByPitch && convertedMeasurements.areasByPitch.length > 0) {
+        // Check if pitches look valid (contain '/' or ':')
+        const validPitches = convertedMeasurements.areasByPitch.every(p => 
+          p.pitch && (p.pitch.includes('/') || p.pitch.includes(':'))
+        );
+        
+        if (validPitches) {
+          console.log("✅ Pitch data validated - setting measurements");
+          setMeasurements(convertedMeasurements);
+        } else {
+          console.error("❌ Invalid pitch data detected:", convertedMeasurements.areasByPitch);
+          // Don't set corrupted measurements
+        }
+      } else {
+        console.warn("⚠️ No areas by pitch data found");
+        setMeasurements(convertedMeasurements);
+      }
+      
+      // Store PDF data only
       setStoredPdfData(extractedPdfData);
-      // DISABLED: setStoredMeasurements(convertedMeasurements); // Causes pitch corruption
-      
-      // Debug measurements conversion
-      console.log("Converted measurements:", convertedMeasurements);
     }
     
     // If we have a measurementId, fetch the data
@@ -819,6 +849,27 @@ const Estimates = () => {
   };
 
   const handleMeasurementsSaved = (savedMeasurements: MeasurementValues) => {
+    console.log("🔄 Measurements saved from form:", savedMeasurements);
+    
+    // CRITICAL: Validate pitch data before saving to prevent corruption
+    if (savedMeasurements.areasByPitch && savedMeasurements.areasByPitch.length > 0) {
+      const invalidPitches = savedMeasurements.areasByPitch.filter(p => 
+        !p.pitch || (!p.pitch.includes('/') && !p.pitch.includes(':') && !/^\d/.test(p.pitch))
+      );
+      
+      if (invalidPitches.length > 0) {
+        console.error("❌ CORRUPTION DETECTED - Invalid pitch data:", invalidPitches);
+        toast({
+          title: "Data Corruption Detected",
+          description: "Invalid pitch data detected. Please refresh and re-upload your PDF.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log("✅ Pitch data validated successfully:", savedMeasurements.areasByPitch);
+    }
+    
     // Update measurements state first
     setMeasurements(savedMeasurements);
     
