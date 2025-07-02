@@ -94,9 +94,9 @@ const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
         percentage: pitchData.percentage || 
           (parsedData.totalArea > 0 ? (pitchData.area / parsedData.totalArea) * 100 : 0)
       })).filter(item => item.area > 0);
-    } else if (typeof parsedData.areasByPitch === 'object') {
-      // Data is in object format - convert carefully without corrupting pitch values
-      console.log("🔄 [CORRUPTION FIX] Converting object format to array format safely");
+    } else if (typeof parsedData.areasByPitch === 'object' && !Array.isArray(parsedData.areasByPitch)) {
+      // Data is in TRUE object format (not array) - convert carefully without corrupting pitch values
+      console.log("🔄 [CORRUPTION FIX] Converting TRUE object format to array format safely");
       areasByPitch = Object.entries(parsedData.areasByPitch).map(([pitch, areaValue]) => {
         const area = typeof areaValue === 'number' ? areaValue : 
                     (typeof areaValue === 'object' && areaValue !== null ? (areaValue as any).area : 0);
@@ -110,6 +110,9 @@ const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
           percentage: percentage
         };
       }).filter(item => item.area > 0);
+    } else {
+      console.warn("🚫 [CORRUPTION FIX] Unexpected areasByPitch format:", typeof parsedData.areasByPitch, parsedData.areasByPitch);
+      areasByPitch = [];
     }
   }
 
@@ -680,8 +683,9 @@ const Estimates = () => {
             if (Array.isArray(data.measurements.areasByPitch)) {
               areasByPitchArray = data.measurements.areasByPitch;
             } 
-            // If it's an object with pitch keys, convert to array
-            else if (typeof data.measurements.areasByPitch === 'object') {
+            // If it's a TRUE object (not array) with pitch keys, convert to array
+            else if (typeof data.measurements.areasByPitch === 'object' && !Array.isArray(data.measurements.areasByPitch)) {
+              console.log("🔄 [FETCHMEASUREMENTS] Converting TRUE object to array format");
               areasByPitchArray = Object.entries(data.measurements.areasByPitch).map(([pitch, areaInfo]) => {
                 // Handle different possible formats
                 if (typeof areaInfo === 'number') {
@@ -711,6 +715,9 @@ const Estimates = () => {
                   percentage: area.percentage || Math.round((area.area / totalArea) * 100)
                 }));
               }
+            } else {
+              console.warn("🚫 [FETCHMEASUREMENTS] Unexpected areasByPitch format:", typeof data.measurements.areasByPitch, Array.isArray(data.measurements.areasByPitch));
+              areasByPitchArray = [];
             }
           }
           

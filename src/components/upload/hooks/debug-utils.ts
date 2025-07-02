@@ -32,8 +32,8 @@ export function debugPdfParsingResult(measurements: ParsedMeasurements | null, s
         console.log(`[${source}] Area ${index}: ${area.pitch} = ${area.area} sq ft (${area.percentage || 0}%)`);
       }
     });
-  } else {
-    console.log(`[${source}] areasByPitch is in object format with ${Object.keys(measurements.areasByPitch).length} keys`);
+  } else if (typeof measurements.areasByPitch === 'object' && !Array.isArray(measurements.areasByPitch)) {
+    console.log(`[${source}] areasByPitch is in TRUE object format with ${Object.keys(measurements.areasByPitch).length} keys`);
     
     // Validate object properties
     for (const [pitch, area] of Object.entries(measurements.areasByPitch)) {
@@ -43,6 +43,8 @@ export function debugPdfParsingResult(measurements: ParsedMeasurements | null, s
         console.log(`[${source}] Area: ${pitch} = ${area} sq ft`);
       }
     }
+  } else {
+    console.warn(`[${source}] Unexpected areasByPitch format:`, typeof measurements.areasByPitch, Array.isArray(measurements.areasByPitch));
   }
   
   // Log lat/long and address if available
