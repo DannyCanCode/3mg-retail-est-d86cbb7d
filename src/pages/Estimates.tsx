@@ -221,13 +221,85 @@ const Estimates = () => {
   // FORCE CLEAR CORRUPTED MEASUREMENTS DATA - DO NOT USE LOCALSTORAGE FOR MEASUREMENTS
   const [storedMeasurements, setStoredMeasurements] = useState<MeasurementValues | null>(null);
   
-  // Clear any existing corrupted measurements data from localStorage on component mount
+  // AUTOMATIC CORRUPTION DETECTION AND CLEANUP - No user action required
   useEffect(() => {
-    // Force clear corrupted localStorage data
-    localStorage.removeItem("estimateMeasurements");
-    localStorage.removeItem("3mg_stored_measurements");
-    console.log("🗑️ CLEARED corrupted measurements from localStorage");
-  }, []);
+    const detectAndCleanCorruptedData = () => {
+      console.log("🔍 Running automatic corruption detection...");
+      
+      // List of all localStorage keys that might contain corrupted data
+      const keysToCheck = [
+        "estimateMeasurements",
+        "3mg_stored_measurements", 
+        "estimateExtractedPdfData"
+      ];
+      
+      let corruptionDetected = false;
+      
+      keysToCheck.forEach(key => {
+        try {
+          const data = localStorage.getItem(key);
+          if (data) {
+            const parsed = JSON.parse(data);
+            
+            // Check for pitch corruption in measurements
+            if (parsed?.areasByPitch) {
+              if (Array.isArray(parsed.areasByPitch)) {
+                // Check if any pitch looks like array indices
+                const hasCorruptedPitches = parsed.areasByPitch.some((item: any) => {
+                  const pitch = item.pitch;
+                  // Detect corruption: pure numbers like "0", "1", "2" without "/" or ":"
+                  return pitch && /^\d+$/.test(pitch) && !pitch.includes('/') && !pitch.includes(':');
+                });
+                
+                if (hasCorruptedPitches) {
+                  console.log(`❌ CORRUPTION DETECTED in ${key}:`, parsed.areasByPitch);
+                  localStorage.removeItem(key);
+                  corruptionDetected = true;
+                }
+              }
+            }
+            
+            // Check for other corruption patterns in extracted PDF data
+            if (key === "estimateExtractedPdfData" && parsed?.areasByPitch) {
+              if (Array.isArray(parsed.areasByPitch)) {
+                const hasCorruptedPitches = parsed.areasByPitch.some((item: any) => {
+                  return item.pitch && /^\d+$/.test(item.pitch);
+                });
+                
+                if (hasCorruptedPitches) {
+                  console.log(`❌ CORRUPTION DETECTED in PDF data:`, parsed.areasByPitch);
+                  localStorage.removeItem(key);
+                  corruptionDetected = true;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          // If we can't parse the data, it's corrupted - remove it
+          console.log(`❌ PARSE ERROR in ${key}, removing:`, error);
+          localStorage.removeItem(key);
+          corruptionDetected = true;
+        }
+      });
+      
+      if (corruptionDetected) {
+        console.log("🧹 AUTOMATIC CLEANUP: Corrupted data detected and removed");
+        // Show user-friendly notification
+        setTimeout(() => {
+          toast({
+            title: "🔧 Data Restored",
+            description: "We detected and fixed some corrupted data from your previous session.",
+            duration: 3000,
+          });
+        }, 1000);
+      } else {
+        console.log("✅ No corruption detected - localStorage is clean");
+      }
+    };
+    
+    // Run corruption detection on component mount
+    detectAndCleanCorruptedData();
+  }, [toast]);
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
   
   // Additional state persistence for complete estimate recovery
@@ -541,12 +613,34 @@ const Estimates = () => {
     
     }, [isViewMode, isRecoveringState, hasRecoveredData, userWantsFreshStart, stateRecoveryAttempts, storedPdfData, storedMeasurements, storedFileName, storedSelectedMaterials, storedQuantities, storedLaborRates, storedProfitMargin, storedEstimateType, storedSelectedSubtrades, storedActiveTab, storedPeelStickCost, extractedPdfData, measurements, pdfFileName, selectedMaterials, quantities, laborRates, profitMargin, estimateType, selectedSubtrades, activeTab, peelStickAddonCost]);
   
+  // CORRUPTION PREVENTION: Validate data before auto-saving
+  const validateAndSave = <T,>(data: T, setter: (data: T) => void, dataType: string): boolean => {
+    // Special validation for measurements
+    if (dataType === 'measurements' && data) {
+      const measurements = data as any;
+      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+        const hasCorruption = measurements.areasByPitch.some((item: any) => {
+          const pitch = item.pitch;
+          return pitch && /^\d+$/.test(pitch) && !pitch.includes('/') && !pitch.includes(':');
+        });
+        
+        if (hasCorruption) {
+          console.error(`❌ BLOCKED corrupted ${dataType} from auto-save:`, measurements.areasByPitch);
+          return false;
+        }
+      }
+    }
+    
+    setter(data);
+    console.log(`💾 Auto-saved ${dataType}:`, typeof data === 'object' ? Object.keys(data as any).length : data);
+    return true;
+  };
+
   // PHASE 2: Smart Auto-Save Effects - Prevent save loops during recovery
   useEffect(() => {
     // Don't save during recovery or view mode
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && Object.keys(selectedMaterials).length > 0) {
-      setStoredSelectedMaterials(selectedMaterials);
-      console.log("💾 Auto-saved materials:", Object.keys(selectedMaterials).length, "items");
+      validateAndSave(selectedMaterials, setStoredSelectedMaterials, 'materials');
     }
   }, [selectedMaterials, isViewMode, isRecoveringState, setStoredSelectedMaterials]);
 
@@ -615,11 +709,26 @@ const Estimates = () => {
       console.log("🆕 Fresh converted measurements:", convertedMeasurements);
       console.log("🆕 Pitch data check:", convertedMeasurements.areasByPitch);
       
-      // Validate pitch data before setting
+      // ENHANCED VALIDATION: Check for corruption patterns
       if (convertedMeasurements.areasByPitch && convertedMeasurements.areasByPitch.length > 0) {
-        // Check if pitches look valid (contain '/' or ':')
+        // Check for corruption: pure numeric indices without pitch format
+        const corruptedPitches = convertedMeasurements.areasByPitch.filter(p => 
+          p.pitch && /^\d+$/.test(p.pitch) && !p.pitch.includes('/') && !p.pitch.includes(':')
+        );
+        
+        if (corruptedPitches.length > 0) {
+          console.error("❌ CORRUPTION DETECTED - Array indices as pitches:", corruptedPitches);
+          toast({
+            title: "Data Corruption Prevented",
+            description: "Corrupted pitch data was detected and blocked. Please re-upload your PDF.",
+            variant: "destructive"
+          });
+          return; // Don't set corrupted measurements
+        }
+        
+        // Check if pitches look valid (contain '/' or ':' or are valid pitch formats)
         const validPitches = convertedMeasurements.areasByPitch.every(p => 
-          p.pitch && (p.pitch.includes('/') || p.pitch.includes(':'))
+          p.pitch && (p.pitch.includes('/') || p.pitch.includes(':') || /^\d+(\.\d+)?$/.test(p.pitch))
         );
         
         if (validPitches) {
@@ -627,7 +736,12 @@ const Estimates = () => {
           setMeasurements(convertedMeasurements);
         } else {
           console.error("❌ Invalid pitch data detected:", convertedMeasurements.areasByPitch);
-          // Don't set corrupted measurements
+          toast({
+            title: "Invalid Pitch Data",
+            description: "The pitch data format is invalid. Please check your PDF and try again.",
+            variant: "destructive"
+          });
+          return; // Don't set invalid measurements
         }
       } else {
         console.warn("⚠️ No areas by pitch data found");
@@ -766,6 +880,24 @@ const Estimates = () => {
 
   const handlePdfDataExtracted = (data: ParsedMeasurements | null, fileName: string) => {
     console.log("PDF data extracted:", data, fileName);
+    
+    // VALIDATION: Ensure extracted data is not corrupted before proceeding
+    if (data?.areasByPitch && Array.isArray(data.areasByPitch)) {
+      const hasCorruptedPitches = data.areasByPitch.some((item: any) => {
+        const pitch = item.pitch;
+        return pitch && /^\d+$/.test(pitch) && !pitch.includes('/') && !pitch.includes(':');
+      });
+      
+      if (hasCorruptedPitches) {
+        console.error("❌ CORRUPTED DATA detected in fresh PDF extraction:", data.areasByPitch);
+        toast({
+          title: "Data Corruption Detected",
+          description: "The PDF extraction resulted in corrupted pitch data. Please try uploading again.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
     
     // CRITICAL FIX: Mark this as fresh PDF data to prevent recovery conflicts
     const freshDataTimestamp = Date.now();
