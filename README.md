@@ -224,3 +224,4 @@ This version is deployed on Netlify from the `release/admin-estimator-v1` branch
 ---
 
 This README provides a clear overview of the current release and a detailed plan for the upcoming sprints. Let me know if you'd like any adjustments.
+# Environment variables updated for preview testing
