@@ -31,4 +31,35 @@ VITE_POSTHOG_API_KEY=phx_your_personal_api_key_here
 ✅ **Working**: You see the green "🔗 Live PostHog API" badge  
 ❌ **Not Working**: You see the amber "📊 Mock Data" badge
 
-Check browser console for any API connection errors. 
+Check browser console for any API connection errors.
+
+## Debug Logging
+
+### Enabling Verbose Console Logs
+
+By default, the application reduces console logging in production to improve performance. To enable detailed logging for troubleshooting:
+
+#### Method 1: localStorage Flag
+```javascript
+// In browser console, run:
+localStorage.setItem('debug_auto_save', 'true')
+
+// To disable:
+localStorage.removeItem('debug_auto_save')
+```
+
+#### Method 2: Development Mode
+Verbose logging is automatically enabled when running in development mode (`npm run dev`).
+
+### What Debug Logging Shows
+
+When enabled, you'll see detailed logs for:
+- Auto-save operations and hydration
+- PDF data extraction and processing  
+- Tab navigation and state changes
+- Material calculations and updates
+- Database operations
+
+### Performance Note
+
+Debug logging can generate hundreds of console messages. Only enable when actively troubleshooting issues, and disable afterward for better performance. 

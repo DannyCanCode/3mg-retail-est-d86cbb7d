@@ -179,22 +179,10 @@ export const calculateMaterialQuantity = (
       return parseInt(parts[0] || '0');
     };
 
-    const lowSlopeAreaSqFt = measurements.areasByPitch
-        ?.filter(area => {
-           const rise = getPitchRise(area.pitch);
-           return !isNaN(rise) && rise >= 0 && rise <= 2;
-        })
-        .reduce((sum, area) => sum + (area.area || 0), 0) || 0;
-
-    if (lowSlopeAreaSqFt <= 0) {
-      console.log(`[CalcQuantity] Low slope area is 0, returning 0 for ${material.id}.`);
-      return { quantity: 0, actualWasteFactor };
-    }
-    
-    const lowSlopeAreaWithWaste = lowSlopeAreaSqFt * (1 + actualWasteFactor);
+    // 🔧 FIXED: Separate calculations based on specific material requirements
     
     if (material.id === "gaf-poly-iso-4x8") {
-        // This material is ONLY for 0/12 pitch. We need to recalculate the area for this specific case.
+        // ISO is ONLY required for 0/12 pitch areas
         const zeroPitchArea = measurements.areasByPitch
           ?.filter(area => {
              const rise = getPitchRise(area.pitch);
@@ -210,18 +198,67 @@ export const calculateMaterialQuantity = (
         const zeroPitchAreaWithWaste = zeroPitchArea * (1 + actualWasteFactor);
         const squaresNeeded = zeroPitchAreaWithWaste / 100;
         quantity = Math.ceil(squaresNeeded);
+        console.log(`[CalcQuantity] ISO (0/12 only): Used ${zeroPitchArea.toFixed(1)} sq ft area, Result: ${quantity} squares`);
+        
     } else if (material.id === "polyglass-elastoflex-sbs") {
-        const coverageSqFtPerRoll = 114; // Approx 1.06 squares
-            quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
-    } else if (material.id === "polyglass-polyflex-app") {
-        const coverageSqFtPerRoll = 100; // Approx 1.0 squares
+        // Base Sheet is required for 0/12, 1/12, AND 2/12 pitch areas
+        const lowSlopeAreaSqFt = measurements.areasByPitch
+          ?.filter(area => {
+             const rise = getPitchRise(area.pitch);
+             return !isNaN(rise) && rise >= 0 && rise <= 2;
+          })
+          .reduce((sum, area) => sum + (area.area || 0), 0) || 0;
+
+        if (lowSlopeAreaSqFt <= 0) {
+            console.log(`[CalcQuantity] Low slope area (0-2 pitch) is 0, returning 0 for ${material.id}.`);
+            return { quantity: 0, actualWasteFactor };
+        }
+
+        const lowSlopeAreaWithWaste = lowSlopeAreaSqFt * (1 + actualWasteFactor);
+        // 🔧 FIXED: Base covers 114 sq ft per roll → Low-slope area ÷ 114
+        const coverageSqFtPerRoll = 114;
         quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
+        console.log(`[CalcQuantity] SBS Base (0-2 pitch): Used ${lowSlopeAreaSqFt.toFixed(1)} sq ft area, ÷ ${coverageSqFtPerRoll} sq ft/roll = ${quantity} rolls`);
+        
+    } else if (material.id === "polyglass-polyflex-app") {
+        // Cap Sheet is required for 0/12, 1/12, AND 2/12 pitch areas  
+        const lowSlopeAreaSqFt = measurements.areasByPitch
+          ?.filter(area => {
+             const rise = getPitchRise(area.pitch);
+             return !isNaN(rise) && rise >= 0 && rise <= 2;
+          })
+          .reduce((sum, area) => sum + (area.area || 0), 0) || 0;
+
+        if (lowSlopeAreaSqFt <= 0) {
+            console.log(`[CalcQuantity] Low slope area (0-2 pitch) is 0, returning 0 for ${material.id}.`);
+            return { quantity: 0, actualWasteFactor };
+        }
+
+        const lowSlopeAreaWithWaste = lowSlopeAreaSqFt * (1 + actualWasteFactor);
+        // 🔧 FIXED: Cap covers 100 sq ft per roll → Low-slope area ÷ 100 
+        const coverageSqFtPerRoll = 100;
+        quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
+        console.log(`[CalcQuantity] APP Cap (0-2 pitch): Used ${lowSlopeAreaSqFt.toFixed(1)} sq ft area, ÷ ${coverageSqFtPerRoll} sq ft/roll = ${quantity} rolls`);
+        
     } else {
-      // Fallback for other low slope - assuming 1.5 sq/roll = 150 sqft/roll
+      // Fallback for other low slope materials
+      const lowSlopeAreaSqFt = measurements.areasByPitch
+        ?.filter(area => {
+           const rise = getPitchRise(area.pitch);
+           return !isNaN(rise) && rise >= 0 && rise <= 2;
+        })
+        .reduce((sum, area) => sum + (area.area || 0), 0) || 0;
+
+      if (lowSlopeAreaSqFt <= 0) {
+        console.log(`[CalcQuantity] Low slope area is 0, returning 0 for ${material.id}.`);
+        return { quantity: 0, actualWasteFactor };
+      }
+
+      const lowSlopeAreaWithWaste = lowSlopeAreaSqFt * (1 + actualWasteFactor);
       const coverageSqFtPerRoll = material.coveragePerUnit || 150;
       quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
+      console.log(`[CalcQuantity] Other Low Slope: ${quantity} using ${lowSlopeAreaSqFt.toFixed(1)} sq ft`);
     }
-    console.log(`[CalcQuantity] Low Slope Material ${material.id} Result: ${quantity} using ${lowSlopeAreaSqFt.toFixed(1)} sq ft area and waste ${actualWasteFactor}`);
   }
   
   // For Metal category

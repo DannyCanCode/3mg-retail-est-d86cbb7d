@@ -5,6 +5,7 @@
 
 export interface FeatureFlags {
   AUTO_SAVE_ENABLED: boolean;
+  AUTO_SAVE_SUPABASE_ENABLED: boolean;
   OFFLINE_QUEUE_ENABLED: boolean;
   CONFLICT_RESOLUTION_ENABLED: boolean;
   ANALYTICS_ENABLED: boolean;
@@ -28,6 +29,7 @@ function getEnvBoolean(key: string, defaultValue: boolean = false): boolean {
 export function getFeatureFlags(): FeatureFlags {
   return {
     AUTO_SAVE_ENABLED: getEnvBoolean('VITE_ENABLE_AUTO_SAVE', false),
+    AUTO_SAVE_SUPABASE_ENABLED: getEnvBoolean('VITE_ENABLE_SUPABASE_STORAGE', true),
     OFFLINE_QUEUE_ENABLED: getEnvBoolean('VITE_ENABLE_OFFLINE_QUEUE', false),
     CONFLICT_RESOLUTION_ENABLED: getEnvBoolean('VITE_ENABLE_CONFLICT_RESOLUTION', false),
     ANALYTICS_ENABLED: getEnvBoolean('VITE_ENABLE_ANALYTICS', false),

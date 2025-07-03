@@ -623,7 +623,10 @@ export function usePdfParser() {
 
         for (const row of sortedRows) {
           const rowText = row.map(item => item.text).join(' ').trim();
-          console.log('Processing row:', rowText);
+          // Only log important rows, not every single row to improve performance
+          if (rowText.includes('Areas per Pitch') || rowText.match(/\d+\/12/) || rowText.includes('Area (sq ft)') || rowText.includes('%')) {
+            console.log('Processing important row:', rowText);
+          }
 
           // Look for the Areas per Pitch section header
           if (rowText.includes('Areas per Pitch')) {

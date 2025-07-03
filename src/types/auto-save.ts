@@ -85,6 +85,10 @@ export interface AutoSaveHook {
   isDirty: boolean;         // Has unsaved changes
   isLeader: boolean;        // Is this tab the leader for this estimate
   
+  // Hydration state
+  hydratedData: EstimateData | null; // Data loaded from storage on mount
+  isHydrating: boolean;     // Currently loading data from storage
+  
   // Actions
   save: (data: EstimateData) => Promise<void>;
   flush: () => Promise<void>; // Force immediate save

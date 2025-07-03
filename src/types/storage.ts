@@ -92,7 +92,7 @@ export interface SaveResult {
  * Storage operation errors
  */
 export interface StorageError {
-  code: 'NETWORK_ERROR' | 'VERSION_CONFLICT' | 'VALIDATION_ERROR' | 'UNKNOWN_ERROR';
+  code: 'NETWORK_ERROR' | 'VERSION_CONFLICT' | 'VALIDATION_ERROR' | 'UNKNOWN_ERROR' | 'HYDRATION_ERROR';
   message: string;
   retryable: boolean;
 }
@@ -158,9 +158,11 @@ export interface NetworkStatus {
  */
 export interface FeatureFlags {
   AUTO_SAVE_ENABLED: boolean;
+  AUTO_SAVE_SUPABASE_ENABLED: boolean;
   OFFLINE_QUEUE_ENABLED: boolean;
   CONFLICT_RESOLUTION_ENABLED: boolean;
   ANALYTICS_ENABLED: boolean;
+  DEBUG_MODE: boolean;
 }
 
 // ============================================================================
