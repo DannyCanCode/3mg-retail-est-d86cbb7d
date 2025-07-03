@@ -161,13 +161,35 @@ export const getMeasurementById = async (id: string) => {
           ? JSON.parse(rawData.areas_per_pitch) 
           : rawData.areas_per_pitch;
         
-        areasByPitch = Object.entries(areasPerPitchData).map(([pitch, areaInfo]: [string, any]) => ({
-          pitch: pitch,
-          area: areaInfo.area || 0,
-          percentage: areaInfo.percentage || 0
-        }));
+        console.log('🔍 [PITCH CORRUPTION FIX] Raw areasPerPitchData:', areasPerPitchData);
+        console.log('🔍 [PITCH CORRUPTION FIX] Type:', typeof areasPerPitchData);
+        console.log('🔍 [PITCH CORRUPTION FIX] Is array:', Array.isArray(areasPerPitchData));
+        
+        // Handle both array and object formats to prevent pitch corruption
+        if (Array.isArray(areasPerPitchData)) {
+          // Data is already in array format - use it directly
+          areasByPitch = areasPerPitchData.map((item: any) => ({
+            pitch: item.pitch || '0/12',
+            area: item.area || 0,
+            percentage: item.percentage || 0
+          }));
+          console.log('✅ [PITCH CORRUPTION FIX] Used array format directly');
+        } else if (areasPerPitchData && typeof areasPerPitchData === 'object') {
+          // Data is in object format - convert to array  
+          areasByPitch = Object.entries(areasPerPitchData).map(([pitch, areaInfo]: [string, any]) => ({
+            pitch: pitch,
+            area: areaInfo.area || 0,
+            percentage: areaInfo.percentage || 0
+          }));
+          console.log('✅ [PITCH CORRUPTION FIX] Converted object format to array');
+        } else {
+          console.warn('⚠️ [PITCH CORRUPTION FIX] Unexpected data format:', areasPerPitchData);
+          areasByPitch = [];
+        }
+        
+        console.log('🔍 [PITCH CORRUPTION FIX] Final areasByPitch:', areasByPitch);
       } catch (parseError) {
-        console.error('Error parsing areas_per_pitch:', parseError);
+        console.error('❌ [PITCH CORRUPTION FIX] Error parsing areas_per_pitch:', parseError);
         areasByPitch = [];
       }
     }

@@ -27,6 +27,7 @@ interface EstimateSummaryTabProps {
   isReviewMode?: boolean;
   calculateLiveTotal: () => number;
   onEstimateUpdated?: () => void;
+  onBack?: () => void;
 }
 
 export function EstimateSummaryTab({
@@ -41,7 +42,8 @@ export function EstimateSummaryTab({
   estimate,
   isReviewMode = false,
   calculateLiveTotal,
-  onEstimateUpdated
+  onEstimateUpdated,
+  onBack
 }: EstimateSummaryTabProps) {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -609,11 +611,11 @@ export function EstimateSummaryTab({
             <>
               <Button 
                 variant="outline"
-                onClick={() => navigate(-1)}
+                onClick={() => onBack?.()}
                 className="gap-2"
               >
                 <ChevronLeft className="h-4 w-4" />
-                Back to Pricing
+                Back to Labor & Profit
               </Button>
               
               <Button 

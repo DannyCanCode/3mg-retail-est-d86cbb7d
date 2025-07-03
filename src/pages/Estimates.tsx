@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ChevronRight, RefreshCw, ArrowLeft, Loader2, Shield, Info, EyeOff } from "lucide-react";
-import { MeasurementForm } from "@/components/estimates/MeasurementForm";
+
+import { SimplifiedReviewTab } from "@/components/estimates/measurement/SimplifiedReviewTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaterialsSelectionTab } from "@/components/estimates/materials/MaterialsSelectionTab";
 import { MeasurementValues, AreaByPitch } from "@/components/estimates/measurement/types";
@@ -15,6 +16,8 @@ import { EstimateSummaryTab } from "@/components/estimates/pricing/EstimateSumma
 import { ParsedMeasurements } from "@/api/measurements";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAutoSave, useEstimateId } from "@/hooks/useAutoSave";
+import { isFeatureEnabled } from "@/utils/feature-flags";
 import { saveEstimate, calculateEstimateTotal as calculateEstimateTotalFromAPI, getEstimateById, Estimate as EstimateType, markEstimateAsSold, getEstimates, updateEstimateStatus, updateEstimateCustomerDetails, EstimateStatus } from "@/api/estimatesFacade";
 import { getMeasurementById } from "@/api/measurements";
 import {
@@ -46,11 +49,12 @@ import { isSupabaseConfigured } from "@/integrations/supabase/client";
 const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
   // Allow both direct ParsedMeasurements and the wrapper { measurements, parsedMeasurements }
   const parsedData: ParsedMeasurements | null = parsedDataRaw?.parsedMeasurements ?? parsedDataRaw ?? null;
-  console.log("Converting PDF data to measurement values");
+  console.log("🔄 [CORRUPTION FIX] Converting PDF data to measurement values");
+  console.log("🔄 [CORRUPTION FIX] Input data:", parsedData);
   
   // Handle null/undefined data safely
   if (!parsedData) {
-    console.warn("Warning: parsedData is null or undefined, returning default measurement values");
+    console.warn("⚠️ [CORRUPTION FIX] parsedData is null or undefined, returning default measurement values");
     return {
       totalArea: 0,
       ridgeLength: 0,
@@ -77,21 +81,47 @@ const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
     };
   }
   
-  console.log("Raw areasByPitch data:", parsedData.areasByPitch);
+  console.log("🔄 [CORRUPTION FIX] Raw areasByPitch data:", parsedData.areasByPitch);
+  console.log("🔄 [CORRUPTION FIX] Type check - Is array:", Array.isArray(parsedData.areasByPitch));
   
-  // Process the areas by pitch data - safely handle undefined or empty areasByPitch
-  const areasByPitch = Array.isArray(parsedData.areasByPitch) ? parsedData.areasByPitch.map(pitchData => ({
-    ...pitchData,
-    // Ensure area is a number
-    area: typeof pitchData.area === 'number' ? pitchData.area : 0,
-    // Calculate percentage if not provided
-    percentage: pitchData.percentage || 
-      (parsedData.totalArea > 0 ? (pitchData.area / parsedData.totalArea) * 100 : 0)
-  })).filter(item => item.area > 0) : [];
+  // CRITICAL FIX: Process the areas by pitch data safely - preserve original format
+  let areasByPitch: any[] = [];
+  
+  if (parsedData.areasByPitch) {
+    if (Array.isArray(parsedData.areasByPitch)) {
+      // Data is already in correct array format - preserve it exactly
+      console.log("✅ [CORRUPTION FIX] areasByPitch is already in correct array format, preserving as-is");
+      areasByPitch = parsedData.areasByPitch.map(pitchData => ({
+        pitch: pitchData.pitch, // Preserve original pitch format exactly
+        area: typeof pitchData.area === 'number' ? pitchData.area : 0,
+        percentage: pitchData.percentage || 
+          (parsedData.totalArea > 0 ? (pitchData.area / parsedData.totalArea) * 100 : 0)
+      })).filter(item => item.area > 0);
+    } else if (typeof parsedData.areasByPitch === 'object' && !Array.isArray(parsedData.areasByPitch)) {
+      // Data is in TRUE object format (not array) - convert carefully without corrupting pitch values
+      console.log("🔄 [CORRUPTION FIX] Converting TRUE object format to array format safely");
+      areasByPitch = Object.entries(parsedData.areasByPitch).map(([pitch, areaValue]) => {
+        const area = typeof areaValue === 'number' ? areaValue : 
+                    (typeof areaValue === 'object' && areaValue !== null ? (areaValue as any).area : 0);
+        const percentage = typeof areaValue === 'object' && areaValue !== null ? 
+                          (areaValue as any).percentage : 
+                          (parsedData.totalArea > 0 ? (area / parsedData.totalArea) * 100 : 0);
+        
+        return {
+          pitch: pitch, // Preserve original pitch format exactly
+          area: area,
+          percentage: percentage
+        };
+      }).filter(item => item.area > 0);
+    } else {
+      console.warn("🚫 [CORRUPTION FIX] Unexpected areasByPitch format:", typeof parsedData.areasByPitch, parsedData.areasByPitch);
+      areasByPitch = [];
+    }
+  }
 
-  console.log("Processed areasByPitch:", areasByPitch);
+  console.log("✅ [CORRUPTION FIX] Final processed areasByPitch:", areasByPitch);
   
-  // Return complete measurement values
+  // Return complete measurement values with preserved pitch data
   return {
     totalArea: parsedData.totalArea || 0,
     ridgeLength: parsedData.ridgeLength || 0,
@@ -191,7 +221,88 @@ const Estimates = () => {
   
   // Add localStorage hooks to persist state across refreshes and tabs
   const [storedPdfData, setStoredPdfData] = useLocalStorage<ParsedMeasurements | null>("estimateExtractedPdfData", null);
-  const [storedMeasurements, setStoredMeasurements] = useLocalStorage<MeasurementValues | null>("estimateMeasurements", null);
+  // FORCE CLEAR CORRUPTED MEASUREMENTS DATA - DO NOT USE LOCALSTORAGE FOR MEASUREMENTS
+  const [storedMeasurements, setStoredMeasurements] = useState<MeasurementValues | null>(null);
+  
+  // AUTOMATIC CORRUPTION DETECTION AND CLEANUP - No user action required
+  useEffect(() => {
+    const detectAndCleanCorruptedData = () => {
+      console.log("🔍 Running automatic corruption detection...");
+      
+      // List of all localStorage keys that might contain corrupted data
+      const keysToCheck = [
+        "estimateMeasurements",
+        "3mg_stored_measurements", 
+        "estimateExtractedPdfData"
+      ];
+      
+      let corruptionDetected = false;
+      
+      keysToCheck.forEach(key => {
+        try {
+          const data = localStorage.getItem(key);
+          if (data) {
+            const parsed = JSON.parse(data);
+            
+            // Check for pitch corruption in measurements
+            if (parsed?.areasByPitch) {
+              if (Array.isArray(parsed.areasByPitch)) {
+                // Check if any pitch looks like array indices
+                const hasCorruptedPitches = parsed.areasByPitch.some((item: any) => {
+                  const pitch = item.pitch;
+                  // Detect corruption: pure numbers like "0", "1", "2" without "/" or ":"
+                  return pitch && /^\d+$/.test(pitch) && !pitch.includes('/') && !pitch.includes(':');
+                });
+                
+                if (hasCorruptedPitches) {
+                  console.log(`❌ CORRUPTION DETECTED in ${key}:`, parsed.areasByPitch);
+                  localStorage.removeItem(key);
+                  corruptionDetected = true;
+                }
+              }
+            }
+            
+            // Check for other corruption patterns in extracted PDF data
+            if (key === "estimateExtractedPdfData" && parsed?.areasByPitch) {
+              if (Array.isArray(parsed.areasByPitch)) {
+                const hasCorruptedPitches = parsed.areasByPitch.some((item: any) => {
+                  return item.pitch && /^\d+$/.test(item.pitch);
+                });
+                
+                if (hasCorruptedPitches) {
+                  console.log(`❌ CORRUPTION DETECTED in PDF data:`, parsed.areasByPitch);
+                  localStorage.removeItem(key);
+                  corruptionDetected = true;
+                }
+              }
+            }
+          }
+        } catch (error) {
+          // If we can't parse the data, it's corrupted - remove it
+          console.log(`❌ PARSE ERROR in ${key}, removing:`, error);
+          localStorage.removeItem(key);
+          corruptionDetected = true;
+        }
+      });
+      
+      if (corruptionDetected) {
+        console.log("🧹 AUTOMATIC CLEANUP: Corrupted data detected and removed");
+        // Show user-friendly notification
+        setTimeout(() => {
+          toast({
+            title: "🔧 Data Restored",
+            description: "We detected and fixed some corrupted data from your previous session.",
+            duration: 3000,
+          });
+        }, 1000);
+      } else {
+        console.log("✅ No corruption detected - localStorage is clean");
+      }
+    };
+    
+    // Run corruption detection on component mount
+    detectAndCleanCorruptedData();
+  }, [toast]);
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
   
   // Additional state persistence for complete estimate recovery
@@ -230,6 +341,85 @@ const Estimates = () => {
   const [storedActiveTab, setStoredActiveTab] = useLocalStorage<string>("estimateActiveTab", "type-selection");
   const [storedPeelStickCost, setStoredPeelStickCost] = useLocalStorage<string>("estimatePeelStickCost", "0.00");
   
+  // PHASE 2.5: AUTO-SAVE INTEGRATION - Gradual migration from localStorage to server storage
+  const [autoSaveEstimateId, setAutoSaveEstimateId] = useState(() => crypto.randomUUID()); // Generate UUID for this estimate
+  const [isStartingFresh, setIsStartingFresh] = useState(false); // Track when we're in "Start Fresh" mode
+  const stableEstimateIdRef = useRef(autoSaveEstimateId); // Stable reference to prevent loops
+  
+  // 🔧 STABILITY FIX: Prevent estimate ID changes during normal workflow to avoid auto-save conflicts
+  useEffect(() => {
+    if (stableEstimateIdRef.current !== autoSaveEstimateId) {
+      // Only allow ID changes when we're intentionally starting fresh
+      if (isStartingFresh) {
+        console.log("🔄 [ESTIMATE ID] Start Fresh: Changed from", stableEstimateIdRef.current, "to", autoSaveEstimateId);
+        stableEstimateIdRef.current = autoSaveEstimateId;
+      } else {
+        // 🛑 PREVENT UNINTENTIONAL ID CHANGES: Block estimate ID changes during normal workflow
+        console.log("🛑 [ESTIMATE ID] Blocked unintentional change during workflow. Keeping:", stableEstimateIdRef.current);
+        // Reset the state back to the stable ID to prevent conflicts
+        setAutoSaveEstimateId(stableEstimateIdRef.current);
+      }
+    }
+  }, [autoSaveEstimateId, isStartingFresh]);
+  
+  // Auto-save hook for critical data (replaces localStorage for major objects)
+  const autoSaveData = useMemo(() => {
+    if (!isFeatureEnabled('AUTO_SAVE_ENABLED') || isStartingFresh) {
+      return null;
+    }
+    
+    return {
+      id: stableEstimateIdRef.current, // Use stable ref instead of state
+      extractedPdfData: extractedPdfData,
+      pdfFileName: pdfFileName,
+      selectedMaterials: selectedMaterials,
+      quantities: quantities,
+      laborRates: laborRates,
+      profitMargin: profitMargin,
+      estimateType: estimateType,
+      selectedSubtrades: selectedSubtrades,
+      activeTab: activeTab,
+      peelStickCost: peelStickAddonCost,
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
+  }, [
+    // Remove autoSaveEstimateId from dependencies to prevent loops
+    extractedPdfData,
+    pdfFileName, 
+    selectedMaterials,
+    quantities,
+    laborRates,
+    profitMargin,
+    estimateType,
+    selectedSubtrades,
+    activeTab,
+    peelStickAddonCost,
+    isStartingFresh
+  ]);
+  
+  const {
+    status: autoSaveStatus,
+    lastSaved: autoSaveLastSaved,
+    isDirty: autoSaveIsDirty,
+    isLeader: autoSaveIsLeader,
+    hydratedData: autoSaveHydratedData,
+    isHydrating: autoSaveIsHydrating,
+    save: autoSaveManualSave,
+    flush: autoSaveFlush,
+    error: autoSaveError
+  } = useAutoSave(
+    !isViewMode && !isStartingFresh ? stableEstimateIdRef.current : null, // Use stable ref to prevent ID changes from causing re-initialization
+    !isViewMode && !isStartingFresh ? autoSaveData : null,
+    {
+      debounceMs: 10000,        // 10 second debounce
+      maxDeferralMs: 60000,     // Force save after 60 seconds
+      enableOfflineQueue: true,
+      enableConflictResolution: true
+    }
+  );
+  
   // PHASE 2: Smart State Management - Recovery tracking and conflict prevention
   const [isRecoveringState, setIsRecoveringState] = useState(false);
   const [hasRecoveredData, setHasRecoveredData] = useState(false);
@@ -244,6 +434,9 @@ const Estimates = () => {
     tabPositionRecovered: false,
     estimateTypeRecovered: false
   });
+  
+  // AUTO-SAVE HYDRATION: Load saved data from Supabase and populate form
+  const [hasHydratedFromAutoSave, setHasHydratedFromAutoSave] = useState(false);
   
   const [estimates, setEstimates] = useState<EstimateType[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -287,26 +480,36 @@ const Estimates = () => {
       // For a new estimate, ensure we start clean
       // and don't load from localStorage unless specified by a measurementId
       if (!measurementId) {
-        // IMMEDIATE FRESH START: User clicked "New Estimate" - prevent any recovery
-        console.log("NEW ESTIMATE: Starting fresh workflow");
-        setUserWantsFreshStart(true);
-        setActiveTab("type-selection");
+        // 🔧 START FRESH FIX: Don't force type-selection if user has significant data and wants to stay on current workflow
+        const hasSignificantData = extractedPdfData || pdfFileName || 
+          Object.keys(selectedMaterials).length > 0 || 
+          Object.keys(quantities).length > 0 ||
+          estimateType;
         
-        // Clear any stored state to ensure truly fresh start
-        setStoredActiveTab("type-selection");
-        setHasRecoveredData(true); // Mark as recovered to prevent further attempts
-        
-        // Clear localStorage data for fresh start
-        setTimeout(() => {
-          setStoredSelectedMaterials({});
-          setStoredQuantities({});
-          setStoredPeelStickCost("0.00");
-          setStoredEstimateType(null);
-          setStoredSelectedSubtrades([]);
+        // 🔧 RACE CONDITION FIX: Only trigger Start Fresh if activeTab is already type-selection AND no data exists
+        // This prevents automatic Start Fresh triggering during PDF upload when state is updating
+        if (!hasSignificantData && activeTab === "type-selection" && !extractedPdfData && !pdfFileName) {
+          console.log("NEW ESTIMATE: Starting fresh workflow - no existing data");
+          setUserWantsFreshStart(true);
+          setActiveTab("type-selection");
+          setStoredActiveTab("type-selection");
+          setHasRecoveredData(true); // Mark as recovered to prevent further attempts
           
-          // Reset fresh start flag after component stabilizes
-          setUserWantsFreshStart(false);
-        }, 100);
+          // Clear localStorage data for fresh start
+          setTimeout(() => {
+            setStoredSelectedMaterials({});
+            setStoredQuantities({});
+            setStoredPeelStickCost("0.00");
+            setStoredEstimateType(null);
+            setStoredSelectedSubtrades([]);
+            
+            // Reset fresh start flag after component stabilizes
+            setUserWantsFreshStart(false);
+          }, 100);
+        } else if (hasSignificantData) {
+          console.log("NEW ESTIMATE: User has existing data - preserving current workflow state");
+          // Don't force type-selection if user is in middle of estimate workflow
+        }
       }
     }
   }, [estimateId, measurementId]);
@@ -348,8 +551,27 @@ const Estimates = () => {
   
   // PHASE 2: Smart Recovery Logic with Validation and Conflict Prevention
   useEffect(() => {
-    // Skip recovery if in view mode, already recovering/recovered, OR user wants fresh start
-    if (isViewMode || isRecoveringState || hasRecoveredData || userWantsFreshStart) return;
+    // Skip recovery if in view mode, already recovering/recovered, OR user wants fresh start, OR during internal state changes
+    if (isViewMode || isRecoveringState || hasRecoveredData || userWantsFreshStart || isInternalStateChange.current) return;
+    
+    // 🔧 CRITICAL FIX: Skip recovery if no user profile (prevents cross-user contamination)
+    if (!profile?.id) {
+      console.log("⏭️ [RECOVERY] Skipping recovery - no user profile available");
+      return;
+    }
+    
+    // 🔧 SMART RECOVERY FIX: Only skip recovery if user explicitly wants fresh start OR no significant data exists
+    // Don't skip recovery just because it's a new estimate - users may have uploaded PDFs that need recovery
+    if (!estimateId && !measurementId && userWantsFreshStart) {
+      console.log("⏭️ [RECOVERY] Skipping recovery - user explicitly wants fresh start");
+      console.log("⏭️ [RECOVERY] Current estimate context:", {
+        urlEstimateId: estimateId,
+        urlMeasurementId: measurementId, 
+        inMemoryEstimateId: stableEstimateIdRef.current,
+        userWantsFreshStart
+      });
+      return;
+    }
     
     // Prevent excessive recovery attempts
     const now = Date.now();
@@ -386,37 +608,16 @@ const Estimates = () => {
     // Recovery Phase 1: Basic PDF & Measurement Data
       if (storedPdfData && !extractedPdfData) {
         setExtractedPdfData(storedPdfData);
-      console.log("✅ Recovered PDF data:", storedPdfData.propertyAddress || 'Unknown address');
+        console.log("✅ Recovered PDF data:", storedPdfData.propertyAddress || 'Unknown address');
+        console.log("🔧 [BACKUP RECOVERY] localStorage recovery successful - Supabase hydration not available or failed");
       }
       
+      // DISABLED MEASUREMENTS RECOVERY: Causing pitch data corruption
+      // The fresh PDF parsing works perfectly - don't override it with localStorage
       if (storedMeasurements && !measurements) {
-        // CRITICAL FIX: Check data freshness and source before recovery
-        const currentTime = Date.now();
-        const dataTimestamp = (storedMeasurements as any)?._freshDataTimestamp || 0;
-        const dataSource = (storedMeasurements as any)?._dataSource || 'unknown';
-        const dataAge = currentTime - dataTimestamp;
-        const maxDataAge = 24 * 60 * 60 * 1000; // 24 hours
-        
-        // Only recover if data is fresh and from a reliable source
-        if (dataAge < maxDataAge && dataSource === 'fresh_pdf_upload') {
-          // Clean the metadata before setting measurements
-          const cleanMeasurements = { ...storedMeasurements };
-          delete (cleanMeasurements as any)._freshDataTimestamp;
-          delete (cleanMeasurements as any)._dataSource;
-          
-          setMeasurements(cleanMeasurements);
-          console.log("✅ Recovered FRESH measurements:", cleanMeasurements.totalArea, 'sq ft', `(age: ${Math.round(dataAge/1000)}s)`);
-        } else {
-          console.log("🚫 Skipping recovery of STALE measurements:", {
-            age: Math.round(dataAge/1000/60), 
-            source: dataSource,
-            totalArea: storedMeasurements.totalArea
-          });
-          
-          // Clear stale data
-          setStoredMeasurements(null);
-          setStoredPdfData(null);
-        }
+        console.log("🚫 DISABLED measurements recovery to prevent pitch corruption");
+        // Clear any stored measurements to prevent future corruption
+        setStoredMeasurements(null);
       }
       
       if (storedFileName && !pdfFileName) {
@@ -525,80 +726,169 @@ const Estimates = () => {
       console.log("🎯 PHASE 2: Recovery complete!", recoveryResults);
     }, 100);
     
-    }, [isViewMode, isRecoveringState, hasRecoveredData, userWantsFreshStart, stateRecoveryAttempts, storedPdfData, storedMeasurements, storedFileName, storedSelectedMaterials, storedQuantities, storedLaborRates, storedProfitMargin, storedEstimateType, storedSelectedSubtrades, storedActiveTab, storedPeelStickCost, extractedPdfData, measurements, pdfFileName, selectedMaterials, quantities, laborRates, profitMargin, estimateType, selectedSubtrades, activeTab, peelStickAddonCost]);
+    }, [isViewMode, isRecoveringState, hasRecoveredData, userWantsFreshStart, stateRecoveryAttempts, estimateId, measurementId, profile, storedPdfData, storedMeasurements, storedFileName, storedSelectedMaterials, storedQuantities, storedLaborRates, storedProfitMargin, storedEstimateType, storedSelectedSubtrades, storedActiveTab, storedPeelStickCost, extractedPdfData, measurements, pdfFileName, selectedMaterials, quantities, laborRates, profitMargin, estimateType, selectedSubtrades, activeTab, peelStickAddonCost]);
   
+  // CORRUPTION PREVENTION: Validate data before auto-saving
+  const validateAndSave = <T,>(data: T, setter: (data: T) => void, dataType: string): boolean => {
+    // Special validation for measurements
+    if (dataType === 'measurements' && data) {
+      const measurements = data as any;
+      if (measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
+        const hasCorruption = measurements.areasByPitch.some((item: any) => {
+          const pitch = item.pitch;
+          return pitch && /^\d+$/.test(pitch) && !pitch.includes('/') && !pitch.includes(':');
+        });
+        
+        if (hasCorruption) {
+          console.error(`❌ BLOCKED corrupted ${dataType} from auto-save:`, measurements.areasByPitch);
+          return false;
+        }
+      }
+    }
+    
+    setter(data);
+    console.log(`💾 Auto-saved ${dataType}:`, typeof data === 'object' ? Object.keys(data as any).length : data);
+    return true;
+  };
+
   // PHASE 2: Smart Auto-Save Effects - Prevent save loops during recovery
+  const lastLoggedMaterialsCount = useRef<number>(0);
+  const lastLoggedQuantitiesCount = useRef<number>(0);
+  
   useEffect(() => {
-    // Don't save during recovery or view mode
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && Object.keys(selectedMaterials).length > 0) {
-      setStoredSelectedMaterials(selectedMaterials);
-      console.log("💾 Auto-saved materials:", Object.keys(selectedMaterials).length, "items");
+    // Don't save during recovery, view mode, or when user wants fresh start
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && Object.keys(selectedMaterials).length > 0) {
+      validateAndSave(selectedMaterials, setStoredSelectedMaterials, 'materials');
+      
+      // Only log when count changes to reduce console spam
+      const count = Object.keys(selectedMaterials).length;
+      if (count !== lastLoggedMaterialsCount.current) {
+        console.log("💾 Auto-saved materials:", count);
+        lastLoggedMaterialsCount.current = count;
+      }
     }
   }, [selectedMaterials, isViewMode, isRecoveringState, setStoredSelectedMaterials]);
 
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && Object.keys(quantities).length > 0) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && Object.keys(quantities).length > 0) {
       setStoredQuantities(quantities);
-      console.log("💾 Auto-saved quantities for", Object.keys(quantities).length, "materials");
+      
+      // Only log when count changes to reduce console spam
+      const count = Object.keys(quantities).length;
+      if (count !== lastLoggedQuantitiesCount.current) {
+        console.log("💾 Auto-saved quantities for", count, "materials");
+        lastLoggedQuantitiesCount.current = count;
+      }
     }
   }, [quantities, isViewMode, isRecoveringState, setStoredQuantities]);
 
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && laborRates && laborRates.laborRate !== 85) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && laborRates && laborRates.laborRate !== 85) {
       setStoredLaborRates(laborRates);
       console.log("💾 Auto-saved labor rates:", laborRates.laborRate, "$/hr");
     }
   }, [laborRates, isViewMode, isRecoveringState, setStoredLaborRates]);
 
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && profitMargin !== 25) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && profitMargin !== 25) {
       setStoredProfitMargin(profitMargin);
       console.log("💾 Auto-saved profit margin:", profitMargin + "%");
     }
   }, [profitMargin, isViewMode, isRecoveringState, setStoredProfitMargin]);
 
+  // Prevent duplicate estimate type saves
+  const lastSavedEstimateType = useRef<string>("");
+  
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && estimateType) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && estimateType && estimateType !== lastSavedEstimateType.current) {
       setStoredEstimateType(estimateType);
+      lastSavedEstimateType.current = estimateType;
       console.log("💾 Auto-saved estimate type:", estimateType);
     }
   }, [estimateType, isViewMode, isRecoveringState, setStoredEstimateType]);
 
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && selectedSubtrades.length > 0) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && selectedSubtrades.length > 0) {
       setStoredSelectedSubtrades(selectedSubtrades);
       console.log("💾 Auto-saved", selectedSubtrades.length, "subtrades");
     }
   }, [selectedSubtrades, isViewMode, isRecoveringState, setStoredSelectedSubtrades]);
 
+  // Prevent duplicate tab position saves
+  const lastSavedTab = useRef<string>("");
+  
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && activeTab !== "type-selection") {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && activeTab !== "upload" && activeTab !== lastSavedTab.current) {
       setStoredActiveTab(activeTab);
+      lastSavedTab.current = activeTab;
       console.log("💾 Auto-saved tab position:", activeTab);
     }
   }, [activeTab, isViewMode, isRecoveringState, setStoredActiveTab]);
 
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && peelStickAddonCost !== "0.00") {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && peelStickAddonCost !== "0.00") {
       setStoredPeelStickCost(peelStickAddonCost);
       console.log("💾 Auto-saved peel stick cost:", peelStickAddonCost);
     }
   }, [peelStickAddonCost, isViewMode, isRecoveringState, setStoredPeelStickCost]);
 
+
+
   // Ensure measurements are properly set from extracted PDF data
   useEffect(() => {
     // If we have extracted PDF data, convert it to MeasurementValues format
     if (extractedPdfData) {
-      console.log("Setting initial measurements from extracted PDF data:", extractedPdfData);
+      console.log("🆕 Setting fresh measurements from extracted PDF data:", extractedPdfData);
+      
+      // CRITICAL: Force clear any potential localStorage corruption first
+      localStorage.removeItem("estimateMeasurements");
+      localStorage.removeItem("3mg_stored_measurements");
+      
       const convertedMeasurements = convertToMeasurementValues(extractedPdfData);
-      setMeasurements(convertedMeasurements);
+      console.log("🆕 Fresh converted measurements:", convertedMeasurements);
+      console.log("🆕 Pitch data check:", convertedMeasurements.areasByPitch);
       
-      // Store in localStorage
+      // ENHANCED VALIDATION: Check for corruption patterns
+      if (convertedMeasurements.areasByPitch && convertedMeasurements.areasByPitch.length > 0) {
+        // Check for corruption: pure numeric indices without pitch format
+        const corruptedPitches = convertedMeasurements.areasByPitch.filter(p => 
+          p.pitch && /^\d+$/.test(p.pitch) && !p.pitch.includes('/') && !p.pitch.includes(':')
+        );
+        
+        if (corruptedPitches.length > 0) {
+          console.error("❌ CORRUPTION DETECTED - Array indices as pitches:", corruptedPitches);
+          toast({
+            title: "Data Corruption Prevented",
+            description: "Corrupted pitch data was detected and blocked. Please re-upload your PDF.",
+            variant: "destructive"
+          });
+          return; // Don't set corrupted measurements
+        }
+        
+        // Check if pitches look valid (contain '/' or ':' or are valid pitch formats)
+        const validPitches = convertedMeasurements.areasByPitch.every(p => 
+          p.pitch && (p.pitch.includes('/') || p.pitch.includes(':') || /^\d+(\.\d+)?$/.test(p.pitch))
+        );
+        
+        if (validPitches) {
+          console.log("✅ Pitch data validated - setting measurements");
+          setMeasurements(convertedMeasurements);
+        } else {
+          console.error("❌ Invalid pitch data detected:", convertedMeasurements.areasByPitch);
+          toast({
+            title: "Invalid Pitch Data",
+            description: "The pitch data format is invalid. Please check your PDF and try again.",
+            variant: "destructive"
+          });
+          return; // Don't set invalid measurements
+        }
+      } else {
+        console.warn("⚠️ No areas by pitch data found");
+        setMeasurements(convertedMeasurements);
+      }
+      
+      // Store PDF data only
       setStoredPdfData(extractedPdfData);
-      setStoredMeasurements(convertedMeasurements);
-      
-      // Debug measurements conversion
-      console.log("Converted measurements:", convertedMeasurements);
     }
     
     // If we have a measurementId, fetch the data
@@ -610,10 +900,115 @@ const Estimates = () => {
 
   // Save fileName changes to localStorage
   useEffect(() => {
-    if (pdfFileName) {
+    if (pdfFileName && !userWantsFreshStart) {
       setStoredFileName(pdfFileName);
     }
-  }, [pdfFileName]);
+  }, [pdfFileName, userWantsFreshStart]);
+
+  // 🔄 AUTO-SAVE HYDRATION: Load saved data from Supabase and populate form
+  useEffect(() => {
+    // Additional safety: Only hydrate if the hydrated data matches our current stable estimate ID
+    const isValidHydration = autoSaveHydratedData?.id === stableEstimateIdRef.current;
+    
+    // 🔧 HYDRATION ORDERING: Log current state to verify proper ordering
+    if (autoSaveHydratedData && !hasHydratedFromAutoSave) {
+      console.log("🔄 [HYDRATION ORDER CHECK]", {
+        hasHydratedData: !!autoSaveHydratedData,
+        hasExtractedPdf: !!extractedPdfData,
+        hasPdfFileName: !!pdfFileName,
+        isValidHydration,
+        userWantsFreshStart,
+        isStartingFresh
+      });
+    }
+    
+    if (autoSaveHydratedData && !hasHydratedFromAutoSave && !isViewMode && !userWantsFreshStart && !isStartingFresh && !isInternalStateChange.current && isValidHydration) {
+      console.log("🔄 [AUTO-SAVE HYDRATION] Loading saved data from Supabase:", autoSaveHydratedData);
+      
+      // Hydrate PDF and measurement data
+      if (autoSaveHydratedData.extractedPdfData && !extractedPdfData) {
+        setExtractedPdfData(autoSaveHydratedData.extractedPdfData);
+        console.log("✅ [HYDRATION] Restored PDF data with roof pitch:", autoSaveHydratedData.extractedPdfData.predominantPitch);
+        console.log("🔧 [BACKUP RECOVERY] Supabase hydration successful - localStorage backup not needed");
+      }
+      
+      if (autoSaveHydratedData.pdfFileName && !pdfFileName) {
+        setPdfFileName(autoSaveHydratedData.pdfFileName);
+        console.log("✅ [HYDRATION] Restored PDF filename:", autoSaveHydratedData.pdfFileName);
+      }
+      
+      // Hydrate materials and quantities
+      if (autoSaveHydratedData.selectedMaterials && Object.keys(autoSaveHydratedData.selectedMaterials).length > 0 && Object.keys(selectedMaterials).length === 0) {
+        setSelectedMaterials(autoSaveHydratedData.selectedMaterials);
+        console.log("✅ [HYDRATION] Restored", Object.keys(autoSaveHydratedData.selectedMaterials).length, "materials");
+      }
+      
+      if (autoSaveHydratedData.quantities && Object.keys(autoSaveHydratedData.quantities).length > 0 && Object.keys(quantities).length === 0) {
+        setQuantities(autoSaveHydratedData.quantities);
+        console.log("✅ [HYDRATION] Restored quantities for", Object.keys(autoSaveHydratedData.quantities).length, "materials");
+      }
+      
+      // Hydrate labor rates and profit margin
+      if (autoSaveHydratedData.laborRates && laborRates.laborRate === 85) {
+        setLaborRates(autoSaveHydratedData.laborRates);
+        console.log("✅ [HYDRATION] Restored labor rates:", autoSaveHydratedData.laborRates.laborRate, "$/hr");
+      }
+      
+      if (autoSaveHydratedData.profitMargin && profitMargin === 25) {
+        setProfitMargin(autoSaveHydratedData.profitMargin);
+        console.log("✅ [HYDRATION] Restored profit margin:", autoSaveHydratedData.profitMargin + "%");
+      }
+      
+      // Hydrate estimate type and subtrades
+      if (autoSaveHydratedData.estimateType && !estimateType) {
+        setEstimateType(autoSaveHydratedData.estimateType);
+        console.log("✅ [HYDRATION] Restored estimate type:", autoSaveHydratedData.estimateType);
+      }
+      
+      if (autoSaveHydratedData.selectedSubtrades && autoSaveHydratedData.selectedSubtrades.length > 0 && selectedSubtrades.length === 0) {
+        setSelectedSubtrades(autoSaveHydratedData.selectedSubtrades);
+        console.log("✅ [HYDRATION] Restored", autoSaveHydratedData.selectedSubtrades.length, "subtrades");
+      }
+      
+      // Hydrate UI state
+      if (autoSaveHydratedData.activeTab && activeTab === "type-selection") {
+        setActiveTab(autoSaveHydratedData.activeTab);
+        console.log("✅ [HYDRATION] Restored tab position:", autoSaveHydratedData.activeTab);
+      }
+      
+      if (autoSaveHydratedData.peelStickCost && peelStickAddonCost === "0.00") {
+        setPeelStickAddonCost(autoSaveHydratedData.peelStickCost);
+        console.log("✅ [HYDRATION] Restored peel stick cost:", autoSaveHydratedData.peelStickCost);
+      }
+      
+      setHasHydratedFromAutoSave(true);
+      
+      toast({
+        title: "🔄 Estimate Restored",
+        description: "Your previous work has been restored from the database.",
+        duration: 4000,
+      });
+      
+      console.log("✅ [AUTO-SAVE HYDRATION] Form state successfully hydrated from Supabase");
+    }
+  }, [
+    autoSaveHydratedData, 
+    hasHydratedFromAutoSave, 
+    isViewMode, 
+    userWantsFreshStart,
+    isStartingFresh,
+    extractedPdfData,
+    pdfFileName,
+    selectedMaterials,
+    quantities,
+    laborRates,
+    profitMargin,
+    estimateType,
+    selectedSubtrades,
+    activeTab,
+    peelStickAddonCost,
+    toast
+  ]);
 
   // Add new effect to fetch measurement data when measurementId changes
   useEffect(() => {
@@ -646,8 +1041,9 @@ const Estimates = () => {
             if (Array.isArray(data.measurements.areasByPitch)) {
               areasByPitchArray = data.measurements.areasByPitch;
             } 
-            // If it's an object with pitch keys, convert to array
-            else if (typeof data.measurements.areasByPitch === 'object') {
+            // If it's a TRUE object (not array) with pitch keys, convert to array
+            else if (typeof data.measurements.areasByPitch === 'object' && !Array.isArray(data.measurements.areasByPitch)) {
+              console.log("🔄 [FETCHMEASUREMENTS] Converting TRUE object to array format");
               areasByPitchArray = Object.entries(data.measurements.areasByPitch).map(([pitch, areaInfo]) => {
                 // Handle different possible formats
                 if (typeof areaInfo === 'number') {
@@ -677,6 +1073,9 @@ const Estimates = () => {
                   percentage: area.percentage || Math.round((area.area / totalArea) * 100)
                 }));
               }
+            } else {
+              console.warn("🚫 [FETCHMEASUREMENTS] Unexpected areasByPitch format:", typeof data.measurements.areasByPitch, Array.isArray(data.measurements.areasByPitch));
+              areasByPitchArray = [];
             }
           }
           
@@ -726,6 +1125,24 @@ const Estimates = () => {
   const handlePdfDataExtracted = (data: ParsedMeasurements | null, fileName: string) => {
     console.log("PDF data extracted:", data, fileName);
     
+    // VALIDATION: Ensure extracted data is not corrupted before proceeding
+    if (data?.areasByPitch && Array.isArray(data.areasByPitch)) {
+      const hasCorruptedPitches = data.areasByPitch.some((item: any) => {
+        const pitch = item.pitch;
+        return pitch && /^\d+$/.test(pitch) && !pitch.includes('/') && !pitch.includes(':');
+      });
+      
+      if (hasCorruptedPitches) {
+        console.error("❌ CORRUPTED DATA detected in fresh PDF extraction:", data.areasByPitch);
+        toast({
+          title: "Data Corruption Detected",
+          description: "The PDF extraction resulted in corrupted pitch data. Please try uploading again.",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+    
     // CRITICAL FIX: Mark this as fresh PDF data to prevent recovery conflicts
     const freshDataTimestamp = Date.now();
     setUserWantsFreshStart(false);
@@ -770,26 +1187,47 @@ const Estimates = () => {
     localStorage.removeItem("estimateMeasurements");
     localStorage.removeItem("estimateExtractedPdfData");
     
-    // Small delay to ensure state is set, then store to localStorage
+    // 🔧 IMMEDIATE SAVE FIX: Save PDF data to localStorage immediately to prevent loss on navigation
+    setStoredPdfData(data);
+    setStoredFileName(fileName);
+    // DISABLED: setStoredMeasurements(freshMeasurementsWithTimestamp); // Causes pitch corruption
+    
+    // 🔧 RAPID NAVIGATION PROTECTION: Use beforeunload to ensure persistence even on immediate navigation
+    const handleBeforeUnload = () => {
+      // Emergency backup save using synchronous localStorage (already done above)
+      localStorage.setItem("estimateExtractedPdfData", JSON.stringify(data));
+      localStorage.setItem("estimatePdfFileName", fileName);
+      console.log("🚨 Emergency PDF data save on page unload");
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    // Clean up the listener after a short delay
     setTimeout(() => {
-      setStoredPdfData(data);
-      setStoredFileName(fileName);
-      setStoredMeasurements(freshMeasurementsWithTimestamp);
-      
-      // Block recovery for a brief period to let fresh data settle
-      setHasRecoveredData(true);
-      console.log("🆕 Fresh PDF data stored with timestamp:", freshDataTimestamp);
-    }, 100);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, 5000); // Remove after 5 seconds
+    
+    // 🔧 AUTO-SAVE MEASUREMENTS: Immediately save the extracted measurements (no user interaction required)
+    console.log("🔄 [AUTO-SAVE MEASUREMENTS] Automatically saving extracted measurements");
+    setMeasurements(freshMeasurementsWithTimestamp);
+    
+    // Mark as recovered to prevent interference with fresh data
+    setHasRecoveredData(true);
+    
+    // 🔧 AUTO-NAVIGATION: Automatically navigate to simplified measurements review
+    setActiveTab("measurements");
+    
+    console.log("🆕 Fresh PDF data and measurements auto-saved immediately - navigating to measurements review");
     
     // Calculate areaDisplay *after* conversion, using the reliable converted value
     const areaDisplay = convertedMeasurements.totalArea && !isNaN(convertedMeasurements.totalArea) && convertedMeasurements.totalArea > 0 
       ? convertedMeasurements.totalArea.toFixed(1) 
       : 'unknown';
     
-    // Inform the user data was extracted successfully
+    // Inform the user data was extracted and saved successfully
     toast({
-      title: "Measurements extracted",
-      description: `Successfully parsed ${fileName} with ${areaDisplay} sq ft of roof area.`,
+      title: "Measurements extracted & saved",
+      description: `Successfully parsed ${fileName} with ${areaDisplay} sq ft. Measurements auto-saved.`,
     });
   };
 
@@ -815,6 +1253,27 @@ const Estimates = () => {
   };
 
   const handleMeasurementsSaved = (savedMeasurements: MeasurementValues) => {
+    console.log("🔄 Measurements saved from form:", savedMeasurements);
+    
+    // CRITICAL: Validate pitch data before saving to prevent corruption
+    if (savedMeasurements.areasByPitch && savedMeasurements.areasByPitch.length > 0) {
+      const invalidPitches = savedMeasurements.areasByPitch.filter(p => 
+        !p.pitch || (!p.pitch.includes('/') && !p.pitch.includes(':') && !/^\d/.test(p.pitch))
+      );
+      
+      if (invalidPitches.length > 0) {
+        console.error("❌ CORRUPTION DETECTED - Invalid pitch data:", invalidPitches);
+        toast({
+          title: "Data Corruption Detected",
+          description: "Invalid pitch data detected. Please refresh and re-upload your PDF.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log("✅ Pitch data validated successfully:", savedMeasurements.areasByPitch);
+    }
+    
     // Update measurements state first
     setMeasurements(savedMeasurements);
     
@@ -1048,11 +1507,30 @@ const Estimates = () => {
   };
   
   // Function to start fresh and clear all state
-  const handleClearEstimate = () => {
-    // PREVENT RECOVERY: Set flag to block recovery when user explicitly wants fresh start
-    setUserWantsFreshStart(true);
+  // 🔧 COMPREHENSIVE CLEAR FUNCTION: Clear all data sources
+  const clearAllEstimateData = () => {
+    console.log("🧹 [START FRESH] Clearing all localStorage and state data");
     
-    setActiveTab("type-selection");
+    // Clear all localStorage keys used by estimates
+    const estimateKeys = [
+      "estimateExtractedPdfData",
+      "estimatePdfFileName", 
+      "estimateSelectedMaterials",
+      "estimateQuantities",
+      "estimateLaborRates",
+      "estimateProfitMargin",
+      "estimateType",
+      "estimateSelectedSubtrades",
+      "estimateActiveTab",
+      "estimatePeelStickCost"
+    ];
+    
+    estimateKeys.forEach(key => {
+      localStorage.removeItem(key);
+      console.log(`🗑️ [START FRESH] Cleared ${key}`);
+    });
+    
+    // Reset all state
     setExtractedPdfData(null);
     setPdfFileName(null);
     setMeasurements(null);
@@ -1088,21 +1566,70 @@ const Estimates = () => {
     setProfitMargin(25);
     setEstimateType(null);
     setSelectedSubtrades([]);
+    setActiveTab("type-selection");
     setPeelStickAddonCost("0.00");
+  };
+
+  const handleClearEstimate = async () => {
+    // PREVENT RECOVERY: Set flag to block recovery when user explicitly wants fresh start
+    setUserWantsFreshStart(true);
+    setIsStartingFresh(true); // Disable auto-save during fresh start
     
-    // Clear ALL localStorage values for complete fresh start
-    setStoredPdfData(null);
-    setStoredMeasurements(null);
-    setStoredFileName("");
-    setStoredSelectedMaterials({});
-    setStoredQuantities({});
-    setStoredLaborRates({
+    // Flush any pending auto-save operations before clearing
+    try {
+      if (autoSaveFlush) {
+        await autoSaveFlush();
+      }
+    } catch (error) {
+      console.warn("⚠️ [START FRESH] Could not flush auto-save operations:", error);
+    }
+    
+    // 🔧 FIXED: Clear auto-save data from Supabase to prevent re-hydration
+    try {
+      // Import and use storage adapter directly to delete auto-save data
+      const { SupabaseStorageAdapter } = await import('@/adapters/SupabaseStorageAdapter');
+      const storageAdapter = new SupabaseStorageAdapter();
+      const estimateKey = `estimate:${stableEstimateIdRef.current}` as const;
+      await storageAdapter.delete(estimateKey as any);
+      console.log("🧹 [START FRESH] Auto-save data cleared from Supabase");
+    } catch (error) {
+      console.warn("⚠️ [START FRESH] Could not clear auto-save data:", error);
+    }
+    
+    // 🆕 GENERATE NEW ESTIMATE ID: Ensure completely fresh auto-save session (batch state updates)
+    const newEstimateId = crypto.randomUUID();
+    console.log("🧹 [START FRESH] Generated new estimate ID:", newEstimateId);
+    
+    // Batch state updates to prevent multiple re-renders
+    React.startTransition(() => {
+      setAutoSaveEstimateId(newEstimateId);
+    });
+    
+    // Reset hydration flag to allow fresh hydration with new ID
+    setHasHydratedFromAutoSave(false);
+    
+    // PHASE 2: Reset recovery state flags FIRST to prevent recovery during clear
+    setIsRecoveringState(false);
+    setHasRecoveredData(true); // Mark as "already recovered" to prevent future recovery
+    setStateRecoveryAttempts(0);
+    lastRecoveryTimestamp.current = 0;
+    isInternalStateChange.current = true; // Block auto-save during clearing
+    setRecoveryStats({
+      materialsRecovered: false,
+      quantitiesRecovered: false,
+      laborRatesRecovered: false,
+      tabPositionRecovered: false,
+      estimateTypeRecovered: false
+    });
+    
+    // Clear localStorage FIRST, then state variables to avoid triggering recovery
+    const defaultLaborRates: LaborRates = {
       laborRate: 85,
       tearOff: 0,
       installation: 0,
       isHandload: false,
       handloadRate: 15,
-      dumpsterLocation: "orlando",
+      dumpsterLocation: "orlando" as const,
       dumpsterCount: 1,
       dumpsterRate: 400,
       includePermits: true,
@@ -1122,26 +1649,48 @@ const Estimates = () => {
       detachResetGutterRate: 1,
       includeLowSlopeLabor: true,
       includeSteepSlopeLabor: true,
-    });
+    };
+    
+    // FORCE CLEAR: Remove all localStorage keys directly to prevent any residual data
+    console.log("🧹 [START FRESH] Clearing all localStorage keys");
+    localStorage.removeItem("estimateExtractedPdfData");
+    localStorage.removeItem("estimatePdfFileName");
+    localStorage.removeItem("estimateSelectedMaterials");
+    localStorage.removeItem("estimateQuantities");
+    localStorage.removeItem("estimateLaborRates");
+    localStorage.removeItem("estimateProfitMargin");
+    localStorage.removeItem("estimateType");
+    localStorage.removeItem("estimateSelectedSubtrades");
+    localStorage.removeItem("estimateActiveTab");
+    localStorage.removeItem("estimatePeelStickCost");
+    localStorage.removeItem("estimateMeasurements");
+    localStorage.removeItem("3mg_stored_measurements");
+    
+    // Clear ALL localStorage values using setters (double protection)
+    setStoredPdfData(null);
+    setStoredMeasurements(null);
+    setStoredFileName("");
+    setStoredSelectedMaterials({});
+    setStoredQuantities({});
+    setStoredLaborRates(defaultLaborRates);
     setStoredProfitMargin(25);
     setStoredEstimateType(null);
     setStoredSelectedSubtrades([]);
-    setStoredActiveTab("type-selection");
+    setStoredActiveTab("upload");
     setStoredPeelStickCost("0.00");
     
-    // PHASE 2: Reset recovery state flags for complete fresh start
-    setIsRecoveringState(false);
-    setHasRecoveredData(false);
-    setStateRecoveryAttempts(0);
-    lastRecoveryTimestamp.current = 0;
-    isInternalStateChange.current = false;
-    setRecoveryStats({
-      materialsRecovered: false,
-      quantitiesRecovered: false,
-      laborRatesRecovered: false,
-      tabPositionRecovered: false,
-      estimateTypeRecovered: false
-    });
+    // THEN clear state variables
+    setActiveTab("upload");
+    setExtractedPdfData(null);
+    setPdfFileName(null);
+    setMeasurements(null);
+    setSelectedMaterials({});
+    setQuantities({});
+    setLaborRates(defaultLaborRates);
+    setProfitMargin(25);
+    setEstimateType(null);
+    setSelectedSubtrades([]);
+    setPeelStickAddonCost("0.00");
     
     // Clear any URL parameters and navigate to clean estimates page
     navigate("/estimates", { replace: true });
@@ -1151,10 +1700,13 @@ const Estimates = () => {
       description: "All estimate data and recovery state has been cleared.",
     });
     
-    // RESET FLAG: Allow recovery again for future sessions (after a short delay)
+    // RESET FLAGS: Allow recovery again for future sessions (after a longer delay)
     setTimeout(() => {
       setUserWantsFreshStart(false);
-    }, 500);
+      setIsStartingFresh(false); // Re-enable auto-save
+      isInternalStateChange.current = false;
+      console.log("🧹 [START FRESH] Reset complete - fresh start mode disabled");
+    }, 2000); // Increased delay to ensure complete clearing
   };
 
   const fetchEstimatesData = useCallback(async () => {
@@ -1888,7 +2440,9 @@ const Estimates = () => {
                 <Tabs 
                   value={activeTab} 
                   onValueChange={(value) => {
-                    console.log(`Tab changing from ${activeTab} to ${value}`);
+                    if (import.meta.env.DEV) {
+                      console.log(`Tab changing from ${activeTab} to ${value}`);
+                    }
                     
                     // CRITICAL FIX: Prevent white screen during tab switching
                     // Use requestAnimationFrame to ensure smooth transition
@@ -1915,7 +2469,9 @@ const Estimates = () => {
                         if (!isViewMode) {
                           setStoredActiveTab(value);
                         }
-                        console.log(`Tab changed, activeTab is now ${value}`);
+                        if (import.meta.env.DEV) {
+                          console.log(`Tab changed, activeTab is now ${value}`);
+                        }
                       });
                     });
                   }} 
@@ -1949,7 +2505,7 @@ const Estimates = () => {
                       disabled={!isViewMode && !extractedPdfData && !measurements}
                       className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                     >
-                      {isViewMode ? "Measurements" : "3. Enter Measurements"}
+                      {isViewMode ? "Measurements" : "3. Review Measurements"}
                     </TabsTrigger>
                     <TabsTrigger 
                       id="tab-trigger-materials"
@@ -2040,7 +2596,7 @@ const Estimates = () => {
                             </li>
                             <li className="flex items-start gap-2">
                               <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
-                              <span>Review Measurements - Verify or enter the roof measurements</span>
+                              <span>Review Measurements - Auto-saved measurements from your PDF</span>
                             </li>
                             <li className="flex items-start gap-2">
                               <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
@@ -2062,22 +2618,43 @@ const Estimates = () => {
                   {activeTab !== 'upload' && (
                     <>
                   <TabsContent value="measurements">
-                    <MeasurementForm
-                      initialMeasurements={measurements || undefined}
-                      onMeasurementsSaved={handleMeasurementsSaved}
-                      extractedFileName={pdfFileName || undefined}
+                    <SimplifiedReviewTab
+                      measurements={measurements || {
+                        totalArea: 0,
+                        ridgeLength: 0,
+                        hipLength: 0,
+                        valleyLength: 0,
+                        eaveLength: 0,
+                        rakeLength: 0,
+                        stepFlashingLength: 0,
+                        flashingLength: 0,
+                        dripEdgeLength: 0,
+                        penetrationsArea: 0,
+                        penetrationsPerimeter: 0,
+                        predominantPitch: "",
+                        ridgeCount: 0,
+                        hipCount: 0,
+                        valleyCount: 0,
+                        rakeCount: 0,
+                        eaveCount: 0,
+                        propertyAddress: "",
+                        latitude: "",
+                        longitude: "",
+                        areasByPitch: []
+                      }}
+                      onMeasurementsUpdate={handleMeasurementsSaved}
                       onBack={() => setActiveTab("upload")}
-                      readOnly={isViewMode}
+                      onContinue={() => setActiveTab("materials")}
+                      extractedFileName={pdfFileName || undefined}
                     />
                   </TabsContent>
                   
                   <TabsContent value="materials">
                     {(() => {
-                      // Debug measurements for MaterialsSelectionTab
-                      console.log("About to render MaterialsSelectionTab with measurements:", measurements);
-                      console.log("areasByPitch type:", measurements?.areasByPitch ? (Array.isArray(measurements.areasByPitch) ? "array" : typeof measurements.areasByPitch) : "undefined");
+                      // Memoize measurements check to prevent excessive re-renders
+                      const hasMeasurements = measurements && measurements.areasByPitch && Array.isArray(measurements.areasByPitch);
                       
-                      if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
+                      if (!hasMeasurements) {
                         return (
                           <Card>
                             <CardHeader>
@@ -2166,7 +2743,7 @@ const Estimates = () => {
                               </Card>
                             )}
                             
-                            {/* MaterialsSelectionTab component remains the same */}
+                            {/* MaterialsSelectionTab component with optimized props */}
                             <MaterialsSelectionTab
                               key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
                               measurements={measurements}
@@ -2220,6 +2797,7 @@ const Estimates = () => {
                           fetchEstimateData(estimateId);
                         }
                       }}
+                      onBack={() => setActiveTab("pricing")}
                     />
                   </TabsContent>
                     </>
@@ -2301,7 +2879,9 @@ const Estimates = () => {
                            }
                         }
 
-                        console.log(`Main Continue button: Navigating from ${activeTab} to ${nextTab}`);
+                        if (import.meta.env.DEV) {
+                          console.log(`Main Continue button: Navigating from ${activeTab} to ${nextTab}`);
+                        }
                         setActiveTab(nextTab);
                       }
                     }}

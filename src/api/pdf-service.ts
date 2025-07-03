@@ -102,6 +102,11 @@ export async function saveMeasurementsToDatabase(
     // 1. Log the data received by this function
     console.log("[saveMeasurementsToDatabase] Received parsedData:", JSON.stringify(parsedData, null, 2));
 
+    // 🔍 PITCH CORRUPTION PREVENTION: Log areasByPitch data format
+    console.log("🔍 [SAVE PITCH DATA] Original areasByPitch:", parsedData.areasByPitch);
+    console.log("🔍 [SAVE PITCH DATA] Type:", typeof parsedData.areasByPitch);
+    console.log("🔍 [SAVE PITCH DATA] Is array:", Array.isArray(parsedData.areasByPitch));
+
     // 2. Construct the object to be inserted, matching the schema exactly
     const dataToInsert = {
       // --- Required Fields --- 
@@ -128,6 +133,9 @@ export async function saveMeasurementsToDatabase(
       raw_text: parsedData.rawText,
       property_address: parsedData.propertyAddress,
     };
+    
+    // 🔍 PITCH CORRUPTION PREVENTION: Log what's being saved to database
+    console.log("🔍 [SAVE PITCH DATA] Saving areas_per_pitch as:", dataToInsert.areas_per_pitch);
 
     // 3. Log the EXACT object being sent to Supabase
     console.log("[saveMeasurementsToDatabase] Data object being inserted:", JSON.stringify(dataToInsert, null, 2));

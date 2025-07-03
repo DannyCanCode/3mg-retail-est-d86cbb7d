@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -161,12 +161,16 @@ export function LaborProfitTab({
     } else {
       console.log("LABORPROFITDEBUG: Callback effect (laborRates change): State changed by props, onLaborProfitContinue call SKIPPED (hasUserInteracted is false).");
     }
-  }, [JSON.stringify(laborRates), onLaborProfitContinue]);
+  }, [laborRates.laborRate, laborRates.dumpsterCount, laborRates.dumpsterLocation, profitMargin, onLaborProfitContinue]); 
+  // 🔧 CRITICAL PERFORMANCE FIX: Replaced JSON.stringify with specific dependencies to prevent excessive re-renders
 
   const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates) => {
     setLaborRates(prev => {
         const newState = updater(prev);
-        console.log("LABORPROFITDEBUG: commonStateUpdater, new laborRates state:", newState);
+        // 🔧 PERFORMANCE: Reduced logging frequency for better performance
+        if (hasUserInteracted.current) {
+          console.log("LABORPROFITDEBUG: User-initiated state update");
+        }
         return newState;
     });
     hasUserInteracted.current = true;
@@ -301,18 +305,16 @@ export function LaborProfitTab({
     hasUserInteracted.current = true;
   };
   
-  // Calculate the rate for each pitch level
-  const getPitchRate = (pitch: string = "6:12") => {
+  // 🔧 PERFORMANCE: Memoized pitch rate calculation to prevent excessive re-calculations
+  const getPitchRate = useCallback((pitch: string = "6:12") => {
     try {
       // Handle potential undefined or malformed input
       if (!pitch) {
-        console.log("getPitchRate received undefined/empty pitch, using default");
         return 85; // Default rate for standard pitch
       }
       
       // Make sure we have a valid string to parse
       const pitchValue = parseInt(pitch.split(/[:\/]/)[0]) || 0;
-      console.log(`Calculating rate for pitch ${pitch}, numeric value: ${pitchValue}`);
       
       // Different rate logic based on pitch range
       if (pitchValue >= 8) {
@@ -336,7 +338,7 @@ export function LaborProfitTab({
       console.error("Error in getPitchRate:", e);
       return 85; // Default fallback
     }
-  };
+  }, [laborRates.pitchRates]); // Only recalculate when pitch overrides change
   
   // Get labor cost for a specific material
   const getLaborCostForMaterial = (materialId: string, squaresArea: number): number => {
@@ -433,9 +435,11 @@ export function LaborProfitTab({
     return totalLaborCost;
   };
   
-  // Calculate approximate labor cost
-  const estTotalLaborCost = measurements ? 
-    calculateTotalLaborCost(measurements, laborRates, selectedMaterials, quantities) : 0;
+  // 🔧 PERFORMANCE: Memoized labor cost calculation to prevent excessive recalculations
+  const estTotalLaborCost = useMemo(() => 
+    measurements ? calculateTotalLaborCost(measurements, laborRates, selectedMaterials, quantities) : 0,
+    [measurements, laborRates, selectedMaterials, quantities]
+  );
   
   // useEffect to specifically handle dumpsterCount initialization and updates based on area/props
   useEffect(() => {
@@ -494,20 +498,18 @@ export function LaborProfitTab({
     }));
   }, [laborRates.dumpsterLocation]);
   
-  // Generate pitch options from 8/12 to 18/12
-  const pitchOptions = Array.from({ length: 11 }, (_, i) => {
-    const pitch = i + 8;
-    return `${pitch}:12`;
-  });
+  // 🔧 PERFORMANCE: Memoized pitch options to prevent recreation on every render
+  const pitchOptions = useMemo(() => 
+    Array.from({ length: 11 }, (_, i) => `${i + 8}:12`), []
+  );
   
-  // Build a list of pitch rates to display
-  const pitchRateDisplay = pitchOptions.map(pitch => {
-    const defaultRate = getPitchRate(pitch);
-    return {
+  // 🔧 PERFORMANCE: Memoized pitch rate display to prevent excessive getPitchRate calls
+  const pitchRateDisplay = useMemo(() => 
+    pitchOptions.map(pitch => ({
       pitch,
-      rate: defaultRate
-    };
-  });
+      rate: getPitchRate(pitch)
+    })), [pitchOptions, getPitchRate]
+  );
   
   // Calculate total squares for display
   const totalSquares = measurements?.totalArea ? Math.round(measurements.totalArea / 100 * 10) / 10 : 0;
@@ -584,17 +586,16 @@ export function LaborProfitTab({
     return pitchText || null;
   }, [measurements?.areasByPitch]);
   
-  // Generate pitch options from 0/12 to 2/12 for low slope
-  const lowSlopePitchOptions = ["0:12", "1:12", "2:12"];
+  // 🔧 PERFORMANCE: Memoized low slope pitch options
+  const lowSlopePitchOptions = useMemo(() => ["0:12", "1:12", "2:12"], []);
   
-  // Build a list of low slope pitch rates to display
-  const lowSlopePitchRateDisplay = lowSlopePitchOptions.map(pitch => {
-    const defaultRate = getPitchRate(pitch);
-    return {
+  // 🔧 PERFORMANCE: Memoized low slope pitch rate display
+  const lowSlopePitchRateDisplay = useMemo(() => 
+    lowSlopePitchOptions.map(pitch => ({
       pitch,
-      rate: defaultRate
-    };
-  });
+      rate: getPitchRate(pitch)
+    })), [lowSlopePitchOptions, getPitchRate]
+  );
   
   const handleContinue = () => {
     if (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)) {
@@ -611,7 +612,16 @@ export function LaborProfitTab({
     }
   };
 
-  console.log("LaborProfitTab RENDER: laborRates.dumpsterCount is currently:", laborRates.dumpsterCount, "Recommended based on area:", (measurements?.totalArea && measurements.totalArea > 0 ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) : 1) );
+  // 🔧 PERFORMANCE: Reduced excessive logging - only log when values change significantly
+  const currentDumpsterCount = laborRates.dumpsterCount;
+  const recommendedCount = measurements?.totalArea && measurements.totalArea > 0 
+    ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) 
+    : 1;
+  
+  // Only log when there's a meaningful discrepancy (not on every render)
+  if (Math.abs(currentDumpsterCount - recommendedCount) > 0) {
+    console.log("LaborProfitTab RENDER: dumpsterCount discrepancy - current:", currentDumpsterCount, "recommended:", recommendedCount);
+  }
 
   return (
     <Card>
