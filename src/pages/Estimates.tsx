@@ -305,18 +305,6 @@ const Estimates = () => {
   detectAndCleanCorruptedData();
 }, [toast]);
 
-// PHASE 4: AUTO-MIGRATION ON MOUNT
-useEffect(() => {
-  // Auto-run migration after a short delay to ensure auto-save system is initialized
-  const migrationTimer = setTimeout(() => {
-    if (isFeatureEnabled('AUTO_SAVE_ENABLED') && !migration.isComplete && !migration.isInProgress) {
-      console.log('🔄 [AUTO-MIGRATION] Starting automatic localStorage cleanup...');
-      migration.startMigration();
-    }
-  }, 2000); // 2 second delay to ensure auto-save is ready
-
-  return () => clearTimeout(migrationTimer);
-}, [migration]);
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
   
   // Additional state persistence for complete estimate recovery
@@ -361,7 +349,20 @@ useEffect(() => {
   const stableEstimateIdRef = useRef(autoSaveEstimateId);
   
   // PHASE 4: LOCALSTORAGE CLEANUP MIGRATION
-  const migration = useLocalStorageMigration(); // Stable reference to prevent loops
+  const migration = useLocalStorageMigration();
+
+  // PHASE 4: AUTO-MIGRATION ON MOUNT
+  useEffect(() => {
+    // Auto-run migration after a short delay to ensure auto-save system is initialized
+    const migrationTimer = setTimeout(() => {
+      if (isFeatureEnabled('AUTO_SAVE_ENABLED') && !migration.isComplete && !migration.isInProgress) {
+        console.log('🔄 [AUTO-MIGRATION] Starting automatic localStorage cleanup...');
+        migration.startMigration();
+      }
+    }, 2000); // 2 second delay to ensure auto-save is ready
+
+    return () => clearTimeout(migrationTimer);
+  }, [migration]); // Stable reference to prevent loops
   
   // 🔧 STABILITY FIX: Prevent estimate ID changes during normal workflow to avoid auto-save conflicts
   useEffect(() => {
