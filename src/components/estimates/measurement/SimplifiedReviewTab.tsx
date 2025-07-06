@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Shield, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Shield, Lock, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MeasurementValues, AreaByPitch } from "./types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRoleAccess } from "@/components/RoleGuard";
+import { useToast } from "@/hooks/use-toast";
 
 interface SimplifiedReviewTabProps {
   measurements: MeasurementValues;
@@ -26,10 +27,12 @@ export function SimplifiedReviewTab({
 }: SimplifiedReviewTabProps) {
   const { profile } = useAuth();
   const { isAdmin } = useRoleAccess();
+  const { toast } = useToast();
   
   // Local state for editing (only used by admins)
   const [editableMeasurements, setEditableMeasurements] = useState<MeasurementValues>(measurements);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSavingAndContinuing, setIsSavingAndContinuing] = useState(false);
   
   // Calculate totals
   const totalSquares = Math.round(measurements.totalArea / 100 * 10) / 10;
@@ -72,16 +75,66 @@ export function SimplifiedReviewTab({
     }));
   };
   
-  const handleSaveChanges = () => {
-    if (onMeasurementsUpdate) {
-      onMeasurementsUpdate(editableMeasurements);
+  const handleSaveAndContinue = async () => {
+    if (!onMeasurementsUpdate || !onContinue) return;
+    
+    setIsSavingAndContinuing(true);
+    
+    try {
+      // CRITICAL: Validate pitch data before saving to prevent corruption
+      if (measurements.areasByPitch && measurements.areasByPitch.length > 0) {
+        const invalidPitches = measurements.areasByPitch.filter(p => 
+          !p.pitch || (!p.pitch.includes('/') && !p.pitch.includes(':') && !/^\d/.test(p.pitch))
+        );
+        
+        if (invalidPitches.length > 0) {
+          console.error("❌ CORRUPTION DETECTED - Invalid pitch data:", invalidPitches);
+          toast({
+            title: "Data Corruption Detected",
+            description: "Invalid pitch data detected. Please refresh and re-upload your PDF.",
+            variant: "destructive"
+          });
+          setIsSavingAndContinuing(false);
+          return;
+        }
+        
+        console.log("✅ Pitch data validated successfully:", measurements.areasByPitch);
+      }
+      
+      // Save measurements first
+      onMeasurementsUpdate(measurements);
+      
+      // Check for low-slope areas in the measurements
+      const hasLowPitch = measurements.areasByPitch?.some(
+        area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
+      );
+      
+      // If there are low-slope areas, we'll display a special message in the toast
+      const lowSlopeMessage = hasLowPitch ? 
+        " Required materials for low-slope areas will be automatically added." : 
+        "";
+      
+      // Show success toast
+      toast({
+        title: "Measurements saved",
+        description: `Now you can select materials for your estimate.${lowSlopeMessage}`,
+      });
+      
+      // Navigate to materials after a brief delay to ensure state updates complete
+      setTimeout(() => {
+        onContinue();
+        setIsSavingAndContinuing(false);
+      }, 50);
+      
+    } catch (error) {
+      console.error("Error saving measurements:", error);
+      toast({
+        title: "Save failed",
+        description: "Failed to save measurements. Please try again.",
+        variant: "destructive"
+      });
+      setIsSavingAndContinuing(false);
     }
-    setIsEditing(false);
-  };
-  
-  const handleCancelEdit = () => {
-    setEditableMeasurements(measurements);
-    setIsEditing(false);
   };
   
   const currentMeasurements = isEditing ? editableMeasurements : measurements;
@@ -122,19 +175,27 @@ export function SimplifiedReviewTab({
                 </Button>
               ) : (
                 <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleCancelEdit}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleSaveChanges}
-                  >
-                    Save Changes
-                  </Button>
+                                      <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditableMeasurements(measurements);
+                        setIsEditing(false);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                                      <Button
+                      size="sm"
+                      onClick={() => {
+                        if (onMeasurementsUpdate) {
+                          onMeasurementsUpdate(editableMeasurements);
+                        }
+                        setIsEditing(false);
+                      }}
+                    >
+                      Save Changes
+                    </Button>
                 </div>
               )}
             </div>
@@ -442,6 +503,7 @@ export function SimplifiedReviewTab({
               variant="outline"
               onClick={onBack}
               className="flex items-center gap-2"
+              disabled={isSavingAndContinuing}
             >
               <ChevronLeft className="h-4 w-4" />
               Back to Upload
@@ -450,11 +512,21 @@ export function SimplifiedReviewTab({
           
           {onContinue && !isEditing && (
             <Button 
-              onClick={onContinue}
+              onClick={handleSaveAndContinue}
               className="flex items-center gap-2 ml-auto"
+              disabled={isSavingAndContinuing}
             >
-              Continue to Select Materials
-              <ChevronRight className="h-4 w-4" />
+              {isSavingAndContinuing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving & Continuing...
+                </>
+              ) : (
+                <>
+                  Continue to Select Materials
+                  <ChevronRight className="h-4 w-4" />
+                </>
+              )}
             </Button>
           )}
         </CardFooter>
