@@ -992,9 +992,9 @@ const Estimates = () => {
       }
       
       // Hydrate labor rates and profit margin
-      if (autoSaveHydratedData.laborRates && laborRates.laborRate === 85) {
+      if (autoSaveHydratedData.laborRates && !hasLaborRatesChanges(laborRates)) {
         setLaborRates(autoSaveHydratedData.laborRates);
-        console.log("✅ [HYDRATION] Restored labor rates:", autoSaveHydratedData.laborRates.laborRate, "$/hr");
+        console.log("✅ [HYDRATION] Restored labor rates and sub-field changes from auto-save");
       }
       
       if (autoSaveHydratedData.profitMargin && profitMargin === 25) {
