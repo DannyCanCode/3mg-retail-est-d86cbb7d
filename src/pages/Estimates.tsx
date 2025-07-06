@@ -326,7 +326,7 @@ const Estimates = () => {
     dumpsterCount: 1,
     dumpsterRate: 400,
     includePermits: true,
-    permitRate: 550,
+    permitRate: 450,        // ✅ FIXED: 550 → 450
     permitCount: 1,
     permitAdditionalRate: 450,
     pitchRates: {},
@@ -340,6 +340,12 @@ const Estimates = () => {
     includeDetachResetGutters: false,
     detachResetGutterLinearFeet: 0,
     detachResetGutterRate: 1,
+    includeSkylights2x2: false,    // ✅ ADDED: Missing skylight fields
+    skylights2x2Count: 0,
+    skylights2x2Rate: 280,
+    includeSkylights2x4: false,
+    skylights2x4Count: 0,
+    skylights2x4Rate: 370,
     includeLowSlopeLabor: true,
     includeSteepSlopeLabor: true,
   });
