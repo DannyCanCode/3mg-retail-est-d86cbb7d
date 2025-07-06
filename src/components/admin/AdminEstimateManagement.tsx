@@ -242,7 +242,7 @@ export const AdminEstimateManagement: React.FC = () => {
 
       toast({
         title: 'Estimate Deleted',
-        description: `Estimate for ${estimate.customer_address} has been permanently deleted.`
+        description: `Estimate for ${estimate.customer_address} has been moved to deleted items and can be restored if needed.`
       });
 
       setSelectedEstimate(null);

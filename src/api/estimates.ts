@@ -176,7 +176,7 @@ export const saveEstimate = async (
 };
 
 /**
- * Get all estimates with optional filtering by status
+ * Get all estimates with optional filtering by status (excludes soft-deleted estimates)
  */
 export const getEstimates = async (status?: EstimateStatus): Promise<{
   data: Estimate[];
@@ -186,7 +186,8 @@ export const getEstimates = async (status?: EstimateStatus): Promise<{
     if (!isSupabaseConfigured()) {
       return { data: [], error: new Error("Supabase not configured") };
     }
-    let query = supabase.from("estimates").select("*");
+    let query = supabase.from("estimates").select("*")
+      .is("deleted_at", null); // Exclude soft-deleted estimates
     if (status) {
       query = query.eq("status", status);
     }
@@ -210,7 +211,7 @@ export const getEstimates = async (status?: EstimateStatus): Promise<{
 };
 
 /**
- * Get a single estimate by ID
+ * Get a single estimate by ID (excludes soft-deleted estimates)
  */
 export const getEstimateById = async (id: string): Promise<{
   data: Estimate | null;
@@ -220,7 +221,10 @@ export const getEstimateById = async (id: string): Promise<{
     if (!isSupabaseConfigured()) {
       return { data: null, error: new Error("Supabase not configured") };
     }
-    const { data, error } = await supabase.from("estimates").select("*").eq("id", id).single();
+    const { data, error } = await supabase.from("estimates").select("*")
+      .eq("id", id)
+      .is("deleted_at", null) // Exclude soft-deleted estimates
+      .single();
     if (error) {
       if (error.code === 'PGRST116') return { data: null, error: null };
       throw error;
@@ -753,9 +757,10 @@ export const updateEstimateCustomerDetails = async (
 };
 
 /**
- * Delete an estimate by ID (Admin only)
+ * Soft delete an estimate by ID (Admin only)
+ * This marks the estimate as deleted without permanently removing it
  */
-export const deleteEstimate = async (id: string): Promise<{
+export const deleteEstimate = async (id: string, reason?: string): Promise<{
   data: boolean;
   error: Error | null;
 }> => {
@@ -764,6 +769,163 @@ export const deleteEstimate = async (id: string): Promise<{
       return { data: false, error: new Error("Supabase not configured") };
     }
 
+    // Get current user for tracking who deleted the estimate
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Soft delete by updating the deleted_at timestamp
+    const { data, error } = await supabase
+      .from("estimates")
+      .update({
+        deleted_at: new Date().toISOString(),
+        deleted_by: user?.id || null,
+        deletion_reason: reason || 'Deleted by admin',
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", id)
+      .is("deleted_at", null) // Only update if not already deleted
+      .select();
+
+    if (error) {
+      throw error;
+    }
+
+    // If no rows were affected, the estimate wasn't found or was already deleted
+    if (!data || data.length === 0) {
+      return { 
+        data: false, 
+        error: new Error("Estimate not found or already deleted") 
+      };
+    }
+
+    // Track estimate soft deletion for analytics
+    try {
+      trackEvent('admin_estimate_soft_deleted', {
+        estimate_id: id,
+        deletion_reason: reason || 'Deleted by admin',
+        timestamp: new Date().toISOString(),
+        action: 'soft_delete'
+      });
+    } catch (trackingError) {
+      console.warn('Failed to track estimate deletion:', trackingError);
+    }
+
+    return { data: true, error: null };
+  } catch (error) {
+    console.error("Error soft deleting estimate:", error);
+    return {
+      data: false,
+      error: error instanceof Error ? error : new Error("Unknown error occurred")
+    };
+  }
+};
+
+/**
+ * Get all soft-deleted estimates (Admin only)
+ */
+export const getDeletedEstimates = async (): Promise<{
+  data: Estimate[];
+  error: Error | null;
+}> => {
+  try {
+    if (!isSupabaseConfigured()) {
+      return { data: [], error: new Error("Supabase not configured") };
+    }
+    
+    const { data, error } = await supabase
+      .from("estimates")
+      .select("*")
+      .not("deleted_at", "is", null) // Only get soft-deleted estimates
+      .order("deleted_at", { ascending: false });
+
+    if (error) throw error;
+
+    const parsedData = (data || []).map(estimate => ({
+      ...estimate,
+      status: estimate.status as EstimateStatus,
+      materials: typeof estimate.materials === 'string' ? JSON.parse(estimate.materials) : (estimate.materials || {}),
+      quantities: typeof estimate.quantities === 'string' ? JSON.parse(estimate.quantities) : (estimate.quantities || {}),
+      labor_rates: typeof estimate.labor_rates === 'string' ? JSON.parse(estimate.labor_rates) : (estimate.labor_rates || {}),
+      measurements: typeof estimate.measurements === 'string' ? JSON.parse(estimate.measurements) : (estimate.measurements || {})
+    }));
+    
+    return { data: parsedData as Estimate[], error: null };
+  } catch (error) {
+    console.error("Error fetching deleted estimates:", error);
+    return { data: [], error: error instanceof Error ? error : new Error("Unknown error occurred") };
+  }
+};
+
+/**
+ * Restore a soft-deleted estimate (Admin only)
+ */
+export const restoreEstimate = async (id: string): Promise<{
+  data: boolean;
+  error: Error | null;
+}> => {
+  try {
+    if (!isSupabaseConfigured()) {
+      return { data: false, error: new Error("Supabase not configured") };
+    }
+
+    // Restore the estimate by clearing the soft delete fields
+    const { data, error } = await supabase
+      .from("estimates")
+      .update({
+        deleted_at: null,
+        deleted_by: null,
+        deletion_reason: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", id)
+      .not("deleted_at", "is", null) // Only restore if it's currently deleted
+      .select();
+
+    if (error) {
+      throw error;
+    }
+
+    // If no rows were affected, the estimate wasn't found or wasn't deleted
+    if (!data || data.length === 0) {
+      return { 
+        data: false, 
+        error: new Error("Estimate not found or not deleted") 
+      };
+    }
+
+    // Track estimate restoration for analytics
+    try {
+      trackEvent('admin_estimate_restored', {
+        estimate_id: id,
+        timestamp: new Date().toISOString(),
+        action: 'restore'
+      });
+    } catch (trackingError) {
+      console.warn('Failed to track estimate restoration:', trackingError);
+    }
+
+    return { data: true, error: null };
+  } catch (error) {
+    console.error("Error restoring estimate:", error);
+    return {
+      data: false,
+      error: error instanceof Error ? error : new Error("Unknown error occurred")
+    };
+  }
+};
+
+/**
+ * Permanently delete an estimate (Admin only - use with extreme caution)
+ */
+export const permanentlyDeleteEstimate = async (id: string): Promise<{
+  data: boolean;
+  error: Error | null;
+}> => {
+  try {
+    if (!isSupabaseConfigured()) {
+      return { data: false, error: new Error("Supabase not configured") };
+    }
+
+    // This actually permanently removes the record from the database
     const { error } = await supabase
       .from("estimates")
       .delete()
@@ -773,20 +935,20 @@ export const deleteEstimate = async (id: string): Promise<{
       throw error;
     }
 
-    // Track estimate deletion for analytics
+    // Track permanent deletion for analytics
     try {
-      trackEvent('admin_estimate_deleted', {
+      trackEvent('admin_estimate_permanently_deleted', {
         estimate_id: id,
         timestamp: new Date().toISOString(),
-        action: 'delete'
+        action: 'permanent_delete'
       });
     } catch (trackingError) {
-      console.warn('Failed to track estimate deletion:', trackingError);
+      console.warn('Failed to track permanent deletion:', trackingError);
     }
 
     return { data: true, error: null };
   } catch (error) {
-    console.error("Error deleting estimate:", error);
+    console.error("Error permanently deleting estimate:", error);
     return {
       data: false,
       error: error instanceof Error ? error : new Error("Unknown error occurred")

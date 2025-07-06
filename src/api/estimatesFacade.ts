@@ -12,5 +12,10 @@ export const generateEstimatePdf = supa.generateEstimatePdf;
 export const updateEstimateCustomerDetails = supa.updateEstimateCustomerDetails;
 export const calculateEstimateTotal = supa.calculateEstimateTotal;
 
+// Soft delete management functions
+export const getDeletedEstimates = supa.getDeletedEstimates;
+export const restoreEstimate = supa.restoreEstimate;
+export const permanentlyDeleteEstimate = supa.permanentlyDeleteEstimate;
+
 // Re-export types
 export type { Estimate, EstimateStatus } from './estimates'; 
