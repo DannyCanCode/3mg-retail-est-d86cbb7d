@@ -656,13 +656,13 @@ const Estimates = () => {
       }
     }
     
-    if (storedLaborRates && Object.keys(storedLaborRates).length > 0 && laborRates.laborRate === 85) {
+    if (storedLaborRates && Object.keys(storedLaborRates).length > 0 && !hasLaborRatesChanges(laborRates)) {
       // Validate labor rates are reasonable numbers
       const isValidLaborRate = storedLaborRates.laborRate > 0 && storedLaborRates.laborRate < 500;
       if (isValidLaborRate) {
         setLaborRates(storedLaborRates);
         recoveryResults.laborRatesRecovered = true;
-        console.log("✅ Recovered labor rates:", storedLaborRates.laborRate, "$/hr");
+        console.log("✅ Recovered labor rates and sub-field changes");
       }
     }
     
@@ -782,12 +782,55 @@ const Estimates = () => {
     }
   }, [quantities, isViewMode, isRecoveringState, setStoredQuantities]);
 
+  // Helper function to detect if labor rates have meaningful changes from defaults
+  const hasLaborRatesChanges = useCallback((rates: LaborRates): boolean => {
+    const defaults = {
+      laborRate: 85,
+      dumpsterCount: 1,
+      dumpsterRate: 400,
+      permitCount: 1,
+      gutterLinearFeet: 0,
+      detachResetGutterLinearFeet: 0,
+      downspoutCount: 0,
+      skylights2x2Count: 0,
+      skylights2x4Count: 0,
+      handloadRate: 15,
+      isHandload: false,
+      includeGutters: false,
+      includeDownspouts: false,
+      includeDetachResetGutters: false,
+      includeSkylights2x2: false,
+      includeSkylights2x4: false
+    };
+
+    return (
+      rates.laborRate !== defaults.laborRate ||
+      rates.dumpsterCount !== defaults.dumpsterCount ||
+      rates.dumpsterRate !== defaults.dumpsterRate ||
+      rates.permitCount !== defaults.permitCount ||
+      rates.gutterLinearFeet !== defaults.gutterLinearFeet ||
+      rates.detachResetGutterLinearFeet !== defaults.detachResetGutterLinearFeet ||
+      rates.downspoutCount !== defaults.downspoutCount ||
+      rates.skylights2x2Count !== defaults.skylights2x2Count ||
+      rates.skylights2x4Count !== defaults.skylights2x4Count ||
+      rates.handloadRate !== defaults.handloadRate ||
+      rates.isHandload !== defaults.isHandload ||
+      rates.includeGutters !== defaults.includeGutters ||
+      rates.includeDownspouts !== defaults.includeDownspouts ||
+      rates.includeDetachResetGutters !== defaults.includeDetachResetGutters ||
+      rates.includeSkylights2x2 !== defaults.includeSkylights2x2 ||
+      rates.includeSkylights2x4 !== defaults.includeSkylights2x4 ||
+      rates.dumpsterLocation !== "orlando" ||
+      Object.keys(rates.pitchRates || {}).length > 0
+    );
+  }, []);
+
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && laborRates && laborRates.laborRate !== 85) {
+    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && laborRates && hasLaborRatesChanges(laborRates)) {
       setStoredLaborRates(laborRates);
-      console.log("💾 Auto-saved labor rates:", laborRates.laborRate, "$/hr");
+      console.log("💾 Auto-saved labor rates with changes detected");
     }
-  }, [laborRates, isViewMode, isRecoveringState, setStoredLaborRates]);
+  }, [laborRates, isViewMode, isRecoveringState, setStoredLaborRates, hasLaborRatesChanges]);
 
   useEffect(() => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && profitMargin !== 25) {
