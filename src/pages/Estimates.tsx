@@ -192,7 +192,7 @@ const Estimates = () => {
     dumpsterCount: 1,
     dumpsterRate: 400,
     includePermits: true,
-    permitRate: 550,
+    permitRate: 450,        // ✅ Fixed to match Orlando default
     permitCount: 1,
     permitAdditionalRate: 450,
     pitchRates: {},
@@ -206,6 +206,12 @@ const Estimates = () => {
     includeDetachResetGutters: false,
     detachResetGutterLinearFeet: 0,
     detachResetGutterRate: 1,
+    includeSkylights2x2: false,    // ✅ Added missing fields
+    skylights2x2Count: 0,
+    skylights2x2Rate: 280,
+    includeSkylights2x4: false,
+    skylights2x4Count: 0,
+    skylights2x4Rate: 370,
     includeLowSlopeLabor: true,
     includeSteepSlopeLabor: true,
   });
@@ -804,41 +810,68 @@ const Estimates = () => {
   const hasLaborRatesChanges = useCallback((rates: LaborRates): boolean => {
     const defaults = {
       laborRate: 85,
+      tearOff: 0,
+      installation: 0,
+      isHandload: false,
+      handloadRate: 15,
+      dumpsterLocation: "orlando",
       dumpsterCount: 1,
       dumpsterRate: 400,
+      includePermits: true,  // ✅ MISSING FIELD!
+      permitRate: 450,       // ✅ MISSING FIELD!
       permitCount: 1,
-      gutterLinearFeet: 0,
-      detachResetGutterLinearFeet: 0,
-      downspoutCount: 0,
-      skylights2x2Count: 0,
-      skylights2x4Count: 0,
-      handloadRate: 15,
-      isHandload: false,
+      permitAdditionalRate: 450,  // ✅ MISSING FIELD!
+      wastePercentage: 12,        // ✅ MISSING FIELD!
       includeGutters: false,
+      gutterLinearFeet: 0,
+      gutterRate: 8,              // ✅ MISSING FIELD!
       includeDownspouts: false,
+      downspoutCount: 0,
+      downspoutRate: 75,          // ✅ MISSING FIELD!
       includeDetachResetGutters: false,
+      detachResetGutterLinearFeet: 0,
+      detachResetGutterRate: 1,   // ✅ MISSING FIELD!
       includeSkylights2x2: false,
-      includeSkylights2x4: false
+      skylights2x2Count: 0,
+      skylights2x2Rate: 280,      // ✅ MISSING FIELD!
+      includeSkylights2x4: false,
+      skylights2x4Count: 0,
+      skylights2x4Rate: 370,      // ✅ MISSING FIELD!
+      includeLowSlopeLabor: true,
+      includeSteepSlopeLabor: true
     };
 
     return (
       rates.laborRate !== defaults.laborRate ||
+      rates.tearOff !== defaults.tearOff ||
+      rates.installation !== defaults.installation ||
+      rates.isHandload !== defaults.isHandload ||
+      rates.handloadRate !== defaults.handloadRate ||
+      rates.dumpsterLocation !== defaults.dumpsterLocation ||
       rates.dumpsterCount !== defaults.dumpsterCount ||
       rates.dumpsterRate !== defaults.dumpsterRate ||
+      rates.includePermits !== defaults.includePermits ||  // ✅ NOW CHECKING!
+      rates.permitRate !== defaults.permitRate ||          // ✅ NOW CHECKING!
       rates.permitCount !== defaults.permitCount ||
-      rates.gutterLinearFeet !== defaults.gutterLinearFeet ||
-      rates.detachResetGutterLinearFeet !== defaults.detachResetGutterLinearFeet ||
-      rates.downspoutCount !== defaults.downspoutCount ||
-      rates.skylights2x2Count !== defaults.skylights2x2Count ||
-      rates.skylights2x4Count !== defaults.skylights2x4Count ||
-      rates.handloadRate !== defaults.handloadRate ||
-      rates.isHandload !== defaults.isHandload ||
+      rates.permitAdditionalRate !== defaults.permitAdditionalRate ||  // ✅ NOW CHECKING!
+      rates.wastePercentage !== defaults.wastePercentage ||             // ✅ NOW CHECKING!
       rates.includeGutters !== defaults.includeGutters ||
+      rates.gutterLinearFeet !== defaults.gutterLinearFeet ||
+      rates.gutterRate !== defaults.gutterRate ||                       // ✅ NOW CHECKING!
       rates.includeDownspouts !== defaults.includeDownspouts ||
+      rates.downspoutCount !== defaults.downspoutCount ||
+      rates.downspoutRate !== defaults.downspoutRate ||                 // ✅ NOW CHECKING!
       rates.includeDetachResetGutters !== defaults.includeDetachResetGutters ||
+      rates.detachResetGutterLinearFeet !== defaults.detachResetGutterLinearFeet ||
+      rates.detachResetGutterRate !== defaults.detachResetGutterRate ||  // ✅ NOW CHECKING!
       rates.includeSkylights2x2 !== defaults.includeSkylights2x2 ||
+      rates.skylights2x2Count !== defaults.skylights2x2Count ||
+      rates.skylights2x2Rate !== defaults.skylights2x2Rate ||           // ✅ NOW CHECKING!
       rates.includeSkylights2x4 !== defaults.includeSkylights2x4 ||
-      rates.dumpsterLocation !== "orlando" ||
+      rates.skylights2x4Count !== defaults.skylights2x4Count ||
+      rates.skylights2x4Rate !== defaults.skylights2x4Rate ||           // ✅ NOW CHECKING!
+      rates.includeLowSlopeLabor !== defaults.includeLowSlopeLabor ||
+      rates.includeSteepSlopeLabor !== defaults.includeSteepSlopeLabor ||
       Object.keys(rates.pitchRates || {}).length > 0
     );
   }, []);
@@ -1568,7 +1601,7 @@ const Estimates = () => {
       dumpsterCount: 1,
       dumpsterRate: 400,
       includePermits: true,
-      permitRate: 550,
+      permitRate: 450,        // ✅ Fixed to match Orlando default
       permitCount: 1,
       permitAdditionalRate: 450,
       pitchRates: {},
@@ -1582,6 +1615,12 @@ const Estimates = () => {
       includeDetachResetGutters: false,
       detachResetGutterLinearFeet: 0,
       detachResetGutterRate: 1,
+      includeSkylights2x2: false,    // ✅ Added missing fields
+      skylights2x2Count: 0,
+      skylights2x2Rate: 280,
+      includeSkylights2x4: false,
+      skylights2x4Count: 0,
+      skylights2x4Rate: 370,
       includeLowSlopeLabor: true,
       includeSteepSlopeLabor: true,
     });
@@ -1655,7 +1694,7 @@ const Estimates = () => {
       dumpsterCount: 1,
       dumpsterRate: 400,
       includePermits: true,
-      permitRate: 550,
+      permitRate: 450,        // ✅ Fixed to match Orlando default
       permitCount: 1,
       permitAdditionalRate: 450,
       pitchRates: {},
@@ -1669,6 +1708,12 @@ const Estimates = () => {
       includeDetachResetGutters: false,
       detachResetGutterLinearFeet: 0,
       detachResetGutterRate: 1,
+      includeSkylights2x2: false,    // ✅ Added missing fields
+      skylights2x2Count: 0,
+      skylights2x2Rate: 280,
+      includeSkylights2x4: false,
+      skylights2x4Count: 0,
+      skylights2x4Rate: 370,
       includeLowSlopeLabor: true,
       includeSteepSlopeLabor: true,
     };
