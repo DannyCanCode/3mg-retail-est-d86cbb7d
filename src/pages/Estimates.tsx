@@ -17,6 +17,7 @@ import { ParsedMeasurements } from "@/api/measurements";
 import { useSearchParams, useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAutoSave, useEstimateId } from "@/hooks/useAutoSave";
+import { useLocalStorageMigration } from "@/hooks/useLocalStorageMigration";
 import { isFeatureEnabled } from "@/utils/feature-flags";
 import { saveEstimate, calculateEstimateTotal as calculateEstimateTotalFromAPI, getEstimateById, Estimate as EstimateType, markEstimateAsSold, getEstimates, updateEstimateStatus, updateEstimateCustomerDetails, EstimateStatus } from "@/api/estimatesFacade";
 import { getMeasurementById } from "@/api/measurements";
@@ -300,9 +301,22 @@ const Estimates = () => {
       }
     };
     
-    // Run corruption detection on component mount
-    detectAndCleanCorruptedData();
-  }, [toast]);
+      // Run corruption detection on component mount
+  detectAndCleanCorruptedData();
+}, [toast]);
+
+// PHASE 4: AUTO-MIGRATION ON MOUNT
+useEffect(() => {
+  // Auto-run migration after a short delay to ensure auto-save system is initialized
+  const migrationTimer = setTimeout(() => {
+    if (isFeatureEnabled('AUTO_SAVE_ENABLED') && !migration.isComplete && !migration.isInProgress) {
+      console.log('🔄 [AUTO-MIGRATION] Starting automatic localStorage cleanup...');
+      migration.startMigration();
+    }
+  }, 2000); // 2 second delay to ensure auto-save is ready
+
+  return () => clearTimeout(migrationTimer);
+}, [migration]);
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
   
   // Additional state persistence for complete estimate recovery
@@ -344,7 +358,10 @@ const Estimates = () => {
   // PHASE 2.5: AUTO-SAVE INTEGRATION - Gradual migration from localStorage to server storage
   const [autoSaveEstimateId, setAutoSaveEstimateId] = useState(() => crypto.randomUUID()); // Generate UUID for this estimate
   const [isStartingFresh, setIsStartingFresh] = useState(false); // Track when we're in "Start Fresh" mode
-  const stableEstimateIdRef = useRef(autoSaveEstimateId); // Stable reference to prevent loops
+  const stableEstimateIdRef = useRef(autoSaveEstimateId);
+  
+  // PHASE 4: LOCALSTORAGE CLEANUP MIGRATION
+  const migration = useLocalStorageMigration(); // Stable reference to prevent loops
   
   // 🔧 STABILITY FIX: Prevent estimate ID changes during normal workflow to avoid auto-save conflicts
   useEffect(() => {
@@ -2551,6 +2568,55 @@ const Estimates = () => {
                           {measurements && (
                             <pre>{JSON.stringify(measurements, null, 2)}</pre>
                           )}
+                        </div>
+                      </details>
+                      
+                      <details className="mt-2">
+                        <summary>localStorage Migration Status</summary>
+                        <div className="mt-2 space-y-1">
+                          <p>Migration Complete: {migration.isComplete ? '✅' : '❌'}</p>
+                          <p>In Progress: {migration.isInProgress ? '🔄' : '💤'}</p>
+                          {migration.report && (
+                            <>
+                              <p>Total Keys: {migration.report.totalKeys}</p>
+                              <p>Redundant Keys: {migration.report.redundantKeys.length}</p>
+                              <p>Legacy Keys: {migration.report.legacyKeys.length}</p>
+                              <p>Auto-Save Keys: {migration.report.autoSaveKeys.length}</p>
+                              <p>Total Size: {Math.round(migration.report.totalSize / 1024)}KB</p>
+                            </>
+                          )}
+                          {migration.result && (
+                            <>
+                              <p>Migrated: {migration.result.migratedKeys.length}</p>
+                              <p>Removed: {migration.result.removedKeys.length}</p>
+                              <p>Space Freed: {Math.round(migration.result.totalSizeFreed / 1024)}KB</p>
+                            </>
+                          )}
+                          {migration.error && (
+                            <p className="text-red-600">Error: {migration.error}</p>
+                          )}
+                          <div className="flex gap-2 mt-2">
+                            <button 
+                              onClick={migration.generateReport}
+                              className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
+                            >
+                              Refresh Report
+                            </button>
+                            <button 
+                              onClick={migration.startMigration}
+                              disabled={migration.isInProgress}
+                              className="px-2 py-1 bg-green-500 text-white text-xs rounded disabled:opacity-50"
+                            >
+                              Run Migration
+                            </button>
+                            <button 
+                              onClick={migration.forceClean}
+                              disabled={migration.isInProgress}
+                              className="px-2 py-1 bg-red-500 text-white text-xs rounded disabled:opacity-50"
+                            >
+                              Force Clean
+                            </button>
+                          </div>
                         </div>
                       </details>
                     </div>
