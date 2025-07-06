@@ -1253,49 +1253,10 @@ const Estimates = () => {
   };
 
   const handleMeasurementsSaved = (savedMeasurements: MeasurementValues) => {
-    console.log("🔄 Measurements saved from form:", savedMeasurements);
+    console.log("🔄 Measurements saved from SimplifiedReviewTab:", savedMeasurements);
     
-    // CRITICAL: Validate pitch data before saving to prevent corruption
-    if (savedMeasurements.areasByPitch && savedMeasurements.areasByPitch.length > 0) {
-      const invalidPitches = savedMeasurements.areasByPitch.filter(p => 
-        !p.pitch || (!p.pitch.includes('/') && !p.pitch.includes(':') && !/^\d/.test(p.pitch))
-      );
-      
-      if (invalidPitches.length > 0) {
-        console.error("❌ CORRUPTION DETECTED - Invalid pitch data:", invalidPitches);
-        toast({
-          title: "Data Corruption Detected",
-          description: "Invalid pitch data detected. Please refresh and re-upload your PDF.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      console.log("✅ Pitch data validated successfully:", savedMeasurements.areasByPitch);
-    }
-    
-    // Update measurements state first
+    // Simply update measurements state - navigation is now handled by SimplifiedReviewTab
     setMeasurements(savedMeasurements);
-    
-    // Check for low-slope areas in the measurements
-    const hasLowPitch = savedMeasurements.areasByPitch?.some(
-      area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch)
-    );
-    
-    // If there are low-slope areas, we'll display a special message in the toast
-    const lowSlopeMessage = hasLowPitch ? 
-      " Required materials for low-slope areas will be automatically added." : 
-      "";
-    
-    // Add a small delay to ensure state is updated before navigation and toast
-    setTimeout(() => {
-      handleGoToMaterials();
-      
-      toast({
-        title: "Measurements saved",
-        description: `Now you can select materials for your estimate.${lowSlopeMessage}`,
-      });
-    }, 100);
   };
 
   const handleMaterialsUpdate = (update: { 
