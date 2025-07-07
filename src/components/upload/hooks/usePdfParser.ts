@@ -135,10 +135,17 @@ export function usePdfParser() {
         } catch (uploadError: any) {
           console.error("❌ PDF upload to Supabase failed:", uploadError);
           console.error("❌ Upload error details:", uploadError?.message || uploadError);
-          console.warn("⚠️ PDF will be processed but View PDF link will not be available");
+          console.warn("⚠️ Using fallback blob URL for PDF viewing");
           
-          // 🚨 CRITICAL: Ensure fileUrl stays null and doesn't get set to undefined
-          setFileUrl(null);
+          // 🚨 FALLBACK: Create blob URL for immediate viewing (demo-safe)
+          try {
+            const blobUrl = URL.createObjectURL(file);
+            setFileUrl(blobUrl);
+            console.log("✅ Fallback blob URL created for PDF viewing");
+          } catch (blobError) {
+            console.error("❌ Failed to create blob URL:", blobError);
+            setFileUrl(null);
+          }
         }
         
         return { measurements, parsedMeasurements };
