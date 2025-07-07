@@ -104,33 +104,98 @@ const ManagerDashboard: React.FC = () => {
 
   const handleMarkAsSold = async (estimate: ExtendedEstimate) => {
     try {
-      // You can import and use the markEstimateAsSold function from estimates API
-      toast({ title: 'Mark as Sold', description: 'This feature will be implemented with job type selection.' });
-      console.log('Marking estimate as sold:', estimate.id);
-      // Implementation will be added later with proper job type (Retail/Insurance) selection
+      console.log('🏆 [Manager] Starting mark as sold for estimate:', estimate.id);
+      
+      // Import markEstimateAsSold function from API
+      const { markEstimateAsSold } = await import('@/api/estimates');
+      
+      // For now, default to 'Retail' job type. In the future, we can add a dialog to select job type
+      const result = await markEstimateAsSold(estimate.id!, 'Retail', '');
+      
+      console.log('✅ [Manager] Mark as sold successful');
+      
+      toast({
+        title: 'Estimate Marked as Sold',
+        description: 'The estimate has been successfully marked as sold (Retail).'
+      });
+
+      // Refresh the estimates list
+      await fetchEstimates();
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to mark estimate as sold.' });
+      console.error('🚨 [Manager] Error marking estimate as sold:', error);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error', 
+        description: `Failed to mark estimate as sold: ${error.message || 'Unknown error'}` 
+      });
     }
   };
 
   const handleDeleteEstimate = async (estimateId: string) => {
     try {
-      // You can import and use the deleteEstimate function from estimates API  
-      toast({ title: 'Delete Estimate', description: 'This feature will be implemented with proper confirmation.' });
-      console.log('Deleting estimate:', estimateId);
-      // Implementation will be added later with proper confirmation dialog
+      console.log('🗑️ [Manager] Starting delete for estimate:', estimateId);
+      
+      // Import deleteEstimate function from API
+      const { deleteEstimate } = await import('@/api/estimates');
+      const { data, error } = await deleteEstimate(estimateId);
+      
+      if (error) {
+        console.error('🚨 [Manager] Delete API error:', error);
+        throw error;
+      }
+
+      console.log('✅ [Manager] Delete API successful');
+      
+      toast({
+        title: 'Estimate Deleted',
+        description: 'The estimate has been successfully deleted.'
+      });
+
+      // Refresh the estimates list
+      await fetchEstimates();
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete estimate.' });
+      console.error('🚨 [Manager] Error deleting estimate:', error);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error', 
+        description: `Failed to delete estimate: ${error.message || 'Unknown error'}` 
+      });
     }
   };
 
   const handleGeneratePdf = async (estimate: ExtendedEstimate) => {
     try {
-      toast({ title: 'PDF generation started', description: 'Your PDF will be available shortly.' });
-      // PDF generation logic here - using same functionality as admin dashboard
-      console.log('Generating PDF for estimate:', estimate.id);
+      console.log('📄 [Manager] Starting PDF generation for estimate:', estimate.id);
+      
+      // Import generateEstimatePdf function from API
+      const { generateEstimatePdf } = await import('@/api/estimates');
+      
+      const { data, error } = await generateEstimatePdf(estimate.id!);
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data?.url) {
+        // Open the PDF in a new tab
+        window.open(data.url, '_blank');
+        
+        console.log('✅ [Manager] PDF generated successfully');
+        
+        toast({
+          title: 'PDF Generated',
+          description: 'The estimate PDF has been generated and opened in a new tab.'
+        });
+      } else {
+        throw new Error('No PDF URL returned');
+      }
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to generate PDF.' });
+      console.error('🚨 [Manager] Error generating PDF:', error);
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error', 
+        description: `Failed to generate PDF: ${error.message || 'Unknown error'}` 
+      });
     }
   };
 

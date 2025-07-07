@@ -1530,27 +1530,49 @@ const Estimates = () => {
     const creatorName = profile?.full_name || user?.email || "Unknown Creator";
     const creatorRole = profile?.role || "rep";
     
-    // Track estimate creation in PostHog
-    trackEstimateCreated({
-      territory: profile?.territory_id || "unknown",
-      packageType: estimateType || "roof_only",
-      estimateValue: liveTotal,
-      userRole: creatorRole
-    });
+    // Check if we're editing an existing estimate
+    const isEditingExisting = estimateId && estimateData;
     
-    // Track additional estimate details
-    trackEvent('estimate_finalized', {
-      creator_name: creatorName,
-      creator_role: creatorRole,
-      customer_address: measurements.propertyAddress || "Address not provided",
-      total_price: liveTotal,
-      material_count: Object.keys(selectedMaterials).length,
-      roof_area: measurements.totalArea,
-      estimate_type: estimateType,
-      timestamp: new Date().toISOString()
-    });
+    if (isEditingExisting) {
+      console.log('🔄 [ESTIMATE UPDATE] Updating existing estimate:', estimateId);
+      // Track estimate update in PostHog
+      trackEvent('estimate_updated', {
+        estimate_id: estimateId,
+        creator_name: creatorName,
+        creator_role: creatorRole,
+        customer_address: measurements.propertyAddress || "Address not provided",
+        total_price: liveTotal,
+        material_count: Object.keys(selectedMaterials).length,
+        roof_area: measurements.totalArea,
+        estimate_type: estimateType,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      console.log('✨ [ESTIMATE CREATE] Creating new estimate');
+      // Track estimate creation in PostHog
+      trackEstimateCreated({
+        territory: profile?.territory_id || "unknown",
+        packageType: estimateType || "roof_only",
+        estimateValue: liveTotal,
+        userRole: creatorRole
+      });
+      
+      // Track additional estimate details
+      trackEvent('estimate_finalized', {
+        creator_name: creatorName,
+        creator_role: creatorRole,
+        customer_address: measurements.propertyAddress || "Address not provided",
+        total_price: liveTotal,
+        material_count: Object.keys(selectedMaterials).length,
+        roof_area: measurements.totalArea,
+        estimate_type: estimateType,
+        timestamp: new Date().toISOString()
+      });
+    }
     
     const estimatePayload: any = { // Use 'any' type to allow additional fields
+      // Include ID for existing estimates to ensure update instead of create
+      ...(isEditingExisting && { id: estimateId }),
       customer_address: measurements.propertyAddress || "Address not provided",
       total_price: liveTotal, // Use the live calculated total
       materials: selectedMaterials,
@@ -1567,10 +1589,12 @@ const Estimates = () => {
       ...(profile?.territory_id && { territory_id: profile.territory_id }),
       ...(estimateType && { estimate_type: estimateType }),
       ...(selectedSubtrades.length > 0 && { selected_subtrades: selectedSubtrades }),
+      // For existing estimates, preserve original status unless we want to change it
+      ...(isEditingExisting && estimateData && { status: estimateData.status }),
       // status will be set to 'pending' by the saveEstimate API if it's a new record
     };
     
-    console.log("Finalizing new estimate with payload:", estimatePayload);
+    console.log(`${isEditingExisting ? 'Updating existing' : 'Finalizing new'} estimate with payload:`, estimatePayload);
     saveEstimate(estimatePayload) // Ensure saveEstimate is called with ONE argument
       .then(({ data, error }) => {
         setIsSubmittingFinal(false);
@@ -1581,7 +1605,7 @@ const Estimates = () => {
           console.error("Error message:", error.message);
           
           // Show a more specific error message if possible
-          let errorMessage = "Failed to save estimate. Please try again.";
+          let errorMessage = `Failed to ${isEditingExisting ? 'update' : 'save'} estimate. Please try again.`;
           
           // Check for specific Supabase error types
           if (error.message?.includes("not configured")) {
@@ -1607,21 +1631,40 @@ const Estimates = () => {
         }
         
         // Log the successful response
-        console.log("Estimate saved successfully:", data);
+        console.log(`Estimate ${isEditingExisting ? 'updated' : 'saved'} successfully:`, data);
         
-        toast({
-          title: "Estimate Finalized",
-          description: "Your estimate has been saved and is pending approval.",
-        });
-        
-        // Navigate to the dashboard after a short delay
-        setTimeout(() => {
-          // Reset the estimate form
-          handleClearEstimate();
+        if (isEditingExisting) {
+          // For existing estimates, show update message and refresh the estimate data
+          toast({
+            title: "Estimate Updated",
+            description: "Your estimate changes have been saved successfully.",
+          });
           
-          // Navigate to the dashboard
-          navigate("/");
-        }, 1500);
+          // Refresh the estimate data to show updated values
+          if (estimateId) {
+            fetchEstimateData(estimateId);
+          }
+          
+          // Navigate back to view mode after a short delay
+          setTimeout(() => {
+            setIsViewMode(true);
+          }, 1000);
+        } else {
+          // For new estimates, show creation message and navigate to dashboard
+          toast({
+            title: "Estimate Finalized",
+            description: "Your estimate has been saved and is pending approval.",
+          });
+          
+          // Navigate to the dashboard after a short delay
+          setTimeout(() => {
+            // Reset the estimate form
+            handleClearEstimate();
+            
+            // Navigate to the dashboard
+            navigate("/");
+          }, 1500);
+        }
       })
       .catch(unexpectedError => {
         // Catch any unexpected errors that might be thrown during the promise chain
