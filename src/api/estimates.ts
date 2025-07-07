@@ -775,7 +775,7 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
     // First check if the estimate exists
     const { data: existingEstimate, error: checkError } = await supabase
       .from("estimates")
-      .select("id, deleted_at")
+      .select("id")
       .eq("id", id)
       .single();
 
@@ -795,54 +795,30 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
       };
     }
 
-    // Check if already soft-deleted
-    if (existingEstimate.deleted_at) {
-      console.warn('⚠️ [API] Estimate already soft-deleted:', id);
-      return { 
-        data: true, 
-        error: null // Consider it successful since it's already deleted
-      };
-    }
-
     // Get current user for tracking who deleted the estimate
     const { data: { user } } = await supabase.auth.getUser();
     console.log('👤 [API] Current user:', user?.id || 'anonymous');
     
-    // Soft delete by updating the deleted_at timestamp
+    // Temporary hard delete until schema cache is fixed
     const { data, error } = await supabase
       .from("estimates")
-      .update({
-        deleted_at: new Date().toISOString(),
-        deleted_by: user?.id || null,
-        deletion_reason: reason || 'Deleted by admin',
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", id)
-      .select();
+      .delete()
+      .eq("id", id);
 
     if (error) {
-      console.error('🚨 [API] Supabase update error:', error);
-      throw new Error(`Failed to soft delete estimate: ${error.message}`);
+      console.error('🚨 [API] Supabase delete error:', error);
+      throw new Error(`Failed to delete estimate: ${error.message}`);
     }
 
-    // If no rows were affected, something went wrong
-    if (!data || data.length === 0) {
-      console.error('🚨 [API] No rows updated for estimate:', id);
-      return { 
-        data: false, 
-        error: new Error("Failed to update estimate - no rows affected") 
-      };
-    }
+    console.log('✅ [API] Successfully deleted estimate:', id);
 
-    console.log('✅ [API] Successfully soft deleted estimate:', id);
-
-    // Track estimate soft deletion for analytics
+    // Track estimate deletion for analytics
     try {
-      trackEvent('admin_estimate_soft_deleted', {
+      trackEvent('admin_estimate_deleted', {
         estimate_id: id,
         deletion_reason: reason || 'Deleted by admin',
         timestamp: new Date().toISOString(),
-        action: 'soft_delete'
+        action: 'delete'
       });
     } catch (trackingError) {
       console.warn('Failed to track estimate deletion:', trackingError);
