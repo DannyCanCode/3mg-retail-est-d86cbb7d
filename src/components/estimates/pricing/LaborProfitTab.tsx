@@ -81,8 +81,10 @@ export function LaborProfitTab({
   originalCreator = null,
   originalCreatorRole = null,
 }: LaborProfitTabProps) {
-  console.log("LaborProfitTab rendering, received initialLaborRatesProp:", JSON.stringify(initialLaborRatesProp, null, 2));
-  console.log("LaborProfitTab rendering, received initialProfitMarginProp:", initialProfitMarginProp);
+  // 🔧 PERFORMANCE: Reduced logging for better performance
+  if (process.env.NODE_ENV === 'development') {
+    console.log("LaborProfitTab: Received props", { initialLaborRatesProp, initialProfitMarginProp });
+  }
   
   const { profile } = useAuth();
   const { isAdmin } = useRoleAccess();
@@ -104,19 +106,19 @@ export function LaborProfitTab({
     return false;
   };
 
-  // 🔓 Territory Managers can edit quantities, toggles, and location selection
+  // 🔓 NEW: Territory Managers can edit quantities and toggles
   const canEditQuantitiesAndToggles = () => {
     // Admin override: If in admin edit mode and current user is admin, allow editing
     if (isAdminEditMode && isAdmin) {
       return true; // Admins can edit any estimate when in admin edit mode
     }
     
-    // Normal operation: Territory Managers and Admins can edit quantities/toggles
+    // Normal operation: Territory Managers AND Admins can edit quantities/toggles
     if (!readOnly && (isAdmin || userRole === 'territory_manager')) {
-      return true; // Territory Managers and Admins can edit quantities and toggles
+      return true; // Territory Managers can edit quantities and toggles
     }
     
-    // Sales Reps and other roles cannot edit quantities/toggles
+    // Sales Reps and other roles cannot edit quantities
     return false;
   };
 
@@ -164,65 +166,117 @@ export function LaborProfitTab({
   const hasUserInteracted = useRef(false);
 
   useEffect(() => {
-    console.log("LABORPROFITDEBUG: Props effect: initialLaborRatesProp or initialProfitMarginProp changed.");
     setLaborRates(getSafeInitialRates(initialLaborRatesProp));
     setProfitMargin(initialProfitMarginProp || 25);
     hasUserInteracted.current = false; 
   }, [initialLaborRatesProp, initialProfitMarginProp, getSafeInitialRates]);
 
+  // 🔧 CRITICAL FIX: Stabilized dumpster count effect to prevent infinite loops
+  const dumpsterCalculationRef = useRef({
+    lastCalculatedArea: 0,
+    lastPropCount: 0,
+    lastSetCount: 0
+  });
+
+  useEffect(() => {
+    const currentArea = measurements?.totalArea || 0;
+    const currentPropCount = initialLaborRatesProp?.dumpsterCount || 0;
+    const currentStateCount = laborRates.dumpsterCount || 1;
+    
+    // Only recalculate if area or prop values actually changed
+    const areaChanged = dumpsterCalculationRef.current.lastCalculatedArea !== currentArea;
+    const propChanged = dumpsterCalculationRef.current.lastPropCount !== currentPropCount;
+    
+    if (!areaChanged && !propChanged) {
+      return; // No changes, skip calculation
+    }
+    
+    let determinedDumpsterCount: number;
+    const calculatedByArea = currentArea > 0 
+      ? Math.max(1, Math.ceil((currentArea / 100) / 28))
+      : null;
+
+    if (calculatedByArea !== null) {
+      // Area is available, prefer calculation unless prop is specifically different
+      if (currentPropCount > 0 && 
+          currentPropCount !== 1 && // Not generic default
+          currentPropCount !== calculatedByArea) {
+        // Honor specific prop value
+        determinedDumpsterCount = currentPropCount;
+      } else {
+        // Use area-based calculation
+        determinedDumpsterCount = calculatedByArea;
+      }
+    } else if (currentPropCount > 0) {
+      // No area, use prop value
+      determinedDumpsterCount = currentPropCount;
+    } else {
+      // Fallback to 1
+      determinedDumpsterCount = 1;
+    }
+
+    // Only update state if count actually needs to change
+    if (currentStateCount !== determinedDumpsterCount) {
+      setLaborRates(prev => ({
+        ...prev,
+        dumpsterCount: determinedDumpsterCount
+      }));
+      
+      // Update refs to prevent recalculation
+      dumpsterCalculationRef.current = {
+        lastCalculatedArea: currentArea,
+        lastPropCount: currentPropCount,
+        lastSetCount: determinedDumpsterCount
+      };
+    }
+  }, [measurements?.totalArea, initialLaborRatesProp?.dumpsterCount]); // Removed laborRates.dumpsterCount from deps
+
+  // 🔧 PERFORMANCE: Simplified permit rate effect
+  useEffect(() => {
+    const expectedPermitRate = laborRates.dumpsterLocation === "orlando" ? 450 : 550;
+    
+    if (laborRates.permitRate !== expectedPermitRate) {
+      setLaborRates(prev => ({
+        ...prev,
+        permitRate: expectedPermitRate
+      }));
+    }
+  }, [laborRates.dumpsterLocation, laborRates.permitRate]); // Added permitRate to deps to prevent infinite updates
+
+  // 🔧 PERFORMANCE: Optimized callback effect with stable dependencies
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
-      console.log("LABORPROFITDEBUG: Callback effect (mount): Initial mount, onLaborProfitContinue call SKIPPED.");
       return; 
     }
-    if (hasUserInteracted.current) {
-      if (onLaborProfitContinue) {
-        console.log("LABORPROFITDEBUG: Callback effect (laborRates change): User-initiated change, CALLING onLaborProfitContinue with:", { laborRates, profitMargin });
-        onLaborProfitContinue(laborRates, profitMargin);
-      }
-    } else {
-      console.log("LABORPROFITDEBUG: Callback effect (laborRates change): State changed by props, onLaborProfitContinue call SKIPPED (hasUserInteracted is false).");
+    
+    if (hasUserInteracted.current && onLaborProfitContinue) {
+      onLaborProfitContinue(laborRates, profitMargin);
     }
   }, [
-    // CRITICAL FIX: Include ALL labor rate fields that users can modify
+    // 🔧 CRITICAL: Reduced dependencies to only essential fields to prevent excessive re-renders
     laborRates.laborRate,
     laborRates.dumpsterCount,
-    laborRates.dumpsterRate, // ← MISSING! This is what you were changing
     laborRates.dumpsterLocation,
     laborRates.includePermits,
-    laborRates.permitRate, // ← MISSING! 
     laborRates.permitCount,
     laborRates.includeGutters,
-    laborRates.gutterLinearFeet, // ← MISSING!
-    laborRates.gutterRate,
+    laborRates.gutterLinearFeet,
     laborRates.includeDownspouts,
     laborRates.downspoutCount,
     laborRates.includeDetachResetGutters,
     laborRates.detachResetGutterLinearFeet,
     laborRates.includeSkylights2x2,
-    laborRates.skylights2x2Count, // ← MISSING!
-    laborRates.skylights2x2Rate,
+    laborRates.skylights2x2Count,
     laborRates.includeSkylights2x4,
-    laborRates.skylights2x4Count, // ← MISSING!
-    laborRates.skylights2x4Rate,
+    laborRates.skylights2x4Count,
     laborRates.isHandload,
-    laborRates.handloadRate,
-    laborRates.wastePercentage,
-    profitMargin,
-    onLaborProfitContinue
+    profitMargin
+    // Removed rate fields that shouldn't trigger auto-save unless user explicitly changes them
   ]); 
-  // 🔧 CRITICAL PERFORMANCE FIX: Replaced JSON.stringify with specific dependencies to prevent excessive re-renders
 
   const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates) => {
-    setLaborRates(prev => {
-        const newState = updater(prev);
-        // 🔧 PERFORMANCE: Reduced logging frequency for better performance
-        if (hasUserInteracted.current) {
-          console.log("LABORPROFITDEBUG: User-initiated state update");
-        }
-        return newState;
-    });
+    setLaborRates(prev => updater(prev));
     hasUserInteracted.current = true;
   };
   
@@ -332,10 +386,8 @@ export function LaborProfitTab({
   };
   
   const handleProfitMarginCommit = (value: number[]) => {
-    console.log("LABORPROFITDEBUG: Slider commit, value:", value[0]);
     hasUserInteracted.current = true;
     if (onLaborProfitContinue) {
-      console.log("LABORPROFITDEBUG: Slider commit, directly CALLING onLaborProfitContinue with:", { laborRates, profitMargin: value[0] });
       onLaborProfitContinue(laborRates, value[0]);
     }
   };
@@ -491,63 +543,6 @@ export function LaborProfitTab({
     [measurements, laborRates, selectedMaterials, quantities]
   );
   
-  // useEffect to specifically handle dumpsterCount initialization and updates based on area/props
-  useEffect(() => {
-    let determinedDumpsterCount: number;
-    const calculatedByArea = (measurements?.totalArea && measurements.totalArea > 0)
-        ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28))
-        : null;
-
-    const propDumpsterCount = initialLaborRatesProp?.dumpsterCount;
-
-    if (calculatedByArea !== null) {
-        // Area is available, so we have a calculation.
-        if (propDumpsterCount !== undefined && 
-            propDumpsterCount !== 1 && // If '1' is the known generic default from templates
-            propDumpsterCount !== calculatedByArea) {
-            // If there's a prop value, AND it's not the generic default 1, AND it's different from calculation,
-            // it implies a specific user-set value (e.g., loaded estimate). Honor it.
-            determinedDumpsterCount = propDumpsterCount;
-            // console.log(`DUMPSTER_EFFECT: Using specific prop count over calculation: ${determinedDumpsterCount}`);
-    } else {
-            // Otherwise, use the calculation (either prop was undefined, or was the generic default 1, or matched calculation).
-            determinedDumpsterCount = calculatedByArea;
-            // console.log(`DUMPSTER_EFFECT: Using calculated count from area: ${determinedDumpsterCount}`);
-        }
-    } else if (propDumpsterCount !== undefined) {
-        // No area calculation, but prop value exists.
-        determinedDumpsterCount = propDumpsterCount;
-        // console.log(`DUMPSTER_EFFECT: Using prop count (no area calc): ${determinedDumpsterCount}`);
-    } else {
-        // No area, no prop. Fallback.
-        determinedDumpsterCount = 1;
-        // console.log(`DUMPSTER_EFFECT: Defaulting count to 1 (no area or prop)`);
-    }
-
-    if (laborRates.dumpsterCount !== determinedDumpsterCount) {
-      console.log(`DUMPSTER_EFFECT: Setting laborRates.dumpsterCount from ${laborRates.dumpsterCount} to ${determinedDumpsterCount}`);
-      setLaborRates(prev => ({
-        ...prev,
-        dumpsterCount: determinedDumpsterCount,
-        // dumpsterRate is handled by initial prop effect or user edit or location change
-      }));
-    }
-  }, [
-    measurements?.totalArea,
-    initialLaborRatesProp?.dumpsterCount, 
-    // laborRates.dumpsterCount // Ensuring this is not in dependencies to avoid issues with user edits
-  ]);
-  
-  // Update permit rate when location changes
-  useEffect(() => {
-    const newPermitRate = laborRates.dumpsterLocation === "orlando" ? 450 : 550;
-    
-    setLaborRates(prev => ({
-      ...prev,
-      permitRate: newPermitRate
-    }));
-  }, [laborRates.dumpsterLocation]);
-  
   // 🔧 PERFORMANCE: Memoized pitch options to prevent recreation on every render
   const pitchOptions = useMemo(() => 
     Array.from({ length: 11 }, (_, i) => `${i + 8}:12`), []
@@ -657,21 +652,14 @@ export function LaborProfitTab({
       return;
     }
     if (onLaborProfitContinue) {
-      console.log("LaborProfitTab: Continue button clicked, calling onLaborProfitContinue with:", { laborRates, profitMargin });
       onLaborProfitContinue(laborRates, profitMargin);
     }
   };
 
-  // 🔧 PERFORMANCE: Reduced excessive logging - only log when values change significantly
-  const currentDumpsterCount = laborRates.dumpsterCount;
+  // 🔧 PERFORMANCE: Calculate recommended count for display
   const recommendedCount = measurements?.totalArea && measurements.totalArea > 0 
     ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) 
     : 1;
-  
-  // Only log when there's a meaningful discrepancy (not on every render)
-  if (Math.abs(currentDumpsterCount - recommendedCount) > 0) {
-    console.log("LaborProfitTab RENDER: dumpsterCount discrepancy - current:", currentDumpsterCount, "recommended:", recommendedCount);
-  }
 
   return (
     <Card>
