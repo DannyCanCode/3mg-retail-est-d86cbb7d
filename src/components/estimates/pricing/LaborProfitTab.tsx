@@ -114,7 +114,7 @@ export function LaborProfitTab({
     }
     
     // Normal operation: Territory Managers AND Admins can edit quantities/toggles
-    if (!readOnly && (isAdmin || userRole === 'territory_manager')) {
+    if (!readOnly && (isAdmin || userRole === 'manager')) {
       return true; // Territory Managers can edit quantities and toggles
     }
     

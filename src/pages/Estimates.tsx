@@ -514,9 +514,12 @@ const Estimates = () => {
   });
   
   // Check if we're in view mode (estimateId is present) and fetch the estimate data
+  // FIXED: Territory Managers should be able to edit existing estimates
   useEffect(() => {
     if (estimateId) {
-      setIsViewMode(true);
+      // Only set view mode for non-managers and non-admins, or when explicitly in admin edit mode
+      const canEditEstimates = profile?.role === 'admin' || profile?.role === 'manager' || isAdminEditMode;
+      setIsViewMode(!canEditEstimates);
       fetchEstimateData(estimateId);
     } else {
       setIsViewMode(false);
