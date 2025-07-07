@@ -3,14 +3,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Estimate, updateEstimateStatus } from '@/api/estimates';
 import { MetricCard } from '@/components/ui/MetricCard';
-import { ClipboardCheck, Clock, CheckCircle2, XCircle, MapPin, Users, Plus } from 'lucide-react';
+import { ClipboardCheck, Clock, CheckCircle2, MapPin, Users, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 
 interface Territory {
@@ -38,8 +36,6 @@ const ManagerDashboard: React.FC = () => {
   const [territory, setTerritory] = useState<Territory | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [rejectionNote, setRejectionNote] = useState('');
-  const [selectedEstimate, setSelectedEstimate] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -106,30 +102,25 @@ const ManagerDashboard: React.FC = () => {
     navigate('/estimates?role=manager');
   };
 
-  const handleApprove = async (id: string) => {
-    const { error } = await updateEstimateStatus(id, 'approved');
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
-    } else {
-      toast({ title: 'Estimate accepted successfully!' });
-      fetchEstimates();
+  const handleMarkAsSold = async (estimate: ExtendedEstimate) => {
+    try {
+      // You can import and use the markEstimateAsSold function from estimates API
+      toast({ title: 'Mark as Sold', description: 'This feature will be implemented with job type selection.' });
+      console.log('Marking estimate as sold:', estimate.id);
+      // Implementation will be added later with proper job type (Retail/Insurance) selection
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to mark estimate as sold.' });
     }
   };
 
-  const handleReject = async (id: string) => {
-    if (!rejectionNote.trim()) {
-      toast({ variant: 'destructive', title: 'Rejection reason required', description: 'Please provide a reason for rejection.' });
-      return;
-    }
-
-    const { error } = await updateEstimateStatus(id, 'rejected', rejectionNote);
-    if (error) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
-    } else {
-      toast({ title: 'Estimate rejected' });
-      setSelectedEstimate(null);
-      setRejectionNote('');
-      fetchEstimates();
+  const handleDeleteEstimate = async (estimateId: string) => {
+    try {
+      // You can import and use the deleteEstimate function from estimates API  
+      toast({ title: 'Delete Estimate', description: 'This feature will be implemented with proper confirmation.' });
+      console.log('Deleting estimate:', estimateId);
+      // Implementation will be added later with proper confirmation dialog
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete estimate.' });
     }
   };
 
@@ -153,12 +144,13 @@ const ManagerDashboard: React.FC = () => {
     navigate(`/estimates/${estimate.id}`);
   };
 
-  // KPI calculations
-  const pending = estimates.filter(e => e.status === 'pending');
-  const approved = estimates.filter(e => e.status === 'approved');
-  const rejected = estimates.filter(e => e.status === 'rejected');
+  // KPI calculations for manager view
+  const draftEstimates = estimates.filter(e => e.status === 'draft' || e.status === 'pending');
+  const activeEstimates = estimates.filter(e => e.status === 'approved');
+  const rejectedEstimates = estimates.filter(e => e.status === 'rejected');
+  const soldEstimates = estimates.filter(e => e.status === 'Sold');
   const totalValue = estimates.reduce((sum, e) => sum + (e.total_price || 0), 0);
-  const approvedValue = approved.reduce((sum, e) => sum + (e.total_price || 0), 0);
+  const soldValue = soldEstimates.reduce((sum, e) => sum + (e.total_price || 0), 0);
 
   const currency = (v: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
 
@@ -267,110 +259,73 @@ const ManagerDashboard: React.FC = () => {
           </div>
         </CardContent>
         
-        {estimate.status === 'pending' && (
-          <CardContent className="p-3 pt-0">
-            <div className="flex gap-2">
-              <Button 
-                size="sm" 
-                onClick={() => handleApprove(estimate.id!)}
-                className="bg-green-600 hover:bg-green-700 flex-1 text-xs"
-              >
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Accept
-              </Button>
-              
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button 
-                    size="sm" 
-                    variant="destructive"
-                    onClick={() => setSelectedEstimate(estimate.id!)}
-                    className="flex-1 text-xs"
-                  >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Reject
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Reject Estimate</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <p>Please provide a reason for rejecting this estimate:</p>
-                    <Textarea
-                      placeholder="Enter rejection reason..."
-                      value={rejectionNote}
-                      onChange={(e) => setRejectionNote(e.target.value)}
-                      rows={3}
-                    />
-                    <div className="flex gap-2 justify-end">
-                      <Button variant="outline" onClick={() => {
-                        setSelectedEstimate(null);
-                        setRejectionNote('');
-                      }}>
-                        Cancel
-                      </Button>
-                      <Button 
-                        variant="destructive" 
-                        onClick={() => handleReject(estimate.id!)}
-                        disabled={!rejectionNote.trim()}
-                      >
-                        Reject Estimate
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </CardContent>
-        )}
+        {/* Manager Actions - Available for all estimates */}
+        <CardContent className="p-3 pt-0">
+          <div className="grid grid-cols-2 gap-2 mb-2">
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleViewDetails(estimate)}
+              className="text-xs"
+            >
+              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View
+            </Button>
+            
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleEditEstimate(estimate)}
+              className="text-xs"
+            >
+              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Edit
+            </Button>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-2">
+            <Button 
+              size="sm" 
+              onClick={() => handleMarkAsSold(estimate)}
+              className="bg-blue-600 hover:bg-blue-700 text-xs"
+            >
+              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+              Sold
+            </Button>
+            
+            <Button 
+              size="sm" 
+              onClick={() => handleGeneratePdf(estimate)}
+              className="bg-green-600 hover:bg-green-700 text-xs"
+            >
+              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              PDF
+            </Button>
+            
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => handleDeleteEstimate(estimate.id!)}
+              className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+            >
+              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              Delete
+            </Button>
+          </div>
+        </CardContent>
         
-        {/* Enhanced functionality for approved/rejected estimates */}
-        {(estimate.status === 'approved' || estimate.status === 'rejected') && (
-          <CardContent className="p-3 pt-0">
-            <div className="flex gap-2">
-              {estimate.status === 'approved' && (
-                <Button 
-                  size="sm" 
-                  onClick={() => handleGeneratePdf(estimate)}
-                  className="bg-blue-600 hover:bg-blue-700 flex-1 text-xs"
-                >
-                  <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  PDF
-                </Button>
-              )}
-              
-              <Button 
-                size="sm" 
-                variant="outline"
-                onClick={() => handleViewDetails(estimate)}
-                className="flex-1 text-xs"
-              >
-                <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-                View
-              </Button>
-              
-              {estimate.status === 'approved' && (
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => handleEditEstimate(estimate)}
-                  className="flex-1 text-xs"
-                >
-                  <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        )}
+
         
         {estimate.status === 'rejected' && estimate.rejection_reason && (
           <CardContent className="p-3 pt-0">
@@ -462,13 +417,13 @@ const ManagerDashboard: React.FC = () => {
           icon={<ClipboardCheck className="h-4 w-4"/>}
         />
         <MetricCard 
-          title="Pending" 
-          value={pending.length} 
+          title="Draft/Pending" 
+          value={draftEstimates.length} 
           icon={<Clock className="h-4 w-4 text-amber-500"/>}
         />
         <MetricCard 
-          title="Accepted" 
-          value={approved.length} 
+          title="Active" 
+          value={activeEstimates.length} 
           icon={<CheckCircle2 className="h-4 w-4 text-green-500"/>}
         />
         <MetricCard 
@@ -505,63 +460,68 @@ const ManagerDashboard: React.FC = () => {
       </Card>
 
       {/* Estimates Tabs */}
-      <Tabs defaultValue="pending" className="w-full">
+      <Tabs defaultValue="all" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="pending">Pending ({pending.length})</TabsTrigger>
-          <TabsTrigger value="approved">Accepted ({approved.length})</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected ({rejected.length})</TabsTrigger>
+          <TabsTrigger value="all">All Estimates ({estimates.length})</TabsTrigger>
+          <TabsTrigger value="active">Active ({activeEstimates.length})</TabsTrigger>
+          <TabsTrigger value="sold">Sold ({soldEstimates.length})</TabsTrigger>
           <TabsTrigger value="team">Team ({teamMembers.length})</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="pending" className="mt-6">
+        <TabsContent value="all" className="mt-6">
           {loading ? (
             <p>Loading estimates...</p>
-          ) : pending.length === 0 ? (
+          ) : estimates.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground">No pending estimates to review.</p>
+                <p className="text-muted-foreground">No estimates found.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
-              {pending.map(estimate => (
+              {estimates.map(estimate => (
                 <EstimateCard key={estimate.id} estimate={estimate} />
               ))}
             </div>
           )}
         </TabsContent>
         
-        <TabsContent value="approved" className="mt-6">
+        <TabsContent value="active" className="mt-6">
           <div className="mb-4">
             <p className="text-lg font-semibold text-green-600">
-              Accepted Value: {currency(approvedValue)}
+              Active Value: {currency(activeEstimates.reduce((sum, e) => sum + (e.total_price || 0), 0))}
             </p>
           </div>
-          {approved.length === 0 ? (
+          {activeEstimates.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground">No accepted estimates yet.</p>
+                <p className="text-muted-foreground">No active estimates yet.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
-              {approved.map(estimate => (
+              {activeEstimates.map(estimate => (
                 <EstimateCard key={estimate.id} estimate={estimate} />
               ))}
             </div>
           )}
         </TabsContent>
         
-        <TabsContent value="rejected" className="mt-6">
-          {rejected.length === 0 ? (
+        <TabsContent value="sold" className="mt-6">
+          <div className="mb-4">
+            <p className="text-lg font-semibold text-blue-600">
+              Sold Value: {currency(soldValue)}
+            </p>
+          </div>
+          {soldEstimates.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center">
-                <p className="text-muted-foreground">No rejected estimates.</p>
+                <p className="text-muted-foreground">No sold estimates yet.</p>
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-4">
-              {rejected.map(estimate => (
+              {soldEstimates.map(estimate => (
                 <EstimateCard key={estimate.id} estimate={estimate} />
               ))}
             </div>
