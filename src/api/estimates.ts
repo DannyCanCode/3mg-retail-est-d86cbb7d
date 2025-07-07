@@ -772,15 +772,48 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
       return { data: false, error: new Error("Supabase not configured") };
     }
 
-    // First check if the estimate exists
+    // Get current user and their details for debugging
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log('👤 [API] Current user:', user?.id || 'anonymous');
+    console.log('👤 [API] User email:', user?.email || 'no email');
+    console.log('👤 [API] User error:', userError);
+    
+    if (userError) {
+      console.error('🚨 [API] Authentication error:', userError);
+      return { 
+        data: false, 
+        error: new Error(`Authentication failed: ${userError.message}`) 
+      };
+    }
+
+    if (!user) {
+      console.error('🚨 [API] No authenticated user found');
+      return { 
+        data: false, 
+        error: new Error("User not authenticated") 
+      };
+    }
+
+    // Get user profile for role checking (using type assertion for profiles table)
+    const { data: profile, error: profileError } = await (supabase as any)
+      .from("profiles")
+      .select("id, role, territory_id, full_name")
+      .eq("id", user.id)
+      .single();
+      
+    console.log('👤 [API] User profile:', profile);
+    console.log('👤 [API] Profile error:', profileError);
+
+    // First check if the estimate exists and get its details
     const { data: existingEstimate, error: checkError } = await supabase
       .from("estimates")
-      .select("id")
+      .select("id, creator_name, creator_role, created_by")
       .eq("id", id)
       .single();
 
     if (checkError) {
       console.error('🚨 [API] Error checking estimate existence:', checkError);
+      console.error('🚨 [API] Detailed check error:', JSON.stringify(checkError, null, 2));
       return { 
         data: false, 
         error: new Error(`Failed to verify estimate exists: ${checkError.message}`) 
@@ -795,11 +828,12 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
       };
     }
 
-    // Get current user for tracking who deleted the estimate
-    const { data: { user } } = await supabase.auth.getUser();
-    console.log('👤 [API] Current user:', user?.id || 'anonymous');
+    console.log('📋 [API] Estimate details:', existingEstimate);
+    console.log('🔍 [API] User role:', profile?.role);
+    console.log('🔍 [API] User can delete?', profile?.role === 'admin' || profile?.role === 'manager');
     
     // Temporary hard delete until schema cache is fixed
+    console.log('🗑️ [API] Attempting delete operation...');
     const { data, error } = await supabase
       .from("estimates")
       .delete()
@@ -807,16 +841,23 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
 
     if (error) {
       console.error('🚨 [API] Supabase delete error:', error);
-      throw new Error(`Failed to delete estimate: ${error.message}`);
+      console.error('🚨 [API] Detailed delete error:', JSON.stringify(error, null, 2));
+      console.error('🚨 [API] Error code:', error.code);
+      console.error('🚨 [API] Error details:', error.details);
+      console.error('🚨 [API] Error hint:', error.hint);
+      throw new Error(`Failed to delete estimate: ${error.message} (Code: ${error.code})`);
     }
 
     console.log('✅ [API] Successfully deleted estimate:', id);
+    console.log('✅ [API] Delete response data:', data);
 
     // Track estimate deletion for analytics
     try {
-      trackEvent('admin_estimate_deleted', {
+      trackEvent('estimate_deleted', {
         estimate_id: id,
-        deletion_reason: reason || 'Deleted by admin',
+        deletion_reason: reason || 'Deleted by user',
+        deleted_by_role: profile?.role || 'unknown',
+        deleted_by_name: profile?.full_name || 'Unknown',
         timestamp: new Date().toISOString(),
         action: 'delete'
       });
