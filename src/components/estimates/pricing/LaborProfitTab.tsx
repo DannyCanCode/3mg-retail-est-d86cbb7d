@@ -81,21 +81,9 @@ export function LaborProfitTab({
   originalCreator = null,
   originalCreatorRole = null,
 }: LaborProfitTabProps) {
-  // 🔧 DEBUG: Temporary permission debugging
   const { profile } = useAuth();
   const { isAdmin } = useRoleAccess();
   const userRole = profile?.role;
-  
-  if (process.env.NODE_ENV === 'development') {
-    console.log("🔍 LaborProfitTab DEBUG:", { 
-      userRole, 
-      isAdmin, 
-      readOnly, 
-      isAdminEditMode,
-      profileRole: profile?.role,
-      profileId: profile?.id
-    });
-  }
   
   // 🔐 CRITICAL SECURITY: Permission functions
   const canEditLaborRates = () => {
@@ -117,18 +105,15 @@ export function LaborProfitTab({
   const canEditQuantitiesAndToggles = () => {
     // Admin override: If in admin edit mode and current user is admin, allow editing
     if (isAdminEditMode && isAdmin) {
-      console.log("🔍 canEditQuantitiesAndToggles: TRUE via adminEditMode");
       return true; // Admins can edit any estimate when in admin edit mode
     }
     
     // Normal operation: Territory Managers AND Admins can edit quantities/toggles
     if (!readOnly && (isAdmin || userRole === 'manager')) {
-      console.log("🔍 canEditQuantitiesAndToggles: TRUE via normal operation", { readOnly, isAdmin, userRole });
       return true; // Territory Managers can edit quantities and toggles
     }
     
     // Sales Reps and other roles cannot edit quantities
-    console.log("🔍 canEditQuantitiesAndToggles: FALSE", { readOnly, isAdmin, userRole });
     return false;
   };
 
