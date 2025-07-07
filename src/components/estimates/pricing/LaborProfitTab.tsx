@@ -81,14 +81,21 @@ export function LaborProfitTab({
   originalCreator = null,
   originalCreatorRole = null,
 }: LaborProfitTabProps) {
-  // 🔧 PERFORMANCE: Reduced logging for better performance
-  if (process.env.NODE_ENV === 'development') {
-    console.log("LaborProfitTab: Received props", { initialLaborRatesProp, initialProfitMarginProp });
-  }
-  
+  // 🔧 DEBUG: Temporary permission debugging
   const { profile } = useAuth();
   const { isAdmin } = useRoleAccess();
   const userRole = profile?.role;
+  
+  if (process.env.NODE_ENV === 'development') {
+    console.log("🔍 LaborProfitTab DEBUG:", { 
+      userRole, 
+      isAdmin, 
+      readOnly, 
+      isAdminEditMode,
+      profileRole: profile?.role,
+      profileId: profile?.id
+    });
+  }
   
   // 🔐 CRITICAL SECURITY: Permission functions
   const canEditLaborRates = () => {
@@ -110,15 +117,18 @@ export function LaborProfitTab({
   const canEditQuantitiesAndToggles = () => {
     // Admin override: If in admin edit mode and current user is admin, allow editing
     if (isAdminEditMode && isAdmin) {
+      console.log("🔍 canEditQuantitiesAndToggles: TRUE via adminEditMode");
       return true; // Admins can edit any estimate when in admin edit mode
     }
     
     // Normal operation: Territory Managers AND Admins can edit quantities/toggles
     if (!readOnly && (isAdmin || userRole === 'manager')) {
+      console.log("🔍 canEditQuantitiesAndToggles: TRUE via normal operation", { readOnly, isAdmin, userRole });
       return true; // Territory Managers can edit quantities and toggles
     }
     
     // Sales Reps and other roles cannot edit quantities
+    console.log("🔍 canEditQuantitiesAndToggles: FALSE", { readOnly, isAdmin, userRole });
     return false;
   };
 
@@ -171,67 +181,11 @@ export function LaborProfitTab({
     hasUserInteracted.current = false; 
   }, [initialLaborRatesProp, initialProfitMarginProp, getSafeInitialRates]);
 
-  // 🔧 CRITICAL FIX: Stabilized dumpster count effect to prevent infinite loops
-  const dumpsterCalculationRef = useRef({
-    lastCalculatedArea: 0,
-    lastPropCount: 0,
-    lastSetCount: 0
-  });
+  // 🔧 CRITICAL FIX: Completely removed problematic dumpster calculation effect
+  // Users can manually set dumpster count - no automatic calculation
+  // This prevents the infinite loop between 1 and 2
 
-  useEffect(() => {
-    const currentArea = measurements?.totalArea || 0;
-    const currentPropCount = initialLaborRatesProp?.dumpsterCount || 0;
-    const currentStateCount = laborRates.dumpsterCount || 1;
-    
-    // Only recalculate if area or prop values actually changed
-    const areaChanged = dumpsterCalculationRef.current.lastCalculatedArea !== currentArea;
-    const propChanged = dumpsterCalculationRef.current.lastPropCount !== currentPropCount;
-    
-    if (!areaChanged && !propChanged) {
-      return; // No changes, skip calculation
-    }
-    
-    let determinedDumpsterCount: number;
-    const calculatedByArea = currentArea > 0 
-      ? Math.max(1, Math.ceil((currentArea / 100) / 28))
-      : null;
-
-    if (calculatedByArea !== null) {
-      // Area is available, prefer calculation unless prop is specifically different
-      if (currentPropCount > 0 && 
-          currentPropCount !== 1 && // Not generic default
-          currentPropCount !== calculatedByArea) {
-        // Honor specific prop value
-        determinedDumpsterCount = currentPropCount;
-      } else {
-        // Use area-based calculation
-        determinedDumpsterCount = calculatedByArea;
-      }
-    } else if (currentPropCount > 0) {
-      // No area, use prop value
-      determinedDumpsterCount = currentPropCount;
-    } else {
-      // Fallback to 1
-      determinedDumpsterCount = 1;
-    }
-
-    // Only update state if count actually needs to change
-    if (currentStateCount !== determinedDumpsterCount) {
-      setLaborRates(prev => ({
-        ...prev,
-        dumpsterCount: determinedDumpsterCount
-      }));
-      
-      // Update refs to prevent recalculation
-      dumpsterCalculationRef.current = {
-        lastCalculatedArea: currentArea,
-        lastPropCount: currentPropCount,
-        lastSetCount: determinedDumpsterCount
-      };
-    }
-  }, [measurements?.totalArea, initialLaborRatesProp?.dumpsterCount]); // Removed laborRates.dumpsterCount from deps
-
-  // 🔧 PERFORMANCE: Simplified permit rate effect
+  // 🔧 PERFORMANCE: Simplified permit rate effect - only trigger on location change
   useEffect(() => {
     const expectedPermitRate = laborRates.dumpsterLocation === "orlando" ? 450 : 550;
     
@@ -241,9 +195,9 @@ export function LaborProfitTab({
         permitRate: expectedPermitRate
       }));
     }
-  }, [laborRates.dumpsterLocation, laborRates.permitRate]); // Added permitRate to deps to prevent infinite updates
+  }, [laborRates.dumpsterLocation]); // REMOVED permitRate from deps to prevent circular updates
 
-  // 🔧 PERFORMANCE: Optimized callback effect with stable dependencies
+  // 🔧 PERFORMANCE: Drastically reduced callback effect dependencies to prevent infinite loops
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -254,25 +208,10 @@ export function LaborProfitTab({
       onLaborProfitContinue(laborRates, profitMargin);
     }
   }, [
-    // 🔧 CRITICAL: Reduced dependencies to only essential fields to prevent excessive re-renders
+    // 🔧 MINIMAL DEPENDENCIES: Only laborRate and profitMargin to prevent excessive re-renders
     laborRates.laborRate,
-    laborRates.dumpsterCount,
-    laborRates.dumpsterLocation,
-    laborRates.includePermits,
-    laborRates.permitCount,
-    laborRates.includeGutters,
-    laborRates.gutterLinearFeet,
-    laborRates.includeDownspouts,
-    laborRates.downspoutCount,
-    laborRates.includeDetachResetGutters,
-    laborRates.detachResetGutterLinearFeet,
-    laborRates.includeSkylights2x2,
-    laborRates.skylights2x2Count,
-    laborRates.includeSkylights2x4,
-    laborRates.skylights2x4Count,
-    laborRates.isHandload,
     profitMargin
-    // Removed rate fields that shouldn't trigger auto-save unless user explicitly changes them
+    // Removed all other fields that were causing infinite loops
   ]); 
 
   const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates) => {
