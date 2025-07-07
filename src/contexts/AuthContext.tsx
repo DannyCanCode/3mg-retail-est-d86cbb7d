@@ -28,9 +28,19 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 // PERFORMANCE OPTIMIZATION: Simple sessionStorage for current tab only (won't interfere with estimate creation)
 const SESSION_CACHE_KEY = 'auth_fast_load';
+const LOGOUT_FLAG_KEY = 'auth_logout_flag';
 
 const getSessionCache = () => {
   try {
+    // CRITICAL FIX: Check logout flag first - if user logged out, don't load cache
+    const logoutFlag = sessionStorage.getItem(LOGOUT_FLAG_KEY);
+    if (logoutFlag) {
+      // Clear the logout flag and return null to prevent cache loading
+      sessionStorage.removeItem(LOGOUT_FLAG_KEY);
+      sessionStorage.removeItem(SESSION_CACHE_KEY);
+      return null;
+    }
+    
     const cached = sessionStorage.getItem(SESSION_CACHE_KEY);
     return cached ? JSON.parse(cached) : null;
   } catch {
@@ -614,10 +624,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('[AuthContext] Starting logout process...');
       }
       
+      // CRITICAL FIX: Set logout flag FIRST to prevent cache loading on refresh
+      sessionStorage.setItem(LOGOUT_FLAG_KEY, 'true');
+      
       // AGGRESSIVE LOGOUT: Clear ALL storage immediately
       sessionStorage.removeItem(SESSION_CACHE_KEY);
       sessionStorage.clear(); // Clear everything to be safe
       localStorage.removeItem('supabase.auth.token');
+      
+      // CRITICAL FIX: Re-set logout flag after clearing (since clear() removes it)
+      sessionStorage.setItem(LOGOUT_FLAG_KEY, 'true');
       
       // Clear state immediately BEFORE Supabase logout to prevent race conditions
       setUser(null);
@@ -674,6 +690,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfileError(null);
       setCacheLoaded(false);
       sessionStorage.clear();
+      
+      // CRITICAL FIX: Ensure logout flag is set even on error
+      sessionStorage.setItem(LOGOUT_FLAG_KEY, 'true');
     }
   }, []);
 
