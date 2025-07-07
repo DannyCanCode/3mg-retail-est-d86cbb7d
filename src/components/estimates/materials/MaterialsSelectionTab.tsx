@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen, Info, Package } from "lucide-react";
+import { ChevronLeft, Plus, Trash, ChevronDown, ChevronUp, Check, PackageOpen, Info } from "lucide-react";
 import { MeasurementValues } from "../measurement/types";
 import { ROOFING_MATERIALS } from "./data";
 import { Material, MaterialCategory } from "./types";
@@ -1200,8 +1200,56 @@ export function MaterialsSelectionTab({
   };
   
   // Helper to check if material is mandatory
-  const isMandatoryMaterial = (materialName: string): boolean => {
-    return materialName.includes('Required') && materialName.includes('cannot be removed');
+  const isMandatoryMaterial = (materialId: string, materialName: string): boolean => {
+    // Check for traditional "Required" materials
+    if (materialName.includes('Required') && materialName.includes('cannot be removed')) {
+      return true;
+    }
+    
+    // Check for low-slope materials that are auto-selected when low-slope areas exist
+    const lowSlopeMaterialIds = [
+      'polyglass-elastoflex-sbs',  // BASE
+      'polyglass-polyflex-app',    // CAP  
+      'gaf-poly-iso-4x8'          // ISO
+    ];
+    
+    if (lowSlopeMaterialIds.includes(materialId) && showLowSlope) {
+      return true;
+    }
+    
+    // Check for GAF package materials that are auto-selected
+    const gafPackageMaterialIds = [
+      'gaf-timberline-hdz-sg',
+      'gaf-prostart-starter-shingle-strip',
+      'gaf-seal-a-ridge',
+      'gaf-weatherwatch-ice-water-shield',
+      'abc-pro-guard-20',
+      'gaf-feltbuster-synthetic-underlayment',
+      'gaf-cobra-rigid-vent',
+      'adjustable-lead-pipe-flashing-4inch',
+      'master-sealant',
+      'millennium-galvanized-drip-edge',
+      'karnak-flashing-cement',
+      '1inch-plastic-cap-nails',
+      'abc-electro-galvanized-coil-nails',
+      'coil-nails-ring-shank'
+    ];
+    
+    if (gafPackageMaterialIds.includes(materialId) && selectedPackage) {
+      return true;
+    }
+    
+    return false;
+  };
+
+  // Helper to check if material is a low-slope material
+  const isLowSlopeMaterial = (materialId: string): boolean => {
+    const lowSlopeMaterialIds = [
+      'polyglass-elastoflex-sbs',  // BASE
+      'polyglass-polyflex-app',    // CAP  
+      'gaf-poly-iso-4x8'          // ISO
+    ];
+    return lowSlopeMaterialIds.includes(materialId) && showLowSlope;
   };
   
   // Format calculation logic with actual measurements and show estimated quantity
@@ -1361,14 +1409,15 @@ export function MaterialsSelectionTab({
   const renderSelectedMaterial = (materialId: string, material: Material) => {
     const isGafTimberline = materialId === "gaf-timberline-hdz-sg";
     const bundleQuantity = localQuantities[materialId] || 0;
-    const isMandatory = material.name && isMandatoryMaterial(material.name);
+    const isMandatory = material.name && isMandatoryMaterial(materialId, material.name);
+    const isLowSlope = isLowSlopeMaterial(materialId);
     
     // Ensure waste factor exists, falling back to the default for the material if not in state yet.
     const currentWasteFactorForMaterial = materialWasteFactors[materialId] ?? determineWasteFactor(material, undefined, dbWastePercentages); 
 
     const initialDisplayValue = () => {
       const qty = localQuantities[materialId] || 0;
-      return isGafTimberline ? (qty / 3).toFixed(1) : qty.toString();
+      return isGafTimberline ? Math.ceil(qty / 3).toString() : qty.toString();
     };
 
     const handleQuantityInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
@@ -1420,7 +1469,7 @@ export function MaterialsSelectionTab({
         setUserOverriddenWaste(prev => ({ ...prev, [materialIdForWaste]: true })); // Mark as user overridden
 
         if (targetMaterial.id === "gaf-timberline-hdz-sg") {
-          setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: (updatedQuantity / 3).toFixed(1) }));
+          setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: Math.ceil(updatedQuantity / 3).toString() }));
         } else {
           setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: updatedQuantity.toString() }));
         }
@@ -1442,7 +1491,7 @@ export function MaterialsSelectionTab({
         setUserOverriddenWaste(prev => ({ ...prev, [materialIdForWaste]: true })); // Still overridden, but to 0%
 
         if (targetMaterial.id === "gaf-timberline-hdz-sg") {
-          setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: (updatedQuantity / 3).toFixed(1) }));
+          setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: Math.ceil(updatedQuantity / 3).toString() }));
         } else {
           setDisplayQuantities(prev => ({ ...prev, [materialIdForWaste]: updatedQuantity.toString() }));
         }
@@ -1480,49 +1529,71 @@ export function MaterialsSelectionTab({
     // Get bundle/squares info for shingles
     const getBundleInfo = () => {
       if (isGafTimberline) {
-        // For GAF Timberline, show squares and bundles
-        const squares = bundleQuantity / 3;
-        return `${squares.toFixed(1)} squares (${bundleQuantity} bundles)`;
+        // For GAF Timberline, show squares and bundles - round up squares
+        const squares = Math.ceil(bundleQuantity / 3);
+        return `${squares} squares (${bundleQuantity} bundles)`;
       } else if (material.bundlesPerSquare && material.bundlesPerSquare > 0) {
         return `${material.bundlesPerSquare} bundles/square`;
       }
       return "";
     };
 
+    // Determine styling based on material type
+    const getContainerStyling = () => {
+      if (isLowSlope) {
+        return 'py-2 px-3 rounded-md border bg-green-50 border-green-300';
+      } else if (isMandatory) {
+        return 'py-2 px-3 rounded-md border bg-blue-50 border-blue-300';
+      } else {
+        return 'p-3 rounded-md border border-gray-200';
+      }
+    };
+
     return (
       <div
         key={materialId}
-        className={`flex flex-col sm:flex-row justify-between sm:items-start ${isMandatory ? 'py-2 px-3' : 'p-3'} rounded-md border ${isMandatory ? 'bg-blue-50 border-blue-300' : 'border-gray-200'}`}
+        className={`flex flex-col sm:flex-row justify-between sm:items-start ${getContainerStyling()}`}
       >
         {/* Left side: Material Info */}
         <div className={`flex-1 ${isMandatory ? 'mb-2' : 'mb-2'} sm:mb-0 sm:mr-3`}>
           <div className="flex items-center justify-between mb-0.5">
             <span className="font-semibold text-gray-800">{baseName}</span>
-            {isMandatory && (
-              <Badge variant="default" className="ml-2 bg-blue-600 text-white text-xs px-1.5 py-0.5">
-                Auto-Selected
+            {(isMandatory || isLowSlope) && (
+              <Badge 
+                variant="default" 
+                className={`ml-2 text-white text-xs px-1.5 py-0.5 ${
+                  isLowSlope 
+                    ? 'bg-green-600' 
+                    : 'bg-blue-600'
+                }`}
+              >
+                {isLowSlope ? 'Low-Slope Required' : 'Auto-Selected'}
               </Badge>
             )}
           </div>
           
-          {isMandatory && requirementText && (
-            <p className="text-[10px] text-blue-700 mb-0.5">{requirementText}</p>
+          {(isMandatory || isLowSlope) && requirementText && (
+            <p className={`text-[10px] mb-0.5 ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
+              {requirementText}
+            </p>
           )}
           
           {/* Add quantity summary with calculation result */}
-          <div className="text-xs text-blue-700 mb-0.5">
-            {bundleQuantity > 0 && (
-              <p className="font-medium">
-                {isGafTimberline 
-                  ? `${(bundleQuantity / 3).toFixed(1)} squares (${bundleQuantity} bundles)`
-                  : `Quantity: ${bundleQuantity} ${material.unit}${bundleQuantity > 1 ? 's' : ''}`
-                }
-                {material.coveragePerUnit && (
-                  <span className="font-normal"> • Covers approx. {(bundleQuantity * material.coveragePerUnit).toFixed(0)} sq ft</span>
-                )}
-              </p>
-            )}
-          </div>
+          {(isMandatory || isLowSlope) && (
+            <div className={`text-xs mb-0.5 ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
+              {bundleQuantity > 0 && (
+                <p className="font-medium">
+                  {isGafTimberline 
+                    ? `${Math.ceil(bundleQuantity / 3)} squares (${bundleQuantity} bundles)`
+                    : `Quantity: ${bundleQuantity} ${material.unit}${bundleQuantity > 1 ? 's' : ''}`
+                  }
+                  {material.coveragePerUnit && (
+                    <span className="font-normal"> • Covers approx. {(bundleQuantity * material.coveragePerUnit).toFixed(0)} sq ft</span>
+                  )}
+                </p>
+              )}
+            </div>
+          )}
           
           <div className="text-xs text-muted-foreground mb-0.5 flex flex-wrap items-center gap-x-1">
              {isGafTimberline && material.approxPerSquare && (
@@ -1755,19 +1826,30 @@ export function MaterialsSelectionTab({
         "gaf-feltbuster-synthetic-underlayment", // GAF 2 only
         "gaf-cobra-rigid-vent", // GAF 2 only
         "adjustable-lead-pipe-flashing-4inch",
-        "master-sealant"
+        "master-sealant",
+        "millennium-galvanized-drip-edge",
+        "karnak-flashing-cement",
+        "1inch-plastic-cap-nails",
+        "abc-electro-galvanized-coil-nails",
+        "coil-nails-ring-shank"
       ];
       
-      // Start with current materials, but remove all GAF package materials first
-      const newMaterials = {...localSelectedMaterials};
-      const newQuantities = {...localQuantities};
-      const newWasteFactors = {...materialWasteFactors};
+      // 🔧 PRESERVE ORDER: Instead of deleting all GAF materials, preserve existing order
+      // Create arrays to track current order of materials
+      const currentMaterialOrder = Object.keys(localSelectedMaterials);
+      const newMaterials: {[key: string]: Material} = {};
+      const newQuantities: {[key: string]: number} = {};
+      const newWasteFactors: {[key: string]: number} = {};
       
-      // Remove all GAF materials first (clean slate)
-      allGafMaterials.forEach(materialId => {
-        delete newMaterials[materialId];
-        delete newQuantities[materialId];
-        delete newWasteFactors[materialId];
+      // First, preserve all NON-GAF materials in their current order
+      currentMaterialOrder.forEach(materialId => {
+        if (!allGafMaterials.includes(materialId)) {
+          newMaterials[materialId] = localSelectedMaterials[materialId];
+          newQuantities[materialId] = localQuantities[materialId];
+          if (materialWasteFactors[materialId] !== undefined) {
+            newWasteFactors[materialId] = materialWasteFactors[materialId];
+          }
+        }
       });
       
       let toastMessage = "";
@@ -2210,18 +2292,6 @@ export function MaterialsSelectionTab({
                </div>
              )}
              
-             {/* Success Notice for GAF Package Integration */}
-             <div className="border-t pt-4 pb-2">
-               <div className="p-3 bg-green-50 border border-green-200 rounded-md">
-                 <div className="flex items-center">
-                   <Package className="h-5 w-5 text-green-600 mr-2" />
-                   <h4 className="text-sm font-semibold text-green-800">🎯 GAF Package Integration Complete! ✅</h4>
-                 </div>
-                 <p className="text-sm text-green-700 mt-1">
-                   Select GAF 1 or GAF 2 packages above and materials will automatically populate below.
-                 </p>
-               </div>
-             </div>
              
              {/* Materials Accordion */}
              <Accordion 
