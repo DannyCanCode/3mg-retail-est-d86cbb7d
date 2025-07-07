@@ -1,5 +1,5 @@
 // Script to create territory managers for 3MG Roofing
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 // Environment variables
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://xtdyirvhfyxmpexvjjcb.supabase.co';
@@ -205,16 +205,12 @@ async function createTerritoryManagers() {
 }
 
 // Run the script
-if (require.main === module) {
-  createTerritoryManagers()
-    .then(() => {
-      console.log('✅ Script completed successfully!');
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error('❌ Script failed:', error);
-      process.exit(1);
-    });
-}
-
-module.exports = { createTerritoryManagers }; 
+createTerritoryManagers()
+  .then(() => {
+    console.log('✅ Script completed successfully!');
+    process.exit(0);
+  })
+  .catch(error => {
+    console.error('❌ Script failed:', error);
+    process.exit(1);
+  }); 
