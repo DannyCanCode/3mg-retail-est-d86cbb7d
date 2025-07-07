@@ -914,14 +914,36 @@ const Estimates = () => {
     }
   }, [selectedSubtrades, isViewMode, isRecoveringState, setStoredSelectedSubtrades]);
 
-  // Prevent duplicate tab position saves
+  // Prevent duplicate tab position saves and prevent saving default tabs during mount
   const lastSavedTab = useRef<string>("");
+  const hasComponentMounted = useRef(false);
   
   useEffect(() => {
-    if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && activeTab !== "upload" && activeTab !== lastSavedTab.current) {
+    // Mark as mounted after a short delay to allow recovery logic to run first
+    const mountTimer = setTimeout(() => {
+      hasComponentMounted.current = true;
+    }, 1000);
+    
+    return () => clearTimeout(mountTimer);
+  }, []);
+  
+  useEffect(() => {
+    // CRITICAL FIX: Don't save tab position until component has fully mounted and recovery is complete
+    const shouldSaveTab = !isViewMode && 
+                         !isInternalStateChange.current && 
+                         !isRecoveringState && 
+                         !userWantsFreshStart && 
+                         hasComponentMounted.current && // NEW: Prevent saving during initial mount
+                         activeTab !== "upload" && 
+                         activeTab !== "type-selection" && // NEW: Don't save default tab
+                         activeTab !== lastSavedTab.current;
+    
+    if (shouldSaveTab) {
       setStoredActiveTab(activeTab);
       lastSavedTab.current = activeTab;
       console.log("💾 Auto-saved tab position:", activeTab);
+    } else if (!hasComponentMounted.current && activeTab === "type-selection") {
+      console.log("🚫 Skipped saving default tab during mount:", activeTab);
     }
   }, [activeTab, isViewMode, isRecoveringState, setStoredActiveTab]);
 
