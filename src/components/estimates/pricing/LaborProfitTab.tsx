@@ -161,7 +161,34 @@ export function LaborProfitTab({
     } else {
       console.log("LABORPROFITDEBUG: Callback effect (laborRates change): State changed by props, onLaborProfitContinue call SKIPPED (hasUserInteracted is false).");
     }
-  }, [laborRates.laborRate, laborRates.dumpsterCount, laborRates.dumpsterLocation, profitMargin, onLaborProfitContinue]); 
+  }, [
+    // CRITICAL FIX: Include ALL labor rate fields that users can modify
+    laborRates.laborRate,
+    laborRates.dumpsterCount,
+    laborRates.dumpsterRate, // ← MISSING! This is what you were changing
+    laborRates.dumpsterLocation,
+    laborRates.includePermits,
+    laborRates.permitRate, // ← MISSING! 
+    laborRates.permitCount,
+    laborRates.includeGutters,
+    laborRates.gutterLinearFeet, // ← MISSING!
+    laborRates.gutterRate,
+    laborRates.includeDownspouts,
+    laborRates.downspoutCount,
+    laborRates.includeDetachResetGutters,
+    laborRates.detachResetGutterLinearFeet,
+    laborRates.includeSkylights2x2,
+    laborRates.skylights2x2Count, // ← MISSING!
+    laborRates.skylights2x2Rate,
+    laborRates.includeSkylights2x4,
+    laborRates.skylights2x4Count, // ← MISSING!
+    laborRates.skylights2x4Rate,
+    laborRates.isHandload,
+    laborRates.handloadRate,
+    laborRates.wastePercentage,
+    profitMargin,
+    onLaborProfitContinue
+  ]); 
   // 🔧 CRITICAL PERFORMANCE FIX: Replaced JSON.stringify with specific dependencies to prevent excessive re-renders
 
   const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates) => {
