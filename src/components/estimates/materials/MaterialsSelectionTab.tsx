@@ -1805,7 +1805,7 @@ export function MaterialsSelectionTab({
           if (presetName) {
             console.log(`🎯 GAF Package Selected: Adding ${presetName} materials`);
             
-            // Get the preset bundle materials
+            // 🏗️ ENHANCED: Updated GAF packages + new flat-only roof logic
             const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
             "GAF 1": [
               { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
@@ -1814,7 +1814,13 @@ export function MaterialsSelectionTab({
               { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
               { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
-              { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+              { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+              // 🔧 NEW: Additional materials for steep slope areas
+              { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
+              { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
+              { id: "1inch-plastic-cap-nails", description: "1\" Plastic Cap Nails (3000/bucket)" },
+              { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" },
+              { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
             ],
             "GAF 2": [
               { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
@@ -1824,41 +1830,147 @@ export function MaterialsSelectionTab({
               { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
-              { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+              { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+              // 🔧 NEW: Additional materials for steep slope areas
+              { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
+              { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
+              { id: "1inch-plastic-cap-nails", description: "1\" Plastic Cap Nails (3000/bucket)" },
+              { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" },
+              { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
             ]
           };
           
-          const selectedBundle = PRESET_BUNDLES[presetName];
-          if (selectedBundle) {
-            // Add the GAF package materials
-            selectedBundle.forEach(({ id, description }) => {
+          // 🏠 NEW: Flat-only roof materials (≤2/12 pitch)
+          const FLAT_ROOF_MATERIALS = [
+            { id: "polyglass-elastoflex-sbs", description: "Polyglass Elastoflex SA-V SBS Base Sheet (2 sq)" },
+            { id: "polyglass-polyflex-app", description: "Polyglass Polyflex SA-P APP Cap Sheet (1 sq)" },
+            { id: "gaf-poly-iso-4x8", description: "GAF Poly ISO 4X8 (for 0/12 pitch areas)" },
+            { id: "karnak-asphalt-primer-spray", description: "Karnak #108 Asphalt Primer Spray (14 oz)" },
+            { id: "galvanized-steel-roll-valley", description: "Galvanized Steel Roll Valley - 26GA - 16\" (50')" },
+            { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant (Caulk)" }
+          ];
+          
+          // 🔧 HELPER: Extract pitch rise from pitch string
+          const getPitchRise = (pitchString: string): number => {
+            if (!pitchString) return 0;
+            const parts = pitchString.split(/[:\\/]/);
+            return parseInt(parts[0] || '0');
+          };
+          
+          // 🔍 ANALYZE ROOF TYPE: Check if this is flat-only roof vs hybrid/steep roof
+          const hasOnlyFlatPitches = measurements?.areasByPitch?.every(area => {
+            const rise = getPitchRise(area.pitch);
+            return !isNaN(rise) && rise <= 2;
+          }) || false;
+          
+          const hasSteepPitches = measurements?.areasByPitch?.some(area => {
+            const rise = getPitchRise(area.pitch);
+            return !isNaN(rise) && rise > 2;
+          }) || false;
+          
+          console.log(`🏗️ ROOF ANALYSIS: hasOnlyFlatPitches=${hasOnlyFlatPitches}, hasSteepPitches=${hasSteepPitches}`);
+          
+          if (hasOnlyFlatPitches && !hasSteepPitches) {
+            // 🏠 FLAT-ONLY ROOF: Use specialized flat roof materials instead of GAF packages
+            console.log(`🏠 FLAT-ONLY ROOF DETECTED: Adding flat roof materials instead of GAF package`);
+            
+            FLAT_ROOF_MATERIALS.forEach(({ id, description }) => {
               const material = ROOFING_MATERIALS.find(m => m.id === id);
               if (material) {
-                const isGafTimberline = id === "gaf-timberline-hdz-sg";
-                const overrideWaste = isGafTimberline 
-                  ? gafTimberlineWasteFactor / 100 
-                  : wasteFactor / 100;
+                // Special logic for ISO - only add if 0/12 pitch exists
+                if (id === "gaf-poly-iso-4x8") {
+                  const has0Pitch = measurements?.areasByPitch?.some(area => {
+                    const rise = getPitchRise(area.pitch);
+                    return !isNaN(rise) && rise === 0;
+                  });
+                  
+                  if (!has0Pitch) {
+                    console.log(`Skipped ${material.name} - No 0/12 pitch areas found`);
+                    return;
+                  }
+                }
 
                 const { quantity: calculatedQuantity, actualWasteFactor } = calculateMaterialQuantity(
                   material,
                   measurements,
-                  overrideWaste,
+                  wasteFactor / 100,
                   dbWastePercentages
                 );
 
-                // Only add materials with positive calculated quantities
                 if (calculatedQuantity > 0) {
                   newMaterials[id] = material;
                   newQuantities[id] = calculatedQuantity;
                   newWasteFactors[id] = actualWasteFactor;
-                  console.log(`Added ${material.name} - Qty: ${calculatedQuantity}, Price: $${material.price}`);
+                  console.log(`🏠 Added FLAT roof material: ${material.name} - Qty: ${calculatedQuantity}`);
                 } else {
                   console.log(`Skipped ${material.name} - Qty: ${calculatedQuantity} (not applicable)`);
                 }
               }
             });
             
-            toastMessage = `${presetName} materials applied! Materials automatically populated.`;
+            toastMessage = `Flat roof materials applied! Materials automatically selected for roofs ≤2/12 pitch.`;
+            
+          } else {
+            // 🏔️ STEEP/HYBRID ROOF: Use GAF packages + low-slope materials if needed
+            const selectedBundle = PRESET_BUNDLES[presetName];
+            if (selectedBundle) {
+              console.log(`🏔️ STEEP/HYBRID ROOF: Adding ${presetName} materials`);
+              
+              // Add the GAF package materials
+              selectedBundle.forEach(({ id, description }) => {
+                const material = ROOFING_MATERIALS.find(m => m.id === id);
+                if (material) {
+                  const isGafTimberline = id === "gaf-timberline-hdz-sg";
+                  const overrideWaste = isGafTimberline 
+                    ? gafTimberlineWasteFactor / 100 
+                    : wasteFactor / 100;
+
+                  const { quantity: calculatedQuantity, actualWasteFactor } = calculateMaterialQuantity(
+                    material,
+                    measurements,
+                    overrideWaste,
+                    dbWastePercentages
+                  );
+
+                  // Only add materials with positive calculated quantities
+                  if (calculatedQuantity > 0) {
+                    newMaterials[id] = material;
+                    newQuantities[id] = calculatedQuantity;
+                    newWasteFactors[id] = actualWasteFactor;
+                    console.log(`🏔️ Added STEEP material: ${material.name} - Qty: ${calculatedQuantity}, Price: $${material.price}`);
+                  } else {
+                    console.log(`Skipped ${material.name} - Qty: ${calculatedQuantity} (not applicable)`);
+                  }
+                }
+              });
+              
+              // 🔧 HYBRID ROOF: If has low-slope areas, also add low-slope materials
+              if (showLowSlope) {
+                console.log(`🔧 HYBRID ROOF: Also adding low-slope materials for 0-2/12 pitch areas`);
+                
+                const lowSlopeMaterials = ["polyglass-elastoflex-sbs", "polyglass-polyflex-app"];
+                lowSlopeMaterials.forEach(materialId => {
+                  const material = ROOFING_MATERIALS.find(m => m.id === materialId);
+                  if (material) {
+                    const { quantity: calculatedQuantity, actualWasteFactor } = calculateMaterialQuantity(
+                      material,
+                      measurements,
+                      wasteFactor / 100,
+                      dbWastePercentages
+                    );
+
+                    if (calculatedQuantity > 0) {
+                      newMaterials[materialId] = material;
+                      newQuantities[materialId] = calculatedQuantity;
+                      newWasteFactors[materialId] = actualWasteFactor;
+                      console.log(`🔧 Added LOW-SLOPE for hybrid: ${material.name} - Qty: ${calculatedQuantity}`);
+                    }
+                  }
+                });
+              }
+              
+              toastMessage = `${presetName} materials applied! ${showLowSlope ? 'Includes low-slope materials for hybrid roof.' : 'Materials automatically populated.'}`;
+            }
           }
           }
         }
