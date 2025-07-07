@@ -118,10 +118,15 @@ export function LaborProfitTab({
   };
 
   const getSafeInitialRates = useCallback((initialRates?: LaborRates): LaborRates => {
+    // Calculate recommended dumpster count based on roof area
+    const recommendedDumpsterCount = measurements?.totalArea && measurements.totalArea > 0 
+      ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) 
+      : 1;
+
     const defaults: LaborRates = {
       laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
       dumpsterLocation: "orlando", 
-      dumpsterCount: initialRates?.dumpsterCount !== undefined ? initialRates.dumpsterCount : 1, // Prioritize prop, then 1
+      dumpsterCount: initialRates?.dumpsterCount !== undefined ? initialRates.dumpsterCount : recommendedDumpsterCount, // Use recommendation instead of 1
       dumpsterRate: 400, 
       includePermits: true, permitRate: 450, permitCount: 1, permitAdditionalRate: 450, 
       pitchRates: {}, wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, 
@@ -135,7 +140,7 @@ export function LaborProfitTab({
     
     let combined = { ...defaults, ...(initialRates || {}) };
 
-    // Ensure dumpsterCount from initialRates overrides the basic default of 1 if present
+    // Ensure dumpsterCount from initialRates overrides the recommendation if explicitly set
     if (initialRates?.dumpsterCount !== undefined) {
       combined.dumpsterCount = initialRates.dumpsterCount;
     }
@@ -152,7 +157,7 @@ export function LaborProfitTab({
       combined.laborRate = (combined.tearOff || 0) + (combined.installation || 0);
     }
     return combined;
-  }, []);
+  }, [measurements]);
 
   const [laborRates, setLaborRates] = useState<LaborRates>(() => getSafeInitialRates(initialLaborRatesProp));
   const [profitMargin, setProfitMargin] = useState(initialProfitMarginProp || 25);
@@ -595,8 +600,11 @@ export function LaborProfitTab({
         <div>
           <h3 className="text-lg font-semibold mb-4">Dumpsters</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Based on roof area of {totalSquares.toFixed(1)} squares, we recommend {measurements?.totalArea && measurements.totalArea > 0 ? Math.max(1, Math.ceil((measurements.totalArea / 100) / 28)) : 1} dumpster(s).
-            Current setting: {laborRates.dumpsterCount || 1}
+            Based on roof area of {totalSquares.toFixed(1)} squares, we recommend {recommendedCount} dumpster(s).
+            {laborRates.dumpsterCount === recommendedCount 
+              ? <span className="text-green-600 font-medium"> ✓ Auto-populated with recommendation</span>
+              : <span> Current setting: {laborRates.dumpsterCount || 1}</span>
+            }
           </p>
           
           <div className="space-y-4">
