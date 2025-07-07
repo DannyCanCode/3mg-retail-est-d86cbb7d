@@ -57,16 +57,29 @@ const ManagerDashboard: React.FC = () => {
 
   const fetchEstimates = async () => {
     try {
+      console.log('🔄 [Manager] Fetching estimates for territory:', profile?.territory_id);
+      
       const { data, error } = await supabase
         .from('estimates' as any)
         .select('*')
         .eq('territory_id', profile!.territory_id)
         .order('created_at', { ascending: false });
       
-      if (!error && data) setEstimates(data as unknown as ExtendedEstimate[]);
-      else if (error) toast({ variant: 'destructive', title: 'Error loading estimates', description: error.message });
+      if (error) {
+        console.error('🚨 [Manager] Error fetching estimates:', error);
+        toast({ variant: 'destructive', title: 'Error loading estimates', description: error.message });
+        return;
+      }
+      
+      if (data) {
+        console.log('✅ [Manager] Successfully fetched estimates:', data.length, 'estimates');
+        setEstimates(data as unknown as ExtendedEstimate[]);
+      } else {
+        console.log('⚠️ [Manager] No estimates data returned');
+        setEstimates([]);
+      }
     } catch (error) {
-      console.error('Error fetching estimates:', error);
+      console.error('🚨 [Manager] Exception fetching estimates:', error);
     }
   };
 
@@ -152,7 +165,11 @@ const ManagerDashboard: React.FC = () => {
       });
 
       // Refresh the estimates list
+      console.log('🔄 [Manager] Refreshing estimates list after delete...');
+      console.log('🔄 [Manager] Current estimates count before refresh:', estimates.length);
       await fetchEstimates();
+      console.log('✅ [Manager] Estimates list refresh completed');
+      console.log('✅ [Manager] Current estimates count after refresh:', estimates.length);
     } catch (error) {
       console.error('🚨 [Manager] Error deleting estimate:', error);
       toast({ 
