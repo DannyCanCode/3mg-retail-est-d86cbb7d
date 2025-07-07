@@ -120,27 +120,33 @@ const ManagerDashboard: React.FC = () => {
     try {
       console.log('🏆 [Manager] Starting mark as sold for estimate:', estimate.id);
       
+      if (!estimate.id) {
+        throw new Error('Estimate ID is required');
+      }
+      
       // Import markEstimateAsSold function from API
       const { markEstimateAsSold } = await import('@/api/estimates');
       
       // For now, default to 'Retail' job type. In the future, we can add a dialog to select job type
-      const result = await markEstimateAsSold(estimate.id!, 'Retail', '');
+      const result = await markEstimateAsSold(estimate.id, 'Retail', '');
       
       console.log('✅ [Manager] Mark as sold successful');
       
       toast({
         title: 'Estimate Marked as Sold',
-        description: 'The estimate has been successfully marked as sold (Retail).'
+        description: `${estimate.customer_address} has been marked as sold (Retail).`,
+        variant: 'default'
       });
 
       // Refresh the estimates list
       await fetchEstimates();
     } catch (error) {
       console.error('🚨 [Manager] Error marking estimate as sold:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({ 
         variant: 'destructive', 
-        title: 'Error', 
-        description: `Failed to mark estimate as sold: ${error.message || 'Unknown error'}` 
+        title: 'Failed to Mark as Sold', 
+        description: `Could not mark estimate as sold: ${errorMessage}` 
       });
     }
   };
@@ -149,34 +155,42 @@ const ManagerDashboard: React.FC = () => {
     try {
       console.log('🗑️ [Manager] Starting delete for estimate:', estimateId);
       
+      if (!estimateId) {
+        throw new Error('Estimate ID is required');
+      }
+      
       // Import deleteEstimate function from API
       const { deleteEstimate } = await import('@/api/estimates');
-      const { data, error } = await deleteEstimate(estimateId);
+      const { data, error } = await deleteEstimate(estimateId, 'Deleted by territory manager');
       
       if (error) {
         console.error('🚨 [Manager] Delete API error:', error);
         throw error;
       }
 
+      if (!data) {
+        throw new Error('Delete operation did not complete successfully');
+      }
+
       console.log('✅ [Manager] Delete API successful');
       
       toast({
         title: 'Estimate Deleted',
-        description: 'The estimate has been successfully deleted.'
+        description: 'The estimate has been successfully removed.',
+        variant: 'default'
       });
 
       // Refresh the estimates list
       console.log('🔄 [Manager] Refreshing estimates list after delete...');
-      console.log('🔄 [Manager] Current estimates count before refresh:', estimates.length);
       await fetchEstimates();
       console.log('✅ [Manager] Estimates list refresh completed');
-      console.log('✅ [Manager] Current estimates count after refresh:', estimates.length);
     } catch (error) {
       console.error('🚨 [Manager] Error deleting estimate:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({ 
         variant: 'destructive', 
-        title: 'Error', 
-        description: `Failed to delete estimate: ${error.message || 'Unknown error'}` 
+        title: 'Failed to Delete Estimate', 
+        description: `Could not delete estimate: ${errorMessage}` 
       });
     }
   };
@@ -185,10 +199,21 @@ const ManagerDashboard: React.FC = () => {
     try {
       console.log('📄 [Manager] Starting PDF generation for estimate:', estimate.id);
       
+      if (!estimate.id) {
+        throw new Error('Estimate ID is required');
+      }
+      
+      // Show loading state
+      toast({
+        title: 'Generating PDF',
+        description: `Creating PDF for ${estimate.customer_address}...`,
+        variant: 'default'
+      });
+      
       // Import generateEstimatePdf function from API
       const { generateEstimatePdf } = await import('@/api/estimates');
       
-      const { data, error } = await generateEstimatePdf(estimate.id!);
+      const { data, error } = await generateEstimatePdf(estimate.id);
       
       if (error) {
         throw error;
@@ -201,18 +226,20 @@ const ManagerDashboard: React.FC = () => {
         console.log('✅ [Manager] PDF generated successfully');
         
         toast({
-          title: 'PDF Generated',
-          description: 'The estimate PDF has been generated and opened in a new tab.'
+          title: 'PDF Generated Successfully',
+          description: `PDF for ${estimate.customer_address} has been opened in a new tab.`,
+          variant: 'default'
         });
       } else {
-        throw new Error('No PDF URL returned');
+        throw new Error('No PDF URL returned from the server');
       }
     } catch (error) {
       console.error('🚨 [Manager] Error generating PDF:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({ 
         variant: 'destructive', 
-        title: 'Error', 
-        description: `Failed to generate PDF: ${error.message || 'Unknown error'}` 
+        title: 'PDF Generation Failed', 
+        description: `Could not generate PDF: ${errorMessage}` 
       });
     }
   };
