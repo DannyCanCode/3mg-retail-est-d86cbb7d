@@ -307,6 +307,12 @@ export const calculateMaterialQuantity = (
         const flashingLength = (measurements.flashingLength || 0) + (measurements.stepFlashingLength || 0);
         const lengthPerPiece = extractCoverageValue(material.coverageRule.description) || 10; // assume 10ft pieces
         quantity = Math.ceil((flashingLength * (1 + actualWasteFactor)) / lengthPerPiece);
+    } else if (material.id.includes('valley')) { // Valley materials
+        const valleyLength = measurements.valleyLength || 0;
+        const lengthPerRoll = extractCoverageValue(material.coverageRule.description) || 50; // 50ft per roll default
+        console.log(`[CalcQuantity] Valley Material: ValleyLength=${valleyLength} ft, LengthPerRoll=${lengthPerRoll} ft, Waste=${actualWasteFactor}`);
+        quantity = Math.ceil((valleyLength * (1 + actualWasteFactor)) / lengthPerRoll);
+        console.log(`[CalcQuantity] Valley Calculation: ${valleyLength} × (1 + ${actualWasteFactor}) ÷ ${lengthPerRoll} = ${quantity} rolls`);
     } else {
         // Default for other metal items, perhaps based on total squares or specific logic
         // This might need more specific rules in ROOFING_MATERIALS.ts
