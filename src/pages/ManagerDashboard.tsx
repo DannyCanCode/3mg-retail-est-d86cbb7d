@@ -39,11 +39,31 @@ const ManagerDashboard: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (profile?.territory_id) {
-      fetchData();
+  // Helper functions for frontend-only delete (hiding estimates)
+  const getHiddenEstimates = (): string[] => {
+    try {
+      const hidden = localStorage.getItem(`hidden_estimates_${profile?.id}`);
+      return hidden ? JSON.parse(hidden) : [];
+    } catch {
+      return [];
     }
-  }, [profile?.territory_id]);
+  };
+
+  const hideEstimate = (estimateId: string) => {
+    try {
+      const hidden = getHiddenEstimates();
+      if (!hidden.includes(estimateId)) {
+        hidden.push(estimateId);
+        localStorage.setItem(`hidden_estimates_${profile?.id}`, JSON.stringify(hidden));
+      }
+    } catch (error) {
+      console.error('Error hiding estimate:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [profile?.id]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -57,12 +77,13 @@ const ManagerDashboard: React.FC = () => {
 
   const fetchEstimates = async () => {
     try {
-      console.log('🔄 [Manager] Fetching estimates for territory:', profile?.territory_id);
+      console.log('🔄 [Manager] Fetching estimates for territory manager');
       
+      // For territory managers, get all estimates (since territory filtering may not work yet)
+      // Later this can be filtered by territory when the column exists properly
       const { data, error } = await supabase
         .from('estimates' as any)
         .select('*')
-        .eq('territory_id', profile!.territory_id)
         .neq('status', 'deleted') // Filter out soft-deleted estimates
         .order('created_at', { ascending: false });
       
@@ -73,8 +94,13 @@ const ManagerDashboard: React.FC = () => {
       }
       
       if (data) {
-        console.log('✅ [Manager] Successfully fetched estimates:', data.length, 'estimates');
-        setEstimates(data as unknown as ExtendedEstimate[]);
+        // Filter out any estimates that are hidden by this territory manager
+        const hiddenEstimates = getHiddenEstimates();
+        const typedData = data as any[]; // Type assertion for the data array
+        const visibleEstimates = typedData.filter(estimate => estimate.id && !hiddenEstimates.includes(estimate.id));
+        
+        console.log('✅ [Manager] Successfully fetched estimates:', visibleEstimates.length, 'estimates (', typedData.length - visibleEstimates.length, 'hidden)');
+        setEstimates(visibleEstimates as unknown as ExtendedEstimate[]);
       } else {
         console.log('⚠️ [Manager] No estimates data returned');
         setEstimates([]);
@@ -127,18 +153,34 @@ const ManagerDashboard: React.FC = () => {
       // Import markEstimateAsSold function from API
       const { markEstimateAsSold } = await import('@/api/estimates');
       
+      // Show loading state
+      toast({
+        title: 'Processing Sale',
+        description: `Marking ${estimate.customer_address} as sold...`,
+        variant: 'default'
+      });
+      
       // For now, default to 'Retail' job type. In the future, we can add a dialog to select job type
       const result = await markEstimateAsSold(estimate.id, 'Retail', '');
       
-      console.log('✅ [Manager] Mark as sold successful');
+      console.log('✅ [Manager] Mark as sold successful:', result);
+      
+      // Update the local state immediately for better UX
+      setEstimates(prevEstimates => 
+        prevEstimates.map(est => 
+          est.id === estimate.id 
+            ? { ...est, status: 'Sold', is_sold: true, sold_at: new Date().toISOString() }
+            : est
+        )
+      );
       
       toast({
-        title: 'Estimate Marked as Sold',
-        description: `${estimate.customer_address} has been marked as sold (Retail).`,
+        title: 'Estimate Marked as Sold! 🎉',
+        description: `${estimate.customer_address} has been successfully marked as sold (Retail).`,
         variant: 'default'
       });
 
-      // Refresh the estimates list
+      // Refresh the estimates list from database to ensure consistency
       await fetchEstimates();
     } catch (error) {
       console.error('🚨 [Manager] Error marking estimate as sold:', error);
@@ -153,96 +195,39 @@ const ManagerDashboard: React.FC = () => {
 
   const handleDeleteEstimate = async (estimateId: string) => {
     try {
-      console.log('🗑️ [Manager] Starting delete for estimate:', estimateId);
+      console.log('🗑️ [Manager] Starting frontend delete (hide) for estimate:', estimateId);
       
       if (!estimateId) {
         throw new Error('Estimate ID is required');
       }
       
-      // Import deleteEstimate function from API
-      const { deleteEstimate } = await import('@/api/estimates');
-      const { data, error } = await deleteEstimate(estimateId, 'Deleted by territory manager');
+      // For territory managers: only hide from frontend (don't actually delete from database)
+      hideEstimate(estimateId);
       
-      if (error) {
-        console.error('🚨 [Manager] Delete API error:', error);
-        throw error;
-      }
-
-      if (!data) {
-        throw new Error('Delete operation did not complete successfully');
-      }
-
-      console.log('✅ [Manager] Delete API successful');
+      console.log('✅ [Manager] Estimate hidden from view');
       
       toast({
-        title: 'Estimate Deleted',
-        description: 'The estimate has been successfully removed.',
+        title: 'Estimate Removed',
+        description: 'The estimate has been removed from your view.',
         variant: 'default'
       });
 
-      // Refresh the estimates list
-      console.log('🔄 [Manager] Refreshing estimates list after delete...');
+      // Refresh the estimates list to reflect the hidden estimate
+      console.log('🔄 [Manager] Refreshing estimates list after hide...');
       await fetchEstimates();
       console.log('✅ [Manager] Estimates list refresh completed');
     } catch (error) {
-      console.error('🚨 [Manager] Error deleting estimate:', error);
+      console.error('🚨 [Manager] Error hiding estimate:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({ 
         variant: 'destructive', 
-        title: 'Failed to Delete Estimate', 
-        description: `Could not delete estimate: ${errorMessage}` 
+        title: 'Failed to Remove Estimate', 
+        description: `Could not remove estimate: ${errorMessage}` 
       });
     }
   };
 
-  const handleGeneratePdf = async (estimate: ExtendedEstimate) => {
-    try {
-      console.log('📄 [Manager] Starting PDF generation for estimate:', estimate.id);
-      
-      if (!estimate.id) {
-        throw new Error('Estimate ID is required');
-      }
-      
-      // Show loading state
-      toast({
-        title: 'Generating PDF',
-        description: `Creating PDF for ${estimate.customer_address}...`,
-        variant: 'default'
-      });
-      
-      // Import generateEstimatePdf function from API
-      const { generateEstimatePdf } = await import('@/api/estimates');
-      
-      const { data, error } = await generateEstimatePdf(estimate.id);
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (data?.url) {
-        // Open the PDF in a new tab
-        window.open(data.url, '_blank');
-        
-        console.log('✅ [Manager] PDF generated successfully');
-        
-        toast({
-          title: 'PDF Generated Successfully',
-          description: `PDF for ${estimate.customer_address} has been opened in a new tab.`,
-          variant: 'default'
-        });
-      } else {
-        throw new Error('No PDF URL returned from the server');
-      }
-    } catch (error) {
-      console.error('🚨 [Manager] Error generating PDF:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast({ 
-        variant: 'destructive', 
-        title: 'PDF Generation Failed', 
-        description: `Could not generate PDF: ${errorMessage}` 
-      });
-    }
-  };
+
 
   const handleViewDetails = (estimate: ExtendedEstimate) => {
     // Navigate to estimate view page using route parameter (not query parameter)
@@ -269,6 +254,7 @@ const ManagerDashboard: React.FC = () => {
       case 'pending': return 'bg-amber-100 text-amber-800';
       case 'approved': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
+      case 'Sold': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -398,41 +384,63 @@ const ManagerDashboard: React.FC = () => {
             </Button>
           </div>
           
-          <div className="grid grid-cols-3 gap-2">
-            <Button 
-              size="sm" 
-              onClick={() => handleMarkAsSold(estimate)}
-              className="bg-blue-600 hover:bg-blue-700 text-xs"
-            >
-              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-              </svg>
-              Sold
-            </Button>
-            
-            <Button 
-              size="sm" 
-              onClick={() => handleGeneratePdf(estimate)}
-              className="bg-green-600 hover:bg-green-700 text-xs"
-            >
-              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              PDF
-            </Button>
-            
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => handleDeleteEstimate(estimate.id!)}
-              className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-            >
-              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete
-            </Button>
-          </div>
+          {/* Conditional action buttons based on status */}
+          {estimate.status === 'Sold' ? (
+            /* Sold estimate actions */
+            <div className="space-y-2">
+              <div className="p-2 bg-green-50 rounded border border-green-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-medium text-green-800">🎉 SOLD!</p>
+                    <p className="text-xs text-green-600">
+                      {estimate.sold_at ? `Sold on ${new Date(estimate.sold_at).toLocaleDateString()}` : 'Recently sold'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-green-600">Job Type:</p>
+                    <p className="text-xs font-medium text-green-800">{estimate.job_type || 'Retail'}</p>
+                  </div>
+                </div>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => handleDeleteEstimate(estimate.id!)}
+                className="w-full text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+              >
+                <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Remove from View
+              </Button>
+            </div>
+          ) : (
+            /* Non-sold estimate actions */
+            <div className="grid grid-cols-2 gap-2">
+              <Button 
+                size="sm" 
+                onClick={() => handleMarkAsSold(estimate)}
+                className="bg-blue-600 hover:bg-blue-700 text-xs"
+              >
+                <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                </svg>
+                Mark Sold
+              </Button>
+              
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => handleDeleteEstimate(estimate.id!)}
+                className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+              >
+                <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Remove
+              </Button>
+            </div>
+          )}
         </CardContent>
         
 
