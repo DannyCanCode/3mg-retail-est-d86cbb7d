@@ -40,7 +40,6 @@ import {
   Filter
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   getEstimates, 
   updateEstimateStatus, 
@@ -61,8 +60,6 @@ export const AdminEstimateManagement: React.FC = () => {
   const [estimates, setEstimates] = useState<ExtendedEstimate[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [territoryFilter, setTerritoryFilter] = useState<string>('all');
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [selectedEstimate, setSelectedEstimate] = useState<ExtendedEstimate | null>(null);
@@ -290,13 +287,8 @@ export const AdminEstimateManagement: React.FC = () => {
       estimate.customer_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       estimate.creator_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       estimate.id?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === 'all' || estimate.status === statusFilter;
-    
-    const matchesTerritory = territoryFilter === 'all' || 
-      estimate.creator_name?.toLowerCase().includes(territoryFilter.toLowerCase());
 
-    return matchesSearch && matchesStatus && matchesTerritory;
+    return matchesSearch;
   });
 
   // Calculate metrics
@@ -661,18 +653,6 @@ export const AdminEstimateManagement: React.FC = () => {
                 />
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-[180px] border-gray-300 focus:border-blue-500 h-10">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-                <SelectItem value="Sold">Sold</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <Tabs defaultValue="pending" className="w-full">
