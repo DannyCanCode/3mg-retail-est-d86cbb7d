@@ -178,6 +178,7 @@ const Estimates = () => {
   // Store extracted PDF data
   const [extractedPdfData, setExtractedPdfData] = useState<ParsedMeasurements | null>(null);
   const [pdfFileName, setPdfFileName] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   
   const [measurements, setMeasurements] = useState<MeasurementValues | null>(null);
   const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
@@ -312,6 +313,7 @@ const Estimates = () => {
 }, [toast]);
 
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
+  const [storedPdfUrl, setStoredPdfUrl] = useLocalStorage<string | null>("estimatePdfUrl", null);
   
   // Additional state persistence for complete estimate recovery
   const [storedSelectedMaterials, setStoredSelectedMaterials] = useLocalStorage<{[key: string]: Material}>("estimateSelectedMaterials", {});
@@ -402,6 +404,7 @@ const Estimates = () => {
       id: stableEstimateIdRef.current, // Use stable ref instead of state
       extractedPdfData: extractedPdfData,
       pdfFileName: pdfFileName,
+      pdfUrl: pdfUrl,  // Include PDF URL in auto-save
       selectedMaterials: selectedMaterials,
       quantities: quantities,
       laborRates: laborRates,
@@ -426,7 +429,8 @@ const Estimates = () => {
     selectedSubtrades,
     activeTab,
     peelStickAddonCost,
-    isStartingFresh
+    isStartingFresh,
+    pdfUrl
   ]);
   
   const {
@@ -657,10 +661,33 @@ const Estimates = () => {
         setStoredMeasurements(null);
       }
       
+      console.log("🔍 [RECOVERY DEBUG] Starting recovery check...");
+      console.log("🔍 [RECOVERY DEBUG] storedPdfData:", storedPdfData ? "EXISTS" : "NULL");
+      console.log("🔍 [RECOVERY DEBUG] storedFileName:", storedFileName || "NULL");
+      console.log("🔍 [RECOVERY DEBUG] storedPdfUrl:", storedPdfUrl || "NULL");
+      console.log("🔍 [RECOVERY DEBUG] Current state - pdfFileName:", pdfFileName || "NULL");
+      console.log("🔍 [RECOVERY DEBUG] Current state - pdfUrl:", pdfUrl || "NULL");
+      
+      // Manual localStorage check
+      const manualPdfUrl = localStorage.getItem("estimatePdfUrl");
+      console.log("🔍 [RECOVERY DEBUG] Manual localStorage check for 'estimatePdfUrl':", manualPdfUrl || "NULL");
+      
       if (storedFileName && !pdfFileName) {
         setPdfFileName(storedFileName);
-      console.log("✅ Recovered filename:", storedFileName);
-    }
+        console.log("✅ Recovered filename:", storedFileName);
+      }
+      
+      if (storedPdfUrl && !pdfUrl) {
+        setPdfUrl(storedPdfUrl);
+        console.log("✅ Recovered PDF URL:", storedPdfUrl.substring(0, 50) + "...");
+      } else if (!storedPdfUrl) {
+        console.log("⚠️ [RECOVERY DEBUG] No stored PDF URL found in localStorage");
+        // Try manual recovery if useLocalStorage hook failed
+        if (manualPdfUrl && !pdfUrl) {
+          console.log("🔧 [RECOVERY DEBUG] Attempting manual PDF URL recovery:", manualPdfUrl.substring(0, 50) + "...");
+          setPdfUrl(manualPdfUrl);
+        }
+      }
     
     // Recovery Phase 2: Advanced Estimate Data with Validation
     if (storedSelectedMaterials && Object.keys(storedSelectedMaterials).length > 0 && Object.keys(selectedMaterials).length === 0) {
@@ -1034,6 +1061,13 @@ const Estimates = () => {
     }
   }, [pdfFileName, userWantsFreshStart]);
 
+  // Save PDF URL changes to localStorage
+  useEffect(() => {
+    if (pdfUrl && !userWantsFreshStart) {
+      setStoredPdfUrl(pdfUrl);
+    }
+  }, [pdfUrl, userWantsFreshStart]);
+
   // 🔄 AUTO-SAVE HYDRATION: Load saved data from Supabase and populate form
   useEffect(() => {
     // Additional safety: Only hydrate if the hydrated data matches our current stable estimate ID
@@ -1064,6 +1098,11 @@ const Estimates = () => {
       if (autoSaveHydratedData.pdfFileName && !pdfFileName) {
         setPdfFileName(autoSaveHydratedData.pdfFileName);
         console.log("✅ [HYDRATION] Restored PDF filename:", autoSaveHydratedData.pdfFileName);
+      }
+      
+      if ((autoSaveHydratedData as any).pdfUrl && !pdfUrl) {
+        setPdfUrl((autoSaveHydratedData as any).pdfUrl);
+        console.log("✅ [HYDRATION] Restored PDF URL:", (autoSaveHydratedData as any).pdfUrl.substring(0, 50) + "...");
       }
       
       // Hydrate materials and quantities
@@ -1251,8 +1290,8 @@ const Estimates = () => {
     }
   }, [measurementId, isViewMode, measurements, toast]);
 
-  const handlePdfDataExtracted = (data: ParsedMeasurements | null, fileName: string) => {
-    console.log("PDF data extracted:", data, fileName);
+  const handlePdfDataExtracted = (data: ParsedMeasurements | null, fileName: string, fileUrl?: string | null) => {
+    console.log("PDF data extracted:", data, fileName, fileUrl);
     
     // VALIDATION: Ensure extracted data is not corrupted before proceeding
     if (data?.areasByPitch && Array.isArray(data.areasByPitch)) {
@@ -1278,6 +1317,7 @@ const Estimates = () => {
     
     setExtractedPdfData(data);
     setPdfFileName(fileName);
+    setPdfUrl(fileUrl || null);  // Store the PDF URL
     
     if (!data) {
       toast({
@@ -1319,6 +1359,7 @@ const Estimates = () => {
     // 🔧 IMMEDIATE SAVE FIX: Save PDF data to localStorage immediately to prevent loss on navigation
     setStoredPdfData(data);
     setStoredFileName(fileName);
+    setStoredPdfUrl(fileUrl || null);  // Store PDF URL in localStorage
     // DISABLED: setStoredMeasurements(freshMeasurementsWithTimestamp); // Causes pitch corruption
     
     // 🔧 RAPID NAVIGATION PROTECTION: Use beforeunload to ensure persistence even on immediate navigation
@@ -1326,6 +1367,9 @@ const Estimates = () => {
       // Emergency backup save using synchronous localStorage (already done above)
       localStorage.setItem("estimateExtractedPdfData", JSON.stringify(data));
       localStorage.setItem("estimatePdfFileName", fileName);
+      if (fileUrl) {
+        localStorage.setItem("estimatePdfUrl", fileUrl);
+      }
       console.log("🚨 Emergency PDF data save on page unload");
     };
     
@@ -1623,6 +1667,7 @@ const Estimates = () => {
     // Reset all state
     setExtractedPdfData(null);
     setPdfFileName(null);
+    setPdfUrl(null);  // Clear PDF URL
     setMeasurements(null);
     setSelectedMaterials({});
     setQuantities({});
@@ -1757,6 +1802,7 @@ const Estimates = () => {
     console.log("🧹 [START FRESH] Clearing all localStorage keys");
     localStorage.removeItem("estimateExtractedPdfData");
     localStorage.removeItem("estimatePdfFileName");
+    localStorage.removeItem("estimatePdfUrl");  // Clear PDF URL
     localStorage.removeItem("estimateSelectedMaterials");
     localStorage.removeItem("estimateQuantities");
     localStorage.removeItem("estimateLaborRates");
@@ -1772,6 +1818,7 @@ const Estimates = () => {
     setStoredPdfData(null);
     setStoredMeasurements(null);
     setStoredFileName("");
+    setStoredPdfUrl(null);  // Clear stored PDF URL
     setStoredSelectedMaterials({});
     setStoredQuantities({});
     setStoredLaborRates(defaultLaborRates);
@@ -1785,6 +1832,7 @@ const Estimates = () => {
     setActiveTab("upload");
     setExtractedPdfData(null);
     setPdfFileName(null);
+    setPdfUrl(null);  // Clear PDF URL
     setMeasurements(null);
     setSelectedMaterials({});
     setQuantities({});
@@ -2797,6 +2845,7 @@ const Estimates = () => {
                       onBack={() => setActiveTab("upload")}
                       onContinue={() => setActiveTab("materials")}
                       extractedFileName={pdfFileName || undefined}
+                      pdfUrl={pdfUrl}
                     />
                   </TabsContent>
                   

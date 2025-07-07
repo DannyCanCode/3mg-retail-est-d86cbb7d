@@ -14,7 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { MeasurementDisplay } from "@/components/measurements/MeasurementDisplay";
 
 interface PdfUploaderProps {
-  onDataExtracted?: (data: ParsedMeasurements, fileName: string) => void;
+  onDataExtracted?: (data: ParsedMeasurements, fileName: string, fileUrl?: string | null) => void;
   savedFileName?: string;
 }
 
@@ -71,8 +71,8 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
         });
       } else if (result && onDataExtracted) {
         // If we have a result and the parent component provided the onDataExtracted callback
-        // Extract the parsedMeasurements from the result object
-        onDataExtracted(result.parsedMeasurements, selectedFile.name);
+        // Extract the parsedMeasurements from the result object and pass the fileUrl from the hook
+        onDataExtracted(result.parsedMeasurements, selectedFile.name, fileUrl);
       }
     } catch (error) {
       console.error("Error in upload and process flow:", error);
@@ -94,7 +94,7 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
       
       // Call the onDataExtracted callback if provided
       if (onDataExtracted) {
-        onDataExtracted(parsedData, file.name);
+        onDataExtracted(parsedData, file.name, fileUrl);
       }
       
       const result = await saveToDatabase(file.name, parsedData, fileUrl || undefined);
@@ -131,7 +131,7 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
 
   const handleResetUpload = () => {
     resetUpload();
-    setParsedData(null);
+    // setParsedData is not available - this is handled by the usePdfParser hook internally
   };
 
   const handleFileInputWrapper = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,7 +257,7 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
               handleResetUpload();
               // Notify parent component to clear the data
               if (onDataExtracted) {
-                onDataExtracted(null as any, "");
+                onDataExtracted(null as any, "", "");
               }
               // Force a component reset
               setStatus("idle");

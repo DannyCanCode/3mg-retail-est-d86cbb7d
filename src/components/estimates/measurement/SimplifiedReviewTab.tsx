@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Shield, Lock, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Shield, Lock, Loader2, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ interface SimplifiedReviewTabProps {
   onBack?: () => void;
   onContinue?: () => void;
   extractedFileName?: string;
+  pdfUrl?: string | null;
 }
 
 export function SimplifiedReviewTab({
@@ -23,7 +24,8 @@ export function SimplifiedReviewTab({
   onMeasurementsUpdate,
   onBack,
   onContinue,
-  extractedFileName
+  extractedFileName,
+  pdfUrl
 }: SimplifiedReviewTabProps) {
   const { profile } = useAuth();
   const { isAdmin } = useRoleAccess();
@@ -144,13 +146,31 @@ export function SimplifiedReviewTab({
       {/* PDF Source Information */}
       {extractedFileName && (
         <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-          <p className="text-sm text-blue-700 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
-            </svg>
-            Using measurements extracted from <strong>{extractedFileName}</strong>. 
-            {canEditMeasurements ? "Please review and make any necessary adjustments." : "Measurements have been automatically extracted and saved."}
-          </p>
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-blue-700 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clipRule="evenodd" />
+              </svg>
+              Using measurements extracted from <strong>{extractedFileName}</strong>. 
+              {canEditMeasurements ? "Please review and make any necessary adjustments." : "Measurements have been automatically extracted and saved."}
+              {process.env.NODE_ENV === 'development' && (
+                <span className="ml-2 text-xs opacity-75">
+                  [DEBUG: pdfUrl={pdfUrl ? `"${pdfUrl.substring(0, 30)}..."` : 'null'}]
+                </span>
+              )}
+            </p>
+            {pdfUrl && (
+              <a 
+                href={pdfUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-sm text-blue-600 hover:text-blue-800 hover:underline flex items-center font-medium"
+              >
+                <ExternalLink className="h-4 w-4 mr-1" />
+                View PDF
+              </a>
+            )}
+          </div>
         </div>
       )}
       
