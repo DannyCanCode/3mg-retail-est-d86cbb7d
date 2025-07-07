@@ -85,8 +85,8 @@ const UPDATED_MATERIALS: Material[] = [
     unit: "Roll",
     approxPerSquare: 177.78,
     coverageRule: {
-      description: "1.60 Rolls per Square (0.625 sq/roll)",
-      calculation: "1/12 or 2/12 Pitch Area ÷ 0.625, rounded up",
+      description: "200 sq ft per roll for 0-2/12 pitch areas",
+      calculation: "Low Slope Area (0-2 pitch) ÷ 200 × waste then rounded up",
     }
   },
   {
@@ -97,8 +97,8 @@ const UPDATED_MATERIALS: Material[] = [
     unit: "Roll",
     approxPerSquare: 165.28,
     coverageRule: {
-      description: "1.25 Rolls per Square (0.8 sq/roll)",
-      calculation: "1/12 or 2/12 Pitch Area ÷ 0.8, rounded up",
+      description: "Cap quantity = Base quantity × 2",
+      calculation: "Base rolls × 2",
     }
   },
   // METAL

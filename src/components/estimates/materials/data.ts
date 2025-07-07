@@ -143,7 +143,7 @@ export const ROOFING_MATERIALS: Material[] = [
     price: 142.22,
     unit: "Roll",
     approxPerSquare: 177.78,
-    coverageRule: { description: "114 sq ft per roll for 0-2/12 pitch areas", calculation: "Low Slope Area (0-2 pitch) ÷ 114 rounded up" }
+    coverageRule: { description: "200 sq ft per roll for 0-2/12 pitch areas", calculation: "Low Slope Area (0-2 pitch) ÷ 200 × waste then rounded up" }
   },
   {
     id: "polyglass-polyflex-app",
@@ -152,7 +152,7 @@ export const ROOFING_MATERIALS: Material[] = [
     price: 132.22,
     unit: "Roll",
     approxPerSquare: 165.28,
-    coverageRule: { description: "100 sq ft per roll for 0-2/12 pitch areas", calculation: "Low Slope Area (0-2 pitch) ÷ 100 rounded up" }
+    coverageRule: { description: "Cap quantity = Base quantity × 2", calculation: "Base rolls × 2" }
   },
   {
     id: "gaf-poly-iso-4x8",

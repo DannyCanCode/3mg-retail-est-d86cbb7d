@@ -240,13 +240,14 @@ export const calculateMaterialQuantity = (
         }
 
         const lowSlopeAreaWithWaste = lowSlopeAreaSqFt * (1 + actualWasteFactor);
-        // 🔧 FIXED: Base covers 114 sq ft per roll → Low-slope area ÷ 114
-        const coverageSqFtPerRoll = 114;
+        // 🔧 FIXED: Base covers 200 sq ft per roll → Area ÷ 200 × waste then round up
+        const coverageSqFtPerRoll = 200;
         quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
         console.log(`[CalcQuantity] SBS Base (0-2 pitch): Used ${lowSlopeAreaSqFt.toFixed(1)} sq ft area, ÷ ${coverageSqFtPerRoll} sq ft/roll = ${quantity} rolls`);
         
     } else if (material.id === "polyglass-polyflex-app") {
-        // Cap Sheet is required for 0/12, 1/12, AND 2/12 pitch areas  
+        // Cap Sheet is required for 0/12, 1/12, AND 2/12 pitch areas
+        // Cap quantity = Base quantity × 2
         const lowSlopeAreaSqFt = measurements.areasByPitch
           ?.filter(area => {
              const rise = getPitchRise(area.pitch);
@@ -259,11 +260,14 @@ export const calculateMaterialQuantity = (
             return { quantity: 0, actualWasteFactor };
         }
 
+        // Calculate base quantity first (same logic as base material)
         const lowSlopeAreaWithWaste = lowSlopeAreaSqFt * (1 + actualWasteFactor);
-        // 🔧 FIXED: Cap covers 100 sq ft per roll → Low-slope area ÷ 100 
-        const coverageSqFtPerRoll = 100;
-        quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
-        console.log(`[CalcQuantity] APP Cap (0-2 pitch): Used ${lowSlopeAreaSqFt.toFixed(1)} sq ft area, ÷ ${coverageSqFtPerRoll} sq ft/roll = ${quantity} rolls`);
+        const baseCoverageSqFtPerRoll = 200;
+        const baseQuantity = Math.ceil(lowSlopeAreaWithWaste / baseCoverageSqFtPerRoll);
+        
+        // 🔧 FIXED: Cap quantity = Base quantity × 2
+        quantity = baseQuantity * 2;
+        console.log(`[CalcQuantity] APP Cap (0-2 pitch): Base would be ${baseQuantity} rolls, Cap = Base × 2 = ${quantity} rolls`);
         
     } else {
       // Fallback for other low slope materials

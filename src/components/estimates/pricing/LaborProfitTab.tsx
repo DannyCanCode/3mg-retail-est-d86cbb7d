@@ -88,7 +88,7 @@ export function LaborProfitTab({
   const { isAdmin } = useRoleAccess();
   const userRole = profile?.role;
   
-  // 🔐 CRITICAL SECURITY: Only admins can edit labor rates
+  // 🔐 CRITICAL SECURITY: Permission functions
   const canEditLaborRates = () => {
     // Admin override: If in admin edit mode and current user is admin, allow editing
     if (isAdminEditMode && isAdmin) {
@@ -101,6 +101,22 @@ export function LaborProfitTab({
     }
     
     // Territory Managers, Sales Reps, and other roles cannot edit labor rates
+    return false;
+  };
+
+  // 🔓 Territory Managers can edit quantities, toggles, and location selection
+  const canEditQuantitiesAndToggles = () => {
+    // Admin override: If in admin edit mode and current user is admin, allow editing
+    if (isAdminEditMode && isAdmin) {
+      return true; // Admins can edit any estimate when in admin edit mode
+    }
+    
+    // Normal operation: Territory Managers and Admins can edit quantities/toggles
+    if (!readOnly && (isAdmin || userRole === 'territory_manager')) {
+      return true; // Territory Managers and Admins can edit quantities and toggles
+    }
+    
+    // Sales Reps and other roles cannot edit quantities/toggles
     return false;
   };
 
@@ -676,14 +692,14 @@ export function LaborProfitTab({
               value={laborRates.dumpsterLocation}
               onValueChange={handleDumpsterLocationChange}
               className="flex flex-col space-y-1"
-              disabled={!canEditLaborRates()}
+              disabled={!canEditQuantitiesAndToggles()}
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="orlando" id="orlando" disabled={!canEditLaborRates()}/>
+                <RadioGroupItem value="orlando" id="orlando" disabled={!canEditQuantitiesAndToggles()}/>
                 <Label htmlFor="orlando">Orlando</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="outside" id="outside" disabled={!canEditLaborRates()}/>
+                <RadioGroupItem value="outside" id="outside" disabled={!canEditQuantitiesAndToggles()}/>
                 <Label htmlFor="outside">Outside Orlando</Label>
               </div>
             </RadioGroup>
@@ -712,7 +728,7 @@ export function LaborProfitTab({
                   onChange={(e) => handleLaborRateChange("dumpsterCount", e.target.value)}
                   min="1"
                   step="1"
-                  disabled={!canEditLaborRates()}
+                  disabled={!canEditQuantitiesAndToggles()}
                 />
               </div>
               <div className="space-y-2">
@@ -723,7 +739,6 @@ export function LaborProfitTab({
                   value={`$${((laborRates.dumpsterCount || 0) * (laborRates.dumpsterRate || 0)).toFixed(2)}`}
                   readOnly
                   className="bg-muted"
-                  disabled={!canEditLaborRates()}
                 />
               </div>
             </div>
@@ -736,11 +751,11 @@ export function LaborProfitTab({
         <div>
           <h3 className="text-lg font-semibold mb-4">Permits</h3>
           
-          {/* Admin-only access indicator for permits */}
-          {!canEditLaborRates() && (
+          {/* Admin-only access indicator for rate fields only */}
+          {!canEditLaborRates() && canEditQuantitiesAndToggles() && (
             <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
               <p className="text-sm text-orange-700">
-                🔒 <strong>Admin Only:</strong> Labor rates and permit settings can only be modified by administrators.
+                🔒 <strong>Admin Only:</strong> Labor rates and pricing can only be modified by administrators. You can modify quantities and toggles.
               </p>
             </div>
           )}
@@ -751,7 +766,7 @@ export function LaborProfitTab({
                 id="includePermits"
                 checked={!!laborRates.includePermits}
                 onCheckedChange={(checked) => handleLaborRateChange("includePermits", checked)}
-                disabled={!canEditLaborRates()}
+                disabled={!canEditQuantitiesAndToggles()}
               />
               <Label htmlFor="includePermits">
                 Include Permits
@@ -764,14 +779,14 @@ export function LaborProfitTab({
                   value={laborRates.dumpsterLocation}
                   onValueChange={handleDumpsterLocationChange}
                   className="flex flex-col space-y-1 mb-3"
-                  disabled={!canEditLaborRates()}
+                  disabled={!canEditQuantitiesAndToggles()}
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="orlando" id="permit-orlando" disabled={!canEditLaborRates()} />
+                    <RadioGroupItem value="orlando" id="permit-orlando" disabled={!canEditQuantitiesAndToggles()} />
                     <Label htmlFor="permit-orlando">Orlando (Base permit: $450)</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="outside" id="permit-outside" disabled={!canEditLaborRates()} />
+                    <RadioGroupItem value="outside" id="permit-outside" disabled={!canEditQuantitiesAndToggles()} />
                     <Label htmlFor="permit-outside">Outside Orlando (Base permit: $550)</Label>
                   </div>
                 </RadioGroup>
@@ -792,7 +807,7 @@ export function LaborProfitTab({
                         variant="outline"
                         size="icon"
                         onClick={() => handleLaborRateChange("permitCount", Math.max(1, (laborRates.permitCount || 1) - 1))}
-                        disabled={(laborRates.permitCount || 1) <= 1 || !canEditLaborRates()}
+                        disabled={(laborRates.permitCount || 1) <= 1 || !canEditQuantitiesAndToggles()}
                         className="h-8 w-8 rounded-r-none"
                       >
                         <span className="sr-only">Decrease</span>
@@ -806,14 +821,14 @@ export function LaborProfitTab({
                         min="1"
                         step="1"
                         className="h-8 rounded-none text-center"
-                        disabled={!canEditLaborRates()}
+                        disabled={!canEditQuantitiesAndToggles()}
                       />
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
                         onClick={() => handleLaborRateChange("permitCount", (laborRates.permitCount || 1) + 1)}
-                        disabled={!canEditLaborRates()}
+                        disabled={!canEditQuantitiesAndToggles()}
                         className="h-8 w-8 rounded-l-none"
                       >
                         <span className="sr-only">Increase</span>
@@ -829,7 +844,6 @@ export function LaborProfitTab({
                       value={`$${((laborRates.permitRate || 450) + ((laborRates.permitCount || 1) - 1) * (laborRates.permitAdditionalRate || 450)).toFixed(2)}`}
                       readOnly
                       className="bg-muted"
-                      disabled={!canEditLaborRates()}
                     />
                   </div>
                 </div>
@@ -849,7 +863,7 @@ export function LaborProfitTab({
                 id="includeGutters"
                 checked={!!laborRates.includeGutters}
                 onCheckedChange={(checked) => handleLaborRateChange("includeGutters", checked)}
-                disabled={!canEditLaborRates()}
+                disabled={!canEditQuantitiesAndToggles()}
               />
               <Label htmlFor="includeGutters">
                 Install 6" Aluminum Seamless Gutters ($8 per linear foot)
@@ -858,9 +872,9 @@ export function LaborProfitTab({
             
             {!!laborRates.includeGutters && (
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="gutterLinearFeet">Linear Feet</Label>
-                                      <Input
+                                  <div className="space-y-2">
+                    <Label htmlFor="gutterLinearFeet">Linear Feet</Label>
+                    <Input
                       id="gutterLinearFeet"
                       type="number"
                       defaultValue={(laborRates.gutterLinearFeet || 0).toString()}
@@ -868,7 +882,7 @@ export function LaborProfitTab({
                       key={`gutterLinearFeet-${laborRates.gutterLinearFeet}`}
                       min="0"
                       step="1"
-                      disabled={!canEditLaborRates()}
+                      disabled={!canEditQuantitiesAndToggles()}
                     />
                 </div>
                 <div className="space-y-2">
@@ -879,7 +893,6 @@ export function LaborProfitTab({
                     value={`$${((laborRates.gutterLinearFeet || 0) * (laborRates.gutterRate || 8)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
-                    disabled={!canEditLaborRates()}
                   />
                 </div>
               </div>
@@ -890,7 +903,7 @@ export function LaborProfitTab({
                 id="includeDetachResetGutters"
                 checked={!!laborRates.includeDetachResetGutters}
                 onCheckedChange={(checked) => handleLaborRateChange("includeDetachResetGutters", checked)}
-                disabled={!canEditLaborRates()}
+                disabled={!canEditQuantitiesAndToggles()}
               />
               <Label htmlFor="includeDetachResetGutters">
                 Detach and Reset Gutters ($1 per linear foot)
@@ -899,30 +912,29 @@ export function LaborProfitTab({
             
             {!!laborRates.includeDetachResetGutters && (
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="detachResetGutterLinearFeet">Linear Feet</Label>
-                  <Input
-                    id="detachResetGutterLinearFeet"
-                    type="number"
-                    defaultValue={(laborRates.detachResetGutterLinearFeet || 0).toString()}
-                    onBlur={(e) => handleLaborRateChange("detachResetGutterLinearFeet", e.target.value)}
-                    key={`detachResetGutterLinearFeet-${laborRates.detachResetGutterLinearFeet}`}
-                    min="0"
-                    step="1"
-                    disabled={!canEditLaborRates()}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="detachResetGutterTotal">Total Detach/Reset Cost</Label>
-                  <Input
-                    id="detachResetGutterTotal"
-                    type="text"
-                    value={`$${((laborRates.detachResetGutterLinearFeet || 0) * (laborRates.detachResetGutterRate || 1)).toFixed(2)}`}
-                    readOnly
-                    className="bg-muted"
-                    disabled={!canEditLaborRates()}
-                  />
-                </div>
+                                  <div className="space-y-2">
+                    <Label htmlFor="detachResetGutterLinearFeet">Linear Feet</Label>
+                    <Input
+                      id="detachResetGutterLinearFeet"
+                      type="number"
+                      defaultValue={(laborRates.detachResetGutterLinearFeet || 0).toString()}
+                      onBlur={(e) => handleLaborRateChange("detachResetGutterLinearFeet", e.target.value)}
+                      key={`detachResetGutterLinearFeet-${laborRates.detachResetGutterLinearFeet}`}
+                      min="0"
+                      step="1"
+                      disabled={!canEditQuantitiesAndToggles()}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="detachResetGutterTotal">Total Detach/Reset Cost</Label>
+                    <Input
+                      id="detachResetGutterTotal"
+                      type="text"
+                      value={`$${((laborRates.detachResetGutterLinearFeet || 0) * (laborRates.detachResetGutterRate || 1)).toFixed(2)}`}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
               </div>
             )}
             
@@ -931,7 +943,7 @@ export function LaborProfitTab({
                 id="includeDownspouts"
                 checked={!!laborRates.includeDownspouts}
                 onCheckedChange={(checked) => handleLaborRateChange("includeDownspouts", checked)}
-                disabled={!canEditLaborRates()}
+                disabled={!canEditQuantitiesAndToggles()}
               />
               <Label htmlFor="includeDownspouts">
                 Install 3" x 4" Downspouts ($75 each)
@@ -940,30 +952,29 @@ export function LaborProfitTab({
             
             {!!laborRates.includeDownspouts && (
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="downspoutCount">Number of Downspouts</Label>
-                  <Input
-                    id="downspoutCount"
-                    type="number"
-                    defaultValue={(laborRates.downspoutCount || 0).toString()}
-                    onBlur={(e) => handleLaborRateChange("downspoutCount", e.target.value)}
-                    key={`downspoutCount-${laborRates.downspoutCount}`}
-                    min="0"
-                    step="1"
-                    disabled={!canEditLaborRates()}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="downspoutTotal">Total Downspout Cost</Label>
-                  <Input
-                    id="downspoutTotal"
-                    type="text"
-                    value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 75)).toFixed(2)}`}
-                    readOnly
-                    className="bg-muted"
-                    disabled={!canEditLaborRates()}
-                  />
-                </div>
+                                  <div className="space-y-2">
+                    <Label htmlFor="downspoutCount">Number of Downspouts</Label>
+                    <Input
+                      id="downspoutCount"
+                      type="number"
+                      defaultValue={(laborRates.downspoutCount || 0).toString()}
+                      onBlur={(e) => handleLaborRateChange("downspoutCount", e.target.value)}
+                      key={`downspoutCount-${laborRates.downspoutCount}`}
+                      min="0"
+                      step="1"
+                      disabled={!canEditQuantitiesAndToggles()}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="downspoutTotal">Total Downspout Cost</Label>
+                    <Input
+                      id="downspoutTotal"
+                      type="text"
+                      value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 75)).toFixed(2)}`}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
               </div>
             )}
           </div>
@@ -981,7 +992,7 @@ export function LaborProfitTab({
                 id="includeSkylights2x2"
                 checked={!!laborRates.includeSkylights2x2}
                 onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x2", checked)}
-                disabled={!canEditLaborRates()}
+                disabled={!canEditQuantitiesAndToggles()}
               />
               <Label htmlFor="includeSkylights2x2">
                 2X2 Skylight ($280 per unit)
@@ -998,7 +1009,7 @@ export function LaborProfitTab({
                       variant="outline"
                       size="icon"
                       onClick={() => handleLaborRateChange("skylights2x2Count", Math.max(0, (laborRates.skylights2x2Count || 0) - 1))}
-                      disabled={(laborRates.skylights2x2Count || 0) <= 0 || !canEditLaborRates()}
+                      disabled={(laborRates.skylights2x2Count || 0) <= 0 || !canEditQuantitiesAndToggles()}
                       className="h-8 w-8 rounded-r-none"
                     >
                       <span className="sr-only">Decrease</span>
@@ -1013,14 +1024,14 @@ export function LaborProfitTab({
                       min="0"
                       step="1"
                       className="h-8 rounded-none text-center"
-                      disabled={!canEditLaborRates()}
+                      disabled={!canEditQuantitiesAndToggles()}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
                       onClick={() => handleLaborRateChange("skylights2x2Count", (laborRates.skylights2x2Count || 0) + 1)}
-                      disabled={!canEditLaborRates()}
+                      disabled={!canEditQuantitiesAndToggles()}
                       className="h-8 w-8 rounded-l-none"
                     >
                       <span className="sr-only">Increase</span>
@@ -1028,17 +1039,16 @@ export function LaborProfitTab({
                     </Button>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="skylights2x2Total">Total 2X2 Skylight Cost</Label>
-                  <Input
-                    id="skylights2x2Total"
-                    type="text"
-                    value={`$${((laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280)).toFixed(2)}`}
-                    readOnly
-                    className="bg-muted"
-                    disabled={!canEditLaborRates()}
-                  />
-                </div>
+                                  <div className="space-y-2">
+                    <Label htmlFor="skylights2x2Total">Total 2X2 Skylight Cost</Label>
+                    <Input
+                      id="skylights2x2Total"
+                      type="text"
+                      value={`$${((laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280)).toFixed(2)}`}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
               </div>
             )}
             
@@ -1048,7 +1058,7 @@ export function LaborProfitTab({
                 id="includeSkylights2x4"
                 checked={!!laborRates.includeSkylights2x4}
                 onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x4", checked)}
-                disabled={!canEditLaborRates()}
+                disabled={!canEditQuantitiesAndToggles()}
               />
               <Label htmlFor="includeSkylights2x4">
                 2X4 Skylight ($370 per unit)
@@ -1065,7 +1075,7 @@ export function LaborProfitTab({
                       variant="outline"
                       size="icon"
                       onClick={() => handleLaborRateChange("skylights2x4Count", Math.max(0, (laborRates.skylights2x4Count || 0) - 1))}
-                      disabled={(laborRates.skylights2x4Count || 0) <= 0 || !canEditLaborRates()}
+                      disabled={(laborRates.skylights2x4Count || 0) <= 0 || !canEditQuantitiesAndToggles()}
                       className="h-8 w-8 rounded-r-none"
                     >
                       <span className="sr-only">Decrease</span>
@@ -1080,14 +1090,14 @@ export function LaborProfitTab({
                       min="0"
                       step="1"
                       className="h-8 rounded-none text-center"
-                      disabled={!canEditLaborRates()}
+                      disabled={!canEditQuantitiesAndToggles()}
                     />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
                       onClick={() => handleLaborRateChange("skylights2x4Count", (laborRates.skylights2x4Count || 0) + 1)}
-                      disabled={!canEditLaborRates()}
+                      disabled={!canEditQuantitiesAndToggles()}
                       className="h-8 w-8 rounded-l-none"
                     >
                       <span className="sr-only">Increase</span>
@@ -1095,17 +1105,16 @@ export function LaborProfitTab({
                     </Button>
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="skylights2x4Total">Total 2X4 Skylight Cost</Label>
-                  <Input
-                    id="skylights2x4Total"
-                    type="text"
-                    value={`$${((laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370)).toFixed(2)}`}
-                    readOnly
-                    className="bg-muted"
-                    disabled={!canEditLaborRates()}
-                  />
-                </div>
+                                  <div className="space-y-2">
+                    <Label htmlFor="skylights2x4Total">Total 2X4 Skylight Cost</Label>
+                    <Input
+                      id="skylights2x4Total"
+                      type="text"
+                      value={`$${((laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370)).toFixed(2)}`}
+                      readOnly
+                      className="bg-muted"
+                    />
+                  </div>
               </div>
             )}
           </div>
@@ -1122,7 +1131,7 @@ export function LaborProfitTab({
                 id="handload"
                 checked={!!laborRates.isHandload}
                 onCheckedChange={(checked) => handleLaborRateChange("isHandload", checked)}
-                disabled={!canEditLaborRates()}
+                disabled={!canEditQuantitiesAndToggles()}
               />
               <Label htmlFor="handload">
                 Include Handload (Additional to labor tear off and installation)
