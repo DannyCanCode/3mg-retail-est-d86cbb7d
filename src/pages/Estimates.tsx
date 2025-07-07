@@ -507,42 +507,49 @@ const Estimates = () => {
       fetchEstimateData(estimateId);
     } else {
       setIsViewMode(false);
-      // For a new estimate, ensure we start clean
+      // For a new estimate, ensure we start clean - BUT DELAY TO AVOID RACE CONDITIONS
       // and don't load from localStorage unless specified by a measurementId
       if (!measurementId) {
-        // 🔧 START FRESH FIX: Don't force type-selection if user has significant data and wants to stay on current workflow
-        const hasSignificantData = extractedPdfData || pdfFileName || 
-          Object.keys(selectedMaterials).length > 0 || 
-          Object.keys(quantities).length > 0 ||
-          estimateType;
-        
-        // 🔧 RACE CONDITION FIX: Only trigger Start Fresh if activeTab is already type-selection AND no data exists
-        // This prevents automatic Start Fresh triggering during PDF upload when state is updating
-        if (!hasSignificantData && activeTab === "type-selection" && !extractedPdfData && !pdfFileName) {
-          console.log("NEW ESTIMATE: Starting fresh workflow - no existing data");
-          setUserWantsFreshStart(true);
-          setActiveTab("type-selection");
-          setStoredActiveTab("type-selection");
-          setHasRecoveredData(true); // Mark as recovered to prevent further attempts
+        // 🔧 CRITICAL FIX: Delay fresh start check to allow localStorage values to be read first
+        setTimeout(() => {
+          // 🔧 COMPREHENSIVE DATA CHECK: Include localStorage data AND React state
+          const hasSignificantData = extractedPdfData || pdfFileName || 
+            Object.keys(selectedMaterials).length > 0 || 
+            Object.keys(quantities).length > 0 ||
+            estimateType ||
+            storedPdfData || // ✅ CHECK STORED DATA TOO
+            (storedSelectedMaterials && Object.keys(storedSelectedMaterials).length > 0) ||
+            (storedQuantities && Object.keys(storedQuantities).length > 0) ||
+            storedEstimateType ||
+            (storedActiveTab && storedActiveTab !== "type-selection");
           
-          // Clear localStorage data for fresh start
-          setTimeout(() => {
-            setStoredSelectedMaterials({});
-            setStoredQuantities({});
-            setStoredPeelStickCost("0.00");
-            setStoredEstimateType(null);
-            setStoredSelectedSubtrades([]);
+          // Only trigger Start Fresh if NO data exists anywhere AND we haven't recovered yet
+          if (!hasSignificantData && activeTab === "type-selection" && !hasRecoveredData) {
+            console.log("NEW ESTIMATE: Starting fresh workflow - no existing data");
+            setUserWantsFreshStart(true);
+            setActiveTab("type-selection");
+            setStoredActiveTab("type-selection");
+            setHasRecoveredData(true); // Mark as recovered to prevent further attempts
             
-            // Reset fresh start flag after component stabilizes
-            setUserWantsFreshStart(false);
-          }, 100);
-        } else if (hasSignificantData) {
-          console.log("NEW ESTIMATE: User has existing data - preserving current workflow state");
-          // Don't force type-selection if user is in middle of estimate workflow
-        }
+            // Clear localStorage data for fresh start
+            setTimeout(() => {
+              setStoredSelectedMaterials({});
+              setStoredQuantities({});
+              setStoredPeelStickCost("0.00");
+              setStoredEstimateType(null);
+              setStoredSelectedSubtrades([]);
+              
+              // Reset fresh start flag after component stabilizes
+              setUserWantsFreshStart(false);
+            }, 100);
+          } else if (hasSignificantData) {
+            console.log("NEW ESTIMATE: User has existing data - preserving current workflow state");
+            // Don't force type-selection if user is in middle of estimate workflow
+          }
+        }, 100); // 100ms delay to allow localStorage to be read first
       }
     }
-  }, [estimateId, measurementId]);
+  }, [estimateId, measurementId, hasRecoveredData]);
   
   // Fetch estimate data when in view mode
   const fetchEstimateData = async (id: string) => {
