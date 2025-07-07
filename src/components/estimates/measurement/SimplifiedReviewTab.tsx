@@ -251,39 +251,11 @@ export function SimplifiedReviewTab({
                     placeholder="Enter property address"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="latitude">Latitude</Label>
-                    <Input
-                      id="latitude"
-                      name="latitude"
-                      value={currentMeasurements.latitude || ""}
-                      onChange={handleInputChange}
-                      placeholder="e.g., 28.5383"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="longitude">Longitude</Label>
-                    <Input
-                      id="longitude"
-                      name="longitude"
-                      value={currentMeasurements.longitude || ""}
-                      onChange={handleInputChange}
-                      placeholder="e.g., -81.3792"
-                    />
-                  </div>
-                </div>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-y-2">
                 <div className="text-sm text-muted-foreground">Property Address:</div>
                 <div className="text-sm font-medium">{currentMeasurements.propertyAddress || 'Not available'}</div>
-                
-                <div className="text-sm text-muted-foreground">Latitude:</div>
-                <div className="text-sm font-medium">{currentMeasurements.latitude || 'Not available'}</div>
-                
-                <div className="text-sm text-muted-foreground">Longitude:</div>
-                <div className="text-sm font-medium">{currentMeasurements.longitude || 'Not available'}</div>
               </div>
             )}
           </div>
@@ -317,18 +289,6 @@ export function SimplifiedReviewTab({
                       placeholder="e.g., 6:12"
                     />
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="penetrationsArea">Penetrations Area (sq ft)</Label>
-                    <Input
-                      id="penetrationsArea"
-                      name="penetrationsArea"
-                      type="number"
-                      value={currentMeasurements.penetrationsArea || ""}
-                      onChange={handleInputChange}
-                      placeholder="Enter penetrations area"
-                    />
-                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-y-2">
@@ -340,9 +300,6 @@ export function SimplifiedReviewTab({
                   
                   <div className="text-sm text-muted-foreground">Predominant Pitch:</div>
                   <div className="text-sm font-medium">{currentMeasurements.predominantPitch}</div>
-                  
-                  <div className="text-sm text-muted-foreground">Penetrations Area:</div>
-                  <div className="text-sm font-medium">{currentMeasurements.penetrationsArea.toLocaleString()} sq ft</div>
                 </div>
               )}
             </div>
