@@ -63,6 +63,7 @@ const ManagerDashboard: React.FC = () => {
         .from('estimates' as any)
         .select('*')
         .eq('territory_id', profile!.territory_id)
+        .neq('status', 'deleted') // Filter out soft-deleted estimates
         .order('created_at', { ascending: false });
       
       if (error) {

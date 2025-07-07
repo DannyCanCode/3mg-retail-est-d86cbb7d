@@ -6,7 +6,7 @@ import { trackEstimateCreated, trackEvent, trackPerformanceMetric } from "@/lib/
 import { trackEstimateCreated as trackEstimateCreatedLR, trackEstimateSold } from "@/lib/logrocket";
 
 // Define the status type for estimates
-export type EstimateStatus = "draft" | "pending" | "approved" | "rejected" | "Sold";
+export type EstimateStatus = "draft" | "pending" | "approved" | "rejected" | "Sold" | "deleted";
 
 // Complete estimate interface that represents what's stored in the database
 export interface Estimate {
@@ -757,6 +757,45 @@ export const updateEstimateCustomerDetails = async (
 };
 
 /**
+ * Helper function to attempt soft delete when hard delete is blocked by RLS
+ */
+const attemptSoftDelete = async (id: string, userId: string, reason?: string): Promise<{
+  data: boolean;
+  error: Error | null;
+}> => {
+  try {
+    console.log('🔄 [API] Attempting soft delete fallback...');
+    
+    // Mark as deleted with timestamp instead of actually deleting
+    const { data, error } = await supabase
+      .from("estimates")
+      .update({
+        status: 'deleted' as any, // Add deleted status
+        updated_at: new Date().toISOString(),
+        notes: `Deleted by manager ${userId} - ${reason || 'No reason provided'}`
+      })
+      .eq("id", id);
+      
+    if (error) {
+      console.error('🚨 [API] Soft delete also failed:', error);
+      return { 
+        data: false, 
+        error: new Error(`Both hard and soft delete failed: ${error.message}`) 
+      };
+    }
+    
+    console.log('✅ [API] Soft delete successful - estimate marked as deleted');
+    return { data: true, error: null };
+  } catch (error) {
+    console.error('🚨 [API] Exception in soft delete:', error);
+    return { 
+      data: false, 
+      error: error instanceof Error ? error : new Error("Soft delete failed") 
+    };
+  }
+};
+
+/**
  * Soft delete an estimate by ID (Admin only)
  * This marks the estimate as deleted without permanently removing it
  */
@@ -772,7 +811,30 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
       return { data: false, error: new Error("Supabase not configured") };
     }
 
-    // Get current user and their details for debugging
+    // Get current user with enhanced session handling
+    console.log('🔐 [API] Checking authentication session...');
+    
+    // First try to get the session
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    console.log('🔐 [API] Session check:', { hasSession: !!session, sessionError });
+    
+    if (sessionError) {
+      console.error('🚨 [API] Session error:', sessionError);
+      return { 
+        data: false, 
+        error: new Error(`Session error: ${sessionError.message}`) 
+      };
+    }
+    
+    if (!session) {
+      console.error('🚨 [API] No active session found');
+      return { 
+        data: false, 
+        error: new Error("No active session - please log in again") 
+      };
+    }
+    
+    // Now get the user from the session
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     console.log('👤 [API] Current user:', user?.id || 'anonymous');
     console.log('👤 [API] User email:', user?.email || 'no email');
@@ -867,6 +929,13 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
       console.error('🚨 [API] Error code:', error.code);
       console.error('🚨 [API] Error details:', error.details);
       console.error('🚨 [API] Error hint:', error.hint);
+      
+      // If RLS policy is blocking, try soft delete approach
+      if (error.code === '42501' || error.message?.includes('policy')) {
+        console.log('🔄 [API] RLS policy detected, trying soft delete approach...');
+        return await attemptSoftDelete(id, user.id, reason);
+      }
+      
       throw new Error(`Failed to delete estimate: ${error.message} (Code: ${error.code})`);
     }
 
