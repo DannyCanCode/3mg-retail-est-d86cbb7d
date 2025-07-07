@@ -31,9 +31,18 @@ export function SimplifiedReviewTab({
   const { isAdmin } = useRoleAccess();
   const { toast } = useToast();
   
+  // 🔍 DEBUG: Log what props we're receiving
+  console.log("🔍 [SimplifiedReviewTab] Props received:", {
+    extractedFileName: extractedFileName || "NULL",
+    pdfUrl: pdfUrl || "NULL",
+    pdfUrlType: typeof pdfUrl,
+    hasFileName: !!extractedFileName,
+    hasPdfUrl: !!pdfUrl
+  });
+  
   // Local state for editing (only used by admins)
-  const [editableMeasurements, setEditableMeasurements] = useState<MeasurementValues>(measurements);
   const [isEditing, setIsEditing] = useState(false);
+  const [editableMeasurements, setEditableMeasurements] = useState<MeasurementValues>(measurements);
   const [isSavingAndContinuing, setIsSavingAndContinuing] = useState(false);
   
   // Calculate totals

@@ -1045,6 +1045,19 @@ const Estimates = () => {
     }
   }, [extractedPdfData, measurementId]);
 
+  // 🔍 DEBUG: Log PDF props when measurements tab is active
+  useEffect(() => {
+    if (activeTab === "measurements") {
+      console.log("🔍 [Estimates] PDF Debug - Measurements tab active:", {
+        pdfFileName: pdfFileName || "NULL",
+        pdfUrl: pdfUrl || "NULL", 
+        pdfUrlType: typeof pdfUrl,
+        extractedPdfData: !!extractedPdfData ? "EXISTS" : "NULL",
+        storedPdfUrl: localStorage.getItem("estimatePdfUrl") || "NULL"
+      });
+    }
+  }, [activeTab, pdfFileName, pdfUrl, extractedPdfData]);
+
   // Save fileName changes to localStorage
   useEffect(() => {
     if (pdfFileName && !userWantsFreshStart) {
