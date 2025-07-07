@@ -147,10 +147,10 @@ export const AdminEstimateManagement: React.FC = () => {
           description: `Estimate for ${selectedEstimate.customer_address} has been accepted and moved to the Accepted tab.`
         });
   
-        console.log('🔄 [Admin] Refreshing estimates list...');
+        console.log('🔄 [Admin] Refreshing estimates list after approval...');
         // Refresh the estimates list
         await fetchEstimates();
-        console.log('✅ [Admin] Estimates list refreshed');
+        console.log('✅ [Admin] Estimates list refreshed after approval');
       
           } catch (error) {
         console.error('🚨 [Admin] Error accepting estimate:', error);
@@ -227,10 +227,17 @@ export const AdminEstimateManagement: React.FC = () => {
     const estimate = estimateToDelete || selectedEstimate;
     if (!estimate?.id) return;
 
+    console.log('🗑️ [Admin] Starting delete for estimate:', estimate.id);
     setIsActionLoading(true);
     try {
+      console.log('🗑️ [Admin] Calling deleteEstimate API...');
       const { error } = await deleteEstimate(estimate.id);
-      if (error) throw error;
+      if (error) {
+        console.error('🚨 [Admin] Delete API error:', error);
+        throw error;
+      }
+
+      console.log('✅ [Admin] Delete API successful');
 
       // Track admin action
       trackAdminEstimateAction('delete', {
@@ -246,12 +253,15 @@ export const AdminEstimateManagement: React.FC = () => {
       });
 
       setSelectedEstimate(null);
-      fetchEstimates();
+      
+      console.log('🔄 [Admin] Refreshing estimates list...');
+      await fetchEstimates(); // 🔧 FIX: Await the refresh to ensure UI updates
+      console.log('✅ [Admin] Estimates list refreshed');
     } catch (error) {
-      console.error('Error deleting estimate:', error);
+      console.error('🚨 [Admin] Error deleting estimate:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete estimate',
+        description: `Failed to delete estimate: ${error.message || 'Unknown error'}`,
         variant: 'destructive'
       });
     } finally {
