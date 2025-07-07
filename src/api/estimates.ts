@@ -836,13 +836,30 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
     console.log('🗑️ [API] Attempting delete operation...');
     console.log('🗑️ [API] Executing DELETE query for estimate ID:', id);
     
-    const { data, error, count } = await supabase
+    // First verify the estimate exists before deletion
+    const { data: beforeDelete, error: beforeError } = await supabase
+      .from("estimates")
+      .select("id, territory_id, created_by")
+      .eq("id", id)
+      .single();
+      
+    if (beforeError || !beforeDelete) {
+      console.error('🚨 [API] Estimate does not exist before delete:', beforeError);
+      return { 
+        data: false, 
+        error: new Error("Estimate not found before deletion") 
+      };
+    }
+    
+    console.log('✅ [API] Estimate confirmed to exist before delete:', beforeDelete);
+    
+    // Perform the delete operation
+    const { data, error } = await supabase
       .from("estimates")
       .delete()
       .eq("id", id);
 
-    console.log('🗑️ [API] Delete operation result:', { data, error, count });
-    console.log('🗑️ [API] Delete operation affected rows:', count);
+    console.log('🗑️ [API] Delete operation result:', { data, error });
 
     if (error) {
       console.error('🚨 [API] Supabase delete error:', error);
@@ -853,33 +870,34 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
       throw new Error(`Failed to delete estimate: ${error.message} (Code: ${error.code})`);
     }
 
-    // Check if any rows were actually affected
-    if (count === 0) {
-      console.warn('⚠️ [API] WARNING: No rows were deleted! This means:');
-      console.warn('⚠️ [API] - The estimate ID does not exist, OR');
-      console.warn('⚠️ [API] - RLS policy is blocking the delete operation, OR'); 
-      console.warn('⚠️ [API] - Database constraint is preventing deletion');
+    // Verify the estimate was actually deleted
+    console.log('🔍 [API] Verifying deletion - checking if estimate still exists...');
+    const { data: afterDelete, error: afterError } = await supabase
+      .from("estimates")
+      .select("id")
+      .eq("id", id)
+      .single();
       
-      // Let's also check if the estimate still exists after "deletion"
-      const { data: stillExists } = await supabase
-        .from("estimates")
-        .select("id")
-        .eq("id", id)
-        .single();
-        
-      if (stillExists) {
-        console.error('🚨 [API] CRITICAL: Estimate still exists after delete operation!');
-        console.error('🚨 [API] This confirms RLS policy or constraint is blocking deletion');
-        return { 
-          data: false, 
-          error: new Error("Delete blocked by database policy - estimate still exists") 
-        };
-      }
+    if (afterDelete) {
+      console.error('🚨 [API] CRITICAL: Estimate still exists after delete operation!');
+      console.error('🚨 [API] This confirms database policy/constraint is blocking deletion');
+      console.error('🚨 [API] Before delete data:', beforeDelete);
+      console.error('🚨 [API] After delete data:', afterDelete);
+      return { 
+        data: false, 
+        error: new Error("Delete blocked by database policy - estimate still exists after deletion") 
+      };
+    }
+    
+    if (afterError && afterError.code === 'PGRST116') {
+      // PGRST116 means "not found" which is what we want after deletion
+      console.log('✅ [API] Deletion verified - estimate no longer exists');
+    } else if (afterError) {
+      console.warn('⚠️ [API] Unexpected error during verification:', afterError);
     }
 
     console.log('✅ [API] Successfully deleted estimate:', id);
     console.log('✅ [API] Delete response data:', data);
-    console.log('✅ [API] Rows affected by delete:', count);
 
     // Track estimate deletion for analytics
     try {
