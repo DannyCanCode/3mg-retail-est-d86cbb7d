@@ -834,10 +834,15 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
     
     // Temporary hard delete until schema cache is fixed
     console.log('🗑️ [API] Attempting delete operation...');
-    const { data, error } = await supabase
+    console.log('🗑️ [API] Executing DELETE query for estimate ID:', id);
+    
+    const { data, error, count } = await supabase
       .from("estimates")
       .delete()
       .eq("id", id);
+
+    console.log('🗑️ [API] Delete operation result:', { data, error, count });
+    console.log('🗑️ [API] Delete operation affected rows:', count);
 
     if (error) {
       console.error('🚨 [API] Supabase delete error:', error);
@@ -848,8 +853,33 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
       throw new Error(`Failed to delete estimate: ${error.message} (Code: ${error.code})`);
     }
 
+    // Check if any rows were actually affected
+    if (count === 0) {
+      console.warn('⚠️ [API] WARNING: No rows were deleted! This means:');
+      console.warn('⚠️ [API] - The estimate ID does not exist, OR');
+      console.warn('⚠️ [API] - RLS policy is blocking the delete operation, OR'); 
+      console.warn('⚠️ [API] - Database constraint is preventing deletion');
+      
+      // Let's also check if the estimate still exists after "deletion"
+      const { data: stillExists } = await supabase
+        .from("estimates")
+        .select("id")
+        .eq("id", id)
+        .single();
+        
+      if (stillExists) {
+        console.error('🚨 [API] CRITICAL: Estimate still exists after delete operation!');
+        console.error('🚨 [API] This confirms RLS policy or constraint is blocking deletion');
+        return { 
+          data: false, 
+          error: new Error("Delete blocked by database policy - estimate still exists") 
+        };
+      }
+    }
+
     console.log('✅ [API] Successfully deleted estimate:', id);
     console.log('✅ [API] Delete response data:', data);
+    console.log('✅ [API] Rows affected by delete:', count);
 
     // Track estimate deletion for analytics
     try {
