@@ -71,8 +71,9 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
         });
       } else if (result && onDataExtracted) {
         // If we have a result and the parent component provided the onDataExtracted callback
-        // Extract the parsedMeasurements from the result object and pass the fileUrl from the hook
-        onDataExtracted(result.parsedMeasurements, selectedFile.name, fileUrl);
+        // Extract the parsedMeasurements from the result object and pass the fileUrl from the result
+        console.log("🔍 [PdfUploader] Calling onDataExtracted with fileUrl:", result.fileUrl || "NULL");
+        onDataExtracted(result.parsedMeasurements, selectedFile.name, result.fileUrl);
       }
     } catch (error) {
       console.error("Error in upload and process flow:", error);

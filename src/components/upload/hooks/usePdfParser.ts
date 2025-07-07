@@ -141,14 +141,16 @@ export function usePdfParser() {
           try {
             const blobUrl = URL.createObjectURL(file);
             setFileUrl(blobUrl);
+            fileUrl = blobUrl; // Also set the local variable
             console.log("✅ Fallback blob URL created for PDF viewing");
           } catch (blobError) {
             console.error("❌ Failed to create blob URL:", blobError);
             setFileUrl(null);
+            fileUrl = null;
           }
         }
         
-        return { measurements, parsedMeasurements };
+        return { measurements, parsedMeasurements, fileUrl };
       } catch (clientSideError: any) {
         console.warn("Client-side PDF parsing failed:", clientSideError);
         
