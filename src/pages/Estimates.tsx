@@ -661,17 +661,6 @@ const Estimates = () => {
         setStoredMeasurements(null);
       }
       
-      console.log("🔍 [RECOVERY DEBUG] Starting recovery check...");
-      console.log("🔍 [RECOVERY DEBUG] storedPdfData:", storedPdfData ? "EXISTS" : "NULL");
-      console.log("🔍 [RECOVERY DEBUG] storedFileName:", storedFileName || "NULL");
-      console.log("🔍 [RECOVERY DEBUG] storedPdfUrl:", storedPdfUrl || "NULL");
-      console.log("🔍 [RECOVERY DEBUG] Current state - pdfFileName:", pdfFileName || "NULL");
-      console.log("🔍 [RECOVERY DEBUG] Current state - pdfUrl:", pdfUrl || "NULL");
-      
-      // Manual localStorage check
-      const manualPdfUrl = localStorage.getItem("estimatePdfUrl");
-      console.log("🔍 [RECOVERY DEBUG] Manual localStorage check for 'estimatePdfUrl':", manualPdfUrl || "NULL");
-      
       if (storedFileName && !pdfFileName) {
         setPdfFileName(storedFileName);
         console.log("✅ Recovered filename:", storedFileName);
@@ -680,13 +669,6 @@ const Estimates = () => {
       if (storedPdfUrl && !pdfUrl) {
         setPdfUrl(storedPdfUrl);
         console.log("✅ Recovered PDF URL:", storedPdfUrl.substring(0, 50) + "...");
-      } else if (!storedPdfUrl) {
-        console.log("⚠️ [RECOVERY DEBUG] No stored PDF URL found in localStorage");
-        // Try manual recovery if useLocalStorage hook failed
-        if (manualPdfUrl && !pdfUrl) {
-          console.log("🔧 [RECOVERY DEBUG] Attempting manual PDF URL recovery:", manualPdfUrl.substring(0, 50) + "...");
-          setPdfUrl(manualPdfUrl);
-        }
       }
     
     // Recovery Phase 2: Advanced Estimate Data with Validation

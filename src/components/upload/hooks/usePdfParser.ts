@@ -123,22 +123,18 @@ export function usePdfParser() {
           success: true
         });
         
-        // If we have Supabase configured, we can still upload the file for storage
-        if (isSupabaseConfigured()) {
-          try {
-            // Upload to Supabase for storage only
-            const fileUrl = await uploadPdfToStorage(file).catch(err => {
-              console.warn("Storage upload failed", err);
-              return null;
-            });
-            
-            if (fileUrl) {
-              // Set the file URL for downloading or viewing
-              setFileUrl(fileUrl);
-            }
-          } catch (uploadError) {
-            console.warn("Supabase upload failed, but PDF was parsed successfully:", uploadError);
-          }
+        // Try to upload PDF to Supabase storage to get a persistent URL
+        let fileUrl: string | null = null;
+        try {
+          console.log("📤 Attempting to upload PDF to Supabase storage...");
+          fileUrl = await uploadPdfToStorage(file);
+          console.log("✅ PDF uploaded successfully, URL:", fileUrl?.substring(0, 50) + "...");
+          setFileUrl(fileUrl);
+        } catch (uploadError: any) {
+          console.error("❌ PDF upload to Supabase failed:", uploadError);
+          console.warn("⚠️ PDF will be processed but View PDF link will not be available");
+          // Don't set fileUrl to null explicitly - leave it as null
+          // This way we won't store "null" string in localStorage
         }
         
         return { measurements, parsedMeasurements };

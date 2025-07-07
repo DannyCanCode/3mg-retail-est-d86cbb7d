@@ -153,11 +153,6 @@ export function SimplifiedReviewTab({
               </svg>
               Using measurements extracted from <strong>{extractedFileName}</strong>. 
               {canEditMeasurements ? "Please review and make any necessary adjustments." : "Measurements have been automatically extracted and saved."}
-              {process.env.NODE_ENV === 'development' && (
-                <span className="ml-2 text-xs opacity-75">
-                  [DEBUG: pdfUrl={pdfUrl ? `"${pdfUrl.substring(0, 30)}..."` : 'null'}]
-                </span>
-              )}
             </p>
             {pdfUrl && (
               <a 
