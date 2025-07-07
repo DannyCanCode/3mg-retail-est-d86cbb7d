@@ -765,12 +765,48 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
   error: Error | null;
 }> => {
   try {
+    console.log('🗑️ [API] Starting deleteEstimate for ID:', id);
+    
     if (!isSupabaseConfigured()) {
+      console.error('🚨 [API] Supabase not configured');
       return { data: false, error: new Error("Supabase not configured") };
+    }
+
+    // First check if the estimate exists
+    const { data: existingEstimate, error: checkError } = await supabase
+      .from("estimates")
+      .select("id, deleted_at")
+      .eq("id", id)
+      .single();
+
+    if (checkError) {
+      console.error('🚨 [API] Error checking estimate existence:', checkError);
+      return { 
+        data: false, 
+        error: new Error(`Failed to verify estimate exists: ${checkError.message}`) 
+      };
+    }
+
+    if (!existingEstimate) {
+      console.error('🚨 [API] Estimate not found:', id);
+      return { 
+        data: false, 
+        error: new Error("Estimate not found") 
+      };
+    }
+
+    // Check if already soft-deleted
+    if (existingEstimate.deleted_at) {
+      console.warn('⚠️ [API] Estimate already soft-deleted:', id);
+      return { 
+        data: true, 
+        error: null // Consider it successful since it's already deleted
+      };
     }
 
     // Get current user for tracking who deleted the estimate
     const { data: { user } } = await supabase.auth.getUser();
+    console.log('👤 [API] Current user:', user?.id || 'anonymous');
     
     // Soft delete by updating the deleted_at timestamp
     const { data, error } = await supabase
@@ -782,20 +818,23 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
         updated_at: new Date().toISOString()
       })
       .eq("id", id)
-      .is("deleted_at", null) // Only update if not already deleted
       .select();
 
     if (error) {
-      throw error;
+      console.error('🚨 [API] Supabase update error:', error);
+      throw new Error(`Failed to soft delete estimate: ${error.message}`);
     }
 
-    // If no rows were affected, the estimate wasn't found or was already deleted
+    // If no rows were affected, something went wrong
     if (!data || data.length === 0) {
+      console.error('🚨 [API] No rows updated for estimate:', id);
       return { 
         data: false, 
-        error: new Error("Estimate not found or already deleted") 
+        error: new Error("Failed to update estimate - no rows affected") 
       };
     }
+
+    console.log('✅ [API] Successfully soft deleted estimate:', id);
 
     // Track estimate soft deletion for analytics
     try {
@@ -811,10 +850,11 @@ export const deleteEstimate = async (id: string, reason?: string): Promise<{
 
     return { data: true, error: null };
   } catch (error) {
-    console.error("Error soft deleting estimate:", error);
+    console.error("🚨 [API] Error in deleteEstimate:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
     return {
       data: false,
-      error: error instanceof Error ? error : new Error("Unknown error occurred")
+      error: new Error(`Delete operation failed: ${errorMessage}`)
     };
   }
 };

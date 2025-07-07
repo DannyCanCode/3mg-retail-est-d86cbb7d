@@ -78,6 +78,9 @@ export type Database = {
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          deletion_reason: string | null
           id: string
           insurance_company: string | null
           is_sold: boolean
@@ -105,6 +108,9 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           id?: string
           insurance_company?: string | null
           is_sold?: boolean
@@ -132,6 +138,9 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          deletion_reason?: string | null
           id?: string
           insurance_company?: string | null
           is_sold?: boolean
