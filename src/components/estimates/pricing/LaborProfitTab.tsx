@@ -126,7 +126,7 @@ export function LaborProfitTab({
     const defaults: LaborRates = {
       laborRate: 85, tearOff: 0, installation: 0, isHandload: false, handloadRate: 10,
       dumpsterLocation: "orlando", 
-      dumpsterCount: initialRates?.dumpsterCount !== undefined ? initialRates.dumpsterCount : recommendedDumpsterCount, // Use recommendation instead of 1
+      dumpsterCount: recommendedDumpsterCount, // Always start with the recommendation
       dumpsterRate: 400, 
       includePermits: true, permitRate: 450, permitCount: 1, permitAdditionalRate: 450, 
       pitchRates: {}, wastePercentage: 12, includeGutters: false, gutterLinearFeet: 0, 
@@ -140,9 +140,10 @@ export function LaborProfitTab({
     
     let combined = { ...defaults, ...(initialRates || {}) };
 
-    // Ensure dumpsterCount from initialRates overrides the recommendation if explicitly set
-    if (initialRates?.dumpsterCount !== undefined) {
-      combined.dumpsterCount = initialRates.dumpsterCount;
+    // ALWAYS use the fresh calculation for dumpster count when measurements are available
+    // This ensures the recommendation is applied even with existing saved data
+    if (measurements?.totalArea && measurements.totalArea > 0) {
+      combined.dumpsterCount = recommendedDumpsterCount;
     }
 
     if (initialRates?.dumpsterLocation === 'outside') {
@@ -170,6 +171,26 @@ export function LaborProfitTab({
     setProfitMargin(initialProfitMarginProp || 25);
     hasUserInteracted.current = false; 
   }, [initialLaborRatesProp, initialProfitMarginProp, getSafeInitialRates]);
+
+  // 🔧 NEW: Update dumpster count when measurements change (for fresh PDF uploads)
+  useEffect(() => {
+    if (measurements?.totalArea && measurements.totalArea > 0) {
+      const newRecommendedCount = Math.max(1, Math.ceil((measurements.totalArea / 100) / 28));
+      console.log(`[DUMPSTER AUTO-POP] Area: ${measurements.totalArea} sq ft → Recommendation: ${newRecommendedCount} dumpsters`);
+      
+      // Only update if the recommendation has changed to prevent unnecessary re-renders
+      if (laborRates.dumpsterCount !== newRecommendedCount) {
+        console.log(`[DUMPSTER AUTO-POP] Updating from ${laborRates.dumpsterCount} to ${newRecommendedCount}`);
+        setLaborRates(prev => ({
+          ...prev,
+          dumpsterCount: newRecommendedCount
+        }));
+        // Don't mark as user interaction since this is an automatic update
+      } else {
+        console.log(`[DUMPSTER AUTO-POP] No update needed - already set to ${newRecommendedCount}`);
+      }
+    }
+  }, [measurements?.totalArea]); // Only depend on totalArea to avoid infinite loops
 
   // 🔧 CRITICAL FIX: Completely removed problematic dumpster calculation effect
   // Users can manually set dumpster count - no automatic calculation
@@ -603,7 +624,7 @@ export function LaborProfitTab({
             Based on roof area of {totalSquares.toFixed(1)} squares, we recommend {recommendedCount} dumpster(s).
             {laborRates.dumpsterCount === recommendedCount 
               ? <span className="text-green-600 font-medium"> ✓ Auto-populated with recommendation</span>
-              : <span> Current setting: {laborRates.dumpsterCount || 1}</span>
+              : <span className="text-orange-600 font-medium"> Current setting: {laborRates.dumpsterCount || 1} (different from recommendation)</span>
             }
           </p>
           
