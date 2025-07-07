@@ -127,14 +127,18 @@ export function usePdfParser() {
         let fileUrl: string | null = null;
         try {
           console.log("📤 Attempting to upload PDF to Supabase storage...");
+          console.log("📤 File size:", (file.size / 1024 / 1024).toFixed(2), "MB");
+          console.log("📤 File type:", file.type);
           fileUrl = await uploadPdfToStorage(file);
           console.log("✅ PDF uploaded successfully, URL:", fileUrl?.substring(0, 50) + "...");
           setFileUrl(fileUrl);
         } catch (uploadError: any) {
           console.error("❌ PDF upload to Supabase failed:", uploadError);
+          console.error("❌ Upload error details:", uploadError?.message || uploadError);
           console.warn("⚠️ PDF will be processed but View PDF link will not be available");
-          // Don't set fileUrl to null explicitly - leave it as null
-          // This way we won't store "null" string in localStorage
+          
+          // 🚨 CRITICAL: Ensure fileUrl stays null and doesn't get set to undefined
+          setFileUrl(null);
         }
         
         return { measurements, parsedMeasurements };

@@ -232,6 +232,15 @@ const Estimates = () => {
   // FORCE CLEAR CORRUPTED MEASUREMENTS DATA - DO NOT USE LOCALSTORAGE FOR MEASUREMENTS
   const [storedMeasurements, setStoredMeasurements] = useState<MeasurementValues | null>(null);
   
+  // 🚨 EMERGENCY FIX: Clear corrupted PDF URL from localStorage on mount
+  useEffect(() => {
+    const storedPdfUrl = localStorage.getItem("estimatePdfUrl");
+    if (storedPdfUrl === "null" || storedPdfUrl === "undefined") {
+      console.log("🧹 [EMERGENCY] Clearing corrupted PDF URL from localStorage");
+      localStorage.removeItem("estimatePdfUrl");
+    }
+  }, []);
+  
   // AUTOMATIC CORRUPTION DETECTION AND CLEANUP - No user action required
   useEffect(() => {
     const detectAndCleanCorruptedData = () => {
