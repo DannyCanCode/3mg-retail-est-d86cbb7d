@@ -14,6 +14,7 @@ import { toast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { RoleBasedProfitMargin } from "./RoleBasedProfitMargin";
 import { useAuth } from "@/contexts/AuthContext";
+import { useRoleAccess } from "@/components/RoleGuard";
 
 interface LaborProfitTabProps {
   onBack: () => void;
@@ -84,17 +85,23 @@ export function LaborProfitTab({
   console.log("LaborProfitTab rendering, received initialProfitMarginProp:", initialProfitMarginProp);
   
   const { profile } = useAuth();
+  const { isAdmin } = useRoleAccess();
   const userRole = profile?.role;
   
-  // Determine if user can edit labor rates based on role and admin edit mode
+  // 🔐 CRITICAL SECURITY: Only admins can edit labor rates
   const canEditLaborRates = () => {
     // Admin override: If in admin edit mode and current user is admin, allow editing
-    if (isAdminEditMode && userRole === 'admin') {
+    if (isAdminEditMode && isAdmin) {
       return true; // Admins can edit any estimate when in admin edit mode
     }
     
-    // Normal readOnly logic (unchanged from original)
-    return !readOnly;
+    // Normal operation: Only admins can edit labor rates (not Territory Managers)
+    if (!readOnly && isAdmin) {
+      return true; // Admins can edit material prices
+    }
+    
+    // Territory Managers, Sales Reps, and other roles cannot edit labor rates
+    return false;
   };
 
   const getSafeInitialRates = useCallback((initialRates?: LaborRates): LaborRates => {
@@ -728,12 +735,23 @@ export function LaborProfitTab({
         {/* Permits Section */}
         <div>
           <h3 className="text-lg font-semibold mb-4">Permits</h3>
+          
+          {/* Admin-only access indicator for permits */}
+          {!canEditLaborRates() && (
+            <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+              <p className="text-sm text-orange-700">
+                🔒 <strong>Admin Only:</strong> Labor rates and permit settings can only be modified by administrators.
+              </p>
+            </div>
+          )}
+          
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
               <Switch
                 id="includePermits"
                 checked={!!laborRates.includePermits}
                 onCheckedChange={(checked) => handleLaborRateChange("includePermits", checked)}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includePermits">
                 Include Permits
@@ -746,13 +764,14 @@ export function LaborProfitTab({
                   value={laborRates.dumpsterLocation}
                   onValueChange={handleDumpsterLocationChange}
                   className="flex flex-col space-y-1 mb-3"
+                  disabled={!canEditLaborRates()}
                 >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="orlando" id="permit-orlando" />
+                    <RadioGroupItem value="orlando" id="permit-orlando" disabled={!canEditLaborRates()} />
                     <Label htmlFor="permit-orlando">Orlando (Base permit: $450)</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="outside" id="permit-outside" />
+                    <RadioGroupItem value="outside" id="permit-outside" disabled={!canEditLaborRates()} />
                     <Label htmlFor="permit-outside">Outside Orlando (Base permit: $550)</Label>
                   </div>
                 </RadioGroup>
@@ -773,7 +792,7 @@ export function LaborProfitTab({
                         variant="outline"
                         size="icon"
                         onClick={() => handleLaborRateChange("permitCount", Math.max(1, (laborRates.permitCount || 1) - 1))}
-                        disabled={(laborRates.permitCount || 1) <= 1}
+                        disabled={(laborRates.permitCount || 1) <= 1 || !canEditLaborRates()}
                         className="h-8 w-8 rounded-r-none"
                       >
                         <span className="sr-only">Decrease</span>
@@ -787,12 +806,14 @@ export function LaborProfitTab({
                         min="1"
                         step="1"
                         className="h-8 rounded-none text-center"
+                        disabled={!canEditLaborRates()}
                       />
                       <Button
                         type="button"
                         variant="outline"
                         size="icon"
                         onClick={() => handleLaborRateChange("permitCount", (laborRates.permitCount || 1) + 1)}
+                        disabled={!canEditLaborRates()}
                         className="h-8 w-8 rounded-l-none"
                       >
                         <span className="sr-only">Increase</span>
@@ -808,6 +829,7 @@ export function LaborProfitTab({
                       value={`$${((laborRates.permitRate || 450) + ((laborRates.permitCount || 1) - 1) * (laborRates.permitAdditionalRate || 450)).toFixed(2)}`}
                       readOnly
                       className="bg-muted"
+                      disabled={!canEditLaborRates()}
                     />
                   </div>
                 </div>
@@ -827,6 +849,7 @@ export function LaborProfitTab({
                 id="includeGutters"
                 checked={!!laborRates.includeGutters}
                 onCheckedChange={(checked) => handleLaborRateChange("includeGutters", checked)}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includeGutters">
                 Install 6" Aluminum Seamless Gutters ($8 per linear foot)
@@ -845,6 +868,7 @@ export function LaborProfitTab({
                       key={`gutterLinearFeet-${laborRates.gutterLinearFeet}`}
                       min="0"
                       step="1"
+                      disabled={!canEditLaborRates()}
                     />
                 </div>
                 <div className="space-y-2">
@@ -855,6 +879,7 @@ export function LaborProfitTab({
                     value={`$${((laborRates.gutterLinearFeet || 0) * (laborRates.gutterRate || 8)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
+                    disabled={!canEditLaborRates()}
                   />
                 </div>
               </div>
@@ -865,6 +890,7 @@ export function LaborProfitTab({
                 id="includeDetachResetGutters"
                 checked={!!laborRates.includeDetachResetGutters}
                 onCheckedChange={(checked) => handleLaborRateChange("includeDetachResetGutters", checked)}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includeDetachResetGutters">
                 Detach and Reset Gutters ($1 per linear foot)
@@ -883,6 +909,7 @@ export function LaborProfitTab({
                     key={`detachResetGutterLinearFeet-${laborRates.detachResetGutterLinearFeet}`}
                     min="0"
                     step="1"
+                    disabled={!canEditLaborRates()}
                   />
                 </div>
                 <div className="space-y-2">
@@ -893,6 +920,7 @@ export function LaborProfitTab({
                     value={`$${((laborRates.detachResetGutterLinearFeet || 0) * (laborRates.detachResetGutterRate || 1)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
+                    disabled={!canEditLaborRates()}
                   />
                 </div>
               </div>
@@ -903,6 +931,7 @@ export function LaborProfitTab({
                 id="includeDownspouts"
                 checked={!!laborRates.includeDownspouts}
                 onCheckedChange={(checked) => handleLaborRateChange("includeDownspouts", checked)}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="includeDownspouts">
                 Install 3" x 4" Downspouts ($75 each)
@@ -921,6 +950,7 @@ export function LaborProfitTab({
                     key={`downspoutCount-${laborRates.downspoutCount}`}
                     min="0"
                     step="1"
+                    disabled={!canEditLaborRates()}
                   />
                 </div>
                 <div className="space-y-2">
@@ -931,6 +961,7 @@ export function LaborProfitTab({
                     value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 75)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
+                    disabled={!canEditLaborRates()}
                   />
                 </div>
               </div>
@@ -1091,6 +1122,7 @@ export function LaborProfitTab({
                 id="handload"
                 checked={!!laborRates.isHandload}
                 onCheckedChange={(checked) => handleLaborRateChange("isHandload", checked)}
+                disabled={!canEditLaborRates()}
               />
               <Label htmlFor="handload">
                 Include Handload (Additional to labor tear off and installation)
@@ -1109,6 +1141,7 @@ export function LaborProfitTab({
                     key={`handloadRate-${laborRates.handloadRate}`}
                     min="0"
                     step="0.01"
+                    disabled={!canEditLaborRates()}
                   />
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -1192,13 +1225,16 @@ export function LaborProfitTab({
                 onCheckedChange={(checked) => handleLaborRateChange("includeLowSlopeLabor", checked)}
                 disabled={!canEditLaborRates()}
               />
-              <Label htmlFor="includeLowSlopeLabor" className="flex flex-col space-y-1">
-                <span>Include Low Slope Labor</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  Applies to pitches 0/12 through 2/12.
-                </span>
-              </Label>
+              <div className="flex-1">
+                <Label htmlFor="includeLowSlopeLabor" className="font-medium">
+                  Include Low Slope Labor (0/12-2/12)
+                </Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Enable labor calculation for flat and low slope roof areas
+                </p>
+              </div>
             </div>
+            
             <div className="flex items-center space-x-4 p-3 border rounded-md">
               <Switch
                 id="includeSteepSlopeLabor"
@@ -1206,12 +1242,14 @@ export function LaborProfitTab({
                 onCheckedChange={(checked) => handleLaborRateChange("includeSteepSlopeLabor", checked)}
                 disabled={!canEditLaborRates()}
               />
-              <Label htmlFor="includeSteepSlopeLabor" className="flex flex-col space-y-1">
-                <span>Include Steep Slope Labor</span>
-                <span className="text-xs font-normal text-muted-foreground">
-                  Applies to pitches 3/12 and steeper.
-                </span>
-              </Label>
+              <div className="flex-1">
+                <Label htmlFor="includeSteepSlopeLabor" className="font-medium">
+                  Include Steep Slope Labor (3/12+)
+                </Label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Enable labor calculation for standard and steep slope roof areas
+                </p>
+              </div>
             </div>
           </div>
         </div>
