@@ -2038,7 +2038,6 @@ export function MaterialsSelectionTab({
               toastMessage = `${presetName} materials applied! ${showLowSlope ? 'Includes low-slope materials for hybrid roof.' : 'Materials automatically populated.'}`;
             }
           }
-          }
         }
       }
       
