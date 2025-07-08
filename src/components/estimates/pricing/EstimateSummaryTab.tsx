@@ -216,6 +216,22 @@ export function EstimateSummaryTab({
 
   // Use the safeLaborRates which includes defaults and the new toggles
   const currentLaborRates = safeLaborRates; // Alias for clarity in this section
+  
+  // 🔧 DEBUG: Log overall labor rates state to diagnose sync issues
+  console.log("🔍 [SummaryTab] Labor rates comparison:", {
+    safeRates: {
+      isHandload: safeLaborRates.isHandload,
+      handloadRate: safeLaborRates.handloadRate,
+      dumpsterCount: safeLaborRates.dumpsterCount,
+      dumpsterRate: safeLaborRates.dumpsterRate
+    },
+    originalRates: {
+      isHandload: laborRates.isHandload,
+      handloadRate: laborRates.handloadRate,
+      dumpsterCount: laborRates.dumpsterCount,
+      dumpsterRate: laborRates.dumpsterRate
+    }
+  });
 
   // Add combined labor or backward compatibility with separate tear off/installation
   if (currentLaborRates.laborRate) {
@@ -336,6 +352,17 @@ export function EstimateSummaryTab({
   const hasCalculatedPitchLabor = laborCosts.some(lc => 
     lc.name.startsWith("Labor for") || lc.name === "Labor (Tear Off & Installation)" || lc.name === "Tear Off" || lc.name === "Installation" || lc.name === "Labor (Default Rate)"
   );
+  
+  // 🔧 DEBUG: Log handload state to diagnose sync issue
+  console.log("🔍 [SummaryTab] Handload debug:", {
+    isHandload: currentLaborRates.isHandload,
+    handloadRate: currentLaborRates.handloadRate,
+    hasCalculatedPitchLabor,
+    totalSquares,
+    originalIsHandload: laborRates.isHandload,
+    originalHandloadRate: laborRates.handloadRate
+  });
+  
   if (currentLaborRates.isHandload && hasCalculatedPitchLabor) {
     laborCosts.push({
       name: "Handload", 
@@ -345,6 +372,14 @@ export function EstimateSummaryTab({
   }
   
   // Add dumpster costs
+  // 🔧 DEBUG: Log dumpster state to diagnose sync issue
+  console.log("🔍 [SummaryTab] Dumpster debug:", {
+    safeDumpsterCount: safeLaborRates.dumpsterCount,
+    safeDumpsterRate: safeLaborRates.dumpsterRate,
+    originalDumpsterCount: laborRates.dumpsterCount,
+    originalDumpsterRate: laborRates.dumpsterRate
+  });
+  
   laborCosts.push({
     name: `Dumpsters (${safeLaborRates.dumpsterCount})`, 
     rate: safeLaborRates.dumpsterRate, 
