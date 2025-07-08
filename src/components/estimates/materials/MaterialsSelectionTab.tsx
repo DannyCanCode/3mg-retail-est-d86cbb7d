@@ -1859,33 +1859,15 @@ export function MaterialsSelectionTab({
         toastMessage = "GAF package materials removed from selection";
         console.log("🎯 GAF Package Deselected: Removing all GAF materials");
       } else {
-        // Check if roof has steep slope areas before applying GAF packages
-        let steepSlopeArea = 0;
-        if (measurements && measurements.areasByPitch && Array.isArray(measurements.areasByPitch)) {
-          steepSlopeArea = measurements.areasByPitch
-            .filter(area => {
-              const pitchParts = area.pitch.split(/[:\\/]/);
-              const rise = parseInt(pitchParts[0] || '0');
-              return !isNaN(rise) && rise >= 3;
-            })
-            .reduce((sum, area) => sum + (area.area || 0), 0);
-        }
+        // Package selected - add the appropriate GAF materials
+        const packageToPreset: Record<string, string> = {
+          'gaf-1': 'GAF 1',
+          'gaf-2': 'GAF 2'
+        };
         
-        console.log(`🎯 GAF Package Selected: Steep slope area = ${steepSlopeArea.toFixed(1)} sq ft`);
-        
-        if (steepSlopeArea <= 0) {
-          toastMessage = "GAF packages are only applicable to roofs with steep slope areas (3/12 pitch or higher). This roof appears to be low slope only.";
-          console.log("🚫 GAF Package Not Applied: No steep slope areas found");
-        } else {
-          // Package selected - add the appropriate GAF materials
-          const packageToPreset: Record<string, string> = {
-            'gaf-1': 'GAF 1',
-            'gaf-2': 'GAF 2'
-          };
-          
-          const presetName = packageToPreset[selectedPackage];
-          if (presetName) {
-            console.log(`🎯 GAF Package Selected: Adding ${presetName} materials`);
+        const presetName = packageToPreset[selectedPackage];
+        if (presetName) {
+          console.log(`🎯 GAF Package Selected: Adding ${presetName} materials`);
             
             // 🏗️ ENHANCED: Updated GAF packages + new flat-only roof logic
             const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
