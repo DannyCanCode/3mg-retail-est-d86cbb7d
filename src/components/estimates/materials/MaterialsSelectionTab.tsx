@@ -115,7 +115,7 @@ export function MaterialsSelectionTab({
   const [userOverriddenWaste, setUserOverriddenWaste] = useState<Record<string, boolean>>({}); // Tracks user per-item overrides
   const [wasteFactor, setWasteFactor] = useState(10); // Default 10% waste
   const [expandedCategories, setExpandedCategories] = useState<string[]>([
-    MaterialCategory.SHINGLES
+    // Start with all accordions closed by default - users can open as needed
   ]);
   const [showLowSlope, setShowLowSlope] = useState(false);
   // Special waste factor for GAF Timberline HDZ
