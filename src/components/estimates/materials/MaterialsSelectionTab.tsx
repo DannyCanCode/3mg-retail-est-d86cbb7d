@@ -920,13 +920,13 @@ export function MaterialsSelectionTab({
   };
   
   // Handle waste factor input change (lightweight - just update input state)
-  const handleWasteFactorInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleWasteFactorInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
     setWasteFactorInput(inputValue); // Allow any input during typing
-  };
+  }, []); // Empty dependency array - this function never needs to change
 
   // Handle waste factor blur (heavy processing only when user finishes typing)
-  const handleWasteFactorBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleWasteFactorBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
     const inputValue = e.target.value.trim();
     const newGlobalWastePercentage = parseFloat(inputValue);
     
@@ -1002,7 +1002,7 @@ export function MaterialsSelectionTab({
     setLocalQuantities(updatedQuantities);
     setDisplayQuantities(updatedDisplayQuantities);
     setMaterialWasteFactors(updatedMaterialWasteFactors); 
-  };
+  }, [wasteFactor, localSelectedMaterials, localQuantities, displayQuantities, materialWasteFactors, userOverriddenWaste, measurements, dbWastePercentages]); // Dependencies for useCallback
   
   // Handle GAF Timberline HDZ waste factor change
   const handleGafTimberlineWasteFactorChange = (newWasteFactorInput: number) => {
