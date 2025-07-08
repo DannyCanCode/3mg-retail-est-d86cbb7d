@@ -59,6 +59,8 @@ const LowSlopeOptions = ({
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input 
+              id="lowslope-iso-toggle"
+              name="includeIso"
               type="checkbox" 
               checked={includeIso} 
               onChange={(e) => onIsoToggle(e.target.checked)} 

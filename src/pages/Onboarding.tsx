@@ -560,6 +560,8 @@ const Onboarding: React.FC = () => {
             </p>
           </div>
           <input
+            id="onboarding-notifications"
+            name="notifications"
             type="checkbox"
             checked={preferences.notifications}
             onChange={(e) => setPreferences(prev => ({ ...prev, notifications: e.target.checked }))}
@@ -580,6 +582,8 @@ const Onboarding: React.FC = () => {
             </p>
           </div>
           <input
+            id="onboarding-reports"
+            name="reports"
             type="checkbox"
             checked={preferences.reports}
             onChange={(e) => setPreferences(prev => ({ ...prev, reports: e.target.checked }))}
@@ -598,6 +602,8 @@ const Onboarding: React.FC = () => {
             </p>
           </div>
           <input
+            id="onboarding-mobile-access"
+            name="mobileAccess"
             type="checkbox"
             checked={preferences.mobileAccess}
             onChange={(e) => setPreferences(prev => ({ ...prev, mobileAccess: e.target.checked }))}

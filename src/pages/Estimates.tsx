@@ -3184,7 +3184,7 @@ const Estimates = () => {
                 <div className="space-y-2 animate-fade-in"> {/* Simple fade-in */} 
                   <Label htmlFor="estimates-insurance-company">Insurance Company Name</Label>
                   <Input 
-                    id="estimates-insurance-company" 
+                    id="estimates-insurance-company"
                     value={insuranceCompany} 
                     onChange={(e) => setInsuranceCompany(e.target.value)} 
                     placeholder="Enter company name" 
