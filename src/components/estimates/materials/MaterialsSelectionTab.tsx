@@ -2030,14 +2030,22 @@ export function MaterialsSelectionTab({
                   dbWastePercentages
                 );
 
-                // Only add materials with positive calculated quantities
-                if (calculatedQuantity > 0) {
+                // 🔧 SPECIAL CASE: CDX Plywood auto-population for non-flat roofs
+                // CDX Plywood should be auto-populated with quantity 1 for all non-flat roofs
+                let finalQuantity = calculatedQuantity;
+                if (id === "cdx-plywood" && calculatedQuantity <= 0) {
+                  finalQuantity = 1; // Default to 1 board for non-flat roofs
+                  console.log(`🔧 CDX Plywood: Auto-populated with default quantity 1 for non-flat roof`);
+                }
+
+                // Only add materials with positive calculated quantities (including CDX plywood override)
+                if (finalQuantity > 0) {
                   newMaterials[id] = material;
-                  newQuantities[id] = calculatedQuantity;
+                  newQuantities[id] = finalQuantity;
                   newWasteFactors[id] = actualWasteFactor;
-                    console.log(`🏔️ Added STEEP material: ${material.name} - Qty: ${calculatedQuantity}, Price: $${material.price}`);
+                    console.log(`🏔️ Added STEEP material: ${material.name} - Qty: ${finalQuantity}, Price: $${material.price}`);
                 } else {
-                  console.log(`Skipped ${material.name} - Qty: ${calculatedQuantity} (not applicable)`);
+                  console.log(`Skipped ${material.name} - Qty: ${finalQuantity} (not applicable)`);
                 }
               }
             });
