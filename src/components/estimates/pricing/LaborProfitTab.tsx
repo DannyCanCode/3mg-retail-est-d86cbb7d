@@ -636,20 +636,20 @@ export function LaborProfitTab({
               disabled={!canEditQuantitiesAndToggles()}
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="orlando" id="orlando" disabled={!canEditQuantitiesAndToggles()}/>
-                <Label htmlFor="orlando">Orlando</Label>
+                <RadioGroupItem value="orlando" id="labor-orlando" disabled={!canEditQuantitiesAndToggles()}/>
+                <Label htmlFor="labor-orlando">Orlando</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="outside" id="outside" disabled={!canEditQuantitiesAndToggles()}/>
-                <Label htmlFor="outside">Outside Orlando</Label>
+                <RadioGroupItem value="outside" id="labor-outside" disabled={!canEditQuantitiesAndToggles()}/>
+                <Label htmlFor="labor-outside">Outside Orlando</Label>
               </div>
             </RadioGroup>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              <div className="space-y-2">
-                <Label htmlFor="dumpsterRate">Rate per Dumpster ($)</Label>
-                <Input
-                  id="dumpsterRate"
+                              <div className="space-y-2">
+                  <Label htmlFor="labor-dumpsterRate">Rate per Dumpster ($)</Label>
+                  <Input
+                    id="labor-dumpsterRate"
                   type="number"
                   defaultValue={(laborRates.dumpsterRate !== undefined ? laborRates.dumpsterRate : (laborRates.dumpsterLocation === "orlando" ? 400 : 500)).toString()} 
                   onBlur={(e) => handleLaborRateChange("dumpsterRate", e.target.value)}
@@ -660,10 +660,10 @@ export function LaborProfitTab({
                   placeholder={laborRates.dumpsterLocation === "orlando" ? "400" : "500"}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="dumpsterCount">Number of Dumpsters</Label>
-                <Input
-                  id="dumpsterCount"
+                              <div className="space-y-2">
+                  <Label htmlFor="labor-dumpsterCount">Number of Dumpsters</Label>
+                  <Input
+                    id="labor-dumpsterCount"
                   type="number"
                   value={(laborRates.dumpsterCount || 1).toString()}
                   onChange={(e) => handleLaborRateChange("dumpsterCount", e.target.value)}
@@ -704,33 +704,26 @@ export function LaborProfitTab({
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
               <Switch
-                id="includePermits"
+                id="labor-includePermits"
                 checked={!!laborRates.includePermits}
                 onCheckedChange={(checked) => handleLaborRateChange("includePermits", checked)}
                 disabled={!canEditQuantitiesAndToggles()}
               />
-              <Label htmlFor="includePermits">
+              <Label htmlFor="labor-includePermits">
                 Include Permits
               </Label>
             </div>
             
             {!!laborRates.includePermits && (
               <>
-                <RadioGroup
-                  value={laborRates.dumpsterLocation}
-                  onValueChange={handleDumpsterLocationChange}
-                  className="flex flex-col space-y-1 mb-3"
-                  disabled={!canEditQuantitiesAndToggles()}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="orlando" id="permit-orlando" disabled={!canEditQuantitiesAndToggles()} />
-                    <Label htmlFor="permit-orlando">Orlando (Base permit: $450)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="outside" id="permit-outside" disabled={!canEditQuantitiesAndToggles()} />
-                    <Label htmlFor="permit-outside">Outside Orlando (Base permit: $550)</Label>
-                  </div>
-                </RadioGroup>
+                <div className="bg-muted p-3 rounded-md mb-3">
+                  <p className="text-sm mb-2">
+                    📍 <strong>Location:</strong> {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Permit location follows dumpster location setting above
+                  </p>
+                </div>
                 
                 <div className="bg-muted p-3 rounded-md">
                   <p className="text-sm mb-2">Base permit cost for {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}: 
@@ -1069,12 +1062,12 @@ export function LaborProfitTab({
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
               <Switch
-                id="handload"
+                id="labor-handload"
                 checked={!!laborRates.isHandload}
                 onCheckedChange={(checked) => handleLaborRateChange("isHandload", checked)}
                 disabled={!canEditQuantitiesAndToggles()}
               />
-              <Label htmlFor="handload">
+              <Label htmlFor="labor-handload">
                 Include Handload (Additional to labor tear off and installation)
               </Label>
             </div>
@@ -1082,9 +1075,9 @@ export function LaborProfitTab({
             {!!laborRates.isHandload && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="handloadRate">Handload Rate ($/square)</Label>
+                  <Label htmlFor="labor-handloadRate">Handload Rate ($/square)</Label>
                   <Input
-                    id="handloadRate"
+                    id="labor-handloadRate"
                     type="number"
                     defaultValue={(laborRates.handloadRate || 10).toString()}
                     onBlur={(e) => handleLaborRateChange("handloadRate", e.target.value)}
@@ -1110,10 +1103,10 @@ export function LaborProfitTab({
           <h3 className="text-lg font-semibold mb-4">Labor Rates (per square)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="laborRate">Labor Rate ($/square)</Label>
-                <Input
-                  id="laborRate"
+                              <div className="space-y-2">
+                  <Label htmlFor="labor-laborRate">Labor Rate ($/square)</Label>
+                  <Input
+                    id="labor-laborRate"
                   type="number"
                   defaultValue={(laborRates.laborRate !== undefined ? laborRates.laborRate : 85).toString()}
                   onBlur={(e) => handleLaborRateChange("laborRate", e.target.value)}
@@ -1170,13 +1163,13 @@ export function LaborProfitTab({
           <div className="space-y-3">
             <div className="flex items-center space-x-4 p-3 border rounded-md">
               <Switch
-                id="includeLowSlopeLabor"
+                id="labor-includeLowSlopeLabor"
                 checked={laborRates.includeLowSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeLowSlopeLabor", checked)}
                 disabled={!canEditQuantitiesAndToggles()}
               />
               <div className="flex-1">
-                <Label htmlFor="includeLowSlopeLabor" className="font-medium">
+                <Label htmlFor="labor-includeLowSlopeLabor" className="font-medium">
                   Include Low Slope Labor (0/12-2/12)
               </Label>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -1187,13 +1180,13 @@ export function LaborProfitTab({
             
             <div className="flex items-center space-x-4 p-3 border rounded-md">
               <Switch
-                id="includeSteepSlopeLabor"
+                id="labor-includeSteepSlopeLabor"
                 checked={laborRates.includeSteepSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeSteepSlopeLabor", checked)}
                 disabled={!canEditQuantitiesAndToggles()}
               />
               <div className="flex-1">
-                <Label htmlFor="includeSteepSlopeLabor" className="font-medium">
+                <Label htmlFor="labor-includeSteepSlopeLabor" className="font-medium">
                   Include Steep Slope Labor (3/12+)
               </Label>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -1243,9 +1236,9 @@ export function LaborProfitTab({
                     const currentRate = laborRates.pitchRates[pitch] !== undefined ? laborRates.pitchRates[pitch] : getPitchRate(pitch);
                     return (
                       <div key={pitch} className="flex items-center space-x-2">
-                        <Label htmlFor={`pitch_rate_${pitch}`} className="min-w-[40px]">{pitch}</Label>                        
+                        <Label htmlFor={`labor-pitch-rate-${pitch}`} className="min-w-[40px]">{pitch}</Label>                        
                         <Input
-                          id={`pitch_rate_${pitch}`}
+                          id={`labor-pitch-rate-${pitch}`}
                           type="number"
                           step="0.01"
                           defaultValue={laborRates.pitchRates[pitch] !== undefined ? String(laborRates.pitchRates[pitch]) : getPitchRate(pitch).toString()}
@@ -1270,9 +1263,9 @@ export function LaborProfitTab({
                     const currentRate = laborRates.pitchRates[pitch] !== undefined ? laborRates.pitchRates[pitch] : getPitchRate(pitch);
                     return (
                       <div key={pitch} className="flex items-center space-x-2">
-                        <Label htmlFor={`pitch_rate_${pitch}`} className="min-w-[40px]">{pitch}</Label>
+                        <Label htmlFor={`labor-pitch-rate-${pitch}`} className="min-w-[40px]">{pitch}</Label>
                         <Input
-                          id={`pitch_rate_${pitch}`}
+                          id={`labor-pitch-rate-${pitch}`}
                           type="number"
                           step="0.01"
                           defaultValue={laborRates.pitchRates[pitch] !== undefined ? String(laborRates.pitchRates[pitch]) : getPitchRate(pitch).toString()}

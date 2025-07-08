@@ -113,8 +113,8 @@ export const EstimateTypeSelector: React.FC<EstimateTypeSelectorProps> = ({
           >
             {/* Roof Only Option */}
             <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50">
-              <RadioGroupItem value="roof_only" id="roof_only" />
-              <Label htmlFor="roof_only" className="flex-1 cursor-pointer">
+              <RadioGroupItem value="roof_only" id="estimate-type-roof_only" />
+              <Label htmlFor="estimate-type-roof_only" className="flex-1 cursor-pointer">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
@@ -135,8 +135,8 @@ export const EstimateTypeSelector: React.FC<EstimateTypeSelectorProps> = ({
 
             {/* Roof + Subtrades Option */}
             <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 opacity-60 cursor-not-allowed">
-              <RadioGroupItem value="with_subtrades" id="with_subtrades" disabled />
-              <Label htmlFor="with_subtrades" className="flex-1 cursor-not-allowed">
+              <RadioGroupItem value="with_subtrades" id="estimate-type-with_subtrades" disabled />
+              <Label htmlFor="estimate-type-with_subtrades" className="flex-1 cursor-not-allowed">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
