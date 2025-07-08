@@ -408,7 +408,7 @@ export function MaterialsSelectionTab({
     const materialCount = Object.keys(localSelectedMaterials).length;
     
     if (hasValidMeasurements && materialCount === 0) {
-      console.log("🔄 [LOW-SLOPE FIX] Checking for low-slope areas in measurements");
+    console.log("🔄 [LOW-SLOPE FIX] Checking for low-slope areas in measurements");
     }
     
     // CRITICAL FIX: Enhanced validation to prevent timing issues
@@ -586,11 +586,11 @@ export function MaterialsSelectionTab({
         console.log("🔄 [LOW-SLOPE FIX] Applying updated materials and quantities");
         
         // Apply updates using React's setState batching
-        setLocalSelectedMaterials(newSelectedMaterials);
-        setLocalQuantities(newQuantities);
-        setDisplayQuantities(newDisplayQuantities);
-        setMaterialWasteFactors(newMaterialWasteFactors); 
-        setUserOverriddenWaste(newUserOverriddenWaste);
+          setLocalSelectedMaterials(newSelectedMaterials);
+          setLocalQuantities(newQuantities);
+          setDisplayQuantities(newDisplayQuantities);
+          setMaterialWasteFactors(newMaterialWasteFactors); 
+          setUserOverriddenWaste(newUserOverriddenWaste);
         
         // Show success notification
         const materialsDescription = addedMaterials.join(', ');
@@ -627,7 +627,7 @@ export function MaterialsSelectionTab({
 
   // 🔧 CRITICAL FIX: Moved ref outside useMemo to prevent hook violations
   const prevMaterialCountRef = useRef<number>(0);
-  
+
   // Group all available materials by category for rendering the accordion
   const materialsByCategory = useMemo(() => {
     // Only log when materials are first grouped or when they change significantly
@@ -734,16 +734,16 @@ export function MaterialsSelectionTab({
       console.log("[WarrantyEffect] Calculating warranty -", selectedWarranty, "Package:", selectedPackage);
     }
 
-          if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
-        setWarrantyDetails(null);
-        return;
-      }
+    if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
+      setWarrantyDetails(null);
+      return;
+    }
 
-      // If no warranty is selected, set warrantyDetails to null
-      if (!selectedWarranty) {
-        setWarrantyDetails(null);
-        return;
-      }
+    // If no warranty is selected, set warrantyDetails to null
+    if (!selectedWarranty) {
+      setWarrantyDetails(null);
+      return;
+    }
 
     const steepSlopeAreaSqFt = measurements.areasByPitch
       .filter(area => {
@@ -751,12 +751,12 @@ export function MaterialsSelectionTab({
         const rise = parseInt(pitchParts[0] || '0');
         return !isNaN(rise) && rise >= 3;
       })
-              .reduce((sum, area) => sum + (area.area || 0), 0);
+      .reduce((sum, area) => sum + (area.area || 0), 0);
 
-      if (steepSlopeAreaSqFt === 0) {
-        setWarrantyDetails(null); // No warranty cost if no steep slope area
-        return;
-      }
+    if (steepSlopeAreaSqFt === 0) {
+      setWarrantyDetails(null); // No warranty cost if no steep slope area
+      return;
+    }
 
     const steepSlopeSquares = steepSlopeAreaSqFt / 100;
     const warrantyWasteFactor = 0.12; // 12% waste for warranty calculations
@@ -947,61 +947,61 @@ export function MaterialsSelectionTab({
 
     setWasteFactor(finalWasteValue);
     setWasteFactorInput(finalWasteValue.toString()); // Normalize input display
-    isInternalChange.current = true;
-    
+      isInternalChange.current = true;
+      
     const newGlobalWasteDecimal = finalWasteValue / 100;
-    const updatedQuantities: { [key: string]: number } = {};
-    const updatedDisplayQuantities: { [key: string]: string } = {};
-    const updatedMaterialWasteFactors: { [key: string]: number } = {};
-    // User override flags are not changed by global waste factor changes
+      const updatedQuantities: { [key: string]: number } = {};
+      const updatedDisplayQuantities: { [key: string]: string } = {};
+      const updatedMaterialWasteFactors: { [key: string]: number } = {};
+      // User override flags are not changed by global waste factor changes
 
-    for (const materialId in localSelectedMaterials) {
-      const material = localSelectedMaterials[materialId];
-      
-      if (material.id === "gaf-timberline-hdz-sg") {
-        // GAF Timberline HDZ uses its own waste factor, skip it here
-        updatedQuantities[materialId] = localQuantities[materialId]; 
-        updatedDisplayQuantities[materialId] = displayQuantities[materialId]; 
-        updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
-        continue;
-      }
+      for (const materialId in localSelectedMaterials) {
+        const material = localSelectedMaterials[materialId];
+        
+        if (material.id === "gaf-timberline-hdz-sg") {
+          // GAF Timberline HDZ uses its own waste factor, skip it here
+          updatedQuantities[materialId] = localQuantities[materialId]; 
+          updatedDisplayQuantities[materialId] = displayQuantities[materialId]; 
+          updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
+          continue;
+        }
 
-      if (userOverriddenWaste[materialId]) {
-        // User has set a specific waste for this item, so global does not apply
-        updatedQuantities[materialId] = localQuantities[materialId];
-        updatedDisplayQuantities[materialId] = displayQuantities[materialId];
-        updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
-        continue;
-      }
+        if (userOverriddenWaste[materialId]) {
+          // User has set a specific waste for this item, so global does not apply
+          updatedQuantities[materialId] = localQuantities[materialId];
+          updatedDisplayQuantities[materialId] = displayQuantities[materialId];
+          updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
+          continue;
+        }
 
-      let overrideForCalc: number | undefined = newGlobalWasteDecimal;
-      if (material.category === MaterialCategory.SHINGLES) {
-        // For non-GAF, non-overridden shingles, global does not set an override, 
-        // so they use their 12% default from utils.ts
-        overrideForCalc = undefined;
-      }
-      // For VENTILATION and ACCESSORIES, they default to 0% waste. 
-      // If global waste is applied, it will override this 0% unless they have a per-item override.
-      // This behavior is implicitly handled by calculateMaterialQuantity if overrideForCalc is passed.
-      
-      const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
-        material,
-        measurements,
-        overrideForCalc,
-        dbWastePercentages // Pass database waste percentages
-      );
-      updatedQuantities[materialId] = newQuantity;
-      updatedMaterialWasteFactors[materialId] = actualWasteFactor; 
+        let overrideForCalc: number | undefined = newGlobalWasteDecimal;
+        if (material.category === MaterialCategory.SHINGLES) {
+          // For non-GAF, non-overridden shingles, global does not set an override, 
+          // so they use their 12% default from utils.ts
+          overrideForCalc = undefined;
+        }
+        // For VENTILATION and ACCESSORIES, they default to 0% waste. 
+        // If global waste is applied, it will override this 0% unless they have a per-item override.
+        // This behavior is implicitly handled by calculateMaterialQuantity if overrideForCalc is passed.
+        
+        const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
+          material,
+          measurements,
+          overrideForCalc,
+          dbWastePercentages // Pass database waste percentages
+        );
+        updatedQuantities[materialId] = newQuantity;
+        updatedMaterialWasteFactors[materialId] = actualWasteFactor; 
 
-      if (material.id === "gaf-timberline-hdz-sg") { 
-        updatedDisplayQuantities[materialId] = (newQuantity / 3).toFixed(1);
-      } else {
-        updatedDisplayQuantities[materialId] = newQuantity.toString();
+        if (material.id === "gaf-timberline-hdz-sg") { 
+          updatedDisplayQuantities[materialId] = (newQuantity / 3).toFixed(1);
+        } else {
+          updatedDisplayQuantities[materialId] = newQuantity.toString();
+        }
       }
-    }
-    setLocalQuantities(updatedQuantities);
-    setDisplayQuantities(updatedDisplayQuantities);
-    setMaterialWasteFactors(updatedMaterialWasteFactors); 
+      setLocalQuantities(updatedQuantities);
+      setDisplayQuantities(updatedDisplayQuantities);
+      setMaterialWasteFactors(updatedMaterialWasteFactors); 
   }, [wasteFactor, localSelectedMaterials, localQuantities, displayQuantities, materialWasteFactors, userOverriddenWaste, measurements, dbWastePercentages]); // Dependencies for useCallback
   
   // Handle GAF Timberline HDZ waste factor change
@@ -1047,7 +1047,14 @@ export function MaterialsSelectionTab({
         { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
         { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
-        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+        { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
+        // 🔧 NEW: Additional materials for steep slope areas
+        { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
+        { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
+        { id: "1inch-plastic-cap-nails", description: "1\" Plastic Cap Nails (3000/bucket)" },
+        { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" },
+        { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
       ],
       "GAF 2": [
         { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
@@ -1057,7 +1064,14 @@ export function MaterialsSelectionTab({
         { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
         { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
-        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" }
+        { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+        { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
+        // 🔧 NEW: Additional materials for steep slope areas
+        { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
+        { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
+        { id: "1inch-plastic-cap-nails", description: "1\" Plastic Cap Nails (3000/bucket)" },
+        { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" },
+        { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
       ],
       "OC 1": [
         { id: "oc-oakridge-shingles", description: "OC Oakridge Shingles" },
@@ -1212,6 +1226,7 @@ export function MaterialsSelectionTab({
       'gaf-cobra-rigid-vent',
       'adjustable-lead-pipe-flashing-4inch',
       'master-sealant',
+      'cdx-plywood',
       'millennium-galvanized-drip-edge',
       'karnak-flashing-cement',
       '1inch-plastic-cap-nails',
@@ -1565,18 +1580,18 @@ export function MaterialsSelectionTab({
           {/* Add quantity summary with calculation result */}
           {(isMandatory || isLowSlope) && (
             <div className={`text-xs mb-0.5 ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
-              {bundleQuantity > 0 && (
-                <p className="font-medium">
-                  {isGafTimberline 
+            {bundleQuantity > 0 && (
+              <p className="font-medium">
+                {isGafTimberline 
                     ? `${Math.ceil(bundleQuantity / 3)} squares (${bundleQuantity} bundles)`
-                    : `Quantity: ${bundleQuantity} ${material.unit}${bundleQuantity > 1 ? 's' : ''}`
-                  }
-                  {material.coveragePerUnit && (
-                    <span className="font-normal"> • Covers approx. {(bundleQuantity * material.coveragePerUnit).toFixed(0)} sq ft</span>
-                  )}
-                </p>
-              )}
-            </div>
+                  : `Quantity: ${bundleQuantity} ${material.unit}${bundleQuantity > 1 ? 's' : ''}`
+                }
+                {material.coveragePerUnit && (
+                  <span className="font-normal"> • Covers approx. {(bundleQuantity * material.coveragePerUnit).toFixed(0)} sq ft</span>
+                )}
+              </p>
+            )}
+          </div>
           )}
           
           <div className="text-xs text-muted-foreground mb-0.5 flex flex-wrap items-center gap-x-1">
@@ -1811,6 +1826,7 @@ export function MaterialsSelectionTab({
         "gaf-cobra-rigid-vent", // GAF 2 only
         "adjustable-lead-pipe-flashing-4inch",
         "master-sealant",
+        "cdx-plywood",
         "millennium-galvanized-drip-edge",
         "karnak-flashing-cement",
         "1inch-plastic-cap-nails",
@@ -1881,6 +1897,7 @@ export function MaterialsSelectionTab({
               { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+              { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
               // 🔧 NEW: Additional materials for steep slope areas
               { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
               { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
@@ -1897,6 +1914,7 @@ export function MaterialsSelectionTab({
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+              { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
               // 🔧 NEW: Additional materials for steep slope areas
               { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
               { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
@@ -1978,38 +1996,38 @@ export function MaterialsSelectionTab({
             
           } else {
             // 🏔️ STEEP/HYBRID ROOF: Use GAF packages + low-slope materials if needed
-            const selectedBundle = PRESET_BUNDLES[presetName];
-            if (selectedBundle) {
+          const selectedBundle = PRESET_BUNDLES[presetName];
+          if (selectedBundle) {
               console.log(`🏔️ STEEP/HYBRID ROOF: Adding ${presetName} materials`);
               
-              // Add the GAF package materials
-              selectedBundle.forEach(({ id, description }) => {
-                const material = ROOFING_MATERIALS.find(m => m.id === id);
-                if (material) {
-                  const isGafTimberline = id === "gaf-timberline-hdz-sg";
-                  const overrideWaste = isGafTimberline 
-                    ? gafTimberlineWasteFactor / 100 
-                    : wasteFactor / 100;
+            // Add the GAF package materials
+            selectedBundle.forEach(({ id, description }) => {
+              const material = ROOFING_MATERIALS.find(m => m.id === id);
+              if (material) {
+                const isGafTimberline = id === "gaf-timberline-hdz-sg";
+                const overrideWaste = isGafTimberline 
+                  ? gafTimberlineWasteFactor / 100 
+                  : wasteFactor / 100;
 
-                  const { quantity: calculatedQuantity, actualWasteFactor } = calculateMaterialQuantity(
-                    material,
-                    measurements,
-                    overrideWaste,
-                    dbWastePercentages
-                  );
+                const { quantity: calculatedQuantity, actualWasteFactor } = calculateMaterialQuantity(
+                  material,
+                  measurements,
+                  overrideWaste,
+                  dbWastePercentages
+                );
 
-                  // Only add materials with positive calculated quantities
-                  if (calculatedQuantity > 0) {
-                    newMaterials[id] = material;
-                    newQuantities[id] = calculatedQuantity;
-                    newWasteFactors[id] = actualWasteFactor;
+                // Only add materials with positive calculated quantities
+                if (calculatedQuantity > 0) {
+                  newMaterials[id] = material;
+                  newQuantities[id] = calculatedQuantity;
+                  newWasteFactors[id] = actualWasteFactor;
                     console.log(`🏔️ Added STEEP material: ${material.name} - Qty: ${calculatedQuantity}, Price: $${material.price}`);
-                  } else {
-                    console.log(`Skipped ${material.name} - Qty: ${calculatedQuantity} (not applicable)`);
-                  }
+                } else {
+                  console.log(`Skipped ${material.name} - Qty: ${calculatedQuantity} (not applicable)`);
                 }
-              });
-              
+              }
+            });
+            
               // 🔧 HYBRID ROOF: If has low-slope areas, also add low-slope materials
               if (showLowSlope) {
                 console.log(`🔧 HYBRID ROOF: Also adding low-slope materials for 0-2/12 pitch areas`);
