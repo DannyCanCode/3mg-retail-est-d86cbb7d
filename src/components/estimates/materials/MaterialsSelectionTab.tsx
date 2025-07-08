@@ -2255,7 +2255,7 @@ export function MaterialsSelectionTab({
 
   // Main return structure
   return (
-    <div key={`materials-tab-${measurements?.totalArea || 'default'}-${Date.now()}`} className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <div key={`materials-tab-${measurements?.totalArea || 'default'}`} className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Left Column: Material Selection etc. */}
       <div className="lg:col-span-3 space-y-6">
         {/* GAF Package & Warranty Card */}
