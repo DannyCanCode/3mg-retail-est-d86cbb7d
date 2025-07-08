@@ -382,67 +382,23 @@ export function MaterialsSelectionTab({
   // 🔧 PERFORMANCE FIX: Removed onMaterialsUpdate from dependency array to prevent infinite re-render loop
   // materialWasteFactors removed from dependency array as it's not sent to parent
   
-  // Initialize expanded categories with improved low slope detection
+  // Set low slope visibility but keep all accordions closed by default per manager request
   useEffect(() => {
     if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch)) {
-      // Default to shingles if no measurements
-      setExpandedCategories([MaterialCategory.SHINGLES]);
+      setShowLowSlope(false);
       return;
     }
     
-    const initialExpandedCategories: string[] = [];
-    
-    // Calculate area percentages for better roof type detection
-    const totalArea = measurements.areasByPitch.reduce((sum, area) => sum + (area.area || 0), 0);
-    
+    // Calculate low slope area to determine if we should show low slope section
     const lowSlopeArea = measurements.areasByPitch
       .filter(area => ["0:12", "1:12", "2:12", "0/12", "1/12", "2/12"].includes(area.pitch))
       .reduce((sum, area) => sum + (area.area || 0), 0);
-      
-    const steepSlopeArea = measurements.areasByPitch
-      .filter(area => {
-        const pitchParts = area.pitch.split(/[:\\/]/);
-        const rise = parseInt(pitchParts[0] || '0');
-        return !isNaN(rise) && rise >= 3;
-      })
-      .reduce((sum, area) => sum + (area.area || 0), 0);
-    
-    const lowSlopePercentage = totalArea > 0 ? (lowSlopeArea / totalArea) * 100 : 0;
-    const steepSlopePercentage = totalArea > 0 ? (steepSlopeArea / totalArea) * 100 : 0;
     
     const hasFlatRoofAreas = lowSlopeArea > 0;
-    const hasSteepSlopeAreas = steepSlopeArea > 0;
-    
     setShowLowSlope(hasFlatRoofAreas);
     
-    // CRITICAL FIX: Enhanced category expansion logic for better UX
-    if (lowSlopePercentage > 80) {
-      // Pure low slope roof - prioritize low slope materials
-      initialExpandedCategories.push(MaterialCategory.LOW_SLOPE);
-      console.log(`[CategoryExpansion] Pure low slope roof detected (${lowSlopePercentage.toFixed(1)}%), prioritizing LOW_SLOPE`);
-    } else if (steepSlopePercentage > 80) {
-      // Pure steep slope roof - prioritize shingles
-      initialExpandedCategories.push(MaterialCategory.SHINGLES);
-      console.log(`[CategoryExpansion] Pure steep slope roof detected (${steepSlopePercentage.toFixed(1)}%), prioritizing SHINGLES`);
-    } else {
-      // Mixed roof - expand both relevant categories
-      if (hasFlatRoofAreas) {
-        initialExpandedCategories.push(MaterialCategory.LOW_SLOPE);
-      }
-      if (hasSteepSlopeAreas) {
-        initialExpandedCategories.push(MaterialCategory.SHINGLES);
-      }
-      console.log(`[CategoryExpansion] Mixed roof detected - Low: ${lowSlopePercentage.toFixed(1)}%, Steep: ${steepSlopePercentage.toFixed(1)}%`);
-    }
-    
-    // Always expand at least one category for better UX
-    if (initialExpandedCategories.length === 0) {
-      initialExpandedCategories.push(MaterialCategory.SHINGLES);
-      console.log(`[CategoryExpansion] No roof areas detected, defaulting to SHINGLES`);
-    }
-    
-    console.log(`[CategoryExpansion] Final expanded categories: ${initialExpandedCategories.join(', ')}`);
-    setExpandedCategories(initialExpandedCategories);
+    // Manager request: Keep all accordions closed by default - no auto-expansion
+    console.log(`[CategoryVisibility] Low slope areas: ${hasFlatRoofAreas}, All accordions remain closed by default`);
   }, [measurements]);
 
   // Check for flat/low-slope areas and add required materials
