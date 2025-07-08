@@ -114,6 +114,7 @@ export function MaterialsSelectionTab({
   const [materialWasteFactors, setMaterialWasteFactors] = useState<Record<string, number>>({}); // State to store waste factors per material
   const [userOverriddenWaste, setUserOverriddenWaste] = useState<Record<string, boolean>>({}); // Tracks user per-item overrides
   const [wasteFactor, setWasteFactor] = useState(10); // Default 10% waste
+  const [wasteFactorInput, setWasteFactorInput] = useState("10"); // Input state for waste factor
   const [expandedCategories, setExpandedCategories] = useState<string[]>([
     // Start with all accordions closed by default - users can open as needed
   ]);
@@ -181,6 +182,11 @@ export function MaterialsSelectionTab({
         return false;
     }
   };
+
+  // Sync waste factor input state with actual waste factor
+  useEffect(() => {
+    setWasteFactorInput(wasteFactor.toString());
+  }, [wasteFactor]);
 
   // Load database waste percentages on component mount
   useEffect(() => {
@@ -957,67 +963,89 @@ export function MaterialsSelectionTab({
     }
   };
   
-  // Handle waste factor change
-  const handleWasteFactorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newGlobalWastePercentage = parseInt(e.target.value);
-    if (!isNaN(newGlobalWastePercentage) && newGlobalWastePercentage >= 0 && newGlobalWastePercentage <= 50) {
-      setWasteFactor(newGlobalWastePercentage);
-      isInternalChange.current = true;
-      
-      const newGlobalWasteDecimal = newGlobalWastePercentage / 100;
-      const updatedQuantities: { [key: string]: number } = {};
-      const updatedDisplayQuantities: { [key: string]: string } = {};
-      const updatedMaterialWasteFactors: { [key: string]: number } = {};
-      // User override flags are not changed by global waste factor changes
+  // Handle waste factor input change (lightweight - just update input state)
+  const handleWasteFactorInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value;
+    setWasteFactorInput(inputValue); // Allow any input during typing
+  };
 
-      for (const materialId in localSelectedMaterials) {
-        const material = localSelectedMaterials[materialId];
-        
-        if (material.id === "gaf-timberline-hdz-sg") {
-          // GAF Timberline HDZ uses its own waste factor, skip it here
-          updatedQuantities[materialId] = localQuantities[materialId]; 
-          updatedDisplayQuantities[materialId] = displayQuantities[materialId]; 
-          updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
-          continue;
-        }
-
-        if (userOverriddenWaste[materialId]) {
-          // User has set a specific waste for this item, so global does not apply
-          updatedQuantities[materialId] = localQuantities[materialId];
-          updatedDisplayQuantities[materialId] = displayQuantities[materialId];
-          updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
-          continue;
-        }
-
-        let overrideForCalc: number | undefined = newGlobalWasteDecimal;
-        if (material.category === MaterialCategory.SHINGLES) {
-          // For non-GAF, non-overridden shingles, global does not set an override, 
-          // so they use their 12% default from utils.ts
-          overrideForCalc = undefined;
-        }
-        // For VENTILATION and ACCESSORIES, they default to 0% waste. 
-        // If global waste is applied, it will override this 0% unless they have a per-item override.
-        // This behavior is implicitly handled by calculateMaterialQuantity if overrideForCalc is passed.
-        
-        const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
-          material,
-          measurements,
-          overrideForCalc,
-          dbWastePercentages // Pass database waste percentages
-        );
-        updatedQuantities[materialId] = newQuantity;
-        updatedMaterialWasteFactors[materialId] = actualWasteFactor; 
-
-        if (material.id === "gaf-timberline-hdz-sg") { 
-          updatedDisplayQuantities[materialId] = (newQuantity / 3).toFixed(1);
-        } else {
-          updatedDisplayQuantities[materialId] = newQuantity.toString();
-        }
-      }
-      setLocalQuantities(updatedQuantities);
-      setDisplayQuantities(updatedDisplayQuantities);
-      setMaterialWasteFactors(updatedMaterialWasteFactors); 
+  // Handle waste factor blur (heavy processing only when user finishes typing)
+  const handleWasteFactorBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const inputValue = e.target.value.trim();
+    const newGlobalWastePercentage = parseFloat(inputValue);
+    
+    // Validate and clamp the value
+    if (isNaN(newGlobalWastePercentage) || newGlobalWastePercentage < 0 || newGlobalWastePercentage > 50) {
+      // Invalid input - revert to current waste factor
+      setWasteFactorInput(wasteFactor.toString());
+      return;
     }
+    
+    const finalWasteValue = Math.round(newGlobalWastePercentage); // Round to integer
+    
+    // Only process if value actually changed
+    if (finalWasteValue === wasteFactor) {
+      setWasteFactorInput(finalWasteValue.toString()); // Normalize input display
+      return;
+    }
+
+    setWasteFactor(finalWasteValue);
+    setWasteFactorInput(finalWasteValue.toString()); // Normalize input display
+    isInternalChange.current = true;
+    
+    const newGlobalWasteDecimal = finalWasteValue / 100;
+    const updatedQuantities: { [key: string]: number } = {};
+    const updatedDisplayQuantities: { [key: string]: string } = {};
+    const updatedMaterialWasteFactors: { [key: string]: number } = {};
+    // User override flags are not changed by global waste factor changes
+
+    for (const materialId in localSelectedMaterials) {
+      const material = localSelectedMaterials[materialId];
+      
+      if (material.id === "gaf-timberline-hdz-sg") {
+        // GAF Timberline HDZ uses its own waste factor, skip it here
+        updatedQuantities[materialId] = localQuantities[materialId]; 
+        updatedDisplayQuantities[materialId] = displayQuantities[materialId]; 
+        updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
+        continue;
+      }
+
+      if (userOverriddenWaste[materialId]) {
+        // User has set a specific waste for this item, so global does not apply
+        updatedQuantities[materialId] = localQuantities[materialId];
+        updatedDisplayQuantities[materialId] = displayQuantities[materialId];
+        updatedMaterialWasteFactors[materialId] = materialWasteFactors[materialId];
+        continue;
+      }
+
+      let overrideForCalc: number | undefined = newGlobalWasteDecimal;
+      if (material.category === MaterialCategory.SHINGLES) {
+        // For non-GAF, non-overridden shingles, global does not set an override, 
+        // so they use their 12% default from utils.ts
+        overrideForCalc = undefined;
+      }
+      // For VENTILATION and ACCESSORIES, they default to 0% waste. 
+      // If global waste is applied, it will override this 0% unless they have a per-item override.
+      // This behavior is implicitly handled by calculateMaterialQuantity if overrideForCalc is passed.
+      
+      const { quantity: newQuantity, actualWasteFactor } = calculateMaterialQuantity(
+        material,
+        measurements,
+        overrideForCalc,
+        dbWastePercentages // Pass database waste percentages
+      );
+      updatedQuantities[materialId] = newQuantity;
+      updatedMaterialWasteFactors[materialId] = actualWasteFactor; 
+
+      if (material.id === "gaf-timberline-hdz-sg") { 
+        updatedDisplayQuantities[materialId] = (newQuantity / 3).toFixed(1);
+      } else {
+        updatedDisplayQuantities[materialId] = newQuantity.toString();
+      }
+    }
+    setLocalQuantities(updatedQuantities);
+    setDisplayQuantities(updatedDisplayQuantities);
+    setMaterialWasteFactors(updatedMaterialWasteFactors); 
   };
   
   // Handle GAF Timberline HDZ waste factor change
@@ -2276,7 +2304,16 @@ export function MaterialsSelectionTab({
              {/* Waste Factor Inputs */}
              <div className="flex items-center space-x-4 pb-4">
                <Label htmlFor="wasteFactor">Waste Factor:</Label>
-               <Input id="wasteFactor" type="number" value={wasteFactor} onChange={handleWasteFactorChange} className="w-24" min="0" max="50" />
+               <Input 
+                 id="wasteFactor" 
+                 type="number" 
+                 value={wasteFactorInput} 
+                 onChange={handleWasteFactorInputChange} 
+                 onBlur={handleWasteFactorBlur}
+                 className="w-24" 
+                 min="0" 
+                 max="50" 
+               />
                <span className="text-sm text-muted-foreground">%</span>
                <span className="text-sm text-muted-foreground">(Applies to all materials except GAF Timberline HDZ)</span>
              </div>
