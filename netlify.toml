@@ -9,5 +9,5 @@
   status = 200
 
 [build.environment]
-  # Set NODE_VERSION for the build
-  NODE_VERSION = "18" 
+  # Set NODE_VERSION for the build - Updated to match local environment
+  NODE_VERSION = "24" 
