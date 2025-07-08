@@ -78,8 +78,8 @@ export const ROOFING_MATERIALS: Material[] = [
     category: MaterialCategory.UNDERLAYMENTS,
     price: 87.88,
     unit: "Roll",
-    approxPerSquare: 8.79,
-    coverageRule: { description: "10 Squares/Roll (1000 sq ft)", calculation: "Steep Slope Area / 10 rounded up" } 
+    approxPerSquare: 1.76,
+    coverageRule: { description: "50 Squares/Roll (5000 sq ft)", calculation: "Steep Slope Area / 50 rounded up" } 
   },
   {
     id: "gaf-weatherwatch-ice-water-shield",
