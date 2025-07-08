@@ -446,11 +446,11 @@ export function LaborProfitTab({
 
         if (isLowSlopePitch && !(laborRates.includeLowSlopeLabor ?? true)) {
           console.log(`Skipping labor for low slope pitch ${pitchRaw} as includeLowSlopeLabor is false`);
-          return; // Skip this low slope pitch area
+          return; // Skip this low slope pitch area - no labor cost added
         }
         if (isSteepSlopePitch && !(laborRates.includeSteepSlopeLabor ?? true)) {
           console.log(`Skipping labor for steep slope pitch ${pitchRaw} as includeSteepSlopeLabor is false`);
-          return; // Skip this steep slope pitch area
+          return; // Skip this steep slope pitch area - no labor cost added
         }
         
         // Apply different labor rates based on pitch

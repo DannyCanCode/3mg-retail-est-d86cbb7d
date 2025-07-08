@@ -248,11 +248,11 @@ export function EstimateSummaryTab({
         const isLowSlopePitch = pitchValue >= 0 && pitchValue <= 2;
         const isStandardOrSteepSlopePitch = pitchValue >= 3;
 
-        if (isLowSlopePitch && (currentLaborRates.includeLowSlopeLabor === false)) {
+        if (isLowSlopePitch && !(currentLaborRates.includeLowSlopeLabor ?? true)) {
           console.log(`[SummaryTab] Skipping display labor for low slope pitch ${pitch} as includeLowSlopeLabor is false.`);
           return; 
         }
-        if (isStandardOrSteepSlopePitch && (currentLaborRates.includeSteepSlopeLabor === false)) {
+        if (isStandardOrSteepSlopePitch && !(currentLaborRates.includeSteepSlopeLabor ?? true)) {
           console.log(`[SummaryTab] Skipping display labor for steep slope pitch ${pitch} as includeSteepSlopeLabor is false.`);
           return; 
         }
@@ -290,7 +290,7 @@ export function EstimateSummaryTab({
           totalCost: rate * areaSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
           });
       });
-    } else if (totalSquares > 0 && (currentLaborRates.includeSteepSlopeLabor !== false) ){
+    } else if (totalSquares > 0 && (currentLaborRates.includeSteepSlopeLabor ?? true) ){
       // No pitch areas available, but total area exists. Apply standard rate if steep slope labor is included.
       laborCosts.push({ 
         name: "Labor (Tear Off & Installation)", 
@@ -302,7 +302,7 @@ export function EstimateSummaryTab({
   } else if (currentLaborRates.tearOff || currentLaborRates.installation) {
     // Backward compatibility: handle old format with separate rates
     // This path should also respect the toggles, assuming these rates apply to standard/steep.
-    if (currentLaborRates.includeSteepSlopeLabor !== false) {
+    if (currentLaborRates.includeSteepSlopeLabor ?? true) {
       const tearOff = currentLaborRates.tearOff || 0;
       const installation = currentLaborRates.installation || 0;
     
@@ -322,7 +322,7 @@ export function EstimateSummaryTab({
       });
       }
     }
-  } else if (totalSquares > 0 && (currentLaborRates.includeSteepSlopeLabor !== false)) {
+  } else if (totalSquares > 0 && (currentLaborRates.includeSteepSlopeLabor ?? true)) {
     // Fallback to default rate if neither format is available AND steep slope labor is included
     const defaultRate = 85;
     laborCosts.push({ 
