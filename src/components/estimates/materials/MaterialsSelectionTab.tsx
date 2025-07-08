@@ -350,7 +350,7 @@ export function MaterialsSelectionTab({
     
     // Don't notify parent if we just updated from parent props
     if (skipNextParentUpdate.current) {
-      if (hasChanges) console.log("[NotifyParentEffect] Skipping parent notification: skipNextParentUpdate is true.");
+      if (hasChanges) console.log("🔒 [NotifyParentEffect] Skipping parent notification: skipNextParentUpdate is true.");
       skipNextParentUpdate.current = false; // Reset for next potential update
       return;
     }
@@ -361,13 +361,12 @@ export function MaterialsSelectionTab({
       warrantyDetails?.price !== 0
     );
     
-    if (shouldLog) {
-      console.log("[NotifyParentEffect] Notifying parent of changes:", {
-        materials: Object.keys(localSelectedMaterials).length,
-        quantities: Object.keys(localQuantities).length,
-        warrantyPrice: warrantyDetails?.price || 0
-      });
-    }
+    console.log("📤 [NotifyParentEffect] Syncing to parent:", {
+      materials: Object.keys(localSelectedMaterials).length,
+      quantities: Object.keys(localQuantities).length,
+      quantitiesValues: localQuantities,
+      triggeredBy: shouldLog ? 'significant change' : 'regular update'
+    });
     
     isInternalChange.current = true;
     
@@ -932,9 +931,12 @@ export function MaterialsSelectionTab({
     const inputValue = e.target.value.trim();
     const newGlobalWastePercentage = parseFloat(inputValue);
     
+    console.log(`🔧 [WasteFactorBlur] Input: "${inputValue}" → Parsed: ${newGlobalWastePercentage}%`);
+    
     // Validate and clamp the value
     if (isNaN(newGlobalWastePercentage) || newGlobalWastePercentage < 0 || newGlobalWastePercentage > 50) {
       // Invalid input - revert to current waste factor
+      console.log(`❌ [WasteFactorBlur] Invalid input, reverting to ${wasteFactor}%`);
       setWasteFactorInput(wasteFactor.toString());
       return;
     }
@@ -943,10 +945,12 @@ export function MaterialsSelectionTab({
     
     // Only process if value actually changed
     if (finalWasteValue === wasteFactor) {
+      console.log(`⏭️ [WasteFactorBlur] No change: ${finalWasteValue}% = ${wasteFactor}%`);
       setWasteFactorInput(finalWasteValue.toString()); // Normalize input display
       return;
     }
 
+    console.log(`🎯 [WasteFactorBlur] Updating waste factor: ${wasteFactor}% → ${finalWasteValue}%`);
     setWasteFactor(finalWasteValue);
     setWasteFactorInput(finalWasteValue.toString()); // Normalize input display
       isInternalChange.current = true;
@@ -1001,9 +1005,12 @@ export function MaterialsSelectionTab({
           updatedDisplayQuantities[materialId] = newQuantity.toString();
         }
       }
+      console.log(`🔄 [WasteFactorBlur] Recalculated ${Object.keys(updatedQuantities).length} materials:`, updatedQuantities);
       setLocalQuantities(updatedQuantities);
       setDisplayQuantities(updatedDisplayQuantities);
-      setMaterialWasteFactors(updatedMaterialWasteFactors); 
+      setMaterialWasteFactors(updatedMaterialWasteFactors);
+      
+      console.log(`✅ [WasteFactorBlur] State updates completed - new global waste: ${finalWasteValue}%`); 
   }, [wasteFactor, localSelectedMaterials, localQuantities, displayQuantities, materialWasteFactors, userOverriddenWaste, measurements, dbWastePercentages]); // Dependencies for useCallback
   
   // Handle GAF Timberline HDZ waste factor change
