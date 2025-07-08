@@ -170,7 +170,7 @@ export function EstimateSummaryTab({
     dumpsterCount: laborRates?.dumpsterCount || 1,
     dumpsterRate: laborRates?.dumpsterRate || 400,
     includePermits: laborRates?.includePermits || true,
-    permitRate: laborRates?.permitRate || 550,
+    permitRate: laborRates?.permitRate || 450,
     pitchRates: laborRates?.pitchRates || {},
     wastePercentage: laborRates?.wastePercentage || 12,
     includeGutters: laborRates?.includeGutters || false,
@@ -217,6 +217,16 @@ export function EstimateSummaryTab({
   // Use the safeLaborRates which includes defaults and the new toggles
   const currentLaborRates = safeLaborRates; // Alias for clarity in this section
 
+  // 🔧 DEBUG: Log toggle states to help diagnose the issue
+  console.log("🔍 [EstimateSummaryTab] Labor toggle states:", {
+    includeLowSlopeLabor: currentLaborRates.includeLowSlopeLabor,
+    includeSteepSlopeLabor: currentLaborRates.includeSteepSlopeLabor,
+    originalLaborRates: {
+      includeLowSlopeLabor: laborRates?.includeLowSlopeLabor,
+      includeSteepSlopeLabor: laborRates?.includeSteepSlopeLabor
+    }
+  });
+
   // Add combined labor or backward compatibility with separate tear off/installation
   if (currentLaborRates.laborRate) {
     // Use combined labor rate - but apply pitch-specific rates for different areas
@@ -248,12 +258,20 @@ export function EstimateSummaryTab({
         const isLowSlopePitch = pitchValue >= 0 && pitchValue <= 2;
         const isStandardOrSteepSlopePitch = pitchValue >= 3;
 
+        // 🔧 DEBUG: Log each pitch area calculation
+        console.log(`🏠 [EstimateSummaryTab] Processing pitch: ${pitch} (${pitchValue}/12), squares: ${areaSquares}`, {
+          isLowSlopePitch,
+          isStandardOrSteepSlopePitch,
+          includeLowSlopeLabor: currentLaborRates.includeLowSlopeLabor,
+          includeSteepSlopeLabor: currentLaborRates.includeSteepSlopeLabor
+        });
+
         if (isLowSlopePitch && !(currentLaborRates.includeLowSlopeLabor ?? true)) {
-          console.log(`[SummaryTab] Skipping display labor for low slope pitch ${pitch} as includeLowSlopeLabor is false.`);
+          console.log(`⏭️ [SummaryTab] SKIPPING labor for low slope pitch ${pitch} - includeLowSlopeLabor is false`);
           return; 
         }
         if (isStandardOrSteepSlopePitch && !(currentLaborRates.includeSteepSlopeLabor ?? true)) {
-          console.log(`[SummaryTab] Skipping display labor for steep slope pitch ${pitch} as includeSteepSlopeLabor is false.`);
+          console.log(`⏭️ [SummaryTab] SKIPPING labor for steep slope pitch ${pitch} - includeSteepSlopeLabor is false`);
           return; 
         }
         
@@ -284,11 +302,14 @@ export function EstimateSummaryTab({
           itemNamePrefix = `Labor for ${pitch} Pitch (Low Slope)`;
         } // Standard rate (3/12-7/12) is already set in 'rate' by default
           
-          laborCosts.push({ 
-          name: `${itemNamePrefix} (${areaSquares} squares)`, 
+          const laborCost = {
+            name: `${itemNamePrefix} (${areaSquares} squares)`, 
             rate: rate, 
-          totalCost: rate * areaSquares * (1 + (currentLaborRates.wastePercentage || 12)/100) 
-          });
+            totalCost: rate * areaSquares * (1 + (currentLaborRates.wastePercentage || 12)/100)
+          };
+          
+          console.log(`✅ [SummaryTab] ADDING labor cost: ${laborCost.name} - $${laborCost.totalCost.toFixed(2)}`);
+          laborCosts.push(laborCost);
       });
     } else if (totalSquares > 0 && (currentLaborRates.includeSteepSlopeLabor ?? true) ){
       // No pitch areas available, but total area exists. Apply standard rate if steep slope labor is included.
