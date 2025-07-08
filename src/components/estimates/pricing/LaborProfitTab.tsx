@@ -1173,7 +1173,7 @@ export function LaborProfitTab({
                 id="includeLowSlopeLabor"
                 checked={laborRates.includeLowSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeLowSlopeLabor", checked)}
-                disabled={!canEditLaborRates()}
+                disabled={!canEditQuantitiesAndToggles()}
               />
               <div className="flex-1">
                 <Label htmlFor="includeLowSlopeLabor" className="font-medium">
@@ -1190,7 +1190,7 @@ export function LaborProfitTab({
                 id="includeSteepSlopeLabor"
                 checked={laborRates.includeSteepSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeSteepSlopeLabor", checked)}
-                disabled={!canEditLaborRates()}
+                disabled={!canEditQuantitiesAndToggles()}
               />
               <div className="flex-1">
                 <Label htmlFor="includeSteepSlopeLabor" className="font-medium">
