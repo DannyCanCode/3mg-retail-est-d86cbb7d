@@ -226,7 +226,17 @@ export function LaborProfitTab({
   ]); 
 
   const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates) => {
-    setLaborRates(prev => updater(prev));
+    setLaborRates(prev => {
+      const newState = updater(prev);
+      // 🔧 CRITICAL FIX: Always sync state changes to parent to prevent stale data in Summary tab
+      if (hasUserInteracted.current && onLaborProfitContinue) {
+        // Use setTimeout to ensure state update completes first
+        setTimeout(() => {
+          onLaborProfitContinue(newState, profitMargin);
+        }, 0);
+      }
+      return newState;
+    });
     hasUserInteracted.current = true;
   };
   
@@ -332,7 +342,15 @@ export function LaborProfitTab({
   };
   
   const handleProfitMarginChange = (value: number[]) => {
-    setProfitMargin(value[0]);
+    const newMargin = value[0];
+    setProfitMargin(newMargin);
+    
+    // 🔧 CRITICAL FIX: Sync profit margin changes immediately to parent
+    if (onLaborProfitContinue) {
+      setTimeout(() => {
+        onLaborProfitContinue(laborRates, newMargin);
+      }, 0);
+    }
   };
   
   const handleProfitMarginCommit = (value: number[]) => {
