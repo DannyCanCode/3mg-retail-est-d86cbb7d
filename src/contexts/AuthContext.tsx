@@ -184,12 +184,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const { data: { user } } = await supabase.auth.getUser();
           const userEmail = user?.email?.toLowerCase() || '';
           
-          // Known admin emails - these should have admin privileges
+          // Known admin emails - these should have admin priveges
           const adminEmails = [
             'daniel.pedraza@3mgroofing.com',
             'connor@3mgroofing.com',
             'jay.moroff@3mgroofing.com',
-            'tyler.powell@3mgroofing.com'
+            'tyler.powell@3mgroofing.com',
+            'nickolas.nell@3mgroofing.com',
+            'harrison.cremata@3mgroofing.com'
           ];
           
           // Known manager emails with their territory assignments
@@ -199,7 +201,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           };
           
           let defaultRole = 'rep';
-          let shouldCompleteOnboarding = false;
+          let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
           let territoryId = null;
           
           if (adminEmails.includes(userEmail)) {
@@ -212,7 +214,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             territoryId = managerConfig[userEmail];
           } else if (userEmail.endsWith('@3mgroofing.com')) {
             defaultRole = 'rep';
-            shouldCompleteOnboarding = false;
+            shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
             territoryId = null;
           }
           
@@ -305,7 +307,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             };
             
             let defaultRole = 'rep';
-            let shouldCompleteOnboarding = false;
+            let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
             let territoryId = null;
             
             if (adminEmails.includes(userEmail)) {
@@ -318,7 +320,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               territoryId = managerConfig[userEmail];
             } else if (userEmail.endsWith('@3mgroofing.com')) {
               defaultRole = 'rep';
-              shouldCompleteOnboarding = false;
+              shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
               territoryId = null;
             }
             
@@ -338,7 +340,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             return {
               id: userId,
               role: 'rep',
-              completed_onboarding: false,
+              completed_onboarding: true, // FIXED: Always true to prevent onboarding redirect
               full_name: null,
               org_id: null,
               territory_id: null
@@ -371,7 +373,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             ];
       
       let defaultRole = 'rep';
-      let shouldCompleteOnboarding = false;
+      let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
       
       if (adminEmails.includes(userEmail)) {
         defaultRole = 'admin';
@@ -381,7 +383,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         shouldCompleteOnboarding = true;
       } else if (userEmail.endsWith('@3mgroofing.com')) {
         defaultRole = 'rep';
-        shouldCompleteOnboarding = false;
+        shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
       }
       
       return {
@@ -565,7 +567,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 };
                 
                 let defaultRole = 'rep';
-                let shouldCompleteOnboarding = false;
+                let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
                 let territoryId = null;
                 
                 if (adminEmails.includes(userEmail)) {
@@ -578,7 +580,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   territoryId = managerConfig[userEmail];
                 } else if (userEmail.endsWith('@3mgroofing.com')) {
                   defaultRole = 'rep';
-                  shouldCompleteOnboarding = false;
+                  shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
                   territoryId = null;
                 }
                 
@@ -595,7 +597,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setProfile({
                   id: session.user.id,
                   role: 'rep',
-                  completed_onboarding: false,
+                  completed_onboarding: true, // FIXED: Always true to prevent onboarding redirect
                   full_name: null,
                   org_id: null,
                   territory_id: null

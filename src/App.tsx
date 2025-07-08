@@ -142,7 +142,9 @@ const AppRouter = () => {
     );
   }
 
-  if (profile && !profile.completed_onboarding) {
+  // DISABLED: Onboarding flow is no longer used - all users should go directly to main app
+  // This prevents the old onboarding UI from appearing when auth context reloads
+  if (false && profile && !profile.completed_onboarding) {
     return (
       <Routes>
         <Route path="/onboarding" element={<Onboarding />} />
@@ -156,6 +158,7 @@ const AppRouter = () => {
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/check-email" element={<CheckEmailPage />} />
       <Route path="/onboarding" element={<Navigate to="/" replace />} />
+      {/* DISABLED: Old onboarding route - always redirect to home */}
       
       <Route path="/" element={<ProtectedLayout />}>
         <Route index element={<Index />} />

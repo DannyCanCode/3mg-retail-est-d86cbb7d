@@ -73,7 +73,7 @@ const ProtectedLayout: React.FC = () => {
     if (user && profile) {
       // User is authenticated and profile is loaded
       const isAdmin = profile.role === 'admin';
-      const needsOnboarding = !profile.completed_onboarding && !isAdmin;
+      const needsOnboarding = false; // DISABLED: Onboarding flow no longer used
       const isOnOnboardingPage = location.pathname === '/onboarding';
       
       if (import.meta.env.DEV) {
