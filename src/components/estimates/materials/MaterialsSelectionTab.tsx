@@ -30,6 +30,7 @@ import { getAllMaterialWastePercentages, updateMaterialWastePercentage } from "@
 import { supabase } from "@/integrations/supabase/client"; // Added supabase import
 import { determineWasteFactor } from "./utils";
 import { useAuth } from '@/contexts/AuthContext';
+import { useRoleAccess } from "@/components/RoleGuard";
 
 // *** UPDATED LOG HERE ***
 console.log("[MaterialsSelectionTab] Component Code Loaded - Version Check: WASTE FACTOR UPDATE v1"); 
@@ -161,6 +162,7 @@ export function MaterialsSelectionTab({
   const [newTemplateDescription, setNewTemplateDescription] = useState("");
   
   const { profile } = useAuth();
+  const { isManager } = useRoleAccess();
   const userRole = profile?.role;
 
   // Determine if user can edit material prices based on role
@@ -1234,8 +1236,13 @@ export function MaterialsSelectionTab({
       'coil-nails-ring-shank'
     ];
     
+    // 🎯 TERRITORY MANAGER OVERRIDE: Allow Territory Managers to delete individual GAF package materials
     if (gafPackageMaterialIds.includes(materialId) && selectedPackage) {
-      return true;
+      // Territory Managers can delete individual materials even from GAF packages
+      if (isManager) {
+        return false; // Not mandatory for Territory Managers - they can delete
+      }
+      return true; // Mandatory for other users (Sales Reps, etc.)
     }
     
     return false;
