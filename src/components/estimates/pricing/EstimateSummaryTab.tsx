@@ -353,10 +353,16 @@ export function EstimateSummaryTab({
   
   // Add permit costs if included
   if (safeLaborRates.includePermits) {
+    // Calculate total permit cost: base permit + (additional permits × additional rate)
+    const baseCost = safeLaborRates.permitRate || (safeLaborRates.dumpsterLocation === "orlando" ? 450 : 550);
+    const additionalPermits = Math.max(0, (laborRates.permitCount || 1) - 1);
+    const additionalCost = additionalPermits * (laborRates.permitAdditionalRate || 450);
+    const totalPermitCost = baseCost + additionalCost;
+    
     laborCosts.push({
       name: `Permits (${safeLaborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"})`,
       rate: safeLaborRates.permitRate,
-      totalCost: safeLaborRates.permitRate
+      totalCost: totalPermitCost
     });
   }
   
@@ -366,6 +372,15 @@ export function EstimateSummaryTab({
       name: `6" Aluminum Seamless Gutters (${safeLaborRates.gutterLinearFeet} linear ft)`,
       rate: safeLaborRates.gutterRate,
       totalCost: safeLaborRates.gutterRate * safeLaborRates.gutterLinearFeet
+    });
+  }
+  
+  // Add detach and reset gutters if included
+  if (laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet > 0) {
+    laborCosts.push({
+      name: `Detach and Reset Gutters (${laborRates.detachResetGutterLinearFeet} linear ft)`,
+      rate: laborRates.detachResetGutterRate || 1,
+      totalCost: (laborRates.detachResetGutterRate || 1) * laborRates.detachResetGutterLinearFeet
     });
   }
   
