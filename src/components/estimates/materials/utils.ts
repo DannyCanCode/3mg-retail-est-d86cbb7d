@@ -180,7 +180,7 @@ export const calculateMaterialQuantity = (
       // Default to 4 squares per roll if no specific coverage found, which is 400 sq ft.
       // For GAF WeatherWatch, its description is "1.5 Squares/Roll (150 sq ft)"
       // extractCoverageValue would get 1.5 from description.
-      const squaresPerRoll = material.coverageAmount || extractCoverageValue(material.coverageRule.description) || 4; 
+      const squaresPerRoll = material.coverageAmount || extractCoverageValue(material.coverageRule.description) || 4;
       console.log(`[CalcQuantity] Underlayment: Squares=${totalSquares.toFixed(2)}, Sq/Roll=${squaresPerRoll}`);
       // For underlayment, only apply waste if it's NOT abc-pro-guard-20 (Rhino) because Rhino already factors its specific area.
       // GAF WeatherWatch also handles its own waste application in the block above.
@@ -242,7 +242,7 @@ export const calculateMaterialQuantity = (
         const lowSlopeAreaWithWaste = lowSlopeAreaSqFt * (1 + actualWasteFactor);
         // 🔧 FIXED: Base covers 200 sq ft per roll → Area ÷ 200 × waste then round up
         const coverageSqFtPerRoll = 200;
-        quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
+            quantity = Math.ceil(lowSlopeAreaWithWaste / coverageSqFtPerRoll);
         console.log(`[CalcQuantity] SBS Base (0-2 pitch): Used ${lowSlopeAreaSqFt.toFixed(1)} sq ft area, ÷ ${coverageSqFtPerRoll} sq ft/roll = ${quantity} rolls`);
         
     } else if (material.id === "polyglass-polyflex-app") {

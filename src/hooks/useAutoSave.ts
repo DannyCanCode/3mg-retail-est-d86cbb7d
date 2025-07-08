@@ -191,7 +191,7 @@ export function useAutoSave(
   const performSave = useCallback(async (dataToSave: EstimateData): Promise<void> => {
     if (!isLeader || saveInProgress.current || !mounted.current) {
       if (import.meta.env.DEV || localStorage.getItem('debug_auto_save') === 'true') {
-        console.log('[useAutoSave] Save skipped:', { isLeader, saveInProgress: saveInProgress.current, mounted: mounted.current });
+      console.log('[useAutoSave] Save skipped:', { isLeader, saveInProgress: saveInProgress.current, mounted: mounted.current });
       }
       return;
     }
@@ -205,7 +205,7 @@ export function useAutoSave(
       const dataSize = getDataSize(dataToSave);
 
       if (import.meta.env.DEV || localStorage.getItem('debug_auto_save') === 'true') {
-        console.log(`[useAutoSave] Starting save for ${finalEstimateId}, size: ${dataSize} bytes`);
+      console.log(`[useAutoSave] Starting save for ${finalEstimateId}, size: ${dataSize} bytes`);
       }
 
       // Validate data if validation function provided
@@ -226,7 +226,7 @@ export function useAutoSave(
         setIsDirty(false);
         
         if (import.meta.env.DEV || localStorage.getItem('debug_auto_save') === 'true') {
-          console.log(`[useAutoSave] Save completed in ${duration}ms, version: ${result.version}`);
+        console.log(`[useAutoSave] Save completed in ${duration}ms, version: ${result.version}`);
         }
         
         // Set status back to idle after brief success indication
@@ -375,7 +375,7 @@ export function useAutoSave(
         try {
           // Only log when debug mode is enabled or in development
           if (import.meta.env.DEV || localStorage.getItem('debug_auto_save') === 'true') {
-            console.log(`[useAutoSave] 🔄 HYDRATING: Loading saved data for ${finalEstimateId}`);
+          console.log(`[useAutoSave] 🔄 HYDRATING: Loading saved data for ${finalEstimateId}`);
           }
           const existingData = await storageAdapter.load(estimateKey);
           
@@ -387,7 +387,7 @@ export function useAutoSave(
           } else {
             // Only log no data found in debug mode to reduce console noise
             if (import.meta.env.DEV || localStorage.getItem('debug_auto_save') === 'true') {
-              console.log(`[useAutoSave] 🔍 HYDRATION: No existing data found for ${finalEstimateId}`);
+            console.log(`[useAutoSave] 🔍 HYDRATION: No existing data found for ${finalEstimateId}`);
             }
           }
         } catch (error) {

@@ -62,7 +62,7 @@ const ManagerDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
+      fetchData();
   }, [profile?.id]);
 
   const fetchData = async () => {
@@ -199,7 +199,7 @@ const ManagerDashboard: React.FC = () => {
       
       if (!estimateId) {
         throw new Error('Estimate ID is required');
-      }
+    }
       
       // For territory managers: only hide from frontend (don't actually delete from database)
       hideEstimate(estimateId);
@@ -356,32 +356,32 @@ const ManagerDashboard: React.FC = () => {
         </CardContent>
         
         {/* Manager Actions - Available for all estimates */}
-        <CardContent className="p-3 pt-0">
+          <CardContent className="p-3 pt-0">
           <div className="grid grid-cols-2 gap-2 mb-2">
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => handleViewDetails(estimate)}
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => handleViewDetails(estimate)}
               className="text-xs"
-            >
-              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              View
-            </Button>
-            
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => handleEditEstimate(estimate)}
+              >
+                <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+                View
+              </Button>
+              
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => handleEditEstimate(estimate)}
               className="text-xs"
-            >
-              <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit
-            </Button>
+                >
+                  <svg className="h-3 w-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  Edit
+                </Button>
           </div>
           
           {/* Conditional action buttons based on status */}
@@ -441,7 +441,7 @@ const ManagerDashboard: React.FC = () => {
               </Button>
             </div>
           )}
-        </CardContent>
+          </CardContent>
         
 
         

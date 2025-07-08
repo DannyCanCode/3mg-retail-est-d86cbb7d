@@ -287,7 +287,7 @@ export const AdminEstimateManagement: React.FC = () => {
       estimate.customer_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       estimate.creator_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       estimate.id?.toLowerCase().includes(searchTerm.toLowerCase());
-
+    
     return matchesSearch;
   });
 

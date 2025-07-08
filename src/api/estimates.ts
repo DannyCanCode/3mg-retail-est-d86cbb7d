@@ -695,7 +695,7 @@ export const generateEstimatePdf = async (id: string): Promise<{
     console.log(`📄 [API] Starting PDF generation for estimate ${id}`);
     
     if (!isSupabaseConfigured()) {
-      return { 
+    return { 
         data: null, 
         error: new Error("Supabase not configured") 
       };

@@ -31,7 +31,7 @@ VITE_POSTHOG_API_KEY=phx_your_personal_api_key_here
 ✅ **Working**: You see the green "🔗 Live PostHog API" badge  
 ❌ **Not Working**: You see the amber "📊 Mock Data" badge
 
-Check browser console for any API connection errors.
+Check browser console for any API connection errors. 
 
 ## Debug Logging
 

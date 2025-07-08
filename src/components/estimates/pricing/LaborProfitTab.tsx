@@ -216,8 +216,8 @@ export function LaborProfitTab({
     }
     
     if (hasUserInteracted.current && onLaborProfitContinue) {
-      onLaborProfitContinue(laborRates, profitMargin);
-    }
+        onLaborProfitContinue(laborRates, profitMargin);
+      }
   }, [
     // 🔧 MINIMAL DEPENDENCIES: Only laborRate and profitMargin to prevent excessive re-renders
     laborRates.laborRate,
@@ -813,9 +813,9 @@ export function LaborProfitTab({
             
             {!!laborRates.includeGutters && (
               <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                    <Label htmlFor="gutterLinearFeet">Linear Feet</Label>
-                    <Input
+                <div className="space-y-2">
+                  <Label htmlFor="gutterLinearFeet">Linear Feet</Label>
+                                      <Input
                       id="gutterLinearFeet"
                       type="number"
                       defaultValue={(laborRates.gutterLinearFeet || 0).toString()}
@@ -853,29 +853,29 @@ export function LaborProfitTab({
             
             {!!laborRates.includeDetachResetGutters && (
               <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                    <Label htmlFor="detachResetGutterLinearFeet">Linear Feet</Label>
-                    <Input
-                      id="detachResetGutterLinearFeet"
-                      type="number"
-                      defaultValue={(laborRates.detachResetGutterLinearFeet || 0).toString()}
-                      onBlur={(e) => handleLaborRateChange("detachResetGutterLinearFeet", e.target.value)}
-                      key={`detachResetGutterLinearFeet-${laborRates.detachResetGutterLinearFeet}`}
-                      min="0"
-                      step="1"
+                <div className="space-y-2">
+                  <Label htmlFor="detachResetGutterLinearFeet">Linear Feet</Label>
+                  <Input
+                    id="detachResetGutterLinearFeet"
+                    type="number"
+                    defaultValue={(laborRates.detachResetGutterLinearFeet || 0).toString()}
+                    onBlur={(e) => handleLaborRateChange("detachResetGutterLinearFeet", e.target.value)}
+                    key={`detachResetGutterLinearFeet-${laborRates.detachResetGutterLinearFeet}`}
+                    min="0"
+                    step="1"
                       disabled={!canEditQuantitiesAndToggles()}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="detachResetGutterTotal">Total Detach/Reset Cost</Label>
-                    <Input
-                      id="detachResetGutterTotal"
-                      type="text"
-                      value={`$${((laborRates.detachResetGutterLinearFeet || 0) * (laborRates.detachResetGutterRate || 1)).toFixed(2)}`}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  </div>
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="detachResetGutterTotal">Total Detach/Reset Cost</Label>
+                  <Input
+                    id="detachResetGutterTotal"
+                    type="text"
+                    value={`$${((laborRates.detachResetGutterLinearFeet || 0) * (laborRates.detachResetGutterRate || 1)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
               </div>
             )}
             
@@ -893,29 +893,29 @@ export function LaborProfitTab({
             
             {!!laborRates.includeDownspouts && (
               <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                    <Label htmlFor="downspoutCount">Number of Downspouts</Label>
-                    <Input
-                      id="downspoutCount"
-                      type="number"
-                      defaultValue={(laborRates.downspoutCount || 0).toString()}
-                      onBlur={(e) => handleLaborRateChange("downspoutCount", e.target.value)}
-                      key={`downspoutCount-${laborRates.downspoutCount}`}
-                      min="0"
-                      step="1"
+                <div className="space-y-2">
+                  <Label htmlFor="downspoutCount">Number of Downspouts</Label>
+                  <Input
+                    id="downspoutCount"
+                    type="number"
+                    defaultValue={(laborRates.downspoutCount || 0).toString()}
+                    onBlur={(e) => handleLaborRateChange("downspoutCount", e.target.value)}
+                    key={`downspoutCount-${laborRates.downspoutCount}`}
+                    min="0"
+                    step="1"
                       disabled={!canEditQuantitiesAndToggles()}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="downspoutTotal">Total Downspout Cost</Label>
-                    <Input
-                      id="downspoutTotal"
-                      type="text"
-                      value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 75)).toFixed(2)}`}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  </div>
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="downspoutTotal">Total Downspout Cost</Label>
+                  <Input
+                    id="downspoutTotal"
+                    type="text"
+                    value={`$${((laborRates.downspoutCount || 0) * (laborRates.downspoutRate || 75)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -980,16 +980,16 @@ export function LaborProfitTab({
                     </Button>
                   </div>
                 </div>
-                                  <div className="space-y-2">
-                    <Label htmlFor="skylights2x2Total">Total 2X2 Skylight Cost</Label>
-                    <Input
-                      id="skylights2x2Total"
-                      type="text"
-                      value={`$${((laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280)).toFixed(2)}`}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x2Total">Total 2X2 Skylight Cost</Label>
+                  <Input
+                    id="skylights2x2Total"
+                    type="text"
+                    value={`$${((laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
               </div>
             )}
             
@@ -1046,16 +1046,16 @@ export function LaborProfitTab({
                     </Button>
                   </div>
                 </div>
-                                  <div className="space-y-2">
-                    <Label htmlFor="skylights2x4Total">Total 2X4 Skylight Cost</Label>
-                    <Input
-                      id="skylights2x4Total"
-                      type="text"
-                      value={`$${((laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370)).toFixed(2)}`}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="skylights2x4Total">Total 2X4 Skylight Cost</Label>
+                  <Input
+                    id="skylights2x4Total"
+                    type="text"
+                    value={`$${((laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370)).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                  />
+                </div>
               </div>
             )}
           </div>
@@ -1178,11 +1178,11 @@ export function LaborProfitTab({
               <div className="flex-1">
                 <Label htmlFor="includeLowSlopeLabor" className="font-medium">
                   Include Low Slope Labor (0/12-2/12)
-                </Label>
+              </Label>
                 <p className="text-sm text-muted-foreground mt-1">
                   Enable labor calculation for flat and low slope roof areas
                 </p>
-              </div>
+            </div>
             </div>
             
             <div className="flex items-center space-x-4 p-3 border rounded-md">
@@ -1195,7 +1195,7 @@ export function LaborProfitTab({
               <div className="flex-1">
                 <Label htmlFor="includeSteepSlopeLabor" className="font-medium">
                   Include Steep Slope Labor (3/12+)
-                </Label>
+              </Label>
                 <p className="text-sm text-muted-foreground mt-1">
                   Enable labor calculation for standard and steep slope roof areas
                 </p>

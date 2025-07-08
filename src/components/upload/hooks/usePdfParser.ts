@@ -131,7 +131,7 @@ export function usePdfParser() {
           console.log("📤 File type:", file.type);
           fileUrl = await uploadPdfToStorage(file);
           console.log("✅ PDF uploaded successfully, URL:", fileUrl?.substring(0, 50) + "...");
-          setFileUrl(fileUrl);
+              setFileUrl(fileUrl);
         } catch (uploadError: any) {
           console.error("❌ PDF upload to Supabase failed:", uploadError);
           console.error("❌ Upload error details:", uploadError?.message || uploadError);

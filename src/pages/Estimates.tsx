@@ -317,9 +317,9 @@ const Estimates = () => {
       }
     };
     
-      // Run corruption detection on component mount
-  detectAndCleanCorruptedData();
-}, [toast]);
+    // Run corruption detection on component mount
+    detectAndCleanCorruptedData();
+  }, [toast]);
 
   const [storedFileName, setStoredFileName] = useLocalStorage<string>("estimatePdfFileName", "");
   const [storedPdfUrl, setStoredPdfUrl] = useLocalStorage<string | null>("estimatePdfUrl", null);
@@ -393,13 +393,13 @@ const Estimates = () => {
       // Only allow ID changes when we're intentionally starting fresh
       if (isStartingFresh) {
         console.log("🔄 [ESTIMATE ID] Start Fresh: Changed from", stableEstimateIdRef.current, "to", autoSaveEstimateId);
-        stableEstimateIdRef.current = autoSaveEstimateId;
+      stableEstimateIdRef.current = autoSaveEstimateId;
       } else {
         // 🛑 PREVENT UNINTENTIONAL ID CHANGES: Block estimate ID changes during normal workflow
         console.log("🛑 [ESTIMATE ID] Blocked unintentional change during workflow. Keeping:", stableEstimateIdRef.current);
         // Reset the state back to the stable ID to prevent conflicts
         setAutoSaveEstimateId(stableEstimateIdRef.current);
-      }
+    }
     }
   }, [autoSaveEstimateId, isStartingFresh]);
   
@@ -542,28 +542,28 @@ const Estimates = () => {
           // Only trigger Start Fresh if NO data exists anywhere AND we haven't recovered yet
           if (!hasSignificantData && activeTab === "type-selection" && !hasRecoveredData) {
             console.log("NEW ESTIMATE: Starting fresh workflow - no existing data");
-            setUserWantsFreshStart(true);
-            setActiveTab("type-selection");
-            setStoredActiveTab("type-selection");
-            setHasRecoveredData(true); // Mark as recovered to prevent further attempts
-            
-            // Clear localStorage data for fresh start
-            setTimeout(() => {
-              setStoredSelectedMaterials({});
-              setStoredQuantities({});
-              setStoredPeelStickCost("0.00");
-              setStoredEstimateType(null);
-              setStoredSelectedSubtrades([]);
-              
-              // Reset fresh start flag after component stabilizes
-              setUserWantsFreshStart(false);
-            }, 100);
+        setUserWantsFreshStart(true);
+        setActiveTab("type-selection");
+        setStoredActiveTab("type-selection");
+        setHasRecoveredData(true); // Mark as recovered to prevent further attempts
+        
+        // Clear localStorage data for fresh start
+        setTimeout(() => {
+          setStoredSelectedMaterials({});
+          setStoredQuantities({});
+          setStoredPeelStickCost("0.00");
+          setStoredEstimateType(null);
+          setStoredSelectedSubtrades([]);
+          
+          // Reset fresh start flag after component stabilizes
+          setUserWantsFreshStart(false);
+        }, 100);
           } else if (hasSignificantData) {
             console.log("NEW ESTIMATE: User has existing data - preserving current workflow state");
             // Don't force type-selection if user is in middle of estimate workflow
-          }
-        }, 100); // 100ms delay to allow localStorage to be read first
       }
+        }, 100); // 100ms delay to allow localStorage to be read first
+    }
     }
   }, [estimateId, measurementId, hasRecoveredData]);
   
@@ -661,7 +661,7 @@ const Estimates = () => {
     // Recovery Phase 1: Basic PDF & Measurement Data
       if (storedPdfData && !extractedPdfData) {
         setExtractedPdfData(storedPdfData);
-        console.log("✅ Recovered PDF data:", storedPdfData.propertyAddress || 'Unknown address');
+      console.log("✅ Recovered PDF data:", storedPdfData.propertyAddress || 'Unknown address');
         console.log("🔧 [BACKUP RECOVERY] localStorage recovery successful - Supabase hydration not available or failed");
       }
       
@@ -675,8 +675,8 @@ const Estimates = () => {
       
       if (storedFileName && !pdfFileName) {
         setPdfFileName(storedFileName);
-        console.log("✅ Recovered filename:", storedFileName);
-      }
+      console.log("✅ Recovered filename:", storedFileName);
+    }
       
       if (storedPdfUrl && !pdfUrl) {
         setPdfUrl(storedPdfUrl);
@@ -1364,11 +1364,11 @@ const Estimates = () => {
     localStorage.removeItem("estimateExtractedPdfData");
     
     // 🔧 IMMEDIATE SAVE FIX: Save PDF data to localStorage immediately to prevent loss on navigation
-    setStoredPdfData(data);
-    setStoredFileName(fileName);
+      setStoredPdfData(data);
+      setStoredFileName(fileName);
     setStoredPdfUrl(fileUrl || null);  // Store PDF URL in localStorage
-    // DISABLED: setStoredMeasurements(freshMeasurementsWithTimestamp); // Causes pitch corruption
-    
+      // DISABLED: setStoredMeasurements(freshMeasurementsWithTimestamp); // Causes pitch corruption
+      
     // 🔧 RAPID NAVIGATION PROTECTION: Use beforeunload to ensure persistence even on immediate navigation
     const handleBeforeUnload = () => {
       // Emergency backup save using synchronous localStorage (already done above)
@@ -1392,7 +1392,7 @@ const Estimates = () => {
     setMeasurements(freshMeasurementsWithTimestamp);
     
     // Mark as recovered to prevent interference with fresh data
-    setHasRecoveredData(true);
+      setHasRecoveredData(true);
     
     // 🔧 AUTO-NAVIGATION: Automatically navigate to simplified measurements review
     setActiveTab("measurements");
@@ -1549,25 +1549,25 @@ const Estimates = () => {
       });
     } else {
       console.log('✨ [ESTIMATE CREATE] Creating new estimate');
-      // Track estimate creation in PostHog
-      trackEstimateCreated({
-        territory: profile?.territory_id || "unknown",
-        packageType: estimateType || "roof_only",
-        estimateValue: liveTotal,
-        userRole: creatorRole
-      });
-      
-      // Track additional estimate details
-      trackEvent('estimate_finalized', {
-        creator_name: creatorName,
-        creator_role: creatorRole,
-        customer_address: measurements.propertyAddress || "Address not provided",
-        total_price: liveTotal,
-        material_count: Object.keys(selectedMaterials).length,
-        roof_area: measurements.totalArea,
-        estimate_type: estimateType,
-        timestamp: new Date().toISOString()
-      });
+    // Track estimate creation in PostHog
+    trackEstimateCreated({
+      territory: profile?.territory_id || "unknown",
+      packageType: estimateType || "roof_only",
+      estimateValue: liveTotal,
+      userRole: creatorRole
+    });
+    
+    // Track additional estimate details
+    trackEvent('estimate_finalized', {
+      creator_name: creatorName,
+      creator_role: creatorRole,
+      customer_address: measurements.propertyAddress || "Address not provided",
+      total_price: liveTotal,
+      material_count: Object.keys(selectedMaterials).length,
+      roof_area: measurements.totalArea,
+      estimate_type: estimateType,
+      timestamp: new Date().toISOString()
+    });
     }
     
     const estimatePayload: any = { // Use 'any' type to allow additional fields
@@ -1651,19 +1651,19 @@ const Estimates = () => {
           }, 1000);
         } else {
           // For new estimates, show creation message and navigate to dashboard
-          toast({
-            title: "Estimate Finalized",
-            description: "Your estimate has been saved and is pending approval.",
-          });
+        toast({
+          title: "Estimate Finalized",
+          description: "Your estimate has been saved and is pending approval.",
+        });
+        
+        // Navigate to the dashboard after a short delay
+        setTimeout(() => {
+          // Reset the estimate form
+          handleClearEstimate();
           
-          // Navigate to the dashboard after a short delay
-          setTimeout(() => {
-            // Reset the estimate form
-            handleClearEstimate();
-            
-            // Navigate to the dashboard
-            navigate("/");
-          }, 1500);
+          // Navigate to the dashboard
+          navigate("/");
+        }, 1500);
         }
       })
       .catch(unexpectedError => {
@@ -2641,7 +2641,7 @@ const Estimates = () => {
                   value={activeTab} 
                   onValueChange={(value) => {
                     if (import.meta.env.DEV) {
-                      console.log(`Tab changing from ${activeTab} to ${value}`);
+                    console.log(`Tab changing from ${activeTab} to ${value}`);
                     }
                     
                     // CRITICAL FIX: Prevent white screen during tab switching
@@ -2670,7 +2670,7 @@ const Estimates = () => {
                           setStoredActiveTab(value);
                         }
                         if (import.meta.env.DEV) {
-                          console.log(`Tab changed, activeTab is now ${value}`);
+                        console.log(`Tab changed, activeTab is now ${value}`);
                         }
                       });
                     });
@@ -3130,7 +3130,7 @@ const Estimates = () => {
                         }
 
                         if (import.meta.env.DEV) {
-                          console.log(`Main Continue button: Navigating from ${activeTab} to ${nextTab}`);
+                        console.log(`Main Continue button: Navigating from ${activeTab} to ${nextTab}`);
                         }
                         setActiveTab(nextTab);
                       }
