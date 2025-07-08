@@ -1257,6 +1257,30 @@ export function MaterialsSelectionTab({
     ];
     return lowSlopeMaterialIds.includes(materialId) && showLowSlope;
   };
+
+  // 🎨 VISUAL STYLING: Check if material is auto-selected (for blue highlighting)
+  const isAutoSelectedMaterial = (materialId: string): boolean => {
+    const gafPackageMaterialIds = [
+      'gaf-timberline-hdz-sg',
+      'gaf-prostart-starter-shingle-strip',
+      'gaf-seal-a-ridge',
+      'gaf-weatherwatch-ice-water-shield',
+      'abc-pro-guard-20',
+      'gaf-feltbuster-synthetic-underlayment',
+      'gaf-cobra-rigid-vent',
+      'adjustable-lead-pipe-flashing-4inch',
+      'master-sealant',
+      'cdx-plywood',
+      'millennium-galvanized-drip-edge',
+      'karnak-flashing-cement',
+      '1inch-plastic-cap-nails',
+      'abc-electro-galvanized-coil-nails',
+      'coil-nails-ring-shank'
+    ];
+    
+    // Show blue styling for GAF package materials when package is selected
+    return gafPackageMaterialIds.includes(materialId) && !!selectedPackage;
+  };
   
   // Format calculation logic with actual measurements and show estimated quantity
   const formatCalculationWithMeasurements = (material: Material): string => {
@@ -1417,6 +1441,7 @@ export function MaterialsSelectionTab({
     const bundleQuantity = localQuantities[materialId] || 0;
     const isMandatory = material.name && isMandatoryMaterial(materialId, material.name);
     const isLowSlope = isLowSlopeMaterial(materialId);
+    const isAutoSelected = isAutoSelectedMaterial(materialId);
     
     // Ensure waste factor exists, falling back to the default for the material if not in state yet.
     const currentWasteFactorForMaterial = materialWasteFactors[materialId] ?? determineWasteFactor(material, undefined, dbWastePercentages); 
@@ -1548,7 +1573,7 @@ export function MaterialsSelectionTab({
     const getContainerStyling = () => {
       if (isLowSlope) {
         return 'py-2 px-3 rounded-md border bg-green-50 border-green-300';
-      } else if (isMandatory) {
+      } else if (isAutoSelected) {
         return 'py-2 px-3 rounded-md border bg-blue-50 border-blue-300';
       } else {
         return 'p-3 rounded-md border border-gray-200';
@@ -1561,10 +1586,10 @@ export function MaterialsSelectionTab({
         className={`flex flex-col sm:flex-row justify-between sm:items-start ${getContainerStyling()}`}
       >
         {/* Left side: Material Info */}
-        <div className={`flex-1 ${isMandatory ? 'mb-2' : 'mb-2'} sm:mb-0 sm:mr-3`}>
+        <div className={`flex-1 ${isAutoSelected || isLowSlope ? 'mb-2' : 'mb-2'} sm:mb-0 sm:mr-3`}>
           <div className="flex items-center justify-between mb-0.5">
             <span className="font-semibold text-gray-800">{baseName}</span>
-            {(isMandatory || isLowSlope) && (
+            {(isAutoSelected || isLowSlope) && (
               <Badge 
                 variant="default" 
                 className={`ml-2 text-white text-xs px-1.5 py-0.5 ${
@@ -1578,14 +1603,14 @@ export function MaterialsSelectionTab({
             )}
           </div>
           
-          {(isMandatory || isLowSlope) && requirementText && (
+          {(isAutoSelected || isLowSlope) && requirementText && (
             <p className={`text-[10px] mb-0.5 ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
               {requirementText}
             </p>
           )}
           
           {/* Add quantity summary with calculation result */}
-          {(isMandatory || isLowSlope) && (
+          {(isAutoSelected || isLowSlope) && (
             <div className={`text-xs mb-0.5 ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
             {bundleQuantity > 0 && (
               <p className="font-medium">
