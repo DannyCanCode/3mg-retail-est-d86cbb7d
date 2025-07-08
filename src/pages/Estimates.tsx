@@ -3170,21 +3170,21 @@ const Estimates = () => {
                 <Label>Job Type</Label>
                 <RadioGroup value={jobType} onValueChange={(value: 'Retail' | 'Insurance') => setJobType(value)} className="flex space-x-4">
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Retail" id="r1" />
-                    <Label htmlFor="r1">Retail</Label>
+                    <RadioGroupItem value="Retail" id="estimates-sold-r1" />
+                    <Label htmlFor="estimates-sold-r1">Retail</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Insurance" id="r2" />
-                    <Label htmlFor="r2">Insurance</Label>
+                    <RadioGroupItem value="Insurance" id="estimates-sold-r2" />
+                    <Label htmlFor="estimates-sold-r2">Insurance</Label>
                   </div>
                 </RadioGroup>
              </div>
 
              {jobType === 'Insurance' && (
                 <div className="space-y-2 animate-fade-in"> {/* Simple fade-in */} 
-                  <Label htmlFor="insurance-company">Insurance Company Name</Label>
+                  <Label htmlFor="estimates-insurance-company">Insurance Company Name</Label>
                   <Input 
-                    id="insurance-company" 
+                    id="estimates-insurance-company" 
                     value={insuranceCompany} 
                     onChange={(e) => setInsuranceCompany(e.target.value)} 
                     placeholder="Enter company name" 

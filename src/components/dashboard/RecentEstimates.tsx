@@ -607,20 +607,20 @@ export function RecentEstimates() {
                 <Label>Job Type</Label>
                 <RadioGroup value={jobType} onValueChange={(value: 'Retail' | 'Insurance') => setJobType(value)} className="flex space-x-4">
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Retail" id="r1" />
-                    <Label htmlFor="r1">Retail</Label>
+                    <RadioGroupItem value="Retail" id="dashboard-sold-r1" />
+                    <Label htmlFor="dashboard-sold-r1">Retail</Label>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Insurance" id="r2" />
-                    <Label htmlFor="r2">Insurance</Label>
+                    <RadioGroupItem value="Insurance" id="dashboard-sold-r2" />
+                    <Label htmlFor="dashboard-sold-r2">Insurance</Label>
                   </div>
                 </RadioGroup>
              </div>
              {jobType === 'Insurance' && (
                 <div className="space-y-2 animate-fade-in">
-                  <Label htmlFor="insurance-company">Insurance Company Name</Label>
+                  <Label htmlFor="dashboard-insurance-company">Insurance Company Name</Label>
                   <Input 
-                    id="insurance-company" 
+                    id="dashboard-insurance-company" 
                     value={insuranceCompany} 
                     onChange={(e) => setInsuranceCompany(e.target.value)} 
                     placeholder="Enter company name" 
@@ -653,18 +653,18 @@ export function RecentEstimates() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="space-y-1.5">
-              <Label htmlFor="customer-name">Customer Name</Label>
+              <Label htmlFor="dashboard-customer-name">Customer Name</Label>
               <Input 
-                id="customer-name" 
+                id="dashboard-customer-name" 
                 value={customerName} 
                 onChange={(e) => setCustomerName(e.target.value)} 
                 placeholder="Enter full name"
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="customer-email">Customer Email</Label>
+              <Label htmlFor="dashboard-customer-email">Customer Email</Label>
               <Input 
-                id="customer-email" 
+                id="dashboard-customer-email" 
                 type="email"
                 value={customerEmail} 
                 onChange={(e) => setCustomerEmail(e.target.value)} 
@@ -672,9 +672,9 @@ export function RecentEstimates() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="customer-phone">Customer Phone</Label>
+              <Label htmlFor="dashboard-customer-phone">Customer Phone</Label>
               <Input 
-                id="customer-phone" 
+                id="dashboard-customer-phone" 
                 type="tel"
                 value={customerPhone} 
                 onChange={(e) => setCustomerPhone(e.target.value)} 
