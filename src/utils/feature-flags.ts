@@ -31,9 +31,9 @@ function getEnvBoolean(key: string, defaultValue: boolean = false): boolean {
  */
 export function getFeatureFlags(): FeatureFlags {
   return {
-    // 🔧 FEATURE BRANCH: Enable auto-save for server-centric testing
-    AUTO_SAVE_ENABLED: getEnvBoolean('VITE_ENABLE_AUTO_SAVE', true), // ← Changed from false to true
-    AUTO_SAVE_SUPABASE_ENABLED: getEnvBoolean('VITE_ENABLE_SUPABASE_STORAGE', true),
+    // 🚨 EMERGENCY FIX: Disable auto-save to fix navigation bug when viewing finalized estimates
+    AUTO_SAVE_ENABLED: getEnvBoolean('VITE_ENABLE_AUTO_SAVE', false), // ← Disabled to fix navigation bug
+    AUTO_SAVE_SUPABASE_ENABLED: getEnvBoolean('VITE_ENABLE_SUPABASE_STORAGE', false),
     
     // 🎯 GRADUAL ROLLOUT: Role-based auto-save activation
     AUTO_SAVE_ADMIN_ONLY: getEnvBoolean('VITE_AUTO_SAVE_ADMIN_ONLY', true), // Start with admin-only

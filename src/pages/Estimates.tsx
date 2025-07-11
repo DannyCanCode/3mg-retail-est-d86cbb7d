@@ -587,8 +587,11 @@ const Estimates = () => {
         setLaborRates(data.labor_rates);
         setProfitMargin(data.profit_margin);
         
-        // Set the active tab to summary in view mode by default
-        setActiveTab("summary");
+        // 🚨 EMERGENCY FIX: Only set summary tab on initial load, not on refetches
+        // This prevents forced navigation back to summary when user switches tabs
+        if (!activeTab || activeTab === "type-selection") {
+          setActiveTab("summary");
+        }
       }
     } catch (error) {
       console.error("Error fetching estimate:", error);
