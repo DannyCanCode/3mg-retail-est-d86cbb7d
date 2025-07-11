@@ -48,12 +48,14 @@ import {
   EstimateStatus,
   trackAdminAction
 } from '@/api/estimates';
+import { supabase } from '@/integrations/supabase/client';
 import { trackAdminEstimateAction, trackFunnelStep } from '@/lib/posthog';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface ExtendedEstimate extends Estimate {
   rejection_reason?: string;
+  territory_name?: string; // Added for territory-based color coding
 }
 
 export const AdminEstimateManagement: React.FC = () => {
@@ -80,18 +82,40 @@ export const AdminEstimateManagement: React.FC = () => {
     console.log('🔄 [Admin] fetchEstimates called');
     setLoading(true);
     try {
+      // 🏢 ENHANCED: Fetch estimates (territory functionality to be added later)
       const { data, error } = await getEstimates();
+      
       if (error) throw error;
       
-      console.log('📊 [Admin] Fetched estimates data:', data?.length || 0, 'estimates');
+      // 🎨 TODO: Add territory color coding once database schema is updated
+      // For now, we'll use creator name as a proxy for territory assignment
+      const parsedEstimates = (data || []).map(estimate => ({
+        ...estimate,
+        // 🎨 TEMPORARY: Map creator names to territories for color coding
+        territory_name: estimate.creator_name?.toLowerCase().includes('josh') ? 'Tampa' :
+                       estimate.creator_name?.toLowerCase().includes('jacob') ? 'Ocala' :
+                       estimate.creator_name?.toLowerCase().includes('chase') || estimate.creator_name?.toLowerCase().includes('adam') ? 'Winter Park' :
+                       estimate.creator_name?.toLowerCase().includes('pearl') ? 'Miami' :
+                       'Unknown Territory'
+      }));
+      
+      console.log('📊 [Admin] Fetched estimates data:', parsedEstimates.length, 'estimates');
       console.log('📊 [Admin] Status breakdown:', {
-        pending: data?.filter(e => e.status === 'pending').length || 0,
-        approved: data?.filter(e => e.status === 'approved').length || 0,
-        rejected: data?.filter(e => e.status === 'rejected').length || 0,
-        sold: data?.filter(e => e.status === 'Sold').length || 0
+        pending: parsedEstimates.filter(e => e.status === 'pending').length,
+        approved: parsedEstimates.filter(e => e.status === 'approved').length,
+        rejected: parsedEstimates.filter(e => e.status === 'rejected').length,
+        sold: parsedEstimates.filter(e => e.status === 'Sold').length
       });
       
-      setEstimates(data || []);
+      console.log('🎨 [Admin] Territory breakdown:', {
+        territoryCount: parsedEstimates.reduce((acc, e) => {
+          const territory = e.territory_name || 'Unknown';
+          acc[territory] = (acc[territory] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      });
+      
+      setEstimates(parsedEstimates as ExtendedEstimate[]);
     } catch (error) {
       console.error('🚨 [Admin] Error fetching estimates:', error);
       toast({
@@ -309,39 +333,68 @@ export const AdminEstimateManagement: React.FC = () => {
     }
   };
 
-  const getRoleTheme = (role?: string) => {
-    switch (role) {
-      case 'admin':
+  // 🎨 TERRITORY-BASED COLOR SYSTEM
+  // Maps territories to their unique color schemes
+  const getTerritoryTheme = (territoryName?: string, role?: string) => {
+    // 🔒 Admin cards remain blue regardless of territory
+    if (role === 'admin') {
+      return {
+        border: 'border-blue-200 hover:border-blue-300',
+        headerBg: 'bg-gradient-to-r from-blue-50 to-blue-100',
+        titleColor: 'text-blue-800',
+        accentColor: 'text-blue-600',
+        badgeColors: 'border-blue-200 text-blue-700 bg-blue-50',
+        territoryLabel: 'Admin'
+      };
+    }
+
+    // 🏢 Territory-based colors for managers and reps
+    switch (territoryName?.toLowerCase()) {
+      case 'tampa':
         return {
-          border: 'border-blue-200 hover:border-blue-300',
-          headerBg: 'bg-gradient-to-r from-blue-50 to-blue-100',
-          titleColor: 'text-blue-800',
-          accentColor: 'text-blue-600',
-          badgeColors: 'border-blue-200 text-blue-700 bg-blue-50'
+          border: 'border-emerald-200 hover:border-emerald-300',
+          headerBg: 'bg-gradient-to-r from-emerald-50 to-emerald-100',
+          titleColor: 'text-emerald-800',
+          accentColor: 'text-emerald-600',
+          badgeColors: 'border-emerald-200 text-emerald-700 bg-emerald-50',
+          territoryLabel: 'Tampa'
         };
-      case 'manager':
+      case 'ocala':
         return {
-          border: 'border-green-200 hover:border-green-300',
-          headerBg: 'bg-gradient-to-r from-green-50 to-green-100',
-          titleColor: 'text-green-800',
-          accentColor: 'text-green-600',
-          badgeColors: 'border-green-200 text-green-700 bg-green-50'
+          border: 'border-cyan-200 hover:border-cyan-300',
+          headerBg: 'bg-gradient-to-r from-cyan-50 to-cyan-100',
+          titleColor: 'text-cyan-800',
+          accentColor: 'text-cyan-600',
+          badgeColors: 'border-cyan-200 text-cyan-700 bg-cyan-50',
+          territoryLabel: 'Ocala'
         };
-      case 'rep':
+      case 'winter park':
         return {
-          border: 'border-orange-200 hover:border-orange-300',
-          headerBg: 'bg-gradient-to-r from-orange-50 to-orange-100',
-          titleColor: 'text-orange-800',
-          accentColor: 'text-orange-600',
-          badgeColors: 'border-orange-200 text-orange-700 bg-orange-50'
+          border: 'border-purple-200 hover:border-purple-300',
+          headerBg: 'bg-gradient-to-r from-purple-50 to-purple-100',
+          titleColor: 'text-purple-800',
+          accentColor: 'text-purple-600',
+          badgeColors: 'border-purple-200 text-purple-700 bg-purple-50',
+          territoryLabel: 'Winter Park'
+        };
+      case 'miami':
+        return {
+          border: 'border-pink-200 hover:border-pink-300',
+          headerBg: 'bg-gradient-to-r from-pink-50 to-pink-100',
+          titleColor: 'text-pink-800',
+          accentColor: 'text-pink-600',
+          badgeColors: 'border-pink-200 text-pink-700 bg-pink-50',
+          territoryLabel: 'Miami'
         };
       default:
+        // Fallback for unknown territories or reps without territory
         return {
           border: 'border-gray-200 hover:border-gray-300',
           headerBg: 'bg-gradient-to-r from-gray-50 to-gray-100',
           titleColor: 'text-gray-800',
           accentColor: 'text-gray-600',
-          badgeColors: 'border-gray-200 text-gray-700 bg-gray-50'
+          badgeColors: 'border-gray-200 text-gray-700 bg-gray-50',
+          territoryLabel: 'Unknown'
         };
     }
   };
@@ -375,7 +428,9 @@ export const AdminEstimateManagement: React.FC = () => {
   );
 
   const EstimateCard = ({ estimate }: { estimate: ExtendedEstimate }) => {
-    const theme = getRoleTheme(estimate.creator_role);
+    // 🎨 Get territory name from estimate data for color coding
+    const territoryName = estimate.territory_name || 'Unknown Territory';
+    const theme = getTerritoryTheme(territoryName, estimate.creator_role);
     const creatorName = estimate.creator_name || 'Unknown Creator';
     
     return (
@@ -395,6 +450,12 @@ export const AdminEstimateManagement: React.FC = () => {
                   ({estimate.creator_role === 'admin' ? 'Admin' : 
                     estimate.creator_role === 'manager' ? 'Manager' : 'Rep'})
                 </span>
+                {/* 🎨 Territory indicator */}
+                {territoryName !== 'Unknown Territory' && (
+                  <span className={`text-xs px-1.5 py-0.5 rounded-md ${theme.badgeColors} truncate`}>
+                    {territoryName}
+                  </span>
+                )}
               </div>
             </div>
             <Badge className={`text-xs ${getStatusColor(estimate.status)} shadow-sm flex-shrink-0`}>

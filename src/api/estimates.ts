@@ -40,6 +40,10 @@ export interface Estimate {
   creator_name?: string;
   creator_role?: 'admin' | 'manager' | 'rep' | 'subtrade_manager';
   created_by?: string; // User ID who created the estimate
+  
+  // Territory information for color coding
+  territory_id?: string; // Territory ID reference
+  territory_name?: string; // Territory name for display and color coding
 }
 
 /**
