@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { cache } from '@/lib/cache';
 import { MeasurementValues } from "@/components/estimates/measurement/types";
 import { Material } from "@/components/estimates/materials/types";
 import { LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
@@ -190,6 +191,18 @@ export const getEstimates = async (status?: EstimateStatus): Promise<{
     if (!isSupabaseConfigured()) {
       return { data: [], error: new Error("Supabase not configured") };
     }
+
+    // 🚀 PERFORMANCE: Create cache key based on status filter
+    const cacheKey = status ? `estimates_${status}` : 'estimates_all';
+    const cachedEstimates = cache.estimatesSummary.get(cacheKey);
+    if (cachedEstimates) {
+      console.log(`⚡ [Estimates] Using cached data for ${cacheKey}`);
+      return { data: cachedEstimates, error: null };
+    }
+
+    // 📊 PERFORMANCE: Track API call timing
+    const startTime = performance.now();
+
     let query = supabase.from("estimates").select("*")
       .is("deleted_at", null); // Exclude soft-deleted estimates
     if (status) {
@@ -197,6 +210,10 @@ export const getEstimates = async (status?: EstimateStatus): Promise<{
     }
     query = query.order("created_at", { ascending: false });
     const { data, error } = await query;
+
+    const apiTime = performance.now() - startTime;
+    console.log(`📊 [Estimates] API call took ${apiTime.toFixed(2)}ms`);
+
     if (error) throw error;
 
     const parsedData = (data || []).map(estimate => ({
@@ -207,7 +224,14 @@ export const getEstimates = async (status?: EstimateStatus): Promise<{
       labor_rates: typeof estimate.labor_rates === 'string' ? JSON.parse(estimate.labor_rates) : (estimate.labor_rates || {}),
       measurements: typeof estimate.measurements === 'string' ? JSON.parse(estimate.measurements) : (estimate.measurements || {})
     }));
-    return { data: parsedData as Estimate[], error: null };
+
+    const estimates = parsedData as Estimate[];
+
+    // 🚀 PERFORMANCE: Cache the results (shorter cache time for dynamic data)
+    cache.estimatesSummary.set(cacheKey, estimates);
+    console.log(`💾 [Estimates] Cached ${estimates.length} estimates for ${cacheKey}`);
+
+    return { data: estimates, error: null };
   } catch (error) {
     console.error("Error fetching estimates:", error);
     return { data: [], error: error instanceof Error ? error : new Error("Unknown error occurred") };

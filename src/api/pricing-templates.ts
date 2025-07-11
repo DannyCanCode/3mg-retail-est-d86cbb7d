@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
+import { cache } from '@/lib/cache';
 import { LaborRates } from "@/components/estimates/pricing/LaborProfitTab";
 import { Material } from "@/components/estimates/materials/types";
 import type { Database } from "@/integrations/supabase/database.types"; // Import DB types
@@ -54,11 +55,24 @@ export const getPricingTemplates = async (): Promise<{
       return { data: [], error: new Error("Supabase not configured") };
     }
 
+    // 🚀 PERFORMANCE: Check cache first
+    const cachedTemplates = cache.pricingTemplates.get();
+    if (cachedTemplates) {
+      console.log('⚡ [PricingTemplates] Using cached data');
+      return { data: cachedTemplates, error: null };
+    }
+
+    // 📊 PERFORMANCE: Track API call timing
+    const startTime = performance.now();
+
     // Fetch templates, order by creation date (newest first)
     const { data, error } = await supabase
       .from("pricing_templates")
       .select("*")
       .order("created_at", { ascending: false });
+
+    const apiTime = performance.now() - startTime;
+    console.log(`📊 [PricingTemplates] API call took ${apiTime.toFixed(2)}ms`);
 
     if (error) {
       console.error("Supabase error fetching templates:", error);
@@ -75,7 +89,14 @@ export const getPricingTemplates = async (): Promise<{
         labor_rates: safeJsonParse(template.labor_rates)
       }
     ));
-    return { data: parsedData as PricingTemplate[] || [], error: null };
+    
+    const templates = parsedData as PricingTemplate[] || [];
+    
+    // 🚀 PERFORMANCE: Cache the results
+    cache.pricingTemplates.set(templates);
+    console.log(`💾 [PricingTemplates] Cached ${templates.length} templates`);
+    
+    return { data: templates, error: null };
   } catch (error) {
     console.error("Error fetching pricing templates:", error);
     return {
