@@ -96,6 +96,8 @@ export const AdminEstimateManagement: React.FC = () => {
                        estimate.creator_name?.toLowerCase().includes('jacob') ? 'Ocala' :
                        estimate.creator_name?.toLowerCase().includes('chase') || estimate.creator_name?.toLowerCase().includes('adam') ? 'Winter Park' :
                        estimate.creator_name?.toLowerCase().includes('pearl') ? 'Miami' :
+                       estimate.creator_name?.toLowerCase().includes('nick') && estimate.creator_name?.toLowerCase().includes('nells') ? 'Stuart' :
+                       estimate.creator_name?.toLowerCase().includes('harrison') ? 'Harrison Territory' :
                        'Unknown Territory'
       }));
       
@@ -385,6 +387,24 @@ export const AdminEstimateManagement: React.FC = () => {
           accentColor: 'text-pink-600',
           badgeColors: 'border-pink-200 text-pink-700 bg-pink-50',
           territoryLabel: 'Miami'
+        };
+      case 'stuart':
+        return {
+          border: 'border-amber-200 hover:border-amber-300',
+          headerBg: 'bg-gradient-to-r from-amber-50 to-amber-100',
+          titleColor: 'text-amber-800',
+          accentColor: 'text-amber-600',
+          badgeColors: 'border-amber-200 text-amber-700 bg-amber-50',
+          territoryLabel: 'Stuart'
+        };
+      case 'harrison territory':
+        return {
+          border: 'border-indigo-200 hover:border-indigo-300',
+          headerBg: 'bg-gradient-to-r from-indigo-50 to-indigo-100',
+          titleColor: 'text-indigo-800',
+          accentColor: 'text-indigo-600',
+          badgeColors: 'border-indigo-200 text-indigo-700 bg-indigo-50',
+          territoryLabel: 'Harrison Territory'
         };
       default:
         // Fallback for unknown territories or reps without territory
