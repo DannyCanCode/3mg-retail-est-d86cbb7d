@@ -6,6 +6,9 @@
 export interface FeatureFlags {
   AUTO_SAVE_ENABLED: boolean;
   AUTO_SAVE_SUPABASE_ENABLED: boolean;
+  AUTO_SAVE_ADMIN_ONLY: boolean;
+  AUTO_SAVE_MANAGER_ENABLED: boolean;
+  AUTO_SAVE_REP_ENABLED: boolean;
   OFFLINE_QUEUE_ENABLED: boolean;
   CONFLICT_RESOLUTION_ENABLED: boolean;
   ANALYTICS_ENABLED: boolean;
@@ -28,8 +31,15 @@ function getEnvBoolean(key: string, defaultValue: boolean = false): boolean {
  */
 export function getFeatureFlags(): FeatureFlags {
   return {
-    AUTO_SAVE_ENABLED: getEnvBoolean('VITE_ENABLE_AUTO_SAVE', false),
+    // 🔧 FEATURE BRANCH: Enable auto-save for server-centric testing
+    AUTO_SAVE_ENABLED: getEnvBoolean('VITE_ENABLE_AUTO_SAVE', true), // ← Changed from false to true
     AUTO_SAVE_SUPABASE_ENABLED: getEnvBoolean('VITE_ENABLE_SUPABASE_STORAGE', true),
+    
+    // 🎯 GRADUAL ROLLOUT: Role-based auto-save activation
+    AUTO_SAVE_ADMIN_ONLY: getEnvBoolean('VITE_AUTO_SAVE_ADMIN_ONLY', true), // Start with admin-only
+    AUTO_SAVE_MANAGER_ENABLED: getEnvBoolean('VITE_AUTO_SAVE_MANAGER_ENABLED', false), // Enable later
+    AUTO_SAVE_REP_ENABLED: getEnvBoolean('VITE_AUTO_SAVE_REP_ENABLED', false), // Enable last
+    
     OFFLINE_QUEUE_ENABLED: getEnvBoolean('VITE_ENABLE_OFFLINE_QUEUE', false),
     CONFLICT_RESOLUTION_ENABLED: getEnvBoolean('VITE_ENABLE_CONFLICT_RESOLUTION', false),
     ANALYTICS_ENABLED: getEnvBoolean('VITE_ENABLE_ANALYTICS', false),

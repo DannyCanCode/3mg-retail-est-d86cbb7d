@@ -9,6 +9,7 @@ import { useDebouncedCallback } from '@/utils/debounce';
 import { MockStorageAdapter } from '@/adapters/MockStorageAdapter';
 import { SupabaseStorageAdapter } from '@/adapters/SupabaseStorageAdapter';
 import { isFeatureEnabled } from '@/utils/feature-flags';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   EstimateData,
   EstimateKey,
@@ -100,6 +101,36 @@ function createStorageAdapter() {
 const defaultStorageAdapter = createStorageAdapter();
 
 /**
+ * Check if auto-save is enabled for the current user role
+ */
+function isAutoSaveEnabledForRole(userRole?: string): boolean {
+  // First check if auto-save is globally enabled
+  if (!isFeatureEnabled('AUTO_SAVE_ENABLED')) {
+    return false;
+  }
+
+  // If admin-only mode is enabled, only allow admins
+  if (isFeatureEnabled('AUTO_SAVE_ADMIN_ONLY')) {
+    return userRole === 'admin';
+  }
+
+  // Check role-specific flags
+  switch (userRole) {
+    case 'admin':
+      return true; // Admins always have access when auto-save is enabled
+    
+    case 'manager':
+      return isFeatureEnabled('AUTO_SAVE_MANAGER_ENABLED');
+    
+    case 'rep':
+      return isFeatureEnabled('AUTO_SAVE_REP_ENABLED');
+    
+    default:
+      return false; // Unknown roles don't get access
+  }
+}
+
+/**
  * Main auto-save hook for estimates
  */
 export function useAutoSave(
@@ -107,8 +138,27 @@ export function useAutoSave(
   data: Partial<EstimateData> | null = null,
   config: Partial<AutoSaveConfig> = {}
 ): AutoSaveHook {
-  // If auto-save is disabled, return a no-op hook
-  if (!isFeatureEnabled('AUTO_SAVE_ENABLED')) {
+  const { profile } = useAuth();
+  
+  // 🎯 ROLE-BASED AUTO-SAVE: Check if auto-save is enabled for current user
+  const isAutoSaveEnabled = isAutoSaveEnabledForRole(profile?.role);
+  
+  if (!isAutoSaveEnabled) {
+    // Log the reason for debugging in development
+    if (import.meta.env.DEV) {
+      const globalEnabled = isFeatureEnabled('AUTO_SAVE_ENABLED');
+      const adminOnly = isFeatureEnabled('AUTO_SAVE_ADMIN_ONLY');
+      const userRole = profile?.role || 'unknown';
+      
+      console.log(`[useAutoSave] Auto-save disabled for role "${userRole}":`, {
+        globalEnabled,
+        adminOnly,
+        userRole,
+        managerEnabled: isFeatureEnabled('AUTO_SAVE_MANAGER_ENABLED'),
+        repEnabled: isFeatureEnabled('AUTO_SAVE_REP_ENABLED')
+      });
+    }
+    
     return {
       status: 'idle',
       lastSaved: null,
@@ -122,6 +172,11 @@ export function useAutoSave(
       error: null,
       conflictData: null
     };
+  }
+
+  // 🔧 FEATURE BRANCH: Log auto-save activation for testing
+  if (import.meta.env.DEV) {
+    console.log(`[useAutoSave] ✅ Auto-save ENABLED for role "${profile?.role}"`);
   }
 
   const fullConfig = { ...DEFAULT_AUTO_SAVE_CONFIG, ...config };
