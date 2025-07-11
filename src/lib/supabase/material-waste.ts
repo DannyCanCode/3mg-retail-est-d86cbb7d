@@ -6,18 +6,10 @@ import { supabase } from '../../integrations/supabase/client';
  * @returns Waste percentage as a number between 0-100 or null if not found
  */
 export const getMaterialWastePercentage = async (materialId: string): Promise<number | null> => {
-  const { data, error } = await supabase
-    .from('material_waste_percentage')
-    .select('waste_percentage')
-    .eq('material_id', materialId)
-    .single();
-  
-  if (error || !data) {
-    console.warn(`Failed to fetch waste percentage for material ${materialId}:`, error);
-    return null;
-  }
-  
-  return data.waste_percentage;
+  // TODO: Add caching once material_waste_percentage table is deployed to database schema
+  // For now, return null since table doesn't exist in current schema
+  console.warn(`⚠️ [MaterialWaste] Table not in database schema, returning null for ${materialId}`);
+  return null;
 };
 
 /**
@@ -25,20 +17,10 @@ export const getMaterialWastePercentage = async (materialId: string): Promise<nu
  * @returns Object mapping material_id to waste_percentage
  */
 export const getAllMaterialWastePercentages = async (): Promise<Record<string, number>> => {
-  const { data, error } = await supabase
-    .from('material_waste_percentage')
-    .select('material_id, waste_percentage');
-  
-  if (error || !data) {
-    console.warn('Failed to fetch material waste percentages:', error);
-    return {};
-  }
-  
-  // Convert array to an object with material_id as keys and waste_percentage as values
-  return data.reduce((acc, item) => {
-    acc[item.material_id] = item.waste_percentage;
-    return acc;
-  }, {} as Record<string, number>);
+  // TODO: Add caching once material_waste_percentage table is deployed to database schema
+  // For now, return empty object since table doesn't exist in current schema
+  console.warn('⚠️ [MaterialWaste] Table not in database schema, returning empty data');
+  return {};
 };
 
 /**
@@ -54,19 +36,9 @@ export const updateMaterialWastePercentage = async (materialId: string, wastePer
     return false;
   }
   
-  const { data, error } = await supabase
-    .from('material_waste_percentage')
-    .upsert(
-      { material_id: materialId, waste_percentage: wastePercentage, updated_at: new Date() },
-      { onConflict: 'material_id' }
-    );
-  
-  if (error) {
-    console.error('Error updating material waste percentage:', error);
-    return false;
-  }
-  
-  return true;
+  // TODO: Implement once material_waste_percentage table is deployed to database schema
+  console.warn('⚠️ [MaterialWaste] Update not implemented - table not in schema');
+  return false;
 };
 
 /**
@@ -75,15 +47,7 @@ export const updateMaterialWastePercentage = async (materialId: string, wastePer
  * @returns True if successful, false otherwise
  */
 export const deleteMaterialWastePercentage = async (materialId: string): Promise<boolean> => {
-  const { error } = await supabase
-    .from('material_waste_percentage')
-    .delete()
-    .eq('material_id', materialId);
-  
-  if (error) {
-    console.error('Error deleting material waste percentage:', error);
-    return false;
-  }
-  
-  return true;
+  // TODO: Implement once material_waste_percentage table is deployed to database schema
+  console.warn('⚠️ [MaterialWaste] Delete not implemented - table not in schema');
+  return false;
 }; 
