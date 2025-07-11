@@ -97,7 +97,7 @@ export const AdminEstimateManagement: React.FC = () => {
                        estimate.creator_name?.toLowerCase().includes('chase') || estimate.creator_name?.toLowerCase().includes('adam') ? 'Winter Park' :
                        estimate.creator_name?.toLowerCase().includes('pearl') ? 'Miami' :
                        estimate.creator_name?.toLowerCase().includes('nick') && estimate.creator_name?.toLowerCase().includes('nells') ? 'Stuart' :
-                       estimate.creator_name?.toLowerCase().includes('harrison') ? 'Harrison Territory' :
+                       estimate.creator_name?.toLowerCase().includes('harrison') ? 'Jacksonville' :
                        'Unknown Territory'
       }));
       
@@ -397,14 +397,14 @@ export const AdminEstimateManagement: React.FC = () => {
           badgeColors: 'border-amber-200 text-amber-700 bg-amber-50',
           territoryLabel: 'Stuart'
         };
-      case 'harrison territory':
+      case 'jacksonville':
         return {
           border: 'border-indigo-200 hover:border-indigo-300',
           headerBg: 'bg-gradient-to-r from-indigo-50 to-indigo-100',
           titleColor: 'text-indigo-800',
           accentColor: 'text-indigo-600',
           badgeColors: 'border-indigo-200 text-indigo-700 bg-indigo-50',
-          territoryLabel: 'Harrison Territory'
+          territoryLabel: 'Jacksonville'
         };
       default:
         // Fallback for unknown territories or reps without territory
