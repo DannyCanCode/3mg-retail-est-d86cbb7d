@@ -112,6 +112,8 @@ export function MaterialsSelectionTab({
   // Local state for managing selected materials
   const [localSelectedMaterials, setLocalSelectedMaterials] = useState<{[key: string]: Material}>(selectedMaterials);
   const [localQuantities, setLocalQuantities] = useState<{[key: string]: number}>(quantities);
+  // 🔧 FIX: Maintain stable order for material cards to prevent movement during navigation
+  const [materialOrder, setMaterialOrder] = useState<string[]>(() => Object.keys(selectedMaterials));
   const [materialWasteFactors, setMaterialWasteFactors] = useState<Record<string, number>>({}); // State to store waste factors per material
   const [userOverriddenWaste, setUserOverriddenWaste] = useState<Record<string, boolean>>({}); // Tracks user per-item overrides
   const [wasteFactor, setWasteFactor] = useState(10); // Default 10% waste
@@ -224,6 +226,8 @@ export function MaterialsSelectionTab({
     
     setLocalSelectedMaterials(materialsCopy);
     setLocalQuantities(quantitiesCopy);
+    // 🔧 FIX: Reset material order to match props
+    setMaterialOrder(Object.keys(materialsCopy));
     
     const initialDisplayQtys: Record<string, string> = {};
     const initialWasteFactors: Record<string, number> = {};
@@ -592,6 +596,8 @@ export function MaterialsSelectionTab({
           setDisplayQuantities(newDisplayQuantities);
           setMaterialWasteFactors(newMaterialWasteFactors); 
           setUserOverriddenWaste(newUserOverriddenWaste);
+          // 🔧 FIX: Update material order to maintain stable card positions
+          setMaterialOrder(Object.keys(newSelectedMaterials));
         
         // Show success notification
         const materialsDescription = addedMaterials.join(', ');
@@ -830,6 +836,8 @@ export function MaterialsSelectionTab({
       setLocalQuantities(prev => ({ ...prev, [materialToAdd.id]: finalQuantity }));
       setMaterialWasteFactors(prev => ({ ...prev, [materialToAdd.id]: actualWasteFactor })); // Store actual waste factor
       setUserOverriddenWaste(prev => ({ ...prev, [materialToAdd.id]: false })); // Initialize as not overridden
+      // 🔧 FIX: Add to material order if not already present
+      setMaterialOrder(prev => prev.includes(materialToAdd.id) ? prev : [...prev, materialToAdd.id]);
       
       // Update display quantity
       if (materialToAdd.id === "gaf-timberline-hdz-sg") {
@@ -880,6 +888,8 @@ export function MaterialsSelectionTab({
     setLocalQuantities(newQuantities);
     setDisplayQuantities(newDisplayQuantities);
     setMaterialWasteFactors(newMaterialWasteFactors); // Set updated waste factors
+    // 🔧 FIX: Remove from material order
+    setMaterialOrder(prev => prev.filter(id => id !== materialId));
     // Clear selected preset if a material is manually removed
     setSelectedPreset(null);
   };
@@ -1138,6 +1148,8 @@ export function MaterialsSelectionTab({
     setLocalSelectedMaterials(newMaterials);
     setLocalQuantities(newQuantities);
     setMaterialWasteFactors(newWasteFactors);
+    // 🔧 FIX: Update material order to maintain stable card positions
+    setMaterialOrder(Object.keys(newMaterials));
     setSelectedPreset(preset);
 
     toast({
@@ -2092,6 +2104,8 @@ export function MaterialsSelectionTab({
       setLocalSelectedMaterials(newMaterials);
       setLocalQuantities(newQuantities);
       setMaterialWasteFactors(newWasteFactors);
+      // 🔧 FIX: Update material order to maintain stable card positions
+      setMaterialOrder(Object.keys(newMaterials));
       
       // Show toast notification
       if (toastMessage) {
@@ -2481,7 +2495,8 @@ export function MaterialsSelectionTab({
               </div>
             ) : (
               <div className="space-y-3">
-                {Object.entries(localSelectedMaterials).map(([materialId, material]) => {
+                {materialOrder.map(materialId => {
+                   const material = localSelectedMaterials[materialId];
                    if (!material || !material.id) return null; 
                    return renderSelectedMaterial(materialId, material);
                  })}

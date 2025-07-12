@@ -172,9 +172,13 @@ export function LaborProfitTab({
     hasUserInteracted.current = false; 
   }, [initialLaborRatesProp, initialProfitMarginProp, getSafeInitialRates]);
 
+  // 🔧 FIX: Track if user has manually changed dumpster count to prevent glitching
+  const [hasUserChangedDumpsterCount, setHasUserChangedDumpsterCount] = useState(false);
+
   // 🔧 NEW: Update dumpster count when measurements change (for fresh PDF uploads)
+  // Only auto-populate if user hasn't manually changed the count
   useEffect(() => {
-    if (measurements?.totalArea && measurements.totalArea > 0) {
+    if (measurements?.totalArea && measurements.totalArea > 0 && !hasUserChangedDumpsterCount) {
       const newRecommendedCount = Math.max(1, Math.ceil((measurements.totalArea / 100) / 28));
       console.log(`[DUMPSTER AUTO-POP] Area: ${measurements.totalArea} sq ft → Recommendation: ${newRecommendedCount} dumpsters`);
       
@@ -189,8 +193,10 @@ export function LaborProfitTab({
       } else {
         console.log(`[DUMPSTER AUTO-POP] No update needed - already set to ${newRecommendedCount}`);
       }
+    } else if (hasUserChangedDumpsterCount) {
+      console.log(`[DUMPSTER AUTO-POP] Skipping auto-population - user has manually changed count`);
     }
-  }, [measurements?.totalArea]); // Only depend on totalArea to avoid infinite loops
+  }, [measurements?.totalArea, hasUserChangedDumpsterCount]); // Include hasUserChangedDumpsterCount in dependencies
 
   // 🔧 CRITICAL FIX: Completely removed problematic dumpster calculation effect
   // Users can manually set dumpster count - no automatic calculation
@@ -262,6 +268,8 @@ export function LaborProfitTab({
                 processedValue = 1; 
             }
         }
+        // 🔧 FIX: Mark that user has manually changed dumpster count
+        setHasUserChangedDumpsterCount(true);
     } else if (field === "skylights2x2Count" || field === "skylights2x4Count" || field === "downspoutCount" || field === "gutterLinearFeet" || field === "detachResetGutterLinearFeet") {
         const valStr = String(value).trim();
         if (valStr === "") {

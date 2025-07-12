@@ -131,11 +131,9 @@ export function SimplifiedReviewTab({
         description: `Now you can select materials for your estimate.${lowSlopeMessage}`,
       });
       
-      // Navigate to materials after a brief delay to ensure state updates complete
-      setTimeout(() => {
-        onContinue();
-        setIsSavingAndContinuing(false);
-      }, 50);
+        // Navigate to materials immediately without delay to prevent flashing
+  onContinue();
+  setIsSavingAndContinuing(false);
       
     } catch (error) {
       console.error("Error saving measurements:", error);

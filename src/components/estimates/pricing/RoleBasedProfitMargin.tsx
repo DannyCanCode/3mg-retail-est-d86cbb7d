@@ -98,27 +98,76 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
   // Enforce minimum margin for the role
   const effectiveMargin = Math.max(constraints.min, Math.min(constraints.max, profitMargin));
   
-  // Auto-correct margin if it's below minimum
-  React.useEffect(() => {
-    if (profitMargin < constraints.min) {
-      onProfitMarginChange([constraints.min]);
-      onProfitMarginCommit([constraints.min]);
-    } else if (profitMargin > constraints.max) {
-      onProfitMarginChange([constraints.max]);
-      onProfitMarginCommit([constraints.max]);
-    }
-  }, [profitMargin, constraints.min, constraints.max, onProfitMarginChange, onProfitMarginCommit]);
+  // 🔧 FIX: Use a single debounced effect to handle profit margin auto-correction
+  // This prevents conflicting useEffect hooks from making the slider jerky
+  const [isUserInteracting, setIsUserInteracting] = React.useState(false);
+  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  // For sales reps, automatically set margin based on package
   React.useEffect(() => {
-    if (userRole === 'rep' && selectedPackage) {
-      const packageMargin = selectedPackage === 'gaf1' ? 25 : 30;
-      if (profitMargin !== packageMargin) {
-        onProfitMarginChange([packageMargin]);
-        onProfitMarginCommit([packageMargin]);
-      }
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
     }
-  }, [userRole, selectedPackage, profitMargin, onProfitMarginChange, onProfitMarginCommit]);
+
+    // Don't auto-correct during user interaction
+    if (isUserInteracting) {
+      return;
+    }
+
+    // Debounce auto-correction to prevent conflicts with user input
+    timeoutRef.current = setTimeout(() => {
+      let targetMargin = profitMargin;
+      let shouldUpdate = false;
+
+      // For sales reps, automatically set margin based on package
+      if (userRole === 'rep' && selectedPackage) {
+        const packageMargin = selectedPackage === 'gaf1' ? 25 : 30;
+        if (profitMargin !== packageMargin) {
+          targetMargin = packageMargin;
+          shouldUpdate = true;
+        }
+      }
+      // For other roles, enforce min/max constraints
+      else if (profitMargin < constraints.min) {
+        targetMargin = constraints.min;
+        shouldUpdate = true;
+      } else if (profitMargin > constraints.max) {
+        targetMargin = constraints.max;
+        shouldUpdate = true;
+      }
+
+      if (shouldUpdate) {
+        onProfitMarginChange([targetMargin]);
+        onProfitMarginCommit([targetMargin]);
+      }
+    }, 300); // 300ms debounce delay
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, [profitMargin, constraints.min, constraints.max, userRole, selectedPackage, isUserInteracting, onProfitMarginChange, onProfitMarginCommit]);
+
+  // Handle user interaction state
+  const handleValueChange = (value: number[]) => {
+    setIsUserInteracting(true);
+    onProfitMarginChange(value);
+    
+    // Clear interaction flag after a short delay
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      setIsUserInteracting(false);
+    }, 100);
+  };
+
+  const handleValueCommit = (value: number[]) => {
+    setIsUserInteracting(false);
+    onProfitMarginCommit(value);
+  };
 
   const getRoleIcon = () => {
     switch (userRole) {
@@ -230,8 +279,8 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
               max={constraints.max}
               step={constraints.step}
               value={[effectiveMargin]}
-              onValueChange={onProfitMarginChange}
-              onValueCommit={onProfitMarginCommit}
+              onValueChange={handleValueChange}
+              onValueCommit={handleValueCommit}
               disabled={readOnly && !(isAdminEditMode && userRole === 'admin')}
               className="w-full"
             />
