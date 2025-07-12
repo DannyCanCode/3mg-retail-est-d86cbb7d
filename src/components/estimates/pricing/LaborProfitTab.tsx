@@ -255,18 +255,21 @@ export function LaborProfitTab({
     const locationDefaultDumpsterRate = laborRates.dumpsterLocation === "orlando" ? 400 : 500;
 
     if (field === "dumpsterCount") {
-        const valStr = String(value).trim(); // Value from input is a string
-        if (valStr === "") {
-            // If input is cleared, enforce minimum value in state as input type is number
-            processedValue = 1; 
+        // 🔧 FIX: Allow 0 temporarily for better input UX
+        if (typeof value === 'number') {
+            // Direct numeric value from onChange
+            processedValue = value;
         } else {
-            const parsed = parseInt(valStr, 10);
-            if (!isNaN(parsed) && parsed >= 1) {
-                processedValue = parsed;
+            const valStr = String(value).trim();
+            if (valStr === "") {
+                processedValue = 0; // Allow 0 temporarily
             } else {
-                // If parsing fails or value is less than 1, enforce minimum
-                // This ensures the state always holds a valid number for the controlled input
-                processedValue = 1; 
+                const parsed = parseInt(valStr, 10);
+                if (!isNaN(parsed) && parsed >= 0) {
+                    processedValue = parsed;
+                } else {
+                    processedValue = 1; // Fallback to 1 if parsing fails
+                }
             }
         }
         // 🔧 FIX: Mark that user has manually changed dumpster count
@@ -694,12 +697,15 @@ export function LaborProfitTab({
                   type="number"
                   value={laborRates.dumpsterCount.toString()}
                   onChange={(e) => {
-                    // 🔧 FIX: Use onChange instead of onBlur for immediate updates
+                    // 🔧 FIX: Handle all input changes properly
                     const value = e.target.value;
+                    
+                    // If empty, temporarily set to 0 to allow clearing
                     if (value === '') {
-                      // Allow empty input temporarily for better UX
+                      handleLaborRateChange("dumpsterCount", 0);
                       return;
                     }
+                    
                     const parsed = parseInt(value, 10);
                     if (!isNaN(parsed) && parsed >= 0) {
                       handleLaborRateChange("dumpsterCount", parsed);
@@ -708,7 +714,8 @@ export function LaborProfitTab({
                   onBlur={(e) => {
                     // 🔧 FIX: Enforce minimum value on blur
                     const value = e.target.value;
-                    if (value === '' || parseInt(value, 10) < 1) {
+                    const parsed = parseInt(value, 10);
+                    if (value === '' || isNaN(parsed) || parsed < 1) {
                       handleLaborRateChange("dumpsterCount", 1);
                     }
                   }}
