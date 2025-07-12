@@ -350,6 +350,7 @@ export function MaterialsSelectionTab({
   // Notify parent of changes when local state changes
   // 🔧 FIX: Reduce excessive logging to prevent re-render loops
   const lastLoggedMaterialCount = useRef(0);
+  const lastParentSyncLogTime = useRef(0);
   const lastLogTime = useRef(0);
   
   useEffect(() => {
@@ -377,11 +378,16 @@ export function MaterialsSelectionTab({
     
     if (shouldLog) {
       lastLoggedMaterialCount.current = materialCount;
-      console.log("📤 [NotifyParentEffect] Syncing to parent:", {
-        materials: materialCount,
-        quantities: Object.keys(localQuantities).length,
-        triggeredBy: 'significant change'
-      });
+      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
+      const now = Date.now();
+      if ((now - lastParentSyncLogTime.current) > 5000) {
+        console.log("📤 [NotifyParentEffect] Syncing to parent:", {
+          materials: materialCount,
+          quantities: Object.keys(localQuantities).length,
+          triggeredBy: 'significant change'
+        });
+        lastParentSyncLogTime.current = now;
+      }
     }
     
     isInternalChange.current = true;

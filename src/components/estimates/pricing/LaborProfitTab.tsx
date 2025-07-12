@@ -187,8 +187,9 @@ export function LaborProfitTab({
       
       // Only log if recommendation changed or it's been more than 10 seconds since last log
       const now = Date.now();
-      const shouldLog = newRecommendedCount !== lastDumpsterRecommendation.current || 
-                       now - lastDumpsterLogTime.current > 10000;
+      // 🔧 PERFORMANCE FIX: Further throttle dumpster logging to prevent console spam
+      const shouldLog = newRecommendedCount !== lastDumpsterRecommendation.current && 
+                       (now - lastDumpsterLogTime.current) > 30000; // Increased from 10s to 30s
       
       if (shouldLog) {
         lastDumpsterLogTime.current = now;
@@ -206,10 +207,11 @@ export function LaborProfitTab({
           dumpsterCount: newRecommendedCount
         }));
         // Don't mark as user interaction since this is an automatic update
-      } else if (shouldLog) {
-        console.log(`[DUMPSTER AUTO-POP] No update needed - already set to ${newRecommendedCount}`);
+      } else {
+        // 🔧 PERFORMANCE FIX: Removed redundant log for "no update needed" case
+        // This was logging every render even when no changes occurred
       }
-    } else if (hasUserChangedDumpsterCount && Date.now() - lastDumpsterLogTime.current > 10000) {
+    } else if (hasUserChangedDumpsterCount && (Date.now() - lastDumpsterLogTime.current) > 30000) {
       lastDumpsterLogTime.current = Date.now();
       console.log(`[DUMPSTER AUTO-POP] Skipping auto-population - user has manually changed count`);
     }

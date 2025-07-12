@@ -815,17 +815,23 @@ const Estimates = () => {
   // PHASE 2: Smart Auto-Save Effects - Prevent save loops during recovery
   const lastLoggedMaterialsCount = useRef<number>(0);
   const lastLoggedQuantitiesCount = useRef<number>(0);
+  const lastMaterialsLogTime = useRef<number>(0);
+  const lastQuantitiesLogTime = useRef<number>(0);
+  const lastLaborLogTime = useRef<number>(0);
+  const lastProfitLogTime = useRef<number>(0);
   
   useEffect(() => {
     // Don't save during recovery, view mode, or when user wants fresh start
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && Object.keys(selectedMaterials).length > 0) {
       validateAndSave(selectedMaterials, setStoredSelectedMaterials, 'materials');
       
-      // Only log when count changes to reduce console spam
+      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
       const count = Object.keys(selectedMaterials).length;
-      if (count !== lastLoggedMaterialsCount.current) {
+      const now = Date.now();
+      if (count !== lastLoggedMaterialsCount.current && (now - lastMaterialsLogTime.current) > 3000) {
         console.log("💾 Auto-saved materials:", count);
         lastLoggedMaterialsCount.current = count;
+        lastMaterialsLogTime.current = now;
       }
     }
   }, [selectedMaterials, isViewMode, isRecoveringState, setStoredSelectedMaterials]);
@@ -834,11 +840,13 @@ const Estimates = () => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && Object.keys(quantities).length > 0) {
       setStoredQuantities(quantities);
       
-      // Only log when count changes to reduce console spam
+      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
       const count = Object.keys(quantities).length;
-      if (count !== lastLoggedQuantitiesCount.current) {
+      const now = Date.now();
+      if (count !== lastLoggedQuantitiesCount.current && (now - lastQuantitiesLogTime.current) > 3000) {
         console.log("💾 Auto-saved quantities for", count, "materials");
         lastLoggedQuantitiesCount.current = count;
+        lastQuantitiesLogTime.current = now;
       }
     }
   }, [quantities, isViewMode, isRecoveringState, setStoredQuantities]);
@@ -916,14 +924,24 @@ const Estimates = () => {
   useEffect(() => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && laborRates && hasLaborRatesChanges(laborRates)) {
       setStoredLaborRates(laborRates);
-      console.log("💾 Auto-saved labor rates with changes detected");
+      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
+      const now = Date.now();
+      if ((now - lastLaborLogTime.current) > 3000) {
+        console.log("💾 Auto-saved labor rates with changes detected");
+        lastLaborLogTime.current = now;
+      }
     }
   }, [laborRates, isViewMode, isRecoveringState, setStoredLaborRates, hasLaborRatesChanges]);
 
   useEffect(() => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && profitMargin !== 25) {
       setStoredProfitMargin(profitMargin);
-      console.log("💾 Auto-saved profit margin:", profitMargin + "%");
+      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
+      const now = Date.now();
+      if ((now - lastProfitLogTime.current) > 3000) {
+        console.log("💾 Auto-saved profit margin:", profitMargin + "%");
+        lastProfitLogTime.current = now;
+      }
     }
   }, [profitMargin, isViewMode, isRecoveringState, setStoredProfitMargin]);
 
