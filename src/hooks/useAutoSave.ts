@@ -143,9 +143,13 @@ export function useAutoSave(
   // 🎯 ROLE-BASED AUTO-SAVE: Check if auto-save is enabled for current user
   const isAutoSaveEnabled = isAutoSaveEnabledForRole(profile?.role);
   
+  // 🔧 FIX: Prevent excessive logging with a ref to track if we've already logged
+  const hasLoggedStatus = useRef(false);
+  
   if (!isAutoSaveEnabled) {
-    // Log the reason for debugging in development
-    if (import.meta.env.DEV) {
+    // Log the reason for debugging in development (only once)
+    if (import.meta.env.DEV && !hasLoggedStatus.current) {
+      hasLoggedStatus.current = true;
       const globalEnabled = isFeatureEnabled('AUTO_SAVE_ENABLED');
       const adminOnly = isFeatureEnabled('AUTO_SAVE_ADMIN_ONLY');
       const userRole = profile?.role || 'unknown';
@@ -174,8 +178,9 @@ export function useAutoSave(
     };
   }
 
-  // 🔧 FEATURE BRANCH: Log auto-save activation for testing
-  if (import.meta.env.DEV) {
+  // 🔧 FEATURE BRANCH: Log auto-save activation for testing (only once)
+  if (import.meta.env.DEV && !hasLoggedStatus.current) {
+    hasLoggedStatus.current = true;
     console.log(`[useAutoSave] ✅ Auto-save ENABLED for role "${profile?.role}"`);
   }
 

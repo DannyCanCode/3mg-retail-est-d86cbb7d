@@ -174,26 +174,43 @@ export function LaborProfitTab({
 
   // 🔧 FIX: Track if user has manually changed dumpster count to prevent glitching
   const [hasUserChangedDumpsterCount, setHasUserChangedDumpsterCount] = useState(false);
+  
+  // 🔧 FIX: Reduce excessive dumpster logging to prevent console spam
+  const lastDumpsterLogTime = useRef(0);
+  const lastDumpsterRecommendation = useRef(0);
 
   // 🔧 NEW: Update dumpster count when measurements change (for fresh PDF uploads)
   // Only auto-populate if user hasn't manually changed the count
   useEffect(() => {
     if (measurements?.totalArea && measurements.totalArea > 0 && !hasUserChangedDumpsterCount) {
       const newRecommendedCount = Math.max(1, Math.ceil((measurements.totalArea / 100) / 28));
-      console.log(`[DUMPSTER AUTO-POP] Area: ${measurements.totalArea} sq ft → Recommendation: ${newRecommendedCount} dumpsters`);
+      
+      // Only log if recommendation changed or it's been more than 10 seconds since last log
+      const now = Date.now();
+      const shouldLog = newRecommendedCount !== lastDumpsterRecommendation.current || 
+                       now - lastDumpsterLogTime.current > 10000;
+      
+      if (shouldLog) {
+        lastDumpsterLogTime.current = now;
+        lastDumpsterRecommendation.current = newRecommendedCount;
+        console.log(`[DUMPSTER AUTO-POP] Area: ${measurements.totalArea} sq ft → Recommendation: ${newRecommendedCount} dumpsters`);
+      }
       
       // Only update if the recommendation has changed to prevent unnecessary re-renders
       if (laborRates.dumpsterCount !== newRecommendedCount) {
-        console.log(`[DUMPSTER AUTO-POP] Updating from ${laborRates.dumpsterCount} to ${newRecommendedCount}`);
+        if (shouldLog) {
+          console.log(`[DUMPSTER AUTO-POP] Updating from ${laborRates.dumpsterCount} to ${newRecommendedCount}`);
+        }
         setLaborRates(prev => ({
           ...prev,
           dumpsterCount: newRecommendedCount
         }));
         // Don't mark as user interaction since this is an automatic update
-      } else {
+      } else if (shouldLog) {
         console.log(`[DUMPSTER AUTO-POP] No update needed - already set to ${newRecommendedCount}`);
       }
-    } else if (hasUserChangedDumpsterCount) {
+    } else if (hasUserChangedDumpsterCount && Date.now() - lastDumpsterLogTime.current > 10000) {
+      lastDumpsterLogTime.current = Date.now();
       console.log(`[DUMPSTER AUTO-POP] Skipping auto-population - user has manually changed count`);
     }
   }, [measurements?.totalArea, hasUserChangedDumpsterCount]); // Include hasUserChangedDumpsterCount in dependencies

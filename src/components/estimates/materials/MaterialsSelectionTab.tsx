@@ -348,29 +348,41 @@ export function MaterialsSelectionTab({
   // 🔧 CRITICAL FIX: Removed resetStateFromProps callback to prevent hook order changes
   
   // Notify parent of changes when local state changes
+  // 🔧 FIX: Reduce excessive logging to prevent re-render loops
+  const lastLoggedMaterialCount = useRef(0);
+  const lastLogTime = useRef(0);
+  
   useEffect(() => {
     // Only log if there are actual changes to report
     const hasChanges = Object.keys(localSelectedMaterials).length > 0 || Object.keys(localQuantities).length > 0;
     
     // Don't notify parent if we just updated from parent props
     if (skipNextParentUpdate.current) {
-      if (hasChanges) console.log("🔒 [NotifyParentEffect] Skipping parent notification: skipNextParentUpdate is true.");
+      // Only log once every 5 seconds to reduce console spam
+      const now = Date.now();
+      if (hasChanges && now - lastLogTime.current > 5000) {
+        lastLogTime.current = now;
+        console.log("🔒 [NotifyParentEffect] Skipping parent notification: skipNextParentUpdate is true.");
+      }
       skipNextParentUpdate.current = false; // Reset for next potential update
       return;
     }
     
     // Only log when there are actual significant changes (reduce noise)
+    const materialCount = Object.keys(localSelectedMaterials).length;
     const shouldLog = hasChanges && (
-      Object.keys(localSelectedMaterials).length !== prevSelectedMaterialsCount.current ||
+      materialCount !== lastLoggedMaterialCount.current ||
       warrantyDetails?.price !== 0
     );
     
-    console.log("📤 [NotifyParentEffect] Syncing to parent:", {
-      materials: Object.keys(localSelectedMaterials).length,
-      quantities: Object.keys(localQuantities).length,
-      quantitiesValues: localQuantities,
-      triggeredBy: shouldLog ? 'significant change' : 'regular update'
-    });
+    if (shouldLog) {
+      lastLoggedMaterialCount.current = materialCount;
+      console.log("📤 [NotifyParentEffect] Syncing to parent:", {
+        materials: materialCount,
+        quantities: Object.keys(localQuantities).length,
+        triggeredBy: 'significant change'
+      });
+    }
     
     isInternalChange.current = true;
     
