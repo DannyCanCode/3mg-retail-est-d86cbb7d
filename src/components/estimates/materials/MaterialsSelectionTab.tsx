@@ -226,8 +226,8 @@ export function MaterialsSelectionTab({
     
     setLocalSelectedMaterials(materialsCopy);
     setLocalQuantities(quantitiesCopy);
-    // 🔧 FIX: Reset material order to match props
-    setMaterialOrder(Object.keys(materialsCopy));
+    // 🔧 FIX: Don't reset material order here - it's handled in the useEffect
+    // setMaterialOrder(Object.keys(materialsCopy));
     
     const initialDisplayQtys: Record<string, string> = {};
     const initialWasteFactors: Record<string, number> = {};
@@ -291,6 +291,29 @@ export function MaterialsSelectionTab({
     if (propsChanged) {
       console.log("Props for selectedMaterials or quantities changed, resetting state from props");
       skipNextParentUpdate.current = true; 
+      
+      // 🔧 FIX: Preserve material order when restoring from props
+      // Check if we have an existing order that we should maintain
+      const existingOrder = [...materialOrder];
+      const newMaterialIds = Object.keys(selectedMaterials);
+      
+      // If we have an existing order and the materials are mostly the same, preserve order
+      if (existingOrder.length > 0 && selectedMaterialsCount > 0) {
+        // Keep materials in existing order if they still exist
+        const preservedOrder = existingOrder.filter(id => newMaterialIds.includes(id));
+        // Add any new materials at the end
+        const newMaterials = newMaterialIds.filter(id => !existingOrder.includes(id));
+        const finalOrder = [...preservedOrder, ...newMaterials];
+        
+        // Only update order if it's actually different
+        if (JSON.stringify(finalOrder) !== JSON.stringify(materialOrder)) {
+          setMaterialOrder(finalOrder);
+        }
+      } else {
+        // No existing order or no materials, just use prop order
+        setMaterialOrder(newMaterialIds);
+      }
+      
       resetStateFromProps();
       prevSelectedMaterialsCount.current = selectedMaterialsCount;
       return;
@@ -2504,11 +2527,28 @@ export function MaterialsSelectionTab({
               </div>
             ) : (
               <div className="space-y-3">
-                {materialOrder.map(materialId => {
-                   const material = localSelectedMaterials[materialId];
-                   if (!material || !material.id) return null; 
-                   return renderSelectedMaterial(materialId, material);
-                 })}
+                {/* 🔧 FIX: Sort materials to always show low-slope at top */}
+                {(() => {
+                  // Separate low-slope and other materials
+                  const lowSlopeMaterials = materialOrder.filter(id => {
+                    const material = localSelectedMaterials[id];
+                    return material && material.category === 'LOW_SLOPE';
+                  });
+                  
+                  const otherMaterials = materialOrder.filter(id => {
+                    const material = localSelectedMaterials[id];
+                    return material && material.category !== 'LOW_SLOPE';
+                  });
+                  
+                  // Combine with low-slope first
+                  const sortedOrder = [...lowSlopeMaterials, ...otherMaterials];
+                  
+                  return sortedOrder.map(materialId => {
+                    const material = localSelectedMaterials[materialId];
+                    if (!material || !material.id) return null; 
+                    return renderSelectedMaterial(materialId, material);
+                  });
+                })()}
                 {/* Display Warranty Details */}
                 {warrantyDetails && warrantyDetails.price > 0 && (
                   <div className="p-3 rounded-md border border-purple-300 bg-purple-50">
