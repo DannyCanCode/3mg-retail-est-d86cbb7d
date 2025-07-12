@@ -378,16 +378,7 @@ export function MaterialsSelectionTab({
     
     if (shouldLog) {
       lastLoggedMaterialCount.current = materialCount;
-      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
-      const now = Date.now();
-      if ((now - lastParentSyncLogTime.current) > 5000) {
-        console.log("📤 [NotifyParentEffect] Syncing to parent:", {
-          materials: materialCount,
-          quantities: Object.keys(localQuantities).length,
-          triggeredBy: 'significant change'
-        });
-        lastParentSyncLogTime.current = now;
-      }
+      // 🔧 PERFORMANCE FIX: Removed parent sync logging to prevent console spam
     }
     
     isInternalChange.current = true;

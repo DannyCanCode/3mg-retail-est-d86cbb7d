@@ -825,14 +825,9 @@ const Estimates = () => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && Object.keys(selectedMaterials).length > 0) {
       validateAndSave(selectedMaterials, setStoredSelectedMaterials, 'materials');
       
-      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
+      // 🔧 PERFORMANCE FIX: Removed all logging to prevent console spam
       const count = Object.keys(selectedMaterials).length;
-      const now = Date.now();
-      if (count !== lastLoggedMaterialsCount.current && (now - lastMaterialsLogTime.current) > 3000) {
-        console.log("💾 Auto-saved materials:", count);
-        lastLoggedMaterialsCount.current = count;
-        lastMaterialsLogTime.current = now;
-      }
+      lastLoggedMaterialsCount.current = count;
     }
   }, [selectedMaterials, isViewMode, isRecoveringState, setStoredSelectedMaterials]);
 
@@ -840,14 +835,9 @@ const Estimates = () => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && Object.keys(quantities).length > 0) {
       setStoredQuantities(quantities);
       
-      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
+      // 🔧 PERFORMANCE FIX: Removed all logging to prevent console spam
       const count = Object.keys(quantities).length;
-      const now = Date.now();
-      if (count !== lastLoggedQuantitiesCount.current && (now - lastQuantitiesLogTime.current) > 3000) {
-        console.log("💾 Auto-saved quantities for", count, "materials");
-        lastLoggedQuantitiesCount.current = count;
-        lastQuantitiesLogTime.current = now;
-      }
+      lastLoggedQuantitiesCount.current = count;
     }
   }, [quantities, isViewMode, isRecoveringState, setStoredQuantities]);
 
@@ -924,24 +914,14 @@ const Estimates = () => {
   useEffect(() => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && laborRates && hasLaborRatesChanges(laborRates)) {
       setStoredLaborRates(laborRates);
-      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
-      const now = Date.now();
-      if ((now - lastLaborLogTime.current) > 3000) {
-        console.log("💾 Auto-saved labor rates with changes detected");
-        lastLaborLogTime.current = now;
-      }
+      // 🔧 PERFORMANCE FIX: Removed all logging to prevent console spam
     }
   }, [laborRates, isViewMode, isRecoveringState, setStoredLaborRates, hasLaborRatesChanges]);
 
   useEffect(() => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && profitMargin !== 25) {
       setStoredProfitMargin(profitMargin);
-      // 🔧 PERFORMANCE FIX: Throttled logging to prevent console spam
-      const now = Date.now();
-      if ((now - lastProfitLogTime.current) > 3000) {
-        console.log("💾 Auto-saved profit margin:", profitMargin + "%");
-        lastProfitLogTime.current = now;
-      }
+      // 🔧 PERFORMANCE FIX: Removed all logging to prevent console spam
     }
   }, [profitMargin, isViewMode, isRecoveringState, setStoredProfitMargin]);
 
@@ -952,14 +932,14 @@ const Estimates = () => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && estimateType && estimateType !== lastSavedEstimateType.current) {
       setStoredEstimateType(estimateType);
       lastSavedEstimateType.current = estimateType;
-      console.log("💾 Auto-saved estimate type:", estimateType);
+      // 🔧 PERFORMANCE FIX: Removed logging
     }
   }, [estimateType, isViewMode, isRecoveringState, setStoredEstimateType]);
 
   useEffect(() => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && selectedSubtrades.length > 0) {
       setStoredSelectedSubtrades(selectedSubtrades);
-      console.log("💾 Auto-saved", selectedSubtrades.length, "subtrades");
+      // 🔧 PERFORMANCE FIX: Removed logging
     }
   }, [selectedSubtrades, isViewMode, isRecoveringState, setStoredSelectedSubtrades]);
 
@@ -990,16 +970,14 @@ const Estimates = () => {
     if (shouldSaveTab) {
       setStoredActiveTab(activeTab);
       lastSavedTab.current = activeTab;
-      console.log("💾 Auto-saved tab position:", activeTab);
-    } else if (!hasComponentMounted.current && activeTab === "type-selection") {
-      console.log("🚫 Skipped saving default tab during mount:", activeTab);
+      // 🔧 PERFORMANCE FIX: Removed logging
     }
   }, [activeTab, isViewMode, isRecoveringState, setStoredActiveTab]);
 
   useEffect(() => {
     if (!isViewMode && !isInternalStateChange.current && !isRecoveringState && !userWantsFreshStart && peelStickAddonCost !== "0.00") {
       setStoredPeelStickCost(peelStickAddonCost);
-      console.log("💾 Auto-saved peel stick cost:", peelStickAddonCost);
+      // 🔧 PERFORMANCE FIX: Removed logging
     }
   }, [peelStickAddonCost, isViewMode, isRecoveringState, setStoredPeelStickCost]);
 

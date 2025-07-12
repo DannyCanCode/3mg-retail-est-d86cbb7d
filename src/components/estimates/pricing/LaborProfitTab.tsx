@@ -185,35 +185,17 @@ export function LaborProfitTab({
     if (measurements?.totalArea && measurements.totalArea > 0 && !hasUserChangedDumpsterCount) {
       const newRecommendedCount = Math.max(1, Math.ceil((measurements.totalArea / 100) / 28));
       
-      // Only log if recommendation changed or it's been more than 10 seconds since last log
-      const now = Date.now();
-      // 🔧 PERFORMANCE FIX: Further throttle dumpster logging to prevent console spam
-      const shouldLog = newRecommendedCount !== lastDumpsterRecommendation.current && 
-                       (now - lastDumpsterLogTime.current) > 30000; // Increased from 10s to 30s
-      
-      if (shouldLog) {
-        lastDumpsterLogTime.current = now;
-        lastDumpsterRecommendation.current = newRecommendedCount;
-        console.log(`[DUMPSTER AUTO-POP] Area: ${measurements.totalArea} sq ft → Recommendation: ${newRecommendedCount} dumpsters`);
-      }
+      // 🔧 PERFORMANCE FIX: Removed all dumpster logging to prevent console spam
+      lastDumpsterRecommendation.current = newRecommendedCount;
       
       // Only update if the recommendation has changed to prevent unnecessary re-renders
       if (laborRates.dumpsterCount !== newRecommendedCount) {
-        if (shouldLog) {
-          console.log(`[DUMPSTER AUTO-POP] Updating from ${laborRates.dumpsterCount} to ${newRecommendedCount}`);
-        }
         setLaborRates(prev => ({
           ...prev,
           dumpsterCount: newRecommendedCount
         }));
         // Don't mark as user interaction since this is an automatic update
-      } else {
-        // 🔧 PERFORMANCE FIX: Removed redundant log for "no update needed" case
-        // This was logging every render even when no changes occurred
       }
-    } else if (hasUserChangedDumpsterCount && (Date.now() - lastDumpsterLogTime.current) > 30000) {
-      lastDumpsterLogTime.current = Date.now();
-      console.log(`[DUMPSTER AUTO-POP] Skipping auto-population - user has manually changed count`);
     }
   }, [measurements?.totalArea, hasUserChangedDumpsterCount]); // Include hasUserChangedDumpsterCount in dependencies
 
