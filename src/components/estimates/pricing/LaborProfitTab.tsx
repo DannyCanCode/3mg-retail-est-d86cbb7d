@@ -690,22 +690,25 @@ export function LaborProfitTab({
                               <div className="space-y-2">
                   <Label htmlFor="labor-dumpsterCount">Number of Dumpsters</Label>
                   <Input
+                  id="labor-dumpsterCount"
                   type="number"
-                  value={(laborRates.dumpsterCount || 1).toString()}
+                  value={laborRates.dumpsterCount.toString()}
                   onChange={(e) => {
-                    // 🔧 FIX: Handle input changes properly without glitching
+                    // 🔧 FIX: Use onChange instead of onBlur for immediate updates
                     const value = e.target.value;
                     if (value === '') {
                       // Allow empty input temporarily for better UX
-                      handleLaborRateChange("dumpsterCount", '');
-                    } else {
-                      handleLaborRateChange("dumpsterCount", value);
+                      return;
+                    }
+                    const parsed = parseInt(value, 10);
+                    if (!isNaN(parsed) && parsed >= 0) {
+                      handleLaborRateChange("dumpsterCount", parsed);
                     }
                   }}
                   onBlur={(e) => {
-                    // 🔧 FIX: Ensure valid value on blur
+                    // 🔧 FIX: Enforce minimum value on blur
                     const value = e.target.value;
-                    if (value === '' || parseInt(value) < 1) {
+                    if (value === '' || parseInt(value, 10) < 1) {
                       handleLaborRateChange("dumpsterCount", 1);
                     }
                   }}

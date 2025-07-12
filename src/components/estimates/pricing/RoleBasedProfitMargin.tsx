@@ -161,8 +161,11 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
   // Handle user interaction state
   const handleValueChange = (value: number[]) => {
     setIsUserInteracting(true);
-    setLocalValue(value[0]);
-    onProfitMarginChange(value);
+    const newValue = value[0];
+    setLocalValue(newValue);
+    
+    // 🔧 FIX: Pass the actual value from the slider, not just the local state
+    onProfitMarginChange([newValue]);
     
     // Clear interaction flag after a longer delay for smoother experience
     if (timeoutRef.current) {
@@ -175,7 +178,9 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
 
   const handleValueCommit = (value: number[]) => {
     setIsUserInteracting(false);
-    onProfitMarginCommit(value);
+    const finalValue = value[0];
+    setLocalValue(finalValue);
+    onProfitMarginCommit([finalValue]);
   };
 
   const getRoleIcon = () => {

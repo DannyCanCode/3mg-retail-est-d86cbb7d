@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Shield, Lock, Loader2, ExternalLink } from "lucide-react";
@@ -31,19 +31,27 @@ export function SimplifiedReviewTab({
   const { isAdmin } = useRoleAccess();
   const { toast } = useToast();
   
-  // 🔍 DEBUG: Log what props we're receiving
-  console.log("🔍 [SimplifiedReviewTab] Props received:", {
-    extractedFileName: extractedFileName || "NULL",
-    pdfUrl: pdfUrl || "NULL",
-    pdfUrlType: typeof pdfUrl,
-    hasFileName: !!extractedFileName,
-    hasPdfUrl: !!pdfUrl
-  });
+  // �� FIX: Prevent flash by tracking if component has mounted
+  const [hasInitialized, setHasInitialized] = useState(false);
+  const [isSavingAndContinuing, setIsSavingAndContinuing] = useState(false);
+  
+  // 🔧 FIX: Only log once on mount to reduce console spam
+  useEffect(() => {
+    if (!hasInitialized) {
+      console.log("🔍 [SimplifiedReviewTab] Props received:", {
+        extractedFileName: extractedFileName || 'none',
+        pdfUrl: pdfUrl || 'none',
+        pdfUrlType: typeof pdfUrl,
+        hasFileName: !!extractedFileName,
+        hasPdfUrl: !!pdfUrl,
+      });
+      setHasInitialized(true);
+    }
+  }, [hasInitialized, extractedFileName, pdfUrl]);
   
   // Local state for editing (only used by admins)
   const [isEditing, setIsEditing] = useState(false);
   const [editableMeasurements, setEditableMeasurements] = useState<MeasurementValues>(measurements);
-  const [isSavingAndContinuing, setIsSavingAndContinuing] = useState(false);
   
   // Calculate totals
   const totalSquares = Math.round(measurements.totalArea / 100 * 10) / 10;
