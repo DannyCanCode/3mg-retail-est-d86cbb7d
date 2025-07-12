@@ -101,7 +101,15 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
   // 🔧 FIX: Use a single debounced effect to handle profit margin auto-correction
   // This prevents conflicting useEffect hooks from making the slider jerky
   const [isUserInteracting, setIsUserInteracting] = React.useState(false);
+  const [localValue, setLocalValue] = React.useState(effectiveMargin);
   const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // 🔧 FIX: Sync local value with effective margin when not interacting
+  React.useEffect(() => {
+    if (!isUserInteracting) {
+      setLocalValue(effectiveMargin);
+    }
+  }, [effectiveMargin, isUserInteracting]);
 
   React.useEffect(() => {
     // Clear any existing timeout
@@ -140,7 +148,7 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
         onProfitMarginChange([targetMargin]);
         onProfitMarginCommit([targetMargin]);
       }
-    }, 300); // 300ms debounce delay
+    }, 500); // 🔧 FIX: Increased debounce delay to 500ms for smoother interaction
 
     // Cleanup timeout on unmount
     return () => {
@@ -153,15 +161,16 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
   // Handle user interaction state
   const handleValueChange = (value: number[]) => {
     setIsUserInteracting(true);
+    setLocalValue(value[0]);
     onProfitMarginChange(value);
     
-    // Clear interaction flag after a short delay
+    // Clear interaction flag after a longer delay for smoother experience
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
     timeoutRef.current = setTimeout(() => {
       setIsUserInteracting(false);
-    }, 100);
+    }, 300); // 🔧 FIX: Increased delay to 300ms
   };
 
   const handleValueCommit = (value: number[]) => {
@@ -249,7 +258,7 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
         <div className="flex items-center justify-between">
           <Label htmlFor="profit-margin">Profit Margin</Label>
           <span className="text-2xl font-bold text-green-600">
-            {effectiveMargin}%
+            {isUserInteracting ? localValue : effectiveMargin}%
           </span>
         </div>
 
@@ -278,7 +287,7 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
               min={constraints.min}
               max={constraints.max}
               step={constraints.step}
-              value={[effectiveMargin]}
+              value={[isUserInteracting ? localValue : effectiveMargin]}
               onValueChange={handleValueChange}
               onValueCommit={handleValueCommit}
               disabled={readOnly && !(isAdminEditMode && userRole === 'admin')}
