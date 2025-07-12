@@ -606,14 +606,14 @@ export function RecentEstimates() {
              <div className="space-y-2">
                 <Label>Job Type</Label>
                 <RadioGroup value={jobType} onValueChange={(value: 'Retail' | 'Insurance') => setJobType(value)} className="flex space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Retail" id="dashboard-sold-r1" />
-                    <Label htmlFor="dashboard-sold-r1">Retail</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="Insurance" id="dashboard-sold-r2" />
-                    <Label htmlFor="dashboard-sold-r2">Insurance</Label>
-                  </div>
+                                  <label className="flex items-center space-x-2 cursor-pointer">
+                  <RadioGroupItem value="Retail" />
+                  <span>Retail</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <RadioGroupItem value="Insurance" />
+                  <span>Insurance</span>
+                </label>
                 </RadioGroup>
              </div>
              {jobType === 'Insurance' && (

@@ -665,14 +665,14 @@ export function LaborProfitTab({
               className="flex flex-col space-y-1"
               disabled={!canEditQuantitiesAndToggles()}
             >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="orlando" id="labor-orlando" disabled={!canEditQuantitiesAndToggles()}/>
-                <Label htmlFor="labor-orlando">Orlando</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="outside" id="labor-outside" disabled={!canEditQuantitiesAndToggles()}/>
-                <Label htmlFor="labor-outside">Outside Orlando</Label>
-              </div>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <RadioGroupItem value="orlando" disabled={!canEditQuantitiesAndToggles()}/>
+                <span>Orlando</span>
+              </label>
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <RadioGroupItem value="outside" disabled={!canEditQuantitiesAndToggles()}/>
+                <span>Outside Orlando</span>
+              </label>
             </RadioGroup>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
