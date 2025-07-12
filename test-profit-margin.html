@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profit Margin Slider Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 20px 0;
+        }
+        .value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #16a34a;
+            text-align: center;
+        }
+        .log {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Profit Margin Slider Test</h1>
+        <p>This tests if the slider can move to any value, not just increment by 1.</p>
+        
+        <label for="slider">Profit Margin:</label>
+        <input type="range" id="slider" min="0" max="50" step="1" value="30">
+        <div class="value" id="value">30%</div>
+        
+        <div class="log" id="log">
+            <strong>Event Log:</strong><br>
+        </div>
+        
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        const slider = document.getElementById('slider');
+        const valueDisplay = document.getElementById('value');
+        const log = document.getElementById('log');
+        
+        let lastValue = 30;
+        
+        function addLog(message) {
+            const time = new Date().toLocaleTimeString();
+            log.innerHTML += `${time}: ${message}<br>`;
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        slider.addEventListener('input', (e) => {
+            const newValue = e.target.value;
+            valueDisplay.textContent = newValue + '%';
+            
+            const diff = Math.abs(newValue - lastValue);
+            if (diff > 1) {
+                addLog(`✅ GOOD: Jumped from ${lastValue} to ${newValue} (diff: ${diff})`);
+            } else if (diff === 1) {
+                addLog(`⚠️  INCREMENT: ${lastValue} → ${newValue} (only moved by 1)`);
+            }
+            
+            lastValue = newValue;
+        });
+        
+        slider.addEventListener('change', (e) => {
+            addLog(`🎯 Final value: ${e.target.value}`);
+        });
+        
+        function clearLog() {
+            log.innerHTML = '<strong>Event Log:</strong><br>';
+            addLog('Log cleared');
+        }
+        
+        // Initial log
+        addLog('Test started - try dragging the slider quickly');
+    </script>
+</body>
+</html> 

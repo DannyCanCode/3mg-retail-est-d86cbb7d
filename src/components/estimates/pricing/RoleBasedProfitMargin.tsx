@@ -98,90 +98,39 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
   // Enforce minimum margin for the role
   const effectiveMargin = Math.max(constraints.min, Math.min(constraints.max, profitMargin));
   
-  // 🔧 FIX: Use a single debounced effect to handle profit margin auto-correction
-  // This prevents conflicting useEffect hooks from making the slider jerky
-  const [isUserInteracting, setIsUserInteracting] = React.useState(false);
-  const [localValue, setLocalValue] = React.useState(effectiveMargin);
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  // 🔧 FIX: Sync local value with effective margin when not interacting
-  React.useEffect(() => {
-    if (!isUserInteracting) {
-      setLocalValue(effectiveMargin);
-    }
-  }, [effectiveMargin, isUserInteracting]);
-
-  React.useEffect(() => {
-    // Clear any existing timeout
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-
-    // Don't auto-correct during user interaction
-    if (isUserInteracting) {
-      return;
-    }
-
-    // Debounce auto-correction to prevent conflicts with user input
-    timeoutRef.current = setTimeout(() => {
-      let targetMargin = profitMargin;
-      let shouldUpdate = false;
-
-      // For sales reps, automatically set margin based on package
-      if (userRole === 'rep' && selectedPackage) {
-        const packageMargin = selectedPackage === 'gaf1' ? 25 : 30;
-        if (profitMargin !== packageMargin) {
-          targetMargin = packageMargin;
-          shouldUpdate = true;
-        }
-      }
-      // For other roles, enforce min/max constraints
-      else if (profitMargin < constraints.min) {
-        targetMargin = constraints.min;
-        shouldUpdate = true;
-      } else if (profitMargin > constraints.max) {
-        targetMargin = constraints.max;
-        shouldUpdate = true;
-      }
-
-      if (shouldUpdate) {
-        onProfitMarginChange([targetMargin]);
-        onProfitMarginCommit([targetMargin]);
-      }
-    }, 500); // 🔧 FIX: Increased debounce delay to 500ms for smoother interaction
-
-    // Cleanup timeout on unmount
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [profitMargin, constraints.min, constraints.max, userRole, selectedPackage, isUserInteracting, onProfitMarginChange, onProfitMarginCommit]);
-
-  // Handle user interaction state
+  // 🔧 SIMPLIFIED FIX: Remove complex state management that was causing issues
+  // Just use the prop value directly and handle changes immediately
+  
   const handleValueChange = (value: number[]) => {
-    setIsUserInteracting(true);
     const newValue = value[0];
-    setLocalValue(newValue);
-    
-    // 🔧 FIX: Pass the actual value from the slider, not just the local state
-    onProfitMarginChange([newValue]);
-    
-    // Clear interaction flag after a longer delay for smoother experience
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
-      setIsUserInteracting(false);
-    }, 300); // 🔧 FIX: Increased delay to 300ms
+    // Enforce constraints immediately
+    const constrainedValue = Math.max(constraints.min, Math.min(constraints.max, newValue));
+    onProfitMarginChange([constrainedValue]);
   };
 
   const handleValueCommit = (value: number[]) => {
-    setIsUserInteracting(false);
     const finalValue = value[0];
-    setLocalValue(finalValue);
-    onProfitMarginCommit([finalValue]);
+    const constrainedValue = Math.max(constraints.min, Math.min(constraints.max, finalValue));
+    onProfitMarginCommit([constrainedValue]);
   };
+
+  // 🔧 FIX: Simple effect to enforce role-based constraints without complex state
+  React.useEffect(() => {
+    // For sales reps, automatically set margin based on package
+    if (userRole === 'rep' && selectedPackage) {
+      const packageMargin = selectedPackage === 'gaf1' ? 25 : 30;
+      if (profitMargin !== packageMargin) {
+        onProfitMarginChange([packageMargin]);
+        onProfitMarginCommit([packageMargin]);
+      }
+    }
+    // For other roles, just enforce constraints if needed
+    else if (profitMargin < constraints.min || profitMargin > constraints.max) {
+      const targetMargin = Math.max(constraints.min, Math.min(constraints.max, profitMargin));
+      onProfitMarginChange([targetMargin]);
+      onProfitMarginCommit([targetMargin]);
+    }
+  }, [userRole, selectedPackage, constraints.min, constraints.max]); // Removed profitMargin to prevent loops
 
   const getRoleIcon = () => {
     switch (userRole) {
@@ -263,7 +212,7 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
         <div className="flex items-center justify-between">
           <Label htmlFor="profit-margin">Profit Margin</Label>
           <span className="text-2xl font-bold text-green-600">
-            {isUserInteracting ? localValue : effectiveMargin}%
+            {effectiveMargin}%
           </span>
         </div>
 
@@ -292,7 +241,7 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
               min={constraints.min}
               max={constraints.max}
               step={constraints.step}
-              value={[isUserInteracting ? localValue : effectiveMargin]}
+              value={[effectiveMargin]}
               onValueChange={handleValueChange}
               onValueCommit={handleValueCommit}
               disabled={readOnly && !(isAdminEditMode && userRole === 'admin')}

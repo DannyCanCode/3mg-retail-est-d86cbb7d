@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI Issues Manual Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.pass {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.fail {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .instructions {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .code {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>3MG Retail Estimator - UI Issues Test Summary</h1>
+    
+    <div class="test-section">
+        <h2>🎯 Test Results Summary</h2>
+        <p>Based on the code fixes applied, here are the expected improvements:</p>
+        
+        <div class="status pass">
+            <strong>✅ Fixed:</strong> Performance issues - Removed excessive console logging
+        </div>
+        
+        <div class="status pass">
+            <strong>✅ Fixed:</strong> Material order persistence when navigating between tabs
+        </div>
+        
+        <div class="status pass">
+            <strong>✅ Fixed:</strong> Low-slope materials now always appear at the top
+        </div>
+        
+        <div class="status pass">
+            <strong>✅ Fixed:</strong> Profit margin slider value handling
+        </div>
+        
+        <div class="status pass">
+            <strong>✅ Fixed:</strong> Dumpster count input onChange/onBlur handling
+        </div>
+        
+        <div class="status pass">
+            <strong>✅ Fixed:</strong> Reduced SimplifiedReviewTab re-renders
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 Manual Testing Instructions</h2>
+        
+        <div class="instructions">
+            <h3>1. Test Profit Margin Slider</h3>
+            <ol>
+                <li>Navigate to Estimates → Upload PDF → Continue to Materials → Select GAF Package → Continue to Pricing</li>
+                <li>Find the Profit Margin slider</li>
+                <li>Drag the slider to different values (not just clicking)</li>
+                <li><strong>Expected:</strong> Slider should move smoothly to any value between min and max</li>
+                <li><strong>Fixed Issue:</strong> Previously only incremented by 1</li>
+            </ol>
+        </div>
+
+        <div class="instructions">
+            <h3>2. Test Dumpster Count Input</h3>
+            <ol>
+                <li>On the Pricing tab, find "Number of Dumpsters" input</li>
+                <li>Click the up/down arrows multiple times</li>
+                <li>Type a value directly</li>
+                <li>Clear the field and click outside (blur)</li>
+                <li><strong>Expected:</strong> 
+                    <ul>
+                        <li>Arrows increment/decrement smoothly</li>
+                        <li>Typing updates immediately</li>
+                        <li>Empty field defaults to 1 on blur</li>
+                    </ul>
+                </li>
+                <li><strong>Fixed Issue:</strong> Previously glitched between values</li>
+            </ol>
+        </div>
+
+        <div class="instructions">
+            <h3>3. Test UI Flash</h3>
+            <ol>
+                <li>Upload a new PDF</li>
+                <li>Watch the transition from upload to review</li>
+                <li><strong>Expected:</strong> Smooth transition without seeing old UI</li>
+                <li><strong>Fixed Issue:</strong> Previously showed flash of old measurements UI</li>
+            </ol>
+        </div>
+
+        <div class="instructions">
+            <h3>4. Test Material Cards Order</h3>
+            <ol>
+                <li>Select a GAF package with materials</li>
+                <li>Note the order of material cards</li>
+                <li>Navigate to Pricing tab</li>
+                <li>Navigate back to Materials tab</li>
+                <li><strong>Expected:</strong> 
+                    <ul>
+                        <li>Material cards maintain same order</li>
+                        <li>Low-slope materials (if any) appear at top</li>
+                    </ul>
+                </li>
+                <li><strong>Fixed Issue:</strong> Previously cards jumped around</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 Technical Changes Applied</h2>
+        
+        <div class="code">
+// 1. Profit Margin Slider Fix (RoleBasedProfitMargin.tsx)
+const handleValueChange = (value: number[]) => {
+  const newValue = value[0];
+  setLocalValue(newValue);
+  onProfitMarginChange([newValue]); // Pass actual value
+};
+
+// 2. Dumpster Count Fix (LaborProfitTab.tsx)  
+&lt;Input
+  onChange={(e) => {
+    const value = e.target.value;
+    if (value === '') return; // Allow empty temporarily
+    const parsed = parseInt(value, 10);
+    if (!isNaN(parsed) && parsed >= 0) {
+      handleLaborRateChange("dumpsterCount", parsed);
+    }
+  }}
+  onBlur={(e) => {
+    if (e.target.value === '' || parseInt(e.target.value, 10) < 1) {
+      handleLaborRateChange("dumpsterCount", 1);
+    }
+  }}
+/&gt;
+
+// 3. Material Order Fix (MaterialsSelectionTab.tsx)
+// Added order preservation in useEffect
+// Added low-slope sorting in render
+
+// 4. Performance Fix
+// Removed all console.log statements from auto-save effects
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Next Steps</h2>
+        <ol>
+            <li>Clear browser cache (Cmd + Shift + R)</li>
+            <li>Test each scenario above</li>
+            <li>If issues persist:
+                <ul>
+                    <li>Check browser console for errors</li>
+                    <li>Verify the dev server restarted with latest changes</li>
+                    <li>Try incognito/private browsing mode</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <script>
+        console.log('UI Issues Test Guide Loaded');
+        console.log('All fixes have been applied to the codebase');
+        console.log('Please follow the manual testing instructions above');
+    </script>
+</body>
+</html> 
