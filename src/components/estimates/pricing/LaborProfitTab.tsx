@@ -675,6 +675,7 @@ export function LaborProfitTab({
                   <Input
                     id="labor-dumpsterRate"
                   type="number"
+                  autoComplete="off"
                   defaultValue={(laborRates.dumpsterRate !== undefined ? laborRates.dumpsterRate : (laborRates.dumpsterLocation === "orlando" ? 400 : 500)).toString()} 
                   onBlur={(e) => handleLaborRateChange("dumpsterRate", e.target.value)}
                   key={`dumpsterRate-input-${laborRates.dumpsterLocation}-${laborRates.dumpsterRate}`}
@@ -689,6 +690,7 @@ export function LaborProfitTab({
                   <Input
                   id="labor-dumpsterCount"
                   type="number"
+                  autoComplete="off"
                   value={laborRates.dumpsterCount.toString()}
                   onChange={(e) => {
                     // 🔧 FIX: Handle all input changes properly
@@ -796,6 +798,7 @@ export function LaborProfitTab({
                       <Input
                         id="permitCount"
                         type="number"
+                        autoComplete="off"
                         value={(laborRates.permitCount || 1).toString()}
                         onChange={(e) => handleLaborRateChange("permitCount", e.target.value)}
                         min="1"
@@ -1125,6 +1128,7 @@ export function LaborProfitTab({
                   <Input
                     id="labor-handloadRate"
                     type="number"
+                    autoComplete="off"
                     defaultValue={(laborRates.handloadRate || 10).toString()}
                     onBlur={(e) => handleLaborRateChange("handloadRate", e.target.value)}
                     key={`handloadRate-${laborRates.handloadRate}`}
@@ -1154,6 +1158,7 @@ export function LaborProfitTab({
                   <Input
                     id="labor-laborRate"
                   type="number"
+                  autoComplete="off"
                   defaultValue={(laborRates.laborRate !== undefined ? laborRates.laborRate : 85).toString()}
                   onBlur={(e) => handleLaborRateChange("laborRate", e.target.value)}
                   key={`laborRate-input-${laborRates.laborRate}`}
@@ -1171,6 +1176,7 @@ export function LaborProfitTab({
                 <Input
                   id="wastePercentage"
                   type="number"
+                  autoComplete="off"
                   value={(laborRates.wastePercentage || 12).toString()}
                   readOnly
                   className="bg-muted"
