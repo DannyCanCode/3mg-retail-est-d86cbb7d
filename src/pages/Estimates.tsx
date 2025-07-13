@@ -1503,7 +1503,7 @@ const Estimates = () => {
     //   return;
     // }
     
-    console.log("Estimates.tsx: Updating laborRates and profitMargin state.", { updatedLaborRates, updatedProfitMargin });
+    // Removed console.log to reduce spam
     setLaborRates(updatedLaborRates);
     setProfitMargin(updatedProfitMargin);
     
@@ -2485,8 +2485,7 @@ const Estimates = () => {
     }
 
     console.log("CALCULATE_LIVE_TOTAL (Estimates.tsx): Calling API with measurements:", JSON.stringify(measurements, null, 2));
-    console.log("CALCULATE_LIVE_TOTAL (Estimates.tsx): Calling API with laborRates:", JSON.stringify(laborRates, null, 2));
-    console.log("CALCULATE_LIVE_TOTAL (Estimates.tsx): Calling API with profitMargin:", profitMargin);
+          // Removed console.logs to reduce spam
     console.log("CALCULATE_LIVE_TOTAL (Estimates.tsx): Calling API with selectedMaterials count:", Object.keys(selectedMaterials).length);
 
 

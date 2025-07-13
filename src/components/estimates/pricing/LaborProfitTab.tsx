@@ -356,13 +356,7 @@ export function LaborProfitTab({
   const handleProfitMarginChange = (value: number[]) => {
     const newMargin = value[0];
     setProfitMargin(newMargin);
-    
-    // 🔧 CRITICAL FIX: Sync profit margin changes immediately to parent
-    if (onLaborProfitContinue) {
-      setTimeout(() => {
-        onLaborProfitContinue(laborRates, newMargin);
-      }, 0);
-    }
+    // Don't call parent on every change, only on commit
   };
   
   const handleProfitMarginCommit = (value: number[]) => {
@@ -475,11 +469,11 @@ export function LaborProfitTab({
         let isSteepSlopePitch = pitchValue >= 3; // Assuming anything 3/12 and up is "steep" for this toggle logic
 
         if (isLowSlopePitch && !(laborRates.includeLowSlopeLabor ?? true)) {
-          console.log(`Skipping labor for low slope pitch ${pitchRaw} as includeLowSlopeLabor is false`);
+          // Skipping labor for low slope pitch as includeLowSlopeLabor is false
           return; // Skip this low slope pitch area - no labor cost added
         }
         if (isSteepSlopePitch && !(laborRates.includeSteepSlopeLabor ?? true)) {
-          console.log(`Skipping labor for steep slope pitch ${pitchRaw} as includeSteepSlopeLabor is false`);
+          // Skipping labor for steep slope pitch as includeSteepSlopeLabor is false
           return; // Skip this steep slope pitch area - no labor cost added
         }
         
