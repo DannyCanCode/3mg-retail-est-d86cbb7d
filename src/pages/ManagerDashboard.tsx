@@ -263,46 +263,92 @@ const ManagerDashboard: React.FC = () => {
     // Determine creator info and role-based styling
     const creatorName = estimate.creator_name || estimate.customer_name || 'Unknown Creator';
     const creatorRole = estimate.creator_role || 'rep'; // fallback to rep if no role
+    const territoryName = (estimate as any).territory_name || territory?.name; // Get territory from estimate or current territory
     
-    // Role-based color themes
-    const getRoleTheme = (role: string) => {
-      switch (role) {
-        case 'admin':
+    // 🎨 TERRITORY-BASED COLOR SYSTEM
+    const getTerritoryTheme = (territoryName?: string, role?: string) => {
+      // 🔒 Admin cards remain blue regardless of territory
+      if (role === 'admin') {
+        return {
+          border: 'border-blue-200',
+          headerBg: 'bg-gradient-to-r from-blue-50 to-blue-100',
+          titleColor: 'text-blue-900',
+          accentColor: 'text-blue-600',
+          badgeColors: 'bg-blue-100 text-blue-800 border-blue-300',
+          territoryLabel: 'Admin'
+        };
+      }
+
+      // 🏢 Territory-based colors for managers and reps
+      switch (territoryName?.toLowerCase()) {
+        case 'tampa':
           return {
-            border: 'border-blue-200',
-            headerBg: 'bg-blue-50',
-            titleColor: 'text-blue-900',
-            accentColor: 'text-blue-600',
-            badgeColors: 'bg-blue-100 text-blue-800 border-blue-300'
+            border: 'border-emerald-200',
+            headerBg: 'bg-gradient-to-r from-emerald-50 to-emerald-100',
+            titleColor: 'text-emerald-900',
+            accentColor: 'text-emerald-600',
+            badgeColors: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+            territoryLabel: 'Tampa'
           };
-        case 'manager':
+        case 'ocala':
           return {
-            border: 'border-green-200',
-            headerBg: 'bg-green-50',
-            titleColor: 'text-green-900',
-            accentColor: 'text-green-600',
-            badgeColors: 'bg-green-100 text-green-800 border-green-300'
+            border: 'border-cyan-200',
+            headerBg: 'bg-gradient-to-r from-cyan-50 to-cyan-100',
+            titleColor: 'text-cyan-900',
+            accentColor: 'text-cyan-600',
+            badgeColors: 'bg-cyan-100 text-cyan-800 border-cyan-300',
+            territoryLabel: 'Ocala'
           };
-        case 'rep':
+        case 'winter park':
           return {
-            border: 'border-orange-200',
-            headerBg: 'bg-orange-50',
-            titleColor: 'text-orange-900',
-            accentColor: 'text-orange-600',
-            badgeColors: 'bg-orange-100 text-orange-800 border-orange-300'
+            border: 'border-purple-200',
+            headerBg: 'bg-gradient-to-r from-purple-50 to-purple-100',
+            titleColor: 'text-purple-900',
+            accentColor: 'text-purple-600',
+            badgeColors: 'bg-purple-100 text-purple-800 border-purple-300',
+            territoryLabel: 'Winter Park'
+          };
+        case 'miami':
+          return {
+            border: 'border-pink-200',
+            headerBg: 'bg-gradient-to-r from-pink-50 to-pink-100',
+            titleColor: 'text-pink-900',
+            accentColor: 'text-pink-600',
+            badgeColors: 'bg-pink-100 text-pink-800 border-pink-300',
+            territoryLabel: 'Miami'
+          };
+        case 'stuart':
+          return {
+            border: 'border-amber-200',
+            headerBg: 'bg-gradient-to-r from-amber-50 to-amber-100',
+            titleColor: 'text-amber-900',
+            accentColor: 'text-amber-600',
+            badgeColors: 'bg-amber-100 text-amber-800 border-amber-300',
+            territoryLabel: 'Stuart'
+          };
+        case 'jacksonville':
+          return {
+            border: 'border-indigo-200',
+            headerBg: 'bg-gradient-to-r from-indigo-50 to-indigo-100',
+            titleColor: 'text-indigo-900',
+            accentColor: 'text-indigo-600',
+            badgeColors: 'bg-indigo-100 text-indigo-800 border-indigo-300',
+            territoryLabel: 'Jacksonville'
           };
         default:
+          // Fallback for unknown territories
           return {
             border: 'border-gray-200',
-            headerBg: 'bg-gray-50',
+            headerBg: 'bg-gradient-to-r from-gray-50 to-gray-100',
             titleColor: 'text-gray-900',
             accentColor: 'text-gray-600',
-            badgeColors: 'bg-gray-100 text-gray-800 border-gray-300'
+            badgeColors: 'bg-gray-100 text-gray-800 border-gray-300',
+            territoryLabel: 'Unknown'
           };
       }
     };
     
-    const theme = getRoleTheme(creatorRole);
+    const theme = getTerritoryTheme(territoryName, creatorRole);
     
     return (
       <Card className={`overflow-hidden transition-all duration-200 hover:shadow-md ${theme.border}`}>
@@ -314,7 +360,8 @@ const ManagerDashboard: React.FC = () => {
               </h3>
               <p className={`text-xs ${theme.accentColor} mt-1`}>
                 {creatorRole === 'admin' ? 'Administrator' : 
-                 creatorRole === 'manager' ? 'Territory Manager' : 'Sales Rep'}
+                 creatorRole === 'manager' ? `Territory Manager - ${theme.territoryLabel}` : 
+                 `Sales Rep - ${theme.territoryLabel}`}
               </p>
             </div>
             <Badge 
