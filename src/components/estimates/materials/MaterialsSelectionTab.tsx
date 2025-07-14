@@ -303,6 +303,7 @@ export function MaterialsSelectionTab({
     // If there are materials to add, update the state
     if (Object.keys(materialsToAdd).length > 0) {
       hasVentilationPopulated.current = true; // Mark as populated before updating state
+      isInternalChange.current = true; // Mark as internal change to prevent reset
       
       setLocalSelectedMaterials(prev => {
         const newMaterials = { ...prev };
