@@ -117,6 +117,22 @@ export function LaborProfitTab({
     return false;
   };
 
+  // 🔓 NEW: Sales Reps can edit dumpster location and permits toggles only
+  const canEditDumpsterLocationAndPermits = () => {
+    // Admin override: If in admin edit mode and current user is admin, allow editing
+    if (isAdminEditMode && isAdmin) {
+      return true; // Admins can edit any estimate when in admin edit mode
+    }
+    
+    // Normal operation: Sales Reps, Territory Managers AND Admins can edit these fields
+    if (!readOnly && (isAdmin || userRole === 'manager' || userRole === 'rep')) {
+      return true; // Sales Reps can select dumpster location and permits
+    }
+    
+    // Other roles cannot edit
+    return false;
+  };
+
   const getSafeInitialRates = useCallback((initialRates?: LaborRates): LaborRates => {
     // Calculate recommended dumpster count based on roof area
     const recommendedDumpsterCount = measurements?.totalArea && measurements.totalArea > 0 
@@ -673,14 +689,14 @@ export function LaborProfitTab({
               value={laborRates.dumpsterLocation}
               onValueChange={handleDumpsterLocationChange}
               className="flex flex-col space-y-1"
-              disabled={!canEditQuantitiesAndToggles()}
+              disabled={!canEditDumpsterLocationAndPermits()}
             >
               <label className="flex items-center space-x-2 cursor-pointer">
-                <RadioGroupItem value="orlando" disabled={!canEditQuantitiesAndToggles()}/>
+                <RadioGroupItem value="orlando" disabled={!canEditDumpsterLocationAndPermits()}/>
                 <span>Orlando</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
-                <RadioGroupItem value="outside" disabled={!canEditQuantitiesAndToggles()}/>
+                <RadioGroupItem value="outside" disabled={!canEditDumpsterLocationAndPermits()}/>
                 <span>Outside Orlando</span>
               </label>
             </RadioGroup>
@@ -771,7 +787,7 @@ export function LaborProfitTab({
                 id="labor-includePermits"
                 checked={!!laborRates.includePermits}
                 onCheckedChange={(checked) => handleLaborRateChange("includePermits", checked)}
-                disabled={!canEditQuantitiesAndToggles()}
+                disabled={!canEditDumpsterLocationAndPermits()}
               />
               <Label htmlFor="labor-includePermits">
                 Include Permits
