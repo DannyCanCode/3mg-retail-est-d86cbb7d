@@ -1013,10 +1013,6 @@ export function MaterialsSelectionTab({
         setDisplayQuantities(prev => ({ ...prev, [materialToAdd.id]: finalQuantity.toString() }));
       }
       
-      // Ensure category remains expanded by explicitly setting the expanded categories
-      if (!expandedCategories.includes(materialToAdd.category)) {
-        setExpandedCategories(prev => [...prev, materialToAdd.category]);
-      }
       // Clear selected preset if a material is manually added
       setSelectedPreset(null); 
       
