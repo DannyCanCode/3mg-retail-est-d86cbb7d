@@ -997,6 +997,24 @@ export function usePdfParser() {
         }
       }
       
+      // Extract customer information from "PREPARED FOR" section
+      console.log("Extracting customer information...");
+      const preparedForPattern = /PREPARED FOR\s*Contact:\s*([^\n]+)\s*Company:\s*([^\n]+)/i;
+      const customerMatch = fullText.match(preparedForPattern);
+      
+      if (customerMatch) {
+        const contactName = customerMatch[1]?.trim();
+        const companyName = customerMatch[2]?.trim();
+        
+        // Note: We're NOT storing customer name because "PREPARED FOR" shows who ordered the report,
+        // not the actual homeowner. Sales reps will manually enter the homeowner's name.
+        // (parsedMeasurements as any).customerName = contactName || '';
+        (parsedMeasurements as any).companyName = companyName || '';
+        
+        console.log(`Found company info - Company: ${companyName}`);
+      }
+
+      // Return the parsed measurements
       return { measurements, parsedMeasurements };
     } catch (error) {
       console.error("Error parsing PDF client-side:", error);

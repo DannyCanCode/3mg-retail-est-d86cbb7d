@@ -55,6 +55,7 @@ interface MaterialsSelectionTabProps {
   isAdminEditMode?: boolean;
   originalCreator?: string | null;
   originalCreatorRole?: string | null;
+  jobWorksheet?: any; // Job worksheet data from previous step
 }
 
 // Interface for warranty details
@@ -93,7 +94,13 @@ export function MaterialsSelectionTab({
   isAdminEditMode = false,
   originalCreator = null,
   originalCreatorRole = null,
+  jobWorksheet = null, // Default to null if not provided
 }: MaterialsSelectionTabProps) { // Added activePricingTemplate, allPricingTemplates, onTemplateChange to props
+  // Get auth context early to use in state initialization
+  const { profile } = useAuth();
+  const { isManager } = useRoleAccess();
+  const userRole = profile?.role;
+  
   // Debug logging refs
   const measurementsKey = measurements?.predominantPitch || 'no-measurements';
   const prevMeasurementsKey = useRef<string>('');
@@ -129,8 +136,17 @@ export function MaterialsSelectionTab({
   const [isAutoPopulating, setIsAutoPopulating] = useState(false);
   const [autoPopulationError, setAutoPopulationError] = useState<string | null>(null);
   
+  // State for preset menu dropdown
+  const [showPresetMenu, setShowPresetMenu] = useState(false);
+  
+  // Track if we've auto-populated for sales reps
+  const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
+  
   // State for GAF packages and warranty options
-  const [selectedPackage, setSelectedPackage] = useState<string | null>('gaf-1');
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(() => {
+    // Don't auto-default to GAF 2 for sales reps - let them choose
+    return null;
+  });
   const [selectedWarranty, setSelectedWarranty] = useState<string | null>('silver-pledge');
   const [isPeelStickSelected, setIsPeelStickSelected] = useState<boolean>(false);
   const [includeIso, setIncludeIso] = useState<boolean>(false);
@@ -163,10 +179,6 @@ export function MaterialsSelectionTab({
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateDescription, setNewTemplateDescription] = useState("");
   
-  const { profile } = useAuth();
-  const { isManager } = useRoleAccess();
-  const userRole = profile?.role;
-
   // Determine if user can edit material prices based on role
   const canEditMaterialPrices = () => {
     // Admin override: If in admin edit mode and current user is admin, allow editing
@@ -203,14 +215,47 @@ export function MaterialsSelectionTab({
           console.log("Loaded waste percentages from DB:", Object.keys(dbWaste).length, "materials");
         }
       } catch (error) {
-        console.error("Error loading waste percentages:", error);
+        console.error("Failed to load waste percentages from DB:", error);
       } finally {
         setIsDbWasteLoading(false);
       }
     };
-    
+
     loadDbWastePercentages();
   }, []);
+
+  // Auto-select materials based on job worksheet data
+  useEffect(() => {
+    if (jobWorksheet && jobWorksheet.shingle_roof) {
+      const { manufacturer, color, warranty_gaf } = jobWorksheet.shingle_roof;
+      
+      // If GAF is selected and we have a color, select the GAF Timberline HDZ shingle
+      if (manufacturer === 'GAF' && color && !localSelectedMaterials['gaf-timberline-hdz-sg']) {
+        const gafShingle = ROOFING_MATERIALS.find(m => m.id === 'gaf-timberline-hdz-sg');
+        
+        if (gafShingle) {
+          console.log('Auto-selecting GAF shingle based on job worksheet, color:', color);
+          // Create a copy with color in the name for display purposes
+          const shingleWithColor = {
+            ...gafShingle,
+            name: `${gafShingle.name} - ${color}`,
+            originalName: gafShingle.name,
+            selectedColor: color
+          };
+          addMaterial(shingleWithColor);
+        }
+      }
+
+      // Auto-select warranty based on GAF warranty selection
+      if (warranty_gaf === 'silver' || warranty_gaf === 'gold') {
+        const warrantyValue = warranty_gaf === 'silver' ? 'silver-pledge' : 'gold-pledge';
+        if (selectedWarranty !== warrantyValue) {
+          console.log('Auto-selecting warranty based on job worksheet:', warranty_gaf);
+          setSelectedWarranty(warrantyValue);
+        }
+      }
+    }
+  }, [jobWorksheet]); // Only run when jobWorksheet changes, not on every render
 
   // Reset function to completely reset state from props
   const resetStateFromProps = useCallback(() => {
@@ -271,6 +316,15 @@ export function MaterialsSelectionTab({
     if (isInternalChange.current) {
       console.log("Skipping prop update since it was triggered by internal change");
       isInternalChange.current = false;
+      return;
+    }
+    
+    // Don't reset if we have materials locally but props are empty (common for auto-population)
+    const propsEmpty = Object.keys(selectedMaterials).length === 0;
+    const localHasMaterials = Object.keys(localSelectedMaterials).length > 0;
+    
+    if (propsEmpty && localHasMaterials) {
+      console.log("Props are empty but we have local materials - keeping local state");
       return;
     }
     
@@ -1329,8 +1383,8 @@ export function MaterialsSelectionTab({
       'coil-nails-ring-shank'
     ];
     
-    // Show blue styling for GAF package materials when package is selected
-    return gafPackageMaterialIds.includes(materialId) && !!selectedPackage;
+    // Show blue styling for GAF package materials (whether package is selected or not)
+    return gafPackageMaterialIds.includes(materialId);
   };
   
   // Format calculation logic with actual measurements and show estimated quantity
@@ -1623,27 +1677,166 @@ export function MaterialsSelectionTab({
     // Determine styling based on material type
     const getContainerStyling = () => {
       if (isLowSlope) {
-        return 'py-2 px-3 rounded-md border bg-green-50 border-green-300';
+        return 'py-2 px-3 rounded-md border-2 bg-green-50 border-green-300';
       } else if (isAutoSelected) {
-        return 'py-2 px-3 rounded-md border bg-blue-50 border-blue-300';
+        return 'py-2 px-3 rounded-md border-2 bg-blue-50 border-blue-300';
       } else {
         return 'p-3 rounded-md border border-gray-200';
       }
     };
 
+    // SIMPLIFIED VIEW FOR SALES REPS
+    if (userRole === 'rep') {
+      return (
+        <div
+          key={materialId}
+          className={`p-4 mb-3 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md ${
+            isLowSlope 
+              ? 'bg-gradient-to-r from-green-50 to-green-100/50 border border-green-200 hover:border-green-300' 
+              : isAutoSelected
+              ? 'bg-gradient-to-r from-blue-50 to-blue-100/50 border border-blue-200 hover:border-blue-300'
+              : 'bg-white hover:bg-gray-50 border border-gray-200'
+          }`}
+        >
+          {/* Material name and badge */}
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex-1 pr-2">
+              <p className="text-sm font-semibold text-gray-900 leading-tight mb-1">{baseName}</p>
+              {(isAutoSelected || isLowSlope) && (
+                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                  isLowSlope 
+                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                    : 'bg-blue-100 text-blue-800 border border-blue-200'
+                }`}>
+                  {isLowSlope ? '🌿 Low-Slope Required' : 'Auto-Selected'}
+                </span>
+              )}
+            </div>
+            
+            {/* Icon */}
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
+              isLowSlope 
+                ? 'bg-gradient-to-br from-green-400 to-green-500 text-white' 
+                : isAutoSelected
+                ? 'bg-gradient-to-br from-blue-400 to-blue-500 text-white'
+                : 'bg-gradient-to-br from-gray-300 to-gray-400 text-white'
+            }`}>
+              <span className="text-sm font-bold">
+                {baseName.substring(0, 2).toUpperCase()}
+              </span>
+            </div>
+          </div>
+          
+          {/* Quantity and controls row */}
+          <div className="flex items-center justify-between gap-2">
+            {/* Quantity display */}
+            <div className="flex items-baseline gap-2 flex-shrink min-w-0">
+              <span className="text-3xl font-bold bg-gradient-to-r from-gray-700 to-gray-900 bg-clip-text text-transparent">
+                {isGafTimberline 
+                  ? Math.ceil(bundleQuantity / 3)
+                  : bundleQuantity
+                }
+              </span>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-gray-600">
+                  {isGafTimberline 
+                    ? 'squares'
+                    : material.unit === 'Bundle' ? 'bundles' : material.unit.toLowerCase()
+                  }
+                </span>
+                {isGafTimberline && (
+                  <span className="text-xs text-gray-500">
+                    ({bundleQuantity} bundles)
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {/* Controls section - prevent shrinking */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden bg-white">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (isGafTimberline) {
+                      const currentQty = localQuantities[materialId] || 0;
+                      const currentSq = currentQty / 3;
+                      const nextSq = Math.max(0, parseFloat((currentSq - 0.1).toFixed(1)));
+                      updateQuantity(materialId, Math.ceil(nextSq * 3));
+                    } else {
+                      updateQuantity(materialId, Math.max(0, (localQuantities[materialId] || 0) - 1));
+                    }
+                  }}
+                  className="px-3 py-2 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                >
+                  <span className="text-gray-600 font-medium">−</span>
+                </button>
+                
+                <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-x border-gray-200 bg-gray-50 min-w-[3rem] text-center">
+                  {isGafTimberline 
+                    ? Math.ceil(bundleQuantity / 3)
+                    : bundleQuantity
+                  }
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (isGafTimberline) {
+                      const currentQty = localQuantities[materialId] || 0;
+                      const currentSq = currentQty / 3;
+                      const nextSq = parseFloat((currentSq + 0.1).toFixed(1));
+                      updateQuantity(materialId, Math.ceil(nextSq * 3));
+                    } else {
+                      updateQuantity(materialId, (localQuantities[materialId] || 0) + 1);
+                    }
+                  }}
+                  className="px-3 py-2 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                  aria-label={`Increase quantity for ${baseName}`}
+                >
+                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+              
+              {/* Delete button - Only show if not mandatory */}
+              {!isMandatory && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    removeMaterial(materialId);
+                  }}
+                  className="p-2 rounded-lg hover:bg-red-50 transition-colors group focus:outline-none focus:ring-2 focus:ring-red-500"
+                  aria-label={`Remove ${baseName}`}
+                >
+                  <Trash className="h-4 w-4 text-gray-400 group-hover:text-red-500 transition-colors" />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ORIGINAL DETAILED VIEW FOR OTHER ROLES
     return (
       <div
         key={materialId}
-        className={`flex flex-col sm:flex-row justify-between sm:items-start ${getContainerStyling()}`}
+        className={`${getContainerStyling()}`}
       >
-        {/* Left side: Material Info */}
-        <div className={`flex-1 ${isAutoSelected || isLowSlope ? 'mb-2' : 'mb-2'} sm:mb-0 sm:mr-3`}>
-          <div className="flex items-center justify-between mb-0.5">
-            <span className="font-semibold text-gray-800">{baseName}</span>
+        {/* Material Info Container */}
+        <div className="flex flex-col gap-1">
+          {/* Title and Badge Row */}
+          <div className="flex items-start justify-between gap-2">
+            <span className="font-semibold text-gray-800 text-sm leading-tight">{baseName}</span>
             {(isAutoSelected || isLowSlope) && (
               <Badge 
                 variant="default" 
-                className={`ml-2 text-white text-xs px-1.5 py-0.5 ${
+                className={`text-white text-xs px-1.5 py-0.5 whitespace-nowrap ${
                   isLowSlope 
                     ? 'bg-green-600' 
                     : 'bg-blue-600'
@@ -1654,16 +1847,16 @@ export function MaterialsSelectionTab({
             )}
           </div>
           
+          {/* Requirement Text */}
           {(isAutoSelected || isLowSlope) && requirementText && (
-            <p className={`text-[10px] mb-0.5 ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
+            <p className={`text-[10px] leading-tight ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
               {requirementText}
             </p>
           )}
           
-          {/* Add quantity summary with calculation result */}
-          {(isAutoSelected || isLowSlope) && (
-            <div className={`text-xs mb-0.5 ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
-            {bundleQuantity > 0 && (
+          {/* Quantity Summary */}
+          {(isAutoSelected || isLowSlope) && bundleQuantity > 0 && (
+            <div className={`text-xs ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
               <p className="font-medium">
                 {isGafTimberline 
                     ? `${Math.ceil(bundleQuantity / 3)} squares (${bundleQuantity} bundles)`
@@ -1673,11 +1866,11 @@ export function MaterialsSelectionTab({
                   <span className="font-normal"> • Covers approx. {(bundleQuantity * material.coveragePerUnit).toFixed(0)} sq ft</span>
                 )}
               </p>
-            )}
-          </div>
+            </div>
           )}
           
-          <div className="text-xs text-muted-foreground mb-0.5 flex flex-wrap items-center gap-x-1">
+          {/* Price Information */}
+          <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-1">
              {isGafTimberline && material.approxPerSquare && (
                  <>{formatPrice(material.approxPerSquare)} per Square</>
              )}
@@ -1692,74 +1885,71 @@ export function MaterialsSelectionTab({
              }
           </div>
           
-          {/* Add detailed material info */}
-          <div className="text-[10px] text-muted-foreground space-y-0.5">
-            {/* Consolidated Calculation Details */}
-            {material.coverageRule && ( // Show if any coverage rule exists
-              <div>
-                <p>– Calculation Details: {formatCalculationWithMeasurements(material)}</p>
-                
-                {/* Add editable waste factor - only for materials that use waste */}
-                {currentWasteFactorForMaterial !== undefined && 
-                 material.category !== MaterialCategory.VENTILATION && 
-                 material.category !== MaterialCategory.ACCESSORIES && (
-                  <div className="flex flex-wrap items-center ml-1 mt-0.5">
-                    <div className="flex items-center mr-1">
-                      <span className="mr-1">– Waste:</span>
-                      <Input
-                        id={`waste-input-${materialId}`}
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={(currentWasteFactorForMaterial * 100).toFixed(0)}
-                        onChange={(e) => handlePerMaterialWasteChange(materialId, e.target.value)}
-                        className="h-5 w-10 py-0 px-1 text-center text-xs"
-                        aria-label={`Waste factor for ${baseName}`}
-                      />
-                      <span className="text-xs ml-0.5 mr-1">%</span>
-                    </div>
-                    <div className="flex space-x-0.5">
-                      {[0, 5, 10, 12, 15].map(presetValue => (
-                        <Button
-                          key={`waste-preset-${presetValue}`}
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className={`h-5 w-6 px-0.5 py-0 text-[9px] ${Math.round(currentWasteFactorForMaterial * 100) === presetValue ? 'bg-blue-100' : ''}`}
-                          onClick={() => handlePerMaterialWasteChange(materialId, presetValue.toString())}
-                        >
-                          {presetValue}%
-                        </Button>
-                      ))}
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Info className="h-3 w-3 text-muted-foreground ml-0.5" />
-                          </TooltipTrigger>
-                          <TooltipContent className="max-w-xs">
-                            <p>Adjust waste factor for this material. Changes will update the quantity.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </div>
+          {/* Calculation Details */}
+          {material.coverageRule && (
+            <div className="text-[10px] text-muted-foreground space-y-1 mt-1">
+              <p className="leading-tight">• Calculation Details: {formatCalculationWithMeasurements(material)}</p>
+              
+              {/* Waste Factor Controls */}
+              {currentWasteFactorForMaterial !== undefined && 
+               material.category !== MaterialCategory.VENTILATION && 
+               material.category !== MaterialCategory.ACCESSORIES && (
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="mr-1">• Waste:</span>
+                  <Input
+                    id={`waste-input-${materialId}`}
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={(currentWasteFactorForMaterial * 100).toFixed(0)}
+                    onChange={(e) => handlePerMaterialWasteChange(materialId, e.target.value)}
+                    className="h-5 w-10 py-0 px-1 text-center text-xs"
+                    aria-label={`Waste factor for ${baseName}`}
+                  />
+                  <span className="text-xs">%</span>
+                  
+                  {/* Preset Buttons */}
+                  <div className="flex gap-0.5 ml-1">
+                    {[0, 5, 10, 12, 15].map(presetValue => (
+                      <Button
+                        key={`waste-preset-${presetValue}`}
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className={`h-5 w-7 px-0 py-0 text-[9px] ${Math.round(currentWasteFactorForMaterial * 100) === presetValue ? 'bg-blue-100' : ''}`}
+                        onClick={() => handlePerMaterialWasteChange(materialId, presetValue.toString())}
+                      >
+                        {presetValue}%
+                      </Button>
+                    ))}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-3 w-3 text-muted-foreground ml-0.5" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p>Adjust waste factor for this material. Changes will update the quantity.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
-                )}
-              </div>
-            )}
-            
-            {/* Display bundle/square info for shingles if not already covered (fallback) */}
-            {!material.coverageRule?.description && getBundleInfo() && (
-              <p>– {getBundleInfo()}</p>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Bundle/Square Info */}
+          {!material.coverageRule?.description && getBundleInfo() && (
+            <p className="text-[10px] text-muted-foreground">• {getBundleInfo()}</p>
+          )}
         </div>
   
-        {/* Right side: Quantity Control and Delete Button */}
-        <div className="flex items-center justify-between sm:justify-end space-x-2 shrink-0 sm:ml-auto">
-          <div className="flex items-center">
+        {/* Quantity Controls and Delete Button */}
+        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
+          <div className="flex items-center flex-1">
              {isGafTimberline ? (
                <> {/* Timberline Input (Squares) */}
-                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-r-none`} 
+                 <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-r-none" 
                     onClick={(e) => { 
                        e.preventDefault();
                        const currentQty = localQuantities[materialId] || 0;
@@ -1775,13 +1965,13 @@ export function MaterialsSelectionTab({
                     type="number" 
                     min="0" 
                     step="0.1"
-                    defaultValue={initialDisplayValue()} // USE defaultValue
+                    defaultValue={initialDisplayValue()}
                     onBlur={handleQuantityInputBlur}      // UPDATE onBlur
                     key={`qty-input-gaf-${materialId}-${localQuantities[materialId]}`} // Add localQuantities to key to force re-render with new default if external change happens
-                    className={`h-8 w-20 rounded-none text-center`}
+                    className="h-7 w-16 rounded-none text-center text-sm"
                     aria-label={`Quantity in Squares for ${baseName}`} 
                   />
-                 <Button type="button" variant="outline" size="icon" className={`h-8 w-8 rounded-l-none`} 
+                 <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-l-none" 
                     onClick={(e) => { 
                        e.preventDefault();
                        const currentQty = localQuantities[materialId] || 0;
@@ -1799,7 +1989,7 @@ export function MaterialsSelectionTab({
                     type="button" 
                     variant="outline" 
                     size="icon" 
-                    className={`h-8 w-8 rounded-r-none`} 
+                    className="h-7 w-7 rounded-r-none" 
                     onClick={(e) => {
                       e.preventDefault();
                       updateQuantity(materialId, Math.max(0, (localQuantities[materialId] || 0) - 1));
@@ -1810,17 +2000,17 @@ export function MaterialsSelectionTab({
                     id={`qty-${materialId}`}
                     type="number" 
                     min="0" 
-                    defaultValue={initialDisplayValue()} // USE defaultValue
+                    defaultValue={initialDisplayValue()}
                     onBlur={handleQuantityInputBlur}      // UPDATE onBlur
                     key={`qty-input-${materialId}-${localQuantities[materialId]}`} // Add localQuantities to key
-                    className={`h-8 w-16 rounded-none text-center`} 
+                    className="h-7 w-14 rounded-none text-center text-sm" 
                     aria-label={`Quantity for ${baseName}`}
                   />
                  <Button 
                     type="button" 
                     variant="outline" 
                     size="icon" 
-                    className={`h-8 w-8 rounded-l-none`} 
+                    className="h-7 w-7 rounded-l-none" 
                     onClick={(e) => {
                       e.preventDefault();
                       updateQuantity(materialId, (localQuantities[materialId] || 0) + 1);
@@ -1835,7 +2025,7 @@ export function MaterialsSelectionTab({
              variant="ghost" 
              size="icon" 
              onClick={() => removeMaterial(materialId)} 
-             className={`h-8 w-8 text-red-500 hover:bg-red-50 ${isMandatory ? 'opacity-50 cursor-not-allowed' : ''}`} 
+             className={`h-7 w-7 text-red-500 hover:bg-red-50 ${isMandatory ? 'opacity-50 cursor-not-allowed' : ''}`} 
              disabled={isMandatory}
              aria-label={`Remove ${baseName}`}
            >
@@ -2255,6 +2445,7 @@ export function MaterialsSelectionTab({
       labor_rates: (activePricingTemplate?.labor_rates || defaultLaborRates) as any, 
       profit_margin: activePricingTemplate?.profit_margin || 25, 
       is_default: false, 
+      material_categories: null, // Set to null as it's optional in the database
     };
 
     console.log("Attempting to save new template (typed for DB insert):", templateDataToSave);
@@ -2286,6 +2477,7 @@ export function MaterialsSelectionTab({
             is_default: data.is_default as boolean | undefined,
             created_at: data.created_at as string | undefined,
             updated_at: data.updated_at as string | undefined,
+            material_categories: data.material_categories as unknown as any, // Add material_categories field
           };
           onTemplateChange(returnedTemplate); 
         }
@@ -2306,36 +2498,176 @@ export function MaterialsSelectionTab({
     }
   };
 
+  // Auto-populate materials when package selection changes
+  useEffect(() => {
+    if (selectedPackage && measurements?.totalArea > 0) {
+      // Check if we already have materials from this package
+      const hasGafMaterials = localSelectedMaterials['gaf-timberline-hdz-sg'] || 
+                             localSelectedMaterials['gaf-prostart-starter-shingle-strip'] ||
+                             localSelectedMaterials['gaf-seal-a-ridge'];
+      
+      if (hasGafMaterials) {
+        console.log(`[PackageEffect] Already have GAF materials, skipping auto-populate`);
+        return;
+      }
+      
+      console.log(`[PackageEffect] Package selected: ${selectedPackage}, auto-populating materials`);
+      
+      // Map package IDs to preset bundle names
+      const packageToPreset: { [key: string]: string } = {
+        'gaf-1': 'GAF 1',
+        'gaf-2': 'GAF 2'
+      };
+      
+      const presetName = packageToPreset[selectedPackage];
+      if (presetName) {
+        // Small delay to ensure measurements are fully loaded
+        setTimeout(() => {
+          applyPresetBundle(presetName);
+        }, 100);
+      }
+    }
+  }, [selectedPackage, measurements?.totalArea]); // Only trigger when package or measurements change
+
   // Main return structure
   return (
     <div key={`materials-tab-${measurements?.totalArea || 'default'}`} className="grid grid-cols-1 lg:grid-cols-5 gap-6">
       {/* Left Column: Material Selection etc. */}
       <div className="lg:col-span-3 space-y-6">
-        {/* GAF Package & Warranty Card */}
-        <Card>
-           <CardHeader><CardTitle>GAF Package & Warranty Selection</CardTitle></CardHeader>
-           <CardContent className="space-y-4">
-             <PackageSelector 
-               selectedPackage={selectedPackage} 
-               onPackageSelect={setSelectedPackage} 
-             />
-             <WarrantySelector 
-               selectedPackage={selectedPackage}
-               selectedWarranty={selectedWarranty}
-               onWarrantySelect={setSelectedWarranty}
-               isPeelStickSelected={isPeelStickSelected}
-               onPeelStickToggle={setIsPeelStickSelected}
-             />
-             {showLowSlope && (
-               <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
-             )}
-           </CardContent>
-        </Card>
+        {/* GAF Package & Warranty Card - Hide for Sales Reps */}
+        {userRole !== 'rep' && (
+          <Card>
+             <CardHeader><CardTitle>GAF Package & Warranty Selection</CardTitle></CardHeader>
+             <CardContent className="space-y-4">
+               <PackageSelector 
+                 selectedPackage={selectedPackage} 
+                 onPackageSelect={setSelectedPackage} 
+               />
+               <WarrantySelector 
+                 selectedPackage={selectedPackage}
+                 selectedWarranty={selectedWarranty}
+                 onWarrantySelect={setSelectedWarranty}
+                 isPeelStickSelected={isPeelStickSelected}
+                 onPeelStickToggle={setIsPeelStickSelected}
+               />
+               {showLowSlope && (
+                 <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
+               )}
+             </CardContent>
+          </Card>
+        )}
+        
+        {/* Sales Rep Package & Warranty Selection - Show only for Sales Reps */}
+        {userRole === 'rep' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PackageOpen className="h-5 w-5" />
+                GAF Package & Warranty Selection
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <PackageSelector 
+                selectedPackage={selectedPackage} 
+                onPackageSelect={setSelectedPackage} 
+              />
+              
+              <WarrantySelector 
+                selectedPackage={selectedPackage}
+                selectedWarranty={selectedWarranty}
+                onWarrantySelect={setSelectedWarranty}
+                isPeelStickSelected={isPeelStickSelected}
+                onPeelStickToggle={setIsPeelStickSelected}
+              />
+              
+              {showLowSlope && (
+                <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
+              )}
+            </CardContent>
+          </Card>
+        )}
         
         {/* Material Selection Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Select Materials</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Select Materials</CardTitle>
+              {/* Preset Bundles Button - Only show for non-sales reps */}
+              {userRole !== 'rep' && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Clear current selection before applying preset
+                      if (selectedPreset) {
+                        setLocalSelectedMaterials({});
+                        setLocalQuantities({});
+                        setMaterialOrder([]);
+                        setSelectedPreset(null);
+                      }
+                    }}
+                    disabled={Object.keys(localSelectedMaterials).length === 0}
+                  >
+                    Clear All
+                  </Button>
+                  <div className="relative">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex items-center gap-1"
+                      onClick={() => setShowPresetMenu(!showPresetMenu)}
+                    >
+                      <PackageOpen className="h-4 w-4" />
+                      Quick Add Package
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                    {showPresetMenu && (
+                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                        <div className="py-1">
+                          <button
+                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            onClick={() => {
+                              applyPresetBundle('GAF 1');
+                              setShowPresetMenu(false);
+                            }}
+                          >
+                            GAF 1 - Basic
+                          </button>
+                          <button
+                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            onClick={() => {
+                              applyPresetBundle('GAF 2');
+                              setShowPresetMenu(false);
+                            }}
+                          >
+                            GAF 2 - Premium
+                          </button>
+                          <button
+                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            onClick={() => {
+                              applyPresetBundle('OC 1');
+                              setShowPresetMenu(false);
+                            }}
+                          >
+                            OC 1 - Basic
+                          </button>
+                          <button
+                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            onClick={() => {
+                              applyPresetBundle('OC 2');
+                              setShowPresetMenu(false);
+                            }}
+                          >
+                            OC 2 - Premium
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
               {canEditMaterialPrices() ? (
                 <p className="text-sm text-blue-800">
@@ -2419,42 +2751,45 @@ export function MaterialsSelectionTab({
                                 <div className="flex-1 space-y-2">
                                   <h4 className="text-sm font-medium">{material.name}</h4>
                                   
-                                  <div className="flex items-center space-x-2">
-                                    <Label htmlFor={`price-${material.id}`} className="sr-only">Price</Label>
-                                    <Input
-                                      id={`price-${material.id}`}
-                                      type="number"
-                                      step="0.01"
-                                      defaultValue={material.price !== undefined ? String(material.price) : ''} 
-                                      onBlur={(e) => canEditMaterialPrices() && handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)}
-                                      className={`h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24 ${
-                                        canEditMaterialPrices() ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-600'
-                                      }`}
-                                      disabled={!canEditMaterialPrices()}
-                                      placeholder="0.00"
-                                      key={`price-input-${material.id}`}
-                                    />
-                                    {material.unit && <span className="text-sm text-gray-600">per {material.unit}</span>}
-                                    {material.approxPerSquare && material.approxPerSquare > 0 && 
-                                      <span className="text-xs text-gray-500">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
-                                    }
-                                  </div>
+                                  {/* Only show price input/display for non-reps */}
+                                  {userRole !== 'rep' && (
+                                    <div className="flex items-center space-x-2">
+                                      <Label htmlFor={`price-${material.id}`} className="sr-only">Price</Label>
+                                      <Input
+                                        id={`price-${material.id}`}
+                                        type="number"
+                                        step="0.01"
+                                        defaultValue={material.price !== undefined ? String(material.price) : ''} 
+                                        onBlur={(e) => canEditMaterialPrices() && handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)}
+                                        className={`h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24 ${
+                                          canEditMaterialPrices() ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-600'
+                                        }`}
+                                        disabled={!canEditMaterialPrices()}
+                                        placeholder="0.00"
+                                        key={`price-input-${material.id}`}
+                                      />
+                                      {material.unit && <span className="text-sm text-gray-600">per {material.unit}</span>}
+                                      {material.approxPerSquare && material.approxPerSquare > 0 && 
+                                        <span className="text-xs text-gray-500">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
+                                      }
+                                    </div>
+                                  )}
                                   
                                   {/* Role-based pricing info */}
-                                  {!canEditMaterialPrices() && (
+                                  {userRole !== 'rep' && !canEditMaterialPrices() && (
                                     <div className="text-xs text-muted-foreground bg-gray-50 p-2 rounded">
                                       <span className="font-medium">Territory Manager:</span> Material pricing is managed by administrators to ensure consistency across all estimates.
                                     </div>
                                   )}
                                   
-                                  {/* Static Coverage Rule Description */}
+                                  {/* Coverage Rule Description - Keep visible for all roles */}
                                   {material.coverageRule?.description && (
                                     <p className="text-xs text-gray-600">
                                       <span className="font-medium text-gray-700">Coverage:</span> {material.coverageRule.description}
                                     </p>
                                   )}
                           
-                                  {/* Static Coverage Rule Calculation & Interpreted Logic */}
+                                  {/* Coverage Rule Calculation & Logic - Keep visible for all roles */}
                                   {material.coverageRule?.calculation && (
                                     <div className="text-xs text-gray-600">
                                       <p><span className="font-medium text-gray-700">Logic:</span> {material.coverageRule.calculation}</p>
@@ -2518,15 +2853,17 @@ export function MaterialsSelectionTab({
       {/* Right Column: Selected Materials */}
       <div className="lg:col-span-2">
         <Card className="sticky top-4">
-          <CardHeader className="pb-2"><CardTitle>Selected Materials</CardTitle></CardHeader>
-          <CardContent className="space-y-3 px-3 py-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Selected Materials</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 px-4 py-3">
             {Object.keys(localSelectedMaterials).length === 0 && !warrantyDetails ? (
-              <div className="text-center py-6 text-muted-foreground">
-                <p>No materials selected yet</p>
-                <p className="text-sm mt-2">Select materials from the list</p>
+              <div className="text-center py-8 text-muted-foreground">
+                <p className="text-sm">No materials selected yet</p>
+                <p className="text-xs mt-1">Select materials from the list</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {/* 🔧 FIX: Sort materials to always show low-slope at top */}
                 {(() => {
                   // Separate low-slope and other materials
@@ -2552,26 +2889,38 @@ export function MaterialsSelectionTab({
                 {/* Display Warranty Details */}
                 {warrantyDetails && warrantyDetails.price > 0 && (
                   <div className="p-3 rounded-md border border-purple-300 bg-purple-50">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-semibold text-gray-800">{warrantyDetails.name}</span>
-                      <Badge variant="default" className="ml-2 bg-purple-600 text-white text-xs px-1.5 py-0.5">
-                        Warranty
-                      </Badge>
-                    </div>
-                    <div className="text-sm text-muted-foreground mb-1">
-                      {formatPrice(warrantyDetails.price)}
-                    </div>
-                    <div className="text-xs text-muted-foreground space-y-0.5">
-                      <p>– Calculation Logic: {warrantyDetails.calculation}</p>
+                    <div className="flex flex-col gap-1">
+                      {/* Title and Badge Row */}
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-semibold text-gray-800 text-sm leading-tight">{warrantyDetails.name}</span>
+                        <Badge variant="default" className="bg-purple-600 text-white text-xs px-1.5 py-0.5 whitespace-nowrap">
+                          Warranty
+                        </Badge>
+                      </div>
+                      
+                      {/* Price Information - Hide from sales reps */}
+                      {userRole !== 'rep' && (
+                        <div className="text-xs text-muted-foreground">
+                          {formatPrice(warrantyDetails.price)}
+                        </div>
+                      )}
+                      
+                      {/* Calculation Details */}
+                      <div className="text-[10px] text-muted-foreground mt-1">
+                        <p className="leading-tight">• Calculation Logic: {warrantyDetails.calculation}</p>
+                      </div>
                     </div>
                   </div>
                 )}
-                 <div className="flex justify-between font-medium text-lg pt-2 border-t">
-                   <span>Total:</span>
-                   <span>{formatPrice(calculateEstimateTotal())}</span>
-                 </div>
-               </div>
-             )}
+                {/* Only show total for non-sales reps */}
+                {userRole !== 'rep' && (
+                  <div className="flex justify-between font-medium text-lg pt-2 border-t">
+                    <span>Total:</span>
+                    <span>{formatPrice(calculateEstimateTotal())}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

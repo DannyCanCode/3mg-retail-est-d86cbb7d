@@ -63,10 +63,10 @@ export function useSalesRepRestrictions(): SalesRepRestrictions {
           defaultProfitMargin: 30
         };
         
+      case 'project_manager':
       case 'rep':
-      default:
         return {
-          canViewProfitMargins: false, // Sales reps cannot see profit margins
+          canViewProfitMargins: false, // Sales reps/project managers cannot see profit margins
           canEditProfitMargins: false,
           canViewAllEstimates: false, // Only their own
           canViewCompanyMetrics: false,
@@ -78,6 +78,24 @@ export function useSalesRepRestrictions(): SalesRepRestrictions {
           canAccessManagerFeatures: false,
           minProfitMargin: 35, // Sales reps have 35% minimum (hidden from them)
           maxProfitMargin: 35, // Fixed at 35% for sales reps
+          defaultProfitMargin: 35
+        };
+        
+      default:
+        // Default to most restrictive permissions
+        return {
+          canViewProfitMargins: false,
+          canEditProfitMargins: false,
+          canViewAllEstimates: false,
+          canViewCompanyMetrics: false,
+          canApproveEstimates: false,
+          canDeleteEstimates: false,
+          canViewCustomerDetails: false,
+          canEditSubmittedEstimates: false,
+          canAccessAdminFeatures: false,
+          canAccessManagerFeatures: false,
+          minProfitMargin: 35,
+          maxProfitMargin: 35,
           defaultProfitMargin: 35
         };
     }

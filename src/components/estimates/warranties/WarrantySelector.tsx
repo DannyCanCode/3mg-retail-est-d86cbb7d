@@ -69,11 +69,11 @@ const WarrantySelector = ({
           onClick={() => handleWarrantyClick('silver-pledge')}
         >
           <div className="flex justify-between items-start">
-          <h4 className="font-medium">Silver Pledge Warranty</h4>
+            <h4 className="font-medium">Silver Pledge Warranty</h4>
             <Badge className="bg-green-600 text-white">Available</Badge>
           </div>
           <p className="text-sm text-gray-600 mt-1">Standard GAF warranty coverage</p>
-          <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
+          <ul className="text-xs text-gray-600 mt-2 space-y-0.5 list-disc list-inside">
             <li>10-year workmanship coverage</li>
             <li>Lifetime material warranty</li>
             <li>Available with GAF 1 or GAF 2 Package</li>
@@ -95,7 +95,7 @@ const WarrantySelector = ({
             )}
           </div>
           <p className="text-sm text-gray-600 mt-1">Premium GAF warranty with enhanced coverage</p>
-          <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
+          <ul className="text-xs text-gray-600 mt-2 space-y-0.5 list-disc list-inside">
             <li>25-year workmanship coverage</li>
             <li>Lifetime material warranty</li>
             <li>Requires GAF Cobra Ventilation</li>

@@ -191,7 +191,99 @@ This version is deployed on Netlify from the `release/admin-estimator-v1` branch
 
 ---
 
-## 📋 **Next Sprint: Enhancements & Polish**
+## 📋 **IMMEDIATE PRIORITY: Sales Rep Dashboard Redesign**
+
+### **Critical Issue: Sales Rep Workflow Overhaul**
+- **Problem**: Current Sales Rep dashboard is broken and not user-friendly
+- **Territory Display Bug**: Showing "Territory a221805b... Territory" instead of "Winter Park Territory"
+- **UI/UX Issues**: Generic dashboard design, not optimized for sales rep workflow
+- **Workflow Complexity**: Current estimate creation flow is too complex for sales reps
+
+### **🎯 Sales Rep Dashboard Vision**
+**Target Users**: Sales representatives (project managers) like Taylor Hilton  
+**Devices**: Desktop PC, mobile web browsers, iPad (responsive design)  
+**Core Principle**: Simplified, intuitive workflow focused on estimate creation
+
+### **📱 New Sales Rep Dashboard Design Requirements**
+
+#### **Dashboard Layout (Creative & Functional)**
+- **Hero Section**: Welcome message with rep name and territory (Winter Park)
+- **Quick Actions**: Large, prominent "New Estimate" button
+- **Progress Tracking**: Visual progress cards showing estimates in different stages
+- **Territory Info**: Clean display of territory assignment and managers
+- **Recent Activity**: Timeline of recent estimates and status updates
+- **Mobile-First**: Responsive design that works seamlessly on all devices
+
+#### **Simplified Estimate Workflow**
+1. **Dashboard** → Click "New Estimate"
+2. **Upload PDF** → Drag & drop EagleView PDF
+3. **Parse & Review** → System parses measurements, rep reviews/confirms
+4. **JWS Auto-populate** → Job Worksheet auto-fills from PDF data
+5. **Complete JWS** → Rep fills in missing details (ventilation, accessories, etc.)
+6. **Select Materials** → Auto-populated GAF 1/2 + JWS selections
+7. **Submit for Approval** → Send to territory managers
+
+#### **Key Features for Sales Reps**
+- **No Price Visibility**: Reps cannot see material prices, only quantities and coverage rules
+- **JWS Integration**: Seamless job worksheet experience with auto-population
+- **GAF Package Selection**: Pre-configured GAF 1 and GAF 2 packages
+- **Territory-Based**: All work tied to Winter Park territory with Chase/Adam as managers
+- **Submission Workflow**: Clear submit → pending → approved/rejected status flow
+
+### **🔧 Implementation Tasks**
+
+#### **Phase 1: Fix Current Issues (Day 1)**
+1. **Territory Display Fix** - Show "Winter Park Territory" instead of broken UUID
+   - **Files**: `src/pages/SalesRepDashboard.tsx`, `src/contexts/AuthContext.tsx`
+   - **Issue**: Territory name not being fetched/displayed properly
+   - **Fix**: Query territories table properly and display territory name
+
+2. **Dashboard Redesign** - Create modern, mobile-responsive Sales Rep dashboard
+   - **Files**: `src/pages/SalesRepDashboard.tsx`, create new dashboard components
+   - **New Components**: Hero section, quick actions, progress tracking
+   - **Design**: Mobile-first, modern UI with better visual hierarchy
+
+3. **Metrics Redesign** - Visual, engaging estimate progress cards
+   - **Files**: `src/components/ui/MetricCard.tsx`, dashboard metric components
+   - **Features**: Progress indicators, visual status cards, better UX
+
+#### **Phase 2: Workflow Simplification (Day 2-3)**
+4. **Estimate Workflow Redesign** - Implement simplified 7-step process
+   - **Files**: `src/pages/Estimates.tsx`, estimate creation flow components
+   - **New Flow**: Dashboard → Upload → Parse → Review → JWS → Materials → Submit
+   - **Navigation**: Simplified step-by-step process for reps
+
+5. **Hide Material Prices** - Remove price visibility for sales reps
+   - **Files**: `src/components/estimates/materials/MaterialsSelectionTab.tsx`
+   - **Files**: `src/components/estimates/materials/MaterialsSelectionTable.tsx`
+   - **Logic**: Role-based price hiding, show only quantities and coverage rules
+
+6. **JWS Enhancement** - Better job worksheet integration and auto-population
+   - **Files**: `src/components/estimates/JobWorksheetTab.tsx`, `src/components/estimates/JobWorksheetForm.tsx`
+   - **Features**: Auto-populate from PDF data, better form UX, seamless integration
+
+#### **Phase 3: Integration & Testing (Day 4)**
+7. **GAF Package Integration** - Connect GAF packages with JWS data
+   - **Files**: `src/components/estimates/packages/GAFPackageSelector.tsx`
+   - **Files**: `src/components/estimates/materials/MaterialsSelectionTab.tsx`
+   - **Logic**: Auto-populate materials based on GAF package + JWS selections
+
+8. **Mobile Responsive** - Ensure perfect experience on all devices
+   - **Files**: All dashboard and estimate components
+   - **Testing**: Desktop, mobile web, iPad responsiveness
+   - **CSS**: Mobile-first responsive design improvements
+
+9. **Submission Flow** - Implement rep → manager approval workflow
+   - **Files**: `src/components/estimates/pricing/EstimateSummaryTab.tsx`
+   - **Database**: Update submission status tracking
+   - **UI**: Clear submit button and status indicators
+
+10. **Comprehensive Testing** - Test on desktop, mobile, iPad
+    - **Scope**: Complete Sales Rep workflow from login to estimate submission
+    - **Browsers**: Chrome, Safari, Edge on all device types
+    - **User**: Taylor Hilton account testing
+
+### **📋 **Next Sprint: Enhancements & Polish**
 
 ### **Priority 1: Subtrade Workflow**
 - **Objective**: Integrate subtrade pricing and management into the estimate process.

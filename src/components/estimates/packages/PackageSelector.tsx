@@ -1,5 +1,6 @@
 import React from 'react';
 import { Badge } from "@/components/ui/badge";
+import { Check, Package, Shield, Star, Sparkles } from "lucide-react";
 
 interface PackageSelectorProps {
   selectedPackage: string | null;
@@ -20,58 +21,145 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
   };
   
   return (
-    <div className="bg-white p-4 rounded-md shadow-sm">
-      <h3 className="text-lg font-medium mb-3">GAF Package Selection</h3>
-      <p className="text-sm text-gray-600 mb-3">Select a package or double-click to deselect</p>
+    <div className="space-y-2">
+      <div>
+        <h3 className="text-sm font-semibold text-gray-700">Select GAF Package</h3>
+      </div>
       
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="grid grid-cols-2 gap-3">
+        {/* GAF 1 - Basic Package */}
         <div 
-          className={`border p-3 rounded-md cursor-pointer ${selectedPackage === 'gaf-1' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+          className={`relative rounded-xl p-4 cursor-pointer transition-all duration-200 ${
+            selectedPackage === 'gaf-1' 
+              ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-600 ring-offset-1' 
+              : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+          }`}
           onClick={() => handlePackageClick('gaf-1')}
         >
-          <div className="flex justify-between">
-          <h4 className="font-medium">GAF 1 - Basic Package</h4>
-          </div>
-          <p className="text-sm text-gray-600 mt-1">Standard GAF materials for quality installation</p>
-          <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
-            <li>GAF ProStart Starter Shingle Strip (120')</li>
-            <li>GAF Timberline HDZ</li>
-            <li>GAF Seal-A-Ridge (25')</li>
-            <li>GAF WeatherWatch Ice & Water Shield (valleys only)</li>
-            <li>ABC Pro Guard 20 (Rhino)</li>
-          </ul>
-          <div className="mt-3 flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-green-500 text-green-700 font-medium bg-green-50">Silver Pledge Eligible</Badge>
+          {/* Selection Indicator */}
+          {selectedPackage === 'gaf-1' && (
+            <div className="absolute -top-1.5 -right-1.5 bg-green-500 rounded-full p-0.5">
+              <Check className="h-3.5 w-3.5 text-white" />
             </div>
-            <p className="text-xs text-gray-600 italic">This package only supports Silver Pledge warranty.</p>
+          )}
+          
+          <div className="space-y-2">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`p-1.5 rounded-lg ${selectedPackage === 'gaf-1' ? 'bg-blue-500' : 'bg-blue-100'}`}>
+                  <Package className={`h-4 w-4 ${selectedPackage === 'gaf-1' ? 'text-white' : 'text-blue-600'}`} />
+                </div>
+                <div>
+                  <h4 className={`font-semibold text-sm ${selectedPackage === 'gaf-1' ? 'text-white' : 'text-gray-800'}`}>
+                    GAF Package 1
+                  </h4>
+                  <p className={`text-xs ${selectedPackage === 'gaf-1' ? 'text-blue-100' : 'text-gray-500'}`}>
+                    Essential
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Warranty */}
+            <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === 'gaf-1' ? 'text-blue-100' : 'text-gray-600'}`}>
+              <Shield className="h-3 w-3" />
+              <span>Silver Pledge</span>
+            </div>
+            
+            {/* Quick materials count */}
+            <div className={`text-xs ${selectedPackage === 'gaf-1' ? 'text-blue-100' : 'text-gray-500'}`}>
+              5 core materials included
+            </div>
           </div>
         </div>
         
+        {/* GAF 2 - Premium Package */}
         <div 
-          className={`border p-3 rounded-md cursor-pointer ${selectedPackage === 'gaf-2' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+          className={`relative rounded-xl p-4 cursor-pointer transition-all duration-200 ${
+            selectedPackage === 'gaf-2' 
+              ? 'bg-purple-600 text-white shadow-md ring-2 ring-purple-600 ring-offset-1' 
+              : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+          }`}
           onClick={() => handlePackageClick('gaf-2')}
         >
-          <div className="flex justify-between">
-          <h4 className="font-medium">GAF 2 - Premium Package</h4>
-          </div>
-          <p className="text-sm text-gray-600 mt-1">Premium GAF materials with enhanced protection</p>
-          <ul className="text-xs text-gray-600 mt-2 ml-4 list-disc">
-            <li>GAF Timberline HDZ</li>
-            <li>GAF Seal-A-Ridge (25')</li>
-            <li>GAF ProStart Starter Shingle Strip (120')</li>
-            <li>GAF FeltBuster Synthetic Underlayment (10 sq)</li>
-            <li>GAF WeatherWatch Ice & Water Shield (valleys only)</li>
-          </ul>
-          <div className="mt-3 flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="border-green-500 text-green-700 font-medium bg-green-50">Silver Pledge Eligible</Badge>
-              <Badge variant="outline" className="border-blue-500 text-blue-700 font-medium bg-blue-50">Gold Pledge Eligible</Badge>
+          {/* Selection Indicator */}
+          {selectedPackage === 'gaf-2' && (
+            <div className="absolute -top-1.5 -right-1.5 bg-green-500 rounded-full p-0.5">
+              <Check className="h-3.5 w-3.5 text-white" />
             </div>
-            <p className="text-xs text-gray-600 italic">This package supports both Silver and Gold Pledge warranties.</p>
+          )}
+          
+          {/* Premium Badge */}
+          <div className="absolute top-2 right-2">
+            <Sparkles className={`h-4 w-4 ${selectedPackage === 'gaf-2' ? 'text-yellow-300' : 'text-yellow-500'}`} />
+          </div>
+          
+          <div className="space-y-2">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`p-1.5 rounded-lg ${selectedPackage === 'gaf-2' ? 'bg-purple-500' : 'bg-purple-100'}`}>
+                  <Package className={`h-4 w-4 ${selectedPackage === 'gaf-2' ? 'text-white' : 'text-purple-600'}`} />
+                </div>
+                <div>
+                  <h4 className={`font-semibold text-sm ${selectedPackage === 'gaf-2' ? 'text-white' : 'text-gray-800'}`}>
+                    GAF Package 2
+                  </h4>
+                  <p className={`text-xs ${selectedPackage === 'gaf-2' ? 'text-purple-100' : 'text-gray-500'}`}>
+                    Premium
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Warranties */}
+            <div className="space-y-1">
+              <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === 'gaf-2' ? 'text-purple-100' : 'text-gray-600'}`}>
+                <Shield className="h-3 w-3" />
+                <span>Silver Pledge</span>
+              </div>
+              <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === 'gaf-2' ? 'text-purple-100' : 'text-gray-600'}`}>
+                <Star className="h-3 w-3" />
+                <span>Gold Pledge</span>
+              </div>
+            </div>
+            
+            {/* Quick materials count */}
+            <div className={`text-xs ${selectedPackage === 'gaf-2' ? 'text-purple-100' : 'text-gray-500'}`}>
+              5 premium materials
+            </div>
           </div>
         </div>
       </div>
+      
+      {/* Expandable details section */}
+      {selectedPackage && (
+        <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <p className="text-xs font-medium text-gray-700 mb-2">
+            {selectedPackage === 'gaf-1' ? 'GAF Package 1 includes:' : 'GAF Package 2 includes:'}
+          </p>
+          <ul className="text-xs text-gray-600 space-y-0.5">
+            {selectedPackage === 'gaf-1' ? (
+              <>
+                <li>• GAF ProStart Starter Strip</li>
+                <li>• GAF Timberline HDZ Shingles</li>
+                <li>• GAF Seal-A-Ridge</li>
+                <li>• WeatherWatch (Valleys Only)</li>
+                <li>• ABC Pro Guard 20</li>
+              </>
+            ) : (
+              <>
+                <li>• GAF Timberline HDZ Shingles</li>
+                <li>• GAF Seal-A-Ridge (25')</li>
+                <li>• GAF ProStart Starter Strip</li>
+                <li>• FeltBuster Synthetic Underlayment</li>
+                <li>• WeatherWatch Ice & Water Shield</li>
+              </>
+            )}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

@@ -24,7 +24,7 @@ const ProtectedLayout: React.FC = () => {
           console.warn('[ProtectedLayout] Loading timeout reached, showing recovery options');
         }
         setLoadingTimeout(true);
-      }, 500); // EXTREMELY AGGRESSIVE: 500ms for instant tab switching
+      }, 300); // Reduced to 300ms for faster response
     } else {
       setLoadingTimeout(false);
     }
@@ -112,10 +112,10 @@ const ProtectedLayout: React.FC = () => {
   // Show loading while auth is being determined
   if (loading && !loadingTimeout) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <p className="text-green-400">Loading...</p>
         </div>
       </div>
     );
@@ -124,11 +124,11 @@ const ProtectedLayout: React.FC = () => {
   // CRITICAL FIX: Show recovery options if loading is stuck
   if (loading && loadingTimeout) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-900">
         <div className="text-center max-w-md p-6">
-          <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Loading Issue</h2>
-          <p className="text-gray-600 mb-6">
+          <AlertCircle className="h-12 w-12 text-orange-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Loading Issue</h2>
+          <p className="text-gray-300 mb-6">
             The app is taking longer than usual to load. This might be due to a network issue or session conflict.
           </p>
           <div className="space-y-3">
@@ -137,7 +137,7 @@ const ProtectedLayout: React.FC = () => {
                 // Force refresh to clear any stuck states
                 window.location.reload();
               }} 
-              className="w-full"
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
               variant="default"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -151,7 +151,7 @@ const ProtectedLayout: React.FC = () => {
                 window.location.href = '/login';
               }} 
               variant="outline"
-              className="w-full"
+              className="w-full border-gray-600 text-gray-300 hover:bg-gray-800"
             >
               Clear Session & Login Again
             </Button>
@@ -169,17 +169,17 @@ const ProtectedLayout: React.FC = () => {
     if (showProfileError) {
       // Show error state with retry option
       return (
-        <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+        <div className="h-screen w-screen flex items-center justify-center bg-gray-900">
           <div className="text-center max-w-md p-6">
-            <AlertCircle className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-800 mb-2">Account Setup Issue</h2>
-            <p className="text-gray-600 mb-6">
+            <AlertCircle className="h-12 w-12 text-orange-400 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">Account Setup Issue</h2>
+            <p className="text-gray-300 mb-6">
               We're having trouble loading your account information. This might be a temporary issue.
             </p>
             <div className="space-y-3">
               <Button 
                 onClick={() => window.location.reload()} 
-                className="w-full"
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
                 variant="default"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
@@ -188,7 +188,7 @@ const ProtectedLayout: React.FC = () => {
               <Button 
                 onClick={() => navigate('/login')} 
                 variant="outline"
-                className="w-full"
+                className="w-full border-gray-600 text-gray-300 hover:bg-gray-800"
               >
                 Sign In Again
               </Button>
@@ -203,10 +203,10 @@ const ProtectedLayout: React.FC = () => {
 
     // Show loading while profile is being fetched (with timeout)
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-gray-50">
+      <div className="h-screen w-screen flex items-center justify-center bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Setting up your account...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500 mx-auto mb-4"></div>
+          <p className="text-green-400">Setting up your account...</p>
           {profileWaitTime > 3 && (
             <p className="text-gray-500 text-sm mt-2">
               This is taking longer than usual ({profileWaitTime}s)
@@ -218,9 +218,9 @@ const ProtectedLayout: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-row bg-gray-50 overflow-hidden">
+    <div className="h-screen w-screen flex flex-row bg-gray-900 overflow-hidden">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-gray-900">
         <div className="h-full">
           <Outlet />
         </div>

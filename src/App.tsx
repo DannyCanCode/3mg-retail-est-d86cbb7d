@@ -11,6 +11,8 @@ import NotFound from "@/pages/NotFound";
 import Pricing from "@/pages/Pricing";
 import ManagerDashboard from "@/pages/ManagerDashboard";
 import SalesRepDashboard from "@/pages/SalesRepDashboard";
+import SalesRepEstimateFlow from "@/pages/SalesRepEstimateFlow";
+import DocumentsLibrary from "@/pages/DocumentsLibrary";
 import Territories from "@/pages/Territories";
 import Users from "@/pages/Users";
 import Subtrades from "@/pages/Subtrades";
@@ -164,9 +166,11 @@ const AppRouter = () => {
         <Route index element={<Index />} />
         <Route path="estimates" element={<Estimates />} />
         <Route path="estimates/:estimateId" element={<Estimates />} />
+        <Route path="sales-estimate" element={<SalesRepEstimateFlow />} />
         <Route path="pricing" element={<Pricing />} />
         <Route path="manager" element={<ManagerDashboard />} />
         <Route path="sales" element={<SalesRepDashboard />} />
+        <Route path="documents" element={<DocumentsLibrary />} />
         <Route path="territories" element={<Territories />} />
         <Route path="users" element={<Users />} />
         <Route path="subtrades" element={<Subtrades />} />

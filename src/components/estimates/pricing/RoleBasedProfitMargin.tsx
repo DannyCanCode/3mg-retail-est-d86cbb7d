@@ -47,7 +47,7 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
       };
     }
     
-    // Normal role-based permissions (unchanged from original logic)
+    // Normal role-based permissions
     switch (userRole) {
       case 'admin':
         return {
@@ -62,7 +62,7 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
       case 'manager':
         return {
           min: 30,
-          max: 50, // Allow managers to go higher than 35% if needed
+          max: 50,
           step: 1,
           isLocked: false,
           hideInput: false,
@@ -70,15 +70,14 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
         };
       
       case 'rep':
-        // Sales reps: Hide profit margin input entirely, enforce backend values
-        const margin = selectedPackage === 'gaf1' ? 25 : 30; // Default to GAF2 if not specified
+        // Sales reps: 30% minimum, 50% maximum profit margin
         return {
-          min: margin,
-          max: margin,
+          min: 30,
+          max: 50,
           step: 1,
-          isLocked: true,
-          hideInput: true, // NEW: Hide the input completely
-          description: `Profit margin is automatically set based on your GAF package selection`
+          isLocked: false,
+          hideInput: false,
+          description: 'Sales reps have a 30% minimum profit margin and can go up to 50%. This ensures consistent pricing while allowing some flexibility.'
         };
       
       default:
@@ -98,9 +97,6 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
   // Enforce minimum margin for the role
   const effectiveMargin = Math.max(constraints.min, Math.min(constraints.max, profitMargin));
   
-  // 🔧 SIMPLIFIED FIX: Remove complex state management that was causing issues
-  // Just use the prop value directly and handle changes immediately
-  
   const handleValueChange = (value: number[]) => {
     const newValue = value[0];
     // Enforce constraints immediately
@@ -114,29 +110,21 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
     onProfitMarginCommit([constrainedValue]);
   };
 
-  // 🔧 FIX: Simple effect to enforce role-based constraints without complex state
+  // Auto-enforce role-based constraints
   React.useEffect(() => {
-    // For sales reps, automatically set margin based on package
-    if (userRole === 'rep' && selectedPackage) {
-      const packageMargin = selectedPackage === 'gaf1' ? 25 : 30;
-      if (profitMargin !== packageMargin) {
-        onProfitMarginChange([packageMargin]);
-        onProfitMarginCommit([packageMargin]);
-      }
-    }
-    // For other roles, just enforce constraints if needed
-    else if (profitMargin < constraints.min || profitMargin > constraints.max) {
+    // For all roles, enforce min/max constraints if needed
+    if (profitMargin < constraints.min || profitMargin > constraints.max) {
       const targetMargin = Math.max(constraints.min, Math.min(constraints.max, profitMargin));
       onProfitMarginChange([targetMargin]);
       onProfitMarginCommit([targetMargin]);
     }
-  }, [userRole, selectedPackage, constraints.min, constraints.max]); // Removed profitMargin to prevent loops
+  }, [userRole, constraints.min, constraints.max, profitMargin, onProfitMarginChange, onProfitMarginCommit]);
 
   const getRoleIcon = () => {
     switch (userRole) {
       case 'admin': return <Shield className="h-4 w-4 text-blue-600" />;
       case 'manager': return <Info className="h-4 w-4 text-green-600" />;
-      case 'rep': return <EyeOff className="h-4 w-4 text-orange-600" />;
+      case 'rep': return <Info className="h-4 w-4 text-green-600" />;
       default: return <Info className="h-4 w-4" />;
     }
   };
@@ -145,58 +133,12 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
     switch (userRole) {
       case 'admin': return 'bg-blue-100 text-blue-800';
       case 'manager': return 'bg-green-100 text-green-800';
-      case 'rep': return 'bg-orange-100 text-orange-800';
+      case 'rep': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  // For sales reps, don't render the profit margin section at all
-  if (userRole === 'rep' && constraints.hideInput) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <EyeOff className="h-4 w-4 text-orange-600" />
-            Package Pricing
-            <Badge className="bg-orange-100 text-orange-800">
-              SALES REP
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="text-sm text-muted-foreground p-3 bg-muted rounded-md">
-            {constraints.description}
-          </div>
-
-          {/* Package selection info for sales reps */}
-          <div className="p-3 border rounded-md bg-blue-50">
-            <div className="flex items-center gap-2 mb-2">
-              <Info className="h-4 w-4 text-blue-600" />
-              <span className="font-medium text-blue-900">Your Package Selection</span>
-            </div>
-            <div className="space-y-1 text-sm text-blue-800">
-              <div className={`p-2 rounded ${selectedPackage === 'gaf1' ? 'bg-blue-200 font-semibold' : ''}`}>
-                • GAF Package 1: Standard pricing
-              </div>
-              <div className={`p-2 rounded ${selectedPackage === 'gaf2' ? 'bg-blue-200 font-semibold' : ''}`}>
-                • GAF Package 2: Premium pricing
-              </div>
-              {!selectedPackage && (
-                <div className="text-orange-600 font-medium mt-2 p-2 bg-orange-100 rounded">
-                  Please select a GAF package to continue
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="text-xs text-center text-muted-foreground border-t pt-2">
-            Pricing is automatically calculated based on your package selection
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
+  // For managers and admins, show the full profit margin controls
   return (
     <Card>
       <CardHeader>
@@ -209,25 +151,28 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="profit-margin">Profit Margin</Label>
-          <span className="text-2xl font-bold text-green-600">
-            {effectiveMargin}%
-          </span>
-        </div>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="profit-margin" className="text-base font-medium">
+                  Current Margin: {effectiveMargin}%
+                </Label>
+                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p className="max-w-xs">{constraints.description}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-        {/* Role-based description */}
-        <div className="text-sm text-muted-foreground p-3 bg-muted rounded-md">
-          {constraints.description}
-        </div>
-
-        {/* Profit margin slider/display */}
         {constraints.isLocked ? (
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Lock className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
-                Profit margin is locked for this package
+                Profit margin is locked for this role
               </span>
             </div>
             <div className="h-12 bg-muted rounded-md flex items-center justify-center">
@@ -262,6 +207,18 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
               <Info className="h-4 w-4 text-yellow-600" />
               <span className="font-medium text-yellow-800">
                 Minimum margin enforced at 30%
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Warning for sales reps at minimum margin */}
+        {userRole === 'rep' && effectiveMargin === 30 && (
+          <div className="mt-4 p-3 border-l-4 border-green-400 bg-green-50">
+            <div className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-green-600" />
+              <span className="font-medium text-green-800">
+                You're at the minimum 30% margin - consider increasing for better profitability
               </span>
             </div>
           </div>
