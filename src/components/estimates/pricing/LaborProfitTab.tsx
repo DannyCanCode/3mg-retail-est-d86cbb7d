@@ -262,11 +262,11 @@ export function LaborProfitTab({
     // Removed all other fields that were causing infinite loops
   ]); 
 
-  const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates) => {
+  const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates, shouldSyncImmediately = false) => {
     setLaborRates(prev => {
       const newState = updater(prev);
-      // 🔧 CRITICAL FIX: Always sync state changes to parent to prevent stale data in Summary tab
-      if (hasUserInteracted.current && onLaborProfitContinue) {
+      // 🔧 CRITICAL FIX: Only sync critical changes immediately, not every toggle
+      if (shouldSyncImmediately && hasUserInteracted.current && hasComponentStabilized.current && onLaborProfitContinue) {
         // Use setTimeout to ensure state update completes first
         setTimeout(() => {
           onLaborProfitContinue(newState, profitMargin);
@@ -283,6 +283,10 @@ export function LaborProfitTab({
   ) => {
     let processedValue = value;
     const locationDefaultDumpsterRate = laborRates.dumpsterLocation === "orlando" ? 400 : 500;
+
+    // Determine if this change should sync immediately
+    const criticalFields = ['laborRate', 'wastePercentage'];
+    const shouldSyncImmediately = criticalFields.includes(field);
 
     if (field === "dumpsterCount") {
         // 🔧 FIX: Allow 0 temporarily for better input UX
@@ -353,6 +357,11 @@ export function LaborProfitTab({
       }
     }
 
+    // Add specific logging for permits toggle
+    if (field === "includePermits") {
+      console.log('🎯 [LaborProfitTab] Permits toggle changed to:', value, 'shouldSyncImmediately:', shouldSyncImmediately);
+    }
+
     commonStateUpdater(prev => {
       const updatedRates = {
         ...prev,
@@ -366,7 +375,7 @@ export function LaborProfitTab({
         updatedRates.permitRate = value === "orlando" ? 450 : 550;
       }
       return updatedRates;
-    });
+    }, shouldSyncImmediately);
   };
   
   const handlePitchRateChange = (pitch: string, value: string) => {
@@ -380,7 +389,7 @@ export function LaborProfitTab({
     commonStateUpdater(prev => ({
       ...prev,
       pitchRates: { ...prev.pitchRates, [pitch]: numValue }
-    }));
+    }), true); // Pitch rates are critical for pricing
   };
   
   const handleProfitMarginChange = (value: number[]) => {
