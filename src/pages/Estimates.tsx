@@ -1490,6 +1490,8 @@ const Estimates = () => {
   };
 
   const handleLaborProfitContinue = (updatedLaborRates: LaborRates, updatedProfitMargin: number) => {
+    console.log('🎯 [Estimates] handleLaborProfitContinue called with profitMargin:', updatedProfitMargin);
+    
     // Validate that we have proper laborRates and measurements before just updating state
     if (!updatedLaborRates || (!updatedLaborRates.laborRate && !updatedLaborRates.tearOff && !updatedLaborRates.installation)) {
       console.error("Missing valid labor rates, not updating state in Estimates.tsx", updatedLaborRates);
@@ -1506,6 +1508,8 @@ const Estimates = () => {
     // Removed console.log to reduce spam
     setLaborRates(updatedLaborRates);
     setProfitMargin(updatedProfitMargin);
+    
+    console.log('🎯 [Estimates] State updated, activeTab is still:', activeTab);
     
     // DO NOT NAVIGATE HERE. Navigation is handled by the main generic "Continue" button.
     // setActiveTab("summary"); 
@@ -2638,6 +2642,9 @@ const Estimates = () => {
                 <Tabs 
                   value={activeTab} 
                   onValueChange={(value) => {
+                    console.log('🎯 [Estimates] Tab onValueChange triggered - from:', activeTab, 'to:', value);
+                    console.trace('Tab change stack trace');
+                    
                     if (import.meta.env.DEV) {
                     console.log(`Tab changing from ${activeTab} to ${value}`);
                     }

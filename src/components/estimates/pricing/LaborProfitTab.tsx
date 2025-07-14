@@ -165,12 +165,23 @@ export function LaborProfitTab({
 
   const isInitialMount = useRef(true);
   const hasUserInteracted = useRef(false);
+  const hasComponentStabilized = useRef(false);
 
   useEffect(() => {
     setLaborRates(getSafeInitialRates(initialLaborRatesProp));
     setProfitMargin(initialProfitMarginProp || 25);
     hasUserInteracted.current = false; 
   }, [initialLaborRatesProp, initialProfitMarginProp, getSafeInitialRates]);
+
+  // Add a delay to allow component to stabilize before allowing callbacks
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      hasComponentStabilized.current = true;
+      console.log('🎯 [LaborProfitTab] Component stabilized, callbacks now allowed');
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   // 🔧 FIX: Track if user has manually changed dumpster count to prevent glitching
   const [hasUserChangedDumpsterCount, setHasUserChangedDumpsterCount] = useState(false);
@@ -222,7 +233,10 @@ export function LaborProfitTab({
       return; 
     }
     
-    if (hasUserInteracted.current && onLaborProfitContinue) {
+    console.log('🎯 [LaborProfitTab] useEffect triggered - profitMargin:', profitMargin, 'hasUserInteracted:', hasUserInteracted.current, 'hasComponentStabilized:', hasComponentStabilized.current);
+    
+    // Only call parent callback if user has interacted AND component has stabilized
+    if (hasUserInteracted.current && hasComponentStabilized.current && onLaborProfitContinue) {
         onLaborProfitContinue(laborRates, profitMargin);
       }
   }, [
@@ -355,11 +369,13 @@ export function LaborProfitTab({
   
   const handleProfitMarginChange = (value: number[]) => {
     const newMargin = value[0];
+    console.log('🎯 [LaborProfitTab] handleProfitMarginChange called with:', newMargin);
     setProfitMargin(newMargin);
     // Don't call parent on every change, only on commit
   };
   
   const handleProfitMarginCommit = (value: number[]) => {
+    console.log('🎯 [LaborProfitTab] handleProfitMarginCommit called with:', value[0]);
     hasUserInteracted.current = true;
     if (onLaborProfitContinue) {
       onLaborProfitContinue(laborRates, value[0]);
