@@ -142,6 +142,9 @@ export function MaterialsSelectionTab({
   // Track if we've auto-populated for sales reps
   const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
   
+  // Track if we've auto-populated ventilation materials
+  const hasVentilationPopulated = useRef(false);
+  
   // State for GAF packages and warranty options
   const [selectedPackage, setSelectedPackage] = useState<string | null>(() => {
     // Don't auto-default to GAF 2 for sales reps - let them choose
@@ -259,7 +262,7 @@ export function MaterialsSelectionTab({
 
   // Auto-populate ventilation materials based on job worksheet ventilation data
   useEffect(() => {
-    if (!jobWorksheet?.ventilation || !measurements) {
+    if (!jobWorksheet?.ventilation || !measurements || hasVentilationPopulated.current) {
       return;
     }
 
@@ -299,44 +302,69 @@ export function MaterialsSelectionTab({
 
     // If there are materials to add, update the state
     if (Object.keys(materialsToAdd).length > 0) {
-      const newMaterials = { ...localSelectedMaterials };
-      const newQuantities = { ...localQuantities };
-      const newDisplayQuantities = { ...displayQuantities };
-      const newMaterialWasteFactors = { ...materialWasteFactors };
-      const newUserOverriddenWaste = { ...userOverriddenWaste };
-      let hasChanges = false;
-
-      Object.entries(materialsToAdd).forEach(([materialId, { material, quantity }]) => {
-        // Only add if not already present or if quantity is different
-        if (!newMaterials[materialId] || newQuantities[materialId] !== quantity) {
+      hasVentilationPopulated.current = true; // Mark as populated before updating state
+      
+      setLocalSelectedMaterials(prev => {
+        const newMaterials = { ...prev };
+        Object.entries(materialsToAdd).forEach(([materialId, { material }]) => {
           newMaterials[materialId] = material;
-          newQuantities[materialId] = quantity;
-          newDisplayQuantities[materialId] = quantity.toString();
-          newMaterialWasteFactors[materialId] = 0; // Ventilation has 0% waste
-          newUserOverriddenWaste[materialId] = false;
-          hasChanges = true;
-        }
+        });
+        return newMaterials;
       });
 
-      if (hasChanges) {
-        console.log('🔧 [Ventilation] Applying ventilation materials from job worksheet');
-        setLocalSelectedMaterials(newMaterials);
-        setLocalQuantities(newQuantities);
-        setDisplayQuantities(newDisplayQuantities);
-        setMaterialWasteFactors(newMaterialWasteFactors);
-        setUserOverriddenWaste(newUserOverriddenWaste);
-        setMaterialOrder(Object.keys(newMaterials));
-
-        // Show toast notification
-        const addedCount = Object.keys(materialsToAdd).length;
-        toast({
-          title: "Ventilation Materials Added",
-          description: `Added ${addedCount} ventilation material${addedCount > 1 ? 's' : ''} based on Job Worksheet selections.`,
-          duration: 3000,
+      setLocalQuantities(prev => {
+        const newQuantities = { ...prev };
+        Object.entries(materialsToAdd).forEach(([materialId, { quantity }]) => {
+          newQuantities[materialId] = quantity;
         });
-      }
+        return newQuantities;
+      });
+
+      setDisplayQuantities(prev => {
+        const newDisplayQuantities = { ...prev };
+        Object.entries(materialsToAdd).forEach(([materialId, { quantity }]) => {
+          newDisplayQuantities[materialId] = quantity.toString();
+        });
+        return newDisplayQuantities;
+      });
+
+      setMaterialWasteFactors(prev => {
+        const newFactors = { ...prev };
+        Object.keys(materialsToAdd).forEach(materialId => {
+          newFactors[materialId] = 0; // Ventilation has 0% waste
+        });
+        return newFactors;
+      });
+
+      setUserOverriddenWaste(prev => {
+        const newOverrides = { ...prev };
+        Object.keys(materialsToAdd).forEach(materialId => {
+          newOverrides[materialId] = false;
+        });
+        return newOverrides;
+      });
+
+      setMaterialOrder(prev => {
+        const newOrder = [...prev];
+        Object.keys(materialsToAdd).forEach(materialId => {
+          if (!newOrder.includes(materialId)) {
+            newOrder.push(materialId);
+          }
+        });
+        return newOrder;
+      });
+
+      // Show toast notification
+      const addedCount = Object.keys(materialsToAdd).length;
+      toast({
+        title: "Ventilation Materials Added",
+        description: `Added ${addedCount} ventilation material${addedCount > 1 ? 's' : ''} based on Job Worksheet selections.`,
+        duration: 3000,
+      });
+      
+      console.log('🔧 [Ventilation] Ventilation materials successfully applied');
     }
-  }, [jobWorksheet?.ventilation, measurements?.totalArea]); // Only depend on ventilation data and total area
+  }, [jobWorksheet?.ventilation, measurements]); // Only depend on ventilation data and measurements
 
   // Reset function to completely reset state from props
   const resetStateFromProps = useCallback(() => {
