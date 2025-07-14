@@ -257,6 +257,87 @@ export function MaterialsSelectionTab({
     }
   }, [jobWorksheet]); // Only run when jobWorksheet changes, not on every render
 
+  // Auto-populate ventilation materials based on job worksheet ventilation data
+  useEffect(() => {
+    if (!jobWorksheet?.ventilation || !measurements) {
+      return;
+    }
+
+    console.log('🔧 [Ventilation Auto-Population] Checking job worksheet ventilation data:', jobWorksheet.ventilation);
+
+    const ventilationData = jobWorksheet.ventilation;
+    const materialsToAdd: { [key: string]: { material: Material, quantity: number } } = {};
+
+    // Map Job Worksheet fields to material IDs
+    const ventilationMapping = {
+      // Goosenecks
+      'gooseneck_4_inch': { materialId: 'galvanized-gooseneck-4inch', count: ventilationData.goosenecks?.['4_inch'] || 0 },
+      'gooseneck_10_inch': { materialId: 'galvanized-gooseneck-10inch', count: ventilationData.goosenecks?.['10_inch'] || 0 },
+      
+      // Boots (Bullet Boot Pipe Flashing)
+      'boot_1_5_inch': { materialId: 'bullet-boot-1-5inch', count: ventilationData.boots?.['1_5_inch'] || 0 },
+      'boot_2_inch': { materialId: 'bullet-boot-2inch', count: ventilationData.boots?.['2_inch'] || 0 },
+      'boot_3_inch': { materialId: 'bullet-boot-3inch', count: ventilationData.boots?.['3_inch'] || 0 },
+      'boot_4_inch': { materialId: 'bullet-boot-4inch', count: ventilationData.boots?.['4_inch'] || 0 },
+      
+      // Off Ridge Vents (only 4ft is available in materials)
+      'off_ridge_4ft': { materialId: 'galvanized-steel-off-ridge-vent', count: ventilationData.off_ridge_vents?.['4_ft'] || 0 }
+    };
+
+    // Process each mapping
+    Object.entries(ventilationMapping).forEach(([field, { materialId, count }]) => {
+      if (count > 0) {
+        const material = ROOFING_MATERIALS.find(m => m.id === materialId);
+        if (material) {
+          console.log(`🔧 [Ventilation] Adding ${count} x ${material.name}`);
+          materialsToAdd[materialId] = { material, quantity: count };
+        } else {
+          console.warn(`🔧 [Ventilation] Material not found: ${materialId}`);
+        }
+      }
+    });
+
+    // If there are materials to add, update the state
+    if (Object.keys(materialsToAdd).length > 0) {
+      const newMaterials = { ...localSelectedMaterials };
+      const newQuantities = { ...localQuantities };
+      const newDisplayQuantities = { ...displayQuantities };
+      const newMaterialWasteFactors = { ...materialWasteFactors };
+      const newUserOverriddenWaste = { ...userOverriddenWaste };
+      let hasChanges = false;
+
+      Object.entries(materialsToAdd).forEach(([materialId, { material, quantity }]) => {
+        // Only add if not already present or if quantity is different
+        if (!newMaterials[materialId] || newQuantities[materialId] !== quantity) {
+          newMaterials[materialId] = material;
+          newQuantities[materialId] = quantity;
+          newDisplayQuantities[materialId] = quantity.toString();
+          newMaterialWasteFactors[materialId] = 0; // Ventilation has 0% waste
+          newUserOverriddenWaste[materialId] = false;
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        console.log('🔧 [Ventilation] Applying ventilation materials from job worksheet');
+        setLocalSelectedMaterials(newMaterials);
+        setLocalQuantities(newQuantities);
+        setDisplayQuantities(newDisplayQuantities);
+        setMaterialWasteFactors(newMaterialWasteFactors);
+        setUserOverriddenWaste(newUserOverriddenWaste);
+        setMaterialOrder(Object.keys(newMaterials));
+
+        // Show toast notification
+        const addedCount = Object.keys(materialsToAdd).length;
+        toast({
+          title: "Ventilation Materials Added",
+          description: `Added ${addedCount} ventilation material${addedCount > 1 ? 's' : ''} based on Job Worksheet selections.`,
+          duration: 3000,
+        });
+      }
+    }
+  }, [jobWorksheet?.ventilation, measurements?.totalArea]); // Only depend on ventilation data and total area
+
   // Reset function to completely reset state from props
   const resetStateFromProps = useCallback(() => {
     console.log("Resetting state from props", {
