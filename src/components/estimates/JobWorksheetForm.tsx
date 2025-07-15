@@ -71,7 +71,6 @@ interface JobWorksheetData {
     skylight: {
       count_2x2: number;
       count_2x4: number;
-      dome: number;
       other: string;
     };
   };
@@ -89,7 +88,6 @@ interface JobWorksheetData {
     };
     gutter_screens: boolean;
     gutter_screens_lf: number;
-    splash_guard: boolean;
     splash_guard_count: number;
     splash_guard_color: string;
     gutter_diagram_uploaded: boolean;
@@ -189,7 +187,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
       skylight: {
         count_2x2: 0,
         count_2x4: 0,
-        dome: 0,
         other: '',
         ...initialData?.accessories?.skylight
       }
@@ -209,7 +206,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
       },
       gutter_screens: false,
       gutter_screens_lf: 0,
-      splash_guard: false,
       splash_guard_count: 0,
       splash_guard_color: '',
       gutter_diagram_uploaded: false,
@@ -313,7 +309,7 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
           <TabsTrigger value="basic">Basic Info</TabsTrigger>
           <TabsTrigger value="shingle">Shingle Roof</TabsTrigger>
           <TabsTrigger value="ventilation">Ventilation</TabsTrigger>
-          <TabsTrigger value="accessories">Accessories</TabsTrigger>
+          <TabsTrigger value="skylights">Skylights</TabsTrigger>
           <TabsTrigger value="gutters">Gutters</TabsTrigger>
         </TabsList>
 
@@ -1021,140 +1017,104 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
           </Card>
         </TabsContent>
 
-        {/* Accessories Tab */}
-        <TabsContent value="accessories" className="space-y-4">
+        {/* Skylights Tab */}
+        <TabsContent value="skylights" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
-                Accessories
+                Skylights
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-4">
-                <h4 className="font-medium">Skylights</h4>
-                
-                {/* 2x2 Skylights */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includeSkylights2x2"
-                      checked={formData.accessories.skylight.count_2x2 > 0}
-                      onCheckedChange={(checked) => {
-                        if (!checked) {
-                          updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x2: 0 });
-                        }
-                      }}
+              {/* 2x2 Skylights */}
+              <div className="flex items-center space-x-4">
+                <Checkbox
+                  id="includeSkylights2x2"
+                  checked={formData.accessories.skylight.count_2x2 > 0}
+                  onCheckedChange={(checked) => {
+                    if (!checked) {
+                      updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x2: 0 });
+                    } else {
+                      updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x2: 1 });
+                    }
+                  }}
+                  disabled={readOnly}
+                />
+                <Label htmlFor="includeSkylights2x2" className="flex-1">
+                  Install 2X2 Skylights ($280 per unit)
+                </Label>
+                {formData.accessories.skylight.count_2x2 > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-muted-foreground">Quantity:</Label>
+                    <Select
+                      value={formData.accessories.skylight.count_2x2?.toString() || "1"}
+                      onValueChange={(value) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x2: parseInt(value) || 0 })}
                       disabled={readOnly}
-                    />
-                    <Label htmlFor="includeSkylights2x2">Install 2X2 Skylights ($280 per unit)</Label>
+                    >
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  
-                  {formData.accessories.skylight.count_2x2 > 0 && (
-                    <div className="ml-6">
-                      <Label htmlFor="skylight2x2">Number of 2X2 Skylights</Label>
-                      <Select
-                        value={formData.accessories.skylight.count_2x2?.toString() || "0"}
-                        onValueChange={(value) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x2: parseInt(value) || 0 })}
-                        disabled={readOnly}
-                      >
-                        <SelectTrigger id="skylight2x2">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-                
-                {/* 2x4 Skylights */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includeSkylights2x4"
-                      checked={formData.accessories.skylight.count_2x4 > 0}
-                      onCheckedChange={(checked) => {
-                        if (!checked) {
-                          updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x4: 0 });
-                        }
-                      }}
+                )}
+              </div>
+
+              {/* 2x4 Skylights */}
+              <div className="flex items-center space-x-4">
+                <Checkbox
+                  id="includeSkylights2x4"
+                  checked={formData.accessories.skylight.count_2x4 > 0}
+                  onCheckedChange={(checked) => {
+                    if (!checked) {
+                      updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x4: 0 });
+                    } else {
+                      updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x4: 1 });
+                    }
+                  }}
+                  disabled={readOnly}
+                />
+                <Label htmlFor="includeSkylights2x4" className="flex-1">
+                  Install 2X4 Skylights ($370 per unit)
+                </Label>
+                {formData.accessories.skylight.count_2x4 > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-muted-foreground">Quantity:</Label>
+                    <Select
+                      value={formData.accessories.skylight.count_2x4?.toString() || "1"}
+                      onValueChange={(value) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x4: parseInt(value) || 0 })}
                       disabled={readOnly}
-                    />
-                    <Label htmlFor="includeSkylights2x4">Install 2X4 Skylights ($370 per unit)</Label>
+                    >
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  
-                  {formData.accessories.skylight.count_2x4 > 0 && (
-                    <div className="ml-6">
-                      <Label htmlFor="skylight2x4">Number of 2X4 Skylights</Label>
-                      <Select
-                        value={formData.accessories.skylight.count_2x4?.toString() || "0"}
-                        onValueChange={(value) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x4: parseInt(value) || 0 })}
-                        disabled={readOnly}
-                      >
-                        <SelectTrigger id="skylight2x4">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Other Skylights */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="includeSkylightDome"
-                      checked={formData.accessories.skylight.dome > 0}
-                      onCheckedChange={(checked) => {
-                        if (!checked) {
-                          updateField('accessories', 'skylight', { ...formData.accessories.skylight, dome: 0 });
-                        }
-                      }}
-                      disabled={readOnly}
-                    />
-                    <Label htmlFor="includeSkylightDome">Skylight Dome</Label>
-                  </div>
-                  
-                  {formData.accessories.skylight.dome > 0 && (
-                    <div className="ml-6">
-                      <Label htmlFor="skylightDome">Number of Skylight Domes</Label>
-                      <Select
-                        value={formData.accessories.skylight.dome?.toString() || "0"}
-                        onValueChange={(value) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, dome: parseInt(value) || 0 })}
-                        disabled={readOnly}
-                      >
-                        <SelectTrigger id="skylightDome">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <Label htmlFor="skylightOther">Other Skylights</Label>
-                  <Input
-                    id="skylightOther"
-                    value={formData.accessories.skylight.other}
-                    onChange={(e) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, other: e.target.value })}
-                    disabled={readOnly}
-                    placeholder="Describe other skylight needs"
-                  />
-                </div>
+                )}
+              </div>
+
+              {/* Other Skylights */}
+              <div className="pt-2">
+                <Label htmlFor="skylightOther">Other Skylight Needs</Label>
+                <Textarea
+                  id="skylightOther"
+                  value={formData.accessories.skylight.other}
+                  onChange={(e) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, other: e.target.value })}
+                  disabled={readOnly}
+                  placeholder="Describe any other skylight requirements..."
+                  className="mt-2"
+                  rows={3}
+                />
               </div>
             </CardContent>
           </Card>
@@ -1167,120 +1127,144 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
               <CardTitle>Gutters</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
+              {/* Install Gutters */}
+              <div className="flex items-center space-x-4">
                 <Checkbox
-                  id="existingGutters"
-                  checked={formData.gutters.existing_gutters}
-                  onCheckedChange={(checked) => updateField('gutters', 'existing_gutters', checked)}
+                  id="includeGutters"
+                  checked={formData.gutters.gutter_lf > 0}
+                  onCheckedChange={(checked) => {
+                    if (!checked) {
+                      updateField('gutters', 'gutter_lf', 0);
+                    }
+                  }}
                   disabled={readOnly}
                 />
-                <Label htmlFor="existingGutters">Existing Gutters?</Label>
+                <Label htmlFor="includeGutters" className="flex-1">
+                  Install 6" Aluminum Seamless Gutters ($8 per linear foot)
+                </Label>
               </div>
 
-              {formData.gutters.existing_gutters && (
-                <div>
-                  <Label>Keep or Install New?</Label>
-                  <RadioGroup
-                    value={formData.gutters.keep_or_new}
-                    onValueChange={(value) => updateField('gutters', 'keep_or_new', value)}
-                    disabled={readOnly}
-                  >
-                    <div className="flex space-x-4">
+              {formData.gutters.gutter_lf > 0 && (
+                <div className="ml-10 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="gutterLf">Linear Feet</Label>
+                      <Input
+                        id="gutterLf"
+                        type="number"
+                        value={formData.gutters.gutter_lf}
+                        onChange={(e) => updateField('gutters', 'gutter_lf', parseInt(e.target.value) || 0)}
+                        disabled={readOnly}
+                        min="0"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="gutterColor">Gutter Color</Label>
+                      <Input
+                        id="gutterColor"
+                        value={formData.gutters.gutter_color}
+                        onChange={(e) => updateField('gutters', 'gutter_color', e.target.value)}
+                        disabled={readOnly}
+                        placeholder="e.g., White, Brown, Black"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Gutter Size</Label>
+                      <RadioGroup
+                        value={formData.gutters.gutter_size}
+                        onValueChange={(value) => updateField('gutters', 'gutter_size', value)}
+                        disabled={readOnly}
+                        className="flex gap-4 mt-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="6_inch" id="6inch" />
+                          <Label htmlFor="6inch">6"</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="7_inch" id="7inch" />
+                          <Label htmlFor="7inch">7"</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    <div className="space-y-3">
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="keep" id="keepGutters" />
-                        <Label htmlFor="keepGutters">Keep Existing</Label>
+                        <Checkbox
+                          id="existingGutters"
+                          checked={formData.gutters.existing_gutters}
+                          onCheckedChange={(checked) => updateField('gutters', 'existing_gutters', checked)}
+                          disabled={readOnly}
+                        />
+                        <Label htmlFor="existingGutters">Existing Gutters?</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="new" id="newGutters" />
-                        <Label htmlFor="newGutters">Install New</Label>
+                        <Checkbox
+                          id="gutterPhotos"
+                          checked={formData.gutters.photos}
+                          onCheckedChange={(checked) => updateField('gutters', 'photos', checked)}
+                          disabled={readOnly}
+                        />
+                        <Label htmlFor="gutterPhotos">Photos Taken?</Label>
                       </div>
                     </div>
-                  </RadioGroup>
+                  </div>
+
+                  {formData.gutters.existing_gutters && (
+                    <div>
+                      <Label>Keep or Install New?</Label>
+                      <RadioGroup
+                        value={formData.gutters.keep_or_new}
+                        onValueChange={(value) => updateField('gutters', 'keep_or_new', value)}
+                        disabled={readOnly}
+                        className="flex gap-4 mt-2"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="keep" id="keepGutters" />
+                          <Label htmlFor="keepGutters">Keep Existing</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="new" id="newGutters" />
+                          <Label htmlFor="newGutters">Install New</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  )}
                 </div>
               )}
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="gutterPhotos"
-                  checked={formData.gutters.photos}
-                  onCheckedChange={(checked) => updateField('gutters', 'photos', checked)}
-                  disabled={readOnly}
-                />
-                <Label htmlFor="gutterPhotos">Photos Taken?</Label>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Gutter Size</Label>
-                  <RadioGroup
-                    value={formData.gutters.gutter_size}
-                    onValueChange={(value) => updateField('gutters', 'gutter_size', value)}
-                    disabled={readOnly}
-                  >
-                    <div className="flex space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="6_inch" id="6inch" />
-                        <Label htmlFor="6inch">6"</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="7_inch" id="7inch" />
-                        <Label htmlFor="7inch">7"</Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
-                </div>
-                <div>
-                  <Label htmlFor="gutterColor">Gutter Color</Label>
-                  <Input
-                    id="gutterColor"
-                    value={formData.gutters.gutter_color}
-                    onChange={(e) => updateField('gutters', 'gutter_color', e.target.value)}
-                    disabled={readOnly}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="gutterLf">Gutter Linear Feet</Label>
-                <Input
-                  id="gutterLf"
-                  type="number"
-                  value={formData.gutters.gutter_lf}
-                  onChange={(e) => updateField('gutters', 'gutter_lf', parseInt(e.target.value) || 0)}
-                  disabled={readOnly}
-                  min="0"
-                />
-              </div>
-              
               {/* Detach and Reset Gutters */}
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="detachResetGutters"
-                    checked={formData.gutters.detach_reset_gutters || false}
-                    onCheckedChange={(checked) => updateField('gutters', 'detach_reset_gutters', checked)}
-                    disabled={readOnly}
-                  />
-                  <Label htmlFor="detachResetGutters">Detach and Reset Gutters ($1 per linear foot)</Label>
-                </div>
-                
-                {formData.gutters.detach_reset_gutters && (
-                  <div className="ml-6">
-                    <Label htmlFor="detachResetGutterLf">Detach/Reset Linear Feet</Label>
-                    <Input
-                      id="detachResetGutterLf"
-                      type="number"
-                      value={formData.gutters.detach_reset_gutter_lf || 0}
-                      onChange={(e) => updateField('gutters', 'detach_reset_gutter_lf', parseInt(e.target.value) || 0)}
-                      disabled={readOnly}
-                      min="0"
-                    />
-                  </div>
-                )}
+              <div className="flex items-center space-x-4">
+                <Checkbox
+                  id="detachResetGutters"
+                  checked={formData.gutters.detach_reset_gutters || false}
+                  onCheckedChange={(checked) => updateField('gutters', 'detach_reset_gutters', checked)}
+                  disabled={readOnly}
+                />
+                <Label htmlFor="detachResetGutters" className="flex-1">
+                  Detach and Reset Gutters ($1 per linear foot)
+                </Label>
               </div>
 
-              <div className="space-y-4">
-                <h4 className="font-medium">Downspouts</h4>
+              {formData.gutters.detach_reset_gutters && (
+                <div className="ml-10">
+                  <Label htmlFor="detachResetGutterLf">Detach/Reset Linear Feet</Label>
+                  <Input
+                    id="detachResetGutterLf"
+                    type="number"
+                    value={formData.gutters.detach_reset_gutter_lf || 0}
+                    onChange={(e) => updateField('gutters', 'detach_reset_gutter_lf', parseInt(e.target.value) || 0)}
+                    disabled={readOnly}
+                    min="0"
+                    className="w-32 mt-2"
+                  />
+                </div>
+              )}
+
+              {/* Downspouts */}
+              <div className="pt-4">
+                <h4 className="font-medium mb-3">Downspouts</h4>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="downspoutColor">Color</Label>
@@ -1289,6 +1273,7 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                       value={formData.gutters.downspouts.color}
                       onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, color: e.target.value })}
                       disabled={readOnly}
+                      placeholder="e.g., White, Brown"
                     />
                   </div>
                   <div>
@@ -1316,45 +1301,35 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="gutterScreens"
-                      checked={formData.gutters.gutter_screens}
-                      onCheckedChange={(checked) => updateField('gutters', 'gutter_screens', checked)}
+              {/* Gutter Screens */}
+              <div className="flex items-center space-x-4">
+                <Checkbox
+                  id="gutterScreens"
+                  checked={formData.gutters.gutter_screens}
+                  onCheckedChange={(checked) => updateField('gutters', 'gutter_screens', checked)}
+                  disabled={readOnly}
+                />
+                <Label htmlFor="gutterScreens" className="flex-1">Gutter Screens?</Label>
+                {formData.gutters.gutter_screens && (
+                  <div className="flex items-center gap-2">
+                    <Label htmlFor="gutterScreensLf" className="text-sm text-muted-foreground">Linear Feet:</Label>
+                    <Input
+                      id="gutterScreensLf"
+                      type="number"
+                      value={formData.gutters.gutter_screens_lf}
+                      onChange={(e) => updateField('gutters', 'gutter_screens_lf', parseInt(e.target.value) || 0)}
                       disabled={readOnly}
+                      min="0"
+                      className="w-24"
                     />
-                    <Label htmlFor="gutterScreens">Gutter Screens?</Label>
                   </div>
-                </div>
-                <div>
-                  <Label htmlFor="gutterScreensLf">Screens Linear Feet</Label>
-                  <Input
-                    id="gutterScreensLf"
-                    type="number"
-                    value={formData.gutters.gutter_screens_lf}
-                    onChange={(e) => updateField('gutters', 'gutter_screens_lf', parseInt(e.target.value) || 0)}
-                    disabled={readOnly}
-                    min="0"
-                  />
-                </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              {/* Additional Gutter Options */}
+              <div className="grid grid-cols-2 gap-4 pt-2">
                 <div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="splashGuard"
-                      checked={formData.gutters.splash_guard}
-                      onCheckedChange={(checked) => updateField('gutters', 'splash_guard', checked)}
-                      disabled={readOnly}
-                    />
-                    <Label htmlFor="splashGuard">Splash Guard?</Label>
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="splashGuardCount">Count</Label>
+                  <Label htmlFor="splashGuardCount">Splash Guard Count</Label>
                   <Input
                     id="splashGuardCount"
                     type="number"
@@ -1365,24 +1340,25 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                   />
                 </div>
                 <div>
-                  <Label htmlFor="splashGuardColor">Color</Label>
+                  <Label htmlFor="splashGuardColor">Splash Guard Color</Label>
                   <Input
                     id="splashGuardColor"
                     value={formData.gutters.splash_guard_color}
                     onChange={(e) => updateField('gutters', 'splash_guard_color', e.target.value)}
                     disabled={readOnly}
+                    placeholder="e.g., White, Brown"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 pt-2">
                 <Checkbox
-                  id="gutterDiagram"
+                  id="gutterDiagramUploaded"
                   checked={formData.gutters.gutter_diagram_uploaded}
                   onCheckedChange={(checked) => updateField('gutters', 'gutter_diagram_uploaded', checked)}
                   disabled={readOnly}
                 />
-                <Label htmlFor="gutterDiagram">Gutter Diagram Uploaded?</Label>
+                <Label htmlFor="gutterDiagramUploaded">Gutter Diagram Uploaded?</Label>
               </div>
             </CardContent>
           </Card>
