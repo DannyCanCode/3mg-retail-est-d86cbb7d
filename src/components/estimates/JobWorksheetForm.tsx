@@ -86,11 +86,6 @@ interface JobWorksheetData {
       count_1st_story: number;
       count_2nd_story: number;
     };
-    gutter_screens: boolean;
-    gutter_screens_lf: number;
-    splash_guard_count: number;
-    splash_guard_color: string;
-    gutter_diagram_uploaded: boolean;
     detach_reset_gutters: boolean;
     detach_reset_gutter_lf: number;
   };
@@ -204,11 +199,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
         count_2nd_story: 0,
         ...initialData?.gutters?.downspouts
       },
-      gutter_screens: false,
-      gutter_screens_lf: 0,
-      splash_guard_count: 0,
-      splash_guard_color: '',
-      gutter_diagram_uploaded: false,
       detach_reset_gutters: false,
       detach_reset_gutter_lf: 0,
       ...initialData?.gutters
@@ -1263,8 +1253,11 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
               )}
 
               {/* Downspouts */}
-              <div className="pt-4">
-                <h4 className="font-medium mb-3">Downspouts</h4>
+              <div className="pt-4 border-t">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium">Downspouts</h4>
+                  <span className="text-sm text-muted-foreground">($75 each)</span>
+                </div>
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="downspoutColor">Color</Label>
@@ -1299,66 +1292,11 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     />
                   </div>
                 </div>
-              </div>
-
-              {/* Gutter Screens */}
-              <div className="flex items-center space-x-4">
-                <Checkbox
-                  id="gutterScreens"
-                  checked={formData.gutters.gutter_screens}
-                  onCheckedChange={(checked) => updateField('gutters', 'gutter_screens', checked)}
-                  disabled={readOnly}
-                />
-                <Label htmlFor="gutterScreens" className="flex-1">Gutter Screens?</Label>
-                {formData.gutters.gutter_screens && (
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="gutterScreensLf" className="text-sm text-muted-foreground">Linear Feet:</Label>
-                    <Input
-                      id="gutterScreensLf"
-                      type="number"
-                      value={formData.gutters.gutter_screens_lf}
-                      onChange={(e) => updateField('gutters', 'gutter_screens_lf', parseInt(e.target.value) || 0)}
-                      disabled={readOnly}
-                      min="0"
-                      className="w-24"
-                    />
-                  </div>
+                {(formData.gutters.downspouts.count_1st_story > 0 || formData.gutters.downspouts.count_2nd_story > 0) && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Total downspouts: {formData.gutters.downspouts.count_1st_story + formData.gutters.downspouts.count_2nd_story}
+                  </p>
                 )}
-              </div>
-
-              {/* Additional Gutter Options */}
-              <div className="grid grid-cols-2 gap-4 pt-2">
-                <div>
-                  <Label htmlFor="splashGuardCount">Splash Guard Count</Label>
-                  <Input
-                    id="splashGuardCount"
-                    type="number"
-                    value={formData.gutters.splash_guard_count}
-                    onChange={(e) => updateField('gutters', 'splash_guard_count', parseInt(e.target.value) || 0)}
-                    disabled={readOnly}
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="splashGuardColor">Splash Guard Color</Label>
-                  <Input
-                    id="splashGuardColor"
-                    value={formData.gutters.splash_guard_color}
-                    onChange={(e) => updateField('gutters', 'splash_guard_color', e.target.value)}
-                    disabled={readOnly}
-                    placeholder="e.g., White, Brown"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 pt-2">
-                <Checkbox
-                  id="gutterDiagramUploaded"
-                  checked={formData.gutters.gutter_diagram_uploaded}
-                  onCheckedChange={(checked) => updateField('gutters', 'gutter_diagram_uploaded', checked)}
-                  disabled={readOnly}
-                />
-                <Label htmlFor="gutterDiagramUploaded">Gutter Diagram Uploaded?</Label>
               </div>
             </CardContent>
           </Card>
