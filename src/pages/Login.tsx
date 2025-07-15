@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Building2 } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
+import { AnimatedLogo } from "@/components/ui/AnimatedLogo";
 
 const brandGreen = "#0F9D58";
 
@@ -120,13 +121,10 @@ export default function Login() {
     >
       <Card className="w-full max-w-md shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
         <CardHeader className="text-center space-y-4 pb-6">
-          <div className="mx-auto">
-            <Building2 className="h-16 w-16 mx-auto mb-4" style={{ color: brandGreen }} />
+          <div className="mx-auto mb-4">
+            <AnimatedLogo size={120} />
           </div>
           <div>
-            <h1 className="text-4xl font-bold mb-2" style={{ color: brandGreen }}>
-              3MG Roofing & Solar
-            </h1>
             <CardTitle className="text-2xl font-semibold text-gray-800 mb-2">
               Sign in to Estimator
             </CardTitle>

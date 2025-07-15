@@ -145,6 +145,14 @@ export function MaterialsSelectionTab({
   // Track if we've auto-populated ventilation materials
   const hasVentilationPopulated = useRef(false);
   
+  // Reset ventilation populated flag when job worksheet changes
+  useEffect(() => {
+    if (jobWorksheet?.ventilation) {
+      console.log('🔧 [Ventilation] Job worksheet ventilation data changed, resetting populated flag');
+      hasVentilationPopulated.current = false;
+    }
+  }, [jobWorksheet?.ventilation]);
+  
   // State for GAF packages and warranty options
   const [selectedPackage, setSelectedPackage] = useState<string | null>(() => {
     // Don't auto-default to GAF 2 for sales reps - let them choose
@@ -263,10 +271,15 @@ export function MaterialsSelectionTab({
   // Auto-populate ventilation materials based on job worksheet ventilation data
   useEffect(() => {
     if (!jobWorksheet?.ventilation || !measurements || hasVentilationPopulated.current) {
+      console.log('🔧 [Ventilation Auto-Population] Skipping:', {
+        hasVentilation: !!jobWorksheet?.ventilation,
+        hasMeasurements: !!measurements,
+        alreadyPopulated: hasVentilationPopulated.current
+      });
       return;
     }
 
-    console.log('🔧 [Ventilation Auto-Population] Checking job worksheet ventilation data:', jobWorksheet.ventilation);
+    console.log('🔧 [Ventilation Auto-Population] Starting with data:', jobWorksheet.ventilation);
 
     const ventilationData = jobWorksheet.ventilation;
     const materialsToAdd: { [key: string]: { material: Material, quantity: number } } = {};
@@ -283,16 +296,24 @@ export function MaterialsSelectionTab({
       'boot_3_inch': { materialId: 'bullet-boot-3inch', count: ventilationData.boots?.['3_inch'] || 0 },
       'boot_4_inch': { materialId: 'bullet-boot-4inch', count: ventilationData.boots?.['4_inch'] || 0 },
       
+      // Ridge Vents - special handling for linear feet
+      'ridge_vent': { 
+        materialId: 'gaf-cobra-rigid-vent', 
+        count: ventilationData.ridge_vents_lf ? Math.ceil(ventilationData.ridge_vents_lf / 20) : 0 // 20 LF per bundle
+      },
+      
       // Off Ridge Vents (only 4ft is available in materials)
       'off_ridge_4ft': { materialId: 'galvanized-steel-off-ridge-vent', count: ventilationData.off_ridge_vents?.['4_ft'] || 0 }
     };
+
+    console.log('🔧 [Ventilation] Processing ventilation mapping...');
 
     // Process each mapping
     Object.entries(ventilationMapping).forEach(([field, { materialId, count }]) => {
       if (count > 0) {
         const material = ROOFING_MATERIALS.find(m => m.id === materialId);
         if (material) {
-          console.log(`🔧 [Ventilation] Adding ${count} x ${material.name}`);
+          console.log(`🔧 [Ventilation] Adding ${count} x ${material.name} (${materialId})`);
           materialsToAdd[materialId] = { material, quantity: count };
         } else {
           console.warn(`🔧 [Ventilation] Material not found: ${materialId}`);
@@ -302,6 +323,7 @@ export function MaterialsSelectionTab({
 
     // If there are materials to add, update the state
     if (Object.keys(materialsToAdd).length > 0) {
+      console.log('🔧 [Ventilation] Updating state with materials:', Object.keys(materialsToAdd));
       hasVentilationPopulated.current = true; // Mark as populated before updating state
       isInternalChange.current = true; // Mark as internal change to prevent reset
       
@@ -364,8 +386,10 @@ export function MaterialsSelectionTab({
       });
       
       console.log('🔧 [Ventilation] Ventilation materials successfully applied');
+    } else {
+      console.log('🔧 [Ventilation] No ventilation materials to add');
     }
-  }, [jobWorksheet?.ventilation, measurements]); // Only depend on ventilation data and measurements
+  }, [jobWorksheet?.ventilation, measurements]);
 
   // Reset function to completely reset state from props
   const resetStateFromProps = useCallback(() => {

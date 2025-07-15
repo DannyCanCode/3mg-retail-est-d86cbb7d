@@ -32,6 +32,7 @@ import { SimplifiedReviewTab } from '@/components/estimates/measurement/Simplifi
 import { JobWorksheetForm } from '@/components/estimates/JobWorksheetForm';
 import { MaterialsSelectionTab } from '@/components/estimates/materials/MaterialsSelectionTab';
 import { LaborProfitTab, LaborRates } from '@/components/estimates/pricing/LaborProfitTab';
+import { SalesRepSummaryTab } from '@/components/estimates/pricing/SalesRepSummaryTab';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { toast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -114,7 +115,8 @@ const SalesRepEstimateFlow: React.FC = () => {
     { id: 'worksheet', title: 'Job Worksheet', icon: <FileText className="h-5 w-5" /> },
     { id: 'materials', title: 'Select Materials', icon: <Building className="h-5 w-5" /> },
     { id: 'labor', title: 'Labor & Profit', icon: <Calculator className="h-5 w-5" /> },
-    { id: 'complete', title: 'Complete', icon: <CheckCircle2 className="h-5 w-5" /> }
+    { id: 'summary', title: 'Summary Review', icon: <CheckCircle2 className="h-5 w-5" /> },
+    { id: 'complete', title: 'Complete', icon: <Sparkles className="h-5 w-5" /> }
   ];
 
   // Handle PDF upload success
@@ -197,7 +199,13 @@ const SalesRepEstimateFlow: React.FC = () => {
       laborRates,
       profitMargin 
     }));
-    setCurrentStep(5); // Go to Complete
+    // Don't submit yet, go to summary review
+    setCurrentStep(5); // Go to Summary Review
+  };
+
+  // Handle summary review completion
+  const handleSummaryComplete = () => {
+    setCurrentStep(6); // Go to Complete
     submitEstimate();
   };
 
@@ -601,7 +609,89 @@ const SalesRepEstimateFlow: React.FC = () => {
           </div>
         );
 
-      case 5: // Complete
+      case 5: // Summary Review
+        return (
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 to-green-600/20 rounded-3xl blur-xl" />
+            <Card className="relative bg-gray-800/50 backdrop-blur-xl border-green-700/30 p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <CheckCircle2 className="h-6 w-6 text-green-400" />
+                  Summary Review
+                </h2>
+                <Badge className="bg-green-600/20 text-green-400 border-green-600/30">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  Final Check
+                </Badge>
+              </div>
+              
+              <div className="mb-4">
+                <Button
+                  onClick={goBack}
+                  variant="outline"
+                  className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back to Labor & Profit
+                </Button>
+              </div>
+              
+              <SalesRepSummaryTab
+                measurements={estimateData.measurements}
+                selectedMaterials={estimateData.materials || {}}
+                quantities={estimateData.quantities || {}}
+                laborRates={estimateData.laborRates || {
+                  laborRate: 85,
+                  tearOff: 0,
+                  installation: 0,
+                  isHandload: false,
+                  handloadRate: 10,
+                  dumpsterLocation: "orlando",
+                  dumpsterCount: 1,
+                  dumpsterRate: 400,
+                  includePermits: true,
+                  permitRate: 450,
+                  permitCount: 1,
+                  permitAdditionalRate: 450,
+                  pitchRates: {},
+                  wastePercentage: 12,
+                  // Sync gutters from job worksheet
+                  includeGutters: estimateData.jobWorksheet?.gutters?.gutter_lf > 0 || false,
+                  gutterLinearFeet: estimateData.jobWorksheet?.gutters?.gutter_lf || 0,
+                  gutterRate: 8,
+                  includeDetachResetGutters: estimateData.jobWorksheet?.gutters?.detach_reset_gutters || false,
+                  detachResetGutterLinearFeet: estimateData.jobWorksheet?.gutters?.detach_reset_gutter_lf || 0,
+                  detachResetGutterRate: 1,
+                  includeDownspouts: (estimateData.jobWorksheet?.gutters?.downspouts?.count_1st_story > 0 || 
+                                     estimateData.jobWorksheet?.gutters?.downspouts?.count_2nd_story > 0) || false,
+                  downspoutCount: (estimateData.jobWorksheet?.gutters?.downspouts?.count_1st_story || 0) + 
+                                 (estimateData.jobWorksheet?.gutters?.downspouts?.count_2nd_story || 0),
+                  downspoutRate: 75,
+                  // Sync skylights from job worksheet
+                  includeSkylights2x2: estimateData.jobWorksheet?.accessories?.skylight?.count_2x2 > 0 || false,
+                  skylights2x2Count: estimateData.jobWorksheet?.accessories?.skylight?.count_2x2 || 0,
+                  skylights2x2Rate: 280,
+                  includeSkylights2x4: estimateData.jobWorksheet?.accessories?.skylight?.count_2x4 > 0 || false,
+                  skylights2x4Count: estimateData.jobWorksheet?.accessories?.skylight?.count_2x4 || 0,
+                  skylights2x4Rate: 370
+                }}
+                profitMargin={estimateData.profitMargin}
+                jobWorksheet={estimateData.jobWorksheet}
+                customerInfo={{
+                  name: estimateData.customer_name,
+                  address: estimateData.customer_address,
+                  phone: estimateData.customer_phone,
+                  email: estimateData.customer_email
+                }}
+                onBack={goBack}
+                onSubmit={handleSummaryComplete}
+                isSubmitting={isProcessing}
+              />
+            </Card>
+          </div>
+        );
+
+      case 6: // Complete
         return (
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-3xl blur-xl" />

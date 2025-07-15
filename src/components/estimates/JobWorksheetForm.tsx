@@ -93,6 +93,8 @@ interface JobWorksheetData {
     splash_guard_count: number;
     splash_guard_color: string;
     gutter_diagram_uploaded: boolean;
+    detach_reset_gutters: boolean;
+    detach_reset_gutter_lf: number;
   };
   solar: {
     existing: boolean;
@@ -211,6 +213,8 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
       splash_guard_count: 0,
       splash_guard_color: '',
       gutter_diagram_uploaded: false,
+      detach_reset_gutters: false,
+      detach_reset_gutter_lf: 0,
       ...initialData?.gutters
     },
     solar: {
@@ -305,10 +309,12 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
   return (
     <div className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic">Basic Info</TabsTrigger>
           <TabsTrigger value="shingle">Shingle Roof</TabsTrigger>
           <TabsTrigger value="ventilation">Ventilation</TabsTrigger>
+          <TabsTrigger value="accessories">Accessories</TabsTrigger>
+          <TabsTrigger value="gutters">Gutters</TabsTrigger>
         </TabsList>
 
         {/* Basic Info Tab */}
@@ -1010,6 +1016,373 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Accessories Tab */}
+        <TabsContent value="accessories" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Accessories
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-4">
+                <h4 className="font-medium">Skylights</h4>
+                
+                {/* 2x2 Skylights */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeSkylights2x2"
+                      checked={formData.accessories.skylight.count_2x2 > 0}
+                      onCheckedChange={(checked) => {
+                        if (!checked) {
+                          updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x2: 0 });
+                        }
+                      }}
+                      disabled={readOnly}
+                    />
+                    <Label htmlFor="includeSkylights2x2">Install 2X2 Skylights ($280 per unit)</Label>
+                  </div>
+                  
+                  {formData.accessories.skylight.count_2x2 > 0 && (
+                    <div className="ml-6">
+                      <Label htmlFor="skylight2x2">Number of 2X2 Skylights</Label>
+                      <Select
+                        value={formData.accessories.skylight.count_2x2?.toString() || "0"}
+                        onValueChange={(value) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x2: parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="skylight2x2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+                
+                {/* 2x4 Skylights */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeSkylights2x4"
+                      checked={formData.accessories.skylight.count_2x4 > 0}
+                      onCheckedChange={(checked) => {
+                        if (!checked) {
+                          updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x4: 0 });
+                        }
+                      }}
+                      disabled={readOnly}
+                    />
+                    <Label htmlFor="includeSkylights2x4">Install 2X4 Skylights ($370 per unit)</Label>
+                  </div>
+                  
+                  {formData.accessories.skylight.count_2x4 > 0 && (
+                    <div className="ml-6">
+                      <Label htmlFor="skylight2x4">Number of 2X4 Skylights</Label>
+                      <Select
+                        value={formData.accessories.skylight.count_2x4?.toString() || "0"}
+                        onValueChange={(value) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x4: parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="skylight2x4">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Other Skylights */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="includeSkylightDome"
+                      checked={formData.accessories.skylight.dome > 0}
+                      onCheckedChange={(checked) => {
+                        if (!checked) {
+                          updateField('accessories', 'skylight', { ...formData.accessories.skylight, dome: 0 });
+                        }
+                      }}
+                      disabled={readOnly}
+                    />
+                    <Label htmlFor="includeSkylightDome">Skylight Dome</Label>
+                  </div>
+                  
+                  {formData.accessories.skylight.dome > 0 && (
+                    <div className="ml-6">
+                      <Label htmlFor="skylightDome">Number of Skylight Domes</Label>
+                      <Select
+                        value={formData.accessories.skylight.dome?.toString() || "0"}
+                        onValueChange={(value) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, dome: parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="skylightDome">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
+                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+                
+                <div>
+                  <Label htmlFor="skylightOther">Other Skylights</Label>
+                  <Input
+                    id="skylightOther"
+                    value={formData.accessories.skylight.other}
+                    onChange={(e) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, other: e.target.value })}
+                    disabled={readOnly}
+                    placeholder="Describe other skylight needs"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Gutters Tab */}
+        <TabsContent value="gutters" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Gutters</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="existingGutters"
+                  checked={formData.gutters.existing_gutters}
+                  onCheckedChange={(checked) => updateField('gutters', 'existing_gutters', checked)}
+                  disabled={readOnly}
+                />
+                <Label htmlFor="existingGutters">Existing Gutters?</Label>
+              </div>
+
+              {formData.gutters.existing_gutters && (
+                <div>
+                  <Label>Keep or Install New?</Label>
+                  <RadioGroup
+                    value={formData.gutters.keep_or_new}
+                    onValueChange={(value) => updateField('gutters', 'keep_or_new', value)}
+                    disabled={readOnly}
+                  >
+                    <div className="flex space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="keep" id="keepGutters" />
+                        <Label htmlFor="keepGutters">Keep Existing</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="new" id="newGutters" />
+                        <Label htmlFor="newGutters">Install New</Label>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="gutterPhotos"
+                  checked={formData.gutters.photos}
+                  onCheckedChange={(checked) => updateField('gutters', 'photos', checked)}
+                  disabled={readOnly}
+                />
+                <Label htmlFor="gutterPhotos">Photos Taken?</Label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Gutter Size</Label>
+                  <RadioGroup
+                    value={formData.gutters.gutter_size}
+                    onValueChange={(value) => updateField('gutters', 'gutter_size', value)}
+                    disabled={readOnly}
+                  >
+                    <div className="flex space-x-4">
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="6_inch" id="6inch" />
+                        <Label htmlFor="6inch">6"</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="7_inch" id="7inch" />
+                        <Label htmlFor="7inch">7"</Label>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+                <div>
+                  <Label htmlFor="gutterColor">Gutter Color</Label>
+                  <Input
+                    id="gutterColor"
+                    value={formData.gutters.gutter_color}
+                    onChange={(e) => updateField('gutters', 'gutter_color', e.target.value)}
+                    disabled={readOnly}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="gutterLf">Gutter Linear Feet</Label>
+                <Input
+                  id="gutterLf"
+                  type="number"
+                  value={formData.gutters.gutter_lf}
+                  onChange={(e) => updateField('gutters', 'gutter_lf', parseInt(e.target.value) || 0)}
+                  disabled={readOnly}
+                  min="0"
+                />
+              </div>
+              
+              {/* Detach and Reset Gutters */}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="detachResetGutters"
+                    checked={formData.gutters.detach_reset_gutters || false}
+                    onCheckedChange={(checked) => updateField('gutters', 'detach_reset_gutters', checked)}
+                    disabled={readOnly}
+                  />
+                  <Label htmlFor="detachResetGutters">Detach and Reset Gutters ($1 per linear foot)</Label>
+                </div>
+                
+                {formData.gutters.detach_reset_gutters && (
+                  <div className="ml-6">
+                    <Label htmlFor="detachResetGutterLf">Detach/Reset Linear Feet</Label>
+                    <Input
+                      id="detachResetGutterLf"
+                      type="number"
+                      value={formData.gutters.detach_reset_gutter_lf || 0}
+                      onChange={(e) => updateField('gutters', 'detach_reset_gutter_lf', parseInt(e.target.value) || 0)}
+                      disabled={readOnly}
+                      min="0"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4">
+                <h4 className="font-medium">Downspouts</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="downspoutColor">Color</Label>
+                    <Input
+                      id="downspoutColor"
+                      value={formData.gutters.downspouts.color}
+                      onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, color: e.target.value })}
+                      disabled={readOnly}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="downspout1st">1st Story Count</Label>
+                    <Input
+                      id="downspout1st"
+                      type="number"
+                      value={formData.gutters.downspouts.count_1st_story}
+                      onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count_1st_story: parseInt(e.target.value) || 0 })}
+                      disabled={readOnly}
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="downspout2nd">2nd Story Count</Label>
+                    <Input
+                      id="downspout2nd"
+                      type="number"
+                      value={formData.gutters.downspouts.count_2nd_story}
+                      onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count_2nd_story: parseInt(e.target.value) || 0 })}
+                      disabled={readOnly}
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="gutterScreens"
+                      checked={formData.gutters.gutter_screens}
+                      onCheckedChange={(checked) => updateField('gutters', 'gutter_screens', checked)}
+                      disabled={readOnly}
+                    />
+                    <Label htmlFor="gutterScreens">Gutter Screens?</Label>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="gutterScreensLf">Screens Linear Feet</Label>
+                  <Input
+                    id="gutterScreensLf"
+                    type="number"
+                    value={formData.gutters.gutter_screens_lf}
+                    onChange={(e) => updateField('gutters', 'gutter_screens_lf', parseInt(e.target.value) || 0)}
+                    disabled={readOnly}
+                    min="0"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="splashGuard"
+                      checked={formData.gutters.splash_guard}
+                      onCheckedChange={(checked) => updateField('gutters', 'splash_guard', checked)}
+                      disabled={readOnly}
+                    />
+                    <Label htmlFor="splashGuard">Splash Guard?</Label>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="splashGuardCount">Count</Label>
+                  <Input
+                    id="splashGuardCount"
+                    type="number"
+                    value={formData.gutters.splash_guard_count}
+                    onChange={(e) => updateField('gutters', 'splash_guard_count', parseInt(e.target.value) || 0)}
+                    disabled={readOnly}
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="splashGuardColor">Color</Label>
+                  <Input
+                    id="splashGuardColor"
+                    value={formData.gutters.splash_guard_color}
+                    onChange={(e) => updateField('gutters', 'splash_guard_color', e.target.value)}
+                    disabled={readOnly}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="gutterDiagram"
+                  checked={formData.gutters.gutter_diagram_uploaded}
+                  onCheckedChange={(checked) => updateField('gutters', 'gutter_diagram_uploaded', checked)}
+                  disabled={readOnly}
+                />
+                <Label htmlFor="gutterDiagram">Gutter Diagram Uploaded?</Label>
               </div>
             </CardContent>
           </Card>
