@@ -662,10 +662,8 @@ const SalesRepEstimateFlow: React.FC = () => {
                   includeDetachResetGutters: estimateData.jobWorksheet?.gutters?.detach_reset_gutters || false,
                   detachResetGutterLinearFeet: estimateData.jobWorksheet?.gutters?.detach_reset_gutter_lf || 0,
                   detachResetGutterRate: 1,
-                  includeDownspouts: (estimateData.jobWorksheet?.gutters?.downspouts?.count_1st_story > 0 || 
-                                     estimateData.jobWorksheet?.gutters?.downspouts?.count_2nd_story > 0) || false,
-                  downspoutCount: (estimateData.jobWorksheet?.gutters?.downspouts?.count_1st_story || 0) + 
-                                 (estimateData.jobWorksheet?.gutters?.downspouts?.count_2nd_story || 0),
+                  includeDownspouts: (estimateData.jobWorksheet?.gutters?.downspouts?.count > 0) || false,
+                  downspoutCount: estimateData.jobWorksheet?.gutters?.downspouts?.count || 0,
                   downspoutRate: 75,
                   // Sync skylights from job worksheet
                   includeSkylights2x2: estimateData.jobWorksheet?.accessories?.skylight?.count_2x2 > 0 || false,

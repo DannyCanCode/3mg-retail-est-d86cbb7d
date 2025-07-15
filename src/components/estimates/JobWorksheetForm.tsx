@@ -83,8 +83,7 @@ interface JobWorksheetData {
     gutter_lf: number;
     downspouts: {
       color: string;
-      count_1st_story: number;
-      count_2nd_story: number;
+      count: number;
     };
     detach_reset_gutters: boolean;
     detach_reset_gutter_lf: number;
@@ -195,8 +194,7 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
       gutter_lf: 0,
       downspouts: {
         color: '',
-        count_1st_story: 0,
-        count_2nd_story: 0,
+        count: 0,
         ...initialData?.gutters?.downspouts
       },
       detach_reset_gutters: false,
@@ -1253,51 +1251,51 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
               )}
 
               {/* Downspouts */}
-              <div className="pt-4 border-t">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium">Downspouts</h4>
-                  <span className="text-sm text-muted-foreground">($75 each)</span>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="downspoutColor">Color</Label>
+              <div className="flex items-center space-x-4 pt-4 border-t">
+                <Checkbox
+                  id="includeDownspouts"
+                  checked={formData.gutters.downspouts.count > 0}
+                  onCheckedChange={(checked) => {
+                    if (!checked) {
+                      updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count: 0 });
+                    } else {
+                      updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count: 1 });
+                    }
+                  }}
+                  disabled={readOnly}
+                />
+                <Label htmlFor="includeDownspouts" className="flex-1">
+                  Install Downspouts ($75 each)
+                </Label>
+                {formData.gutters.downspouts.count > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Label className="text-sm text-muted-foreground">Quantity:</Label>
                     <Input
-                      id="downspoutColor"
-                      value={formData.gutters.downspouts.color}
-                      onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, color: e.target.value })}
-                      disabled={readOnly}
-                      placeholder="e.g., White, Brown"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="downspout1st">1st Story Count</Label>
-                    <Input
-                      id="downspout1st"
+                      id="downspoutCount"
                       type="number"
-                      value={formData.gutters.downspouts.count_1st_story}
-                      onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count_1st_story: parseInt(e.target.value) || 0 })}
+                      value={formData.gutters.downspouts.count}
+                      onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count: parseInt(e.target.value) || 0 })}
                       disabled={readOnly}
-                      min="0"
+                      min="1"
+                      className="w-20"
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="downspout2nd">2nd Story Count</Label>
-                    <Input
-                      id="downspout2nd"
-                      type="number"
-                      value={formData.gutters.downspouts.count_2nd_story}
-                      onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count_2nd_story: parseInt(e.target.value) || 0 })}
-                      disabled={readOnly}
-                      min="0"
-                    />
-                  </div>
-                </div>
-                {(formData.gutters.downspouts.count_1st_story > 0 || formData.gutters.downspouts.count_2nd_story > 0) && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Total downspouts: {formData.gutters.downspouts.count_1st_story + formData.gutters.downspouts.count_2nd_story}
-                  </p>
                 )}
               </div>
+
+              {formData.gutters.downspouts.count > 0 && (
+                <div className="ml-10">
+                  <Label htmlFor="downspoutColor">Downspout Color</Label>
+                  <Input
+                    id="downspoutColor"
+                    value={formData.gutters.downspouts.color}
+                    onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, color: e.target.value })}
+                    disabled={readOnly}
+                    placeholder="e.g., White, Brown"
+                    className="w-48 mt-2"
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
