@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, CheckCircle, XCircle, Info, Package, Settings } from "lucide-react";
+import { ChevronLeft, CheckCircle, XCircle, Info, Package, Settings, Eye, EyeOff, Download, Mail } from "lucide-react";
 import { MeasurementValues } from "../measurement/types";
 import { Material } from "../materials/types";
 import { LaborRates } from "./LaborProfitTab";
@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 
 interface EstimateSummaryTabProps {
   measurements?: MeasurementValues;
@@ -48,9 +49,286 @@ export function EstimateSummaryTab({
   const { toast } = useToast();
   const navigate = useNavigate();
   const [isApproveDialogOpen, setIsApproveDialogOpen] = useState(false);
+  const [isClientView, setIsClientView] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isRejectDialogOpen, setIsRejectDialogOpen] = useState(false);
   const [notes, setNotes] = useState(estimate?.notes || "");
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+
+  // PDF Generation Function
+  const generatePDF = async () => {
+    setIsGeneratingPDF(true);
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const page = pdfDoc.addPage([612, 792]); // Letter size
+      const { width, height } = page.getSize();
+      
+      const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      
+      let yPosition = height - 50;
+      const greenColor = rgb(0.133, 0.545, 0.133); // Forest green
+      
+      // Header with 3MG branding
+      page.drawRectangle({
+        x: 0,
+        y: yPosition - 30,
+        width: width,
+        height: 80,
+        color: greenColor,
+      });
+      
+      page.drawText('3MG', {
+        x: 50,
+        y: yPosition,
+        size: 36,
+        font: helveticaBold,
+        color: rgb(1, 1, 1),
+      });
+      
+      page.drawText('Roofing and Solar', {
+        x: 130,
+        y: yPosition + 5,
+        size: 18,
+        font: helvetica,
+        color: rgb(1, 1, 1),
+      });
+      
+      // Company info
+      page.drawText('1127 Solana Ave, Winter Park, FL 32789', {
+        x: 50,
+        y: yPosition - 25,
+        size: 10,
+        font: helvetica,
+        color: rgb(1, 1, 1),
+      });
+      
+      page.drawText('(407) 420-0201', {
+        x: 450,
+        y: yPosition - 25,
+        size: 10,
+        font: helvetica,
+        color: rgb(1, 1, 1),
+      });
+      
+      yPosition -= 80;
+      
+      // Customer Details
+      yPosition -= 30;
+      page.drawText('ROOFING ESTIMATE', {
+        x: 50,
+        y: yPosition,
+        size: 20,
+        font: helveticaBold,
+        color: greenColor,
+      });
+      
+      yPosition -= 30;
+      page.drawText('Property Address:', {
+        x: 50,
+        y: yPosition,
+        size: 12,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      page.drawText(measurements?.propertyAddress || estimate?.customer_address || 'Not specified', {
+        x: 50,
+        y: yPosition - 15,
+        size: 11,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+      
+      // Date
+      page.drawText(`Date: ${new Date().toLocaleDateString()}`, {
+        x: 400,
+        y: yPosition,
+        size: 11,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+      
+      yPosition -= 40;
+      
+      // Scope of Work
+      page.drawText('SCOPE OF WORK', {
+        x: 50,
+        y: yPosition,
+        size: 14,
+        font: helveticaBold,
+        color: greenColor,
+      });
+      
+      yPosition -= 20;
+      
+      const scopeItems = [
+        '1. Remove existing roofing material down to decking',
+        '2. Inspect roof decking and replace damaged sections as needed',
+        '3. Install synthetic underlayment for enhanced protection',
+        '4. Install drip edge and starter strips',
+        '5. Install GAF roofing system with manufacturer specifications',
+        '6. Install ridge vents for proper attic ventilation',
+        '7. Install step flashing and pipe boot flashings',
+        '8. Clean up all job-related debris daily',
+        '9. Haul away and properly dispose of all old materials',
+        '10. Final inspection and quality check',
+        '11. Provide manufacturer warranty documentation',
+        '12. Include all necessary permits and inspections',
+        '13. Protect landscaping and property during work',
+        '14. Complete work in a timely and professional manner',
+        '15. Follow all local building codes and regulations'
+      ];
+      
+      for (const item of scopeItems) {
+        if (yPosition < 100) {
+          // Add new page if needed
+          const newPage = pdfDoc.addPage([612, 792]);
+          yPosition = height - 50;
+        }
+        
+        page.drawText(item, {
+          x: 60,
+          y: yPosition,
+          size: 10,
+          font: helvetica,
+          color: rgb(0, 0, 0),
+        });
+        
+        yPosition -= 18;
+      }
+      
+      // Investment Summary
+      yPosition -= 30;
+      
+      if (yPosition < 150) {
+        // Add new page if needed
+        const newPage = pdfDoc.addPage([612, 792]);
+        yPosition = height - 50;
+      }
+      
+      page.drawText('INVESTMENT SUMMARY', {
+        x: 50,
+        y: yPosition,
+        size: 14,
+        font: helveticaBold,
+        color: greenColor,
+      });
+      
+      yPosition -= 25;
+      
+      // Get material package name
+      const gafPackage = Object.values(selectedMaterials).find(m => 
+        m.name.toLowerCase().includes('gaf') && m.name.toLowerCase().includes('package')
+      );
+      
+      page.drawText(`Roofing System: ${gafPackage?.name || 'GAF Roofing System'}`, {
+        x: 60,
+        y: yPosition,
+        size: 11,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+      
+      yPosition -= 20;
+      
+      // Warranty type
+      const warrantyType = laborRates.includeGutters ? 'System Plus' : 'Standard';
+      page.drawText(`Warranty Type: GAF ${warrantyType} Warranty`, {
+        x: 60,
+        y: yPosition,
+        size: 11,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+      
+      yPosition -= 30;
+      
+      // Total Investment
+      const totalInvestment = calculateLiveTotal();
+      
+      page.drawRectangle({
+        x: 350,
+        y: yPosition - 25,
+        width: 200,
+        height: 40,
+        color: rgb(0.9, 0.9, 0.9),
+      });
+      
+      page.drawText('TOTAL INVESTMENT:', {
+        x: 360,
+        y: yPosition,
+        size: 12,
+        font: helveticaBold,
+        color: rgb(0, 0, 0),
+      });
+      
+      page.drawText(`$${totalInvestment.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, {
+        x: 360,
+        y: yPosition - 15,
+        size: 16,
+        font: helveticaBold,
+        color: greenColor,
+      });
+      
+      // Signature Section
+      yPosition = 100;
+      
+      page.drawText('Customer Signature: _________________________________    Date: __________', {
+        x: 50,
+        y: yPosition,
+        size: 10,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+      
+      yPosition -= 30;
+      
+      page.drawText('3MG Representative: _________________________________    Date: __________', {
+        x: 50,
+        y: yPosition,
+        size: 10,
+        font: helvetica,
+        color: rgb(0, 0, 0),
+      });
+      
+      // Save PDF
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      
+      // Download PDF
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `3MG_Estimate_${measurements?.propertyAddress?.replace(/[^a-zA-Z0-9]/g, '_') || 'Roofing'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      link.click();
+      
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "PDF Generated",
+        description: "Your estimate PDF has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  // Email handler
+  const handleEmailEstimate = () => {
+    // In a real implementation, this would send the PDF via email
+    toast({
+      title: "Email Feature",
+      description: "Email functionality will be implemented with your email service integration.",
+    });
+  };
 
   // Add defensive checks to prevent errors when rendering with missing data
   if (!measurements || !selectedMaterials || !quantities || !laborRates) {
@@ -435,7 +713,7 @@ export function EstimateSummaryTab({
 
   return (
     <div className="space-y-8">
-      {/* Header with Back Button */}
+      {/* Header with Back Button and View Toggle */}
       <div className="flex items-center justify-between">
         <button
           onClick={onBack}
@@ -444,11 +722,191 @@ export function EstimateSummaryTab({
           <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span>Back to Labor & Profit</span>
         </button>
-        <h1 className="text-3xl font-bold text-green-400">Estimate Summary</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold text-green-400">Estimate Summary</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsClientView(!isClientView)}
+            className="flex items-center gap-2"
+          >
+            {isClientView ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {isClientView ? 'Internal View' : 'Client View'}
+          </Button>
+        </div>
       </div>
 
-      {/* Project Details Card */}
-      <div className="bg-gray-700/50 backdrop-blur-sm rounded-xl border border-green-500/30 p-6 shadow-lg">
+      {/* Client View */}
+      {isClientView ? (
+        <>
+          {/* 3MG Branded Header */}
+          <div className="relative bg-gradient-to-r from-green-600 to-green-700 rounded-xl p-8 overflow-hidden">
+            {/* Animated Background Pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute inset-0" style={{
+                backgroundImage: `repeating-linear-gradient(
+                  45deg,
+                  transparent,
+                  transparent 10px,
+                  rgba(255,255,255,0.1) 10px,
+                  rgba(255,255,255,0.1) 20px
+                )`,
+                animation: 'slide 20s linear infinite',
+              }} />
+            </div>
+            
+            {/* Logo and Company Info */}
+            <div className="relative z-10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  {/* 3MG Logo */}
+                  <div className="bg-white rounded-lg p-3">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <text x="50%" y="50%" dominantBaseline="middle" textAnchor="middle" className="fill-green-600 font-bold text-2xl">3MG</text>
+                    </svg>
+                  </div>
+                  <div className="text-white">
+                    <h1 className="text-3xl font-bold">3MG Roofing and Solar</h1>
+                    <p className="text-green-100">Professional Roofing Estimate</p>
+                  </div>
+                </div>
+                <div className="text-right text-white">
+                  <p className="font-semibold">1127 Solana Ave</p>
+                  <p>Winter Park, FL 32789</p>
+                  <p className="font-semibold">(407) 420-0201</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Client Estimate Card */}
+          <Card className="border-green-500/20 shadow-xl">
+            <CardHeader className="bg-gray-50 border-b">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-2xl text-gray-800">Property Information</CardTitle>
+                  <p className="text-gray-600 mt-2">{measurements?.propertyAddress || estimate?.customer_address || 'Property Address'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Estimate Date</p>
+                  <p className="font-semibold text-gray-800">{new Date().toLocaleDateString()}</p>
+                </div>
+              </div>
+            </CardHeader>
+            
+            <CardContent className="p-8">
+              {/* Scope of Work */}
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4">Scope of Work</h3>
+                <div className="bg-green-50 rounded-lg p-6">
+                  <ul className="space-y-2 text-gray-700">
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span>Complete removal of existing roofing material down to decking</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span>Inspection and replacement of damaged decking as needed</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span>Installation of GAF roofing system with manufacturer specifications</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span>All necessary flashings, vents, and accessories</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span>Complete cleanup and debris removal</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+                      <span>Manufacturer warranty and workmanship guarantee</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              {/* Investment Summary */}
+              <div className="mb-8">
+                <h3 className="text-xl font-semibold text-gray-800 mb-4">Your Investment</h3>
+                <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-6 text-white">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-green-100 text-sm">Total Investment for Your New Roof</p>
+                      <p className="text-4xl font-bold mt-2">
+                        ${calculateLiveTotal().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-green-100 text-sm">Warranty</p>
+                      <p className="font-semibold">GAF System Plus</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Next Steps */}
+              <div className="bg-gray-50 rounded-lg p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3">Next Steps</h3>
+                <ol className="space-y-2 text-gray-700">
+                  <li>1. Review this estimate with your family</li>
+                  <li>2. Contact us with any questions</li>
+                  <li>3. Sign and return to begin scheduling</li>
+                  <li>4. We'll handle all permits and inspections</li>
+                </ol>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Action Buttons */}
+          <div className="flex justify-center gap-4">
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg transform hover:scale-105 transition-all duration-200"
+              onClick={handleEmailEstimate}
+            >
+              <Mail className="w-5 h-5 mr-2" />
+              Email to collect signature
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-green-600 text-green-700 hover:bg-green-50 shadow-lg transform hover:scale-105 transition-all duration-200"
+              onClick={generatePDF}
+              disabled={isGeneratingPDF}
+            >
+              {isGeneratingPDF ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5 mr-2" />
+                  Download Estimate
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* CSS for animation */}
+          <style>{`
+            @keyframes slide {
+              0% {
+                transform: translateX(0);
+              }
+              100% {
+                transform: translateX(20px);
+              }
+            }
+          `}</style>
+        </>
+      ) : (
+        <>
+          {/* Project Details Card */}
+          <div className="bg-gray-700/50 backdrop-blur-sm rounded-xl border border-green-500/30 p-6 shadow-lg">
         <h2 className="text-2xl font-bold text-green-400 mb-6 flex items-center gap-3">
           <Info className="w-6 h-6" />
           Project Details
@@ -789,6 +1247,8 @@ export function EstimateSummaryTab({
           Finalize Estimate
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }
