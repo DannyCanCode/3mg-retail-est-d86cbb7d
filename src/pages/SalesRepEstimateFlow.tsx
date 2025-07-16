@@ -157,8 +157,7 @@ const SalesRepEstimateFlow: React.FC = () => {
     { id: 'worksheet', title: 'Job Worksheet', icon: <FileText className="h-5 w-5" /> },
     { id: 'materials', title: 'Select Materials', icon: <Building className="h-5 w-5" /> },
     { id: 'labor', title: 'Labor & Profit', icon: <Calculator className="h-5 w-5" /> },
-    { id: 'summary', title: 'Summary Review', icon: <CheckCircle2 className="h-5 w-5" /> },
-    { id: 'complete', title: 'Complete', icon: <Sparkles className="h-5 w-5" /> }
+    { id: 'summary', title: 'Summary Review', icon: <CheckCircle2 className="h-5 w-5" /> }
   ];
 
   // Handle PDF upload success
@@ -268,7 +267,6 @@ const SalesRepEstimateFlow: React.FC = () => {
 
   // Handle summary review completion
   const handleSummaryComplete = () => {
-    setCurrentStep(6); // Go to Complete
     submitEstimate();
   };
 
@@ -784,66 +782,6 @@ const SalesRepEstimateFlow: React.FC = () => {
                 onSubmit={handleSummaryComplete}
                 isSubmitting={isProcessing}
               />
-            </Card>
-          </div>
-        );
-
-      case 6: // Complete
-        return (
-          <div className="relative">
-            <div className="absolute inset-0 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-3xl blur-xl" />
-            <Card className="relative bg-gray-800/50 backdrop-blur-xl border-green-700/30 p-8 text-center">
-              <div className="inline-flex items-center justify-center p-6 bg-gradient-to-br from-green-600 to-emerald-600 rounded-full shadow-2xl mb-6">
-                <CheckCircle2 className="h-16 w-16 text-white" />
-              </div>
-              
-              <h2 className="text-3xl font-bold text-white mb-4">
-                Estimate Submitted Successfully! 🎉
-              </h2>
-              
-              <p className="text-green-300/80 text-lg mb-8">
-                Your estimate has been sent to your manager for approval.
-              </p>
-              
-              <div className="bg-green-950/50 rounded-2xl p-6 mb-8 border border-green-800/30">
-                <div className="grid grid-cols-2 gap-4 text-left">
-                  <div>
-                    <p className="text-green-400/70 text-sm">Customer</p>
-                    <p className="text-white font-semibold">{estimateData.customer_name || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-green-400/70 text-sm">Address</p>
-                    <p className="text-white font-semibold">{estimateData.customer_address || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <p className="text-green-400/70 text-sm">Total Price</p>
-                    <p className="text-green-300 font-semibold text-2xl">
-                      ${estimateData.totalPrice.toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-green-400/70 text-sm">Status</p>
-                    <Badge className="bg-yellow-600/20 text-yellow-400 border-yellow-600/30">
-                      Pending Approval
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-              
-              {isProcessing ? (
-                <div className="flex items-center justify-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-green-400" />
-                  <span className="text-green-300/70">Redirecting to dashboard...</span>
-                </div>
-              ) : (
-                <Button
-                  onClick={() => navigate('/sales')}
-                  className="bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300"
-                >
-                  <Home className="mr-2 h-4 w-4" />
-                  Back to Dashboard
-                </Button>
-              )}
             </Card>
           </div>
         );
