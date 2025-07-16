@@ -441,7 +441,7 @@ const SalesRepEstimateFlow: React.FC = () => {
                   step.icon
                 )}
                 {index === currentStep && (
-                  <div className="absolute inset-0 rounded-full animate-ping bg-green-500/30" />
+                  <div className="absolute inset-0 rounded-full animate-gentle-pulse bg-green-500/30" />
                 )}
               </button>
               

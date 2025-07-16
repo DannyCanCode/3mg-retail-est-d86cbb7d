@@ -102,13 +102,16 @@ export function MaterialsSelectionTab({
   const userRole = profile?.role;
   
   // Safety check: If we're in the sales rep flow, force rep role
-  const location = window.location.pathname;
-  const effectiveUserRole = location.includes('/sales-estimate') ? 'rep' : userRole;
+  // FIXED: Memoize effectiveUserRole to prevent re-calculation issues
+  const effectiveUserRole = useMemo(() => {
+    const location = window.location.pathname;
+    return location.includes('/sales-estimate') ? 'rep' : userRole;
+  }, [userRole]);
   
   // Debug logging to track role changes
   useEffect(() => {
-    console.log('🔍 [MaterialsSelectionTab] User role:', userRole, 'Effective role:', effectiveUserRole, 'Path:', location, 'Profile:', profile);
-  }, [userRole, effectiveUserRole, location, profile]);
+    console.log('🔍 [MaterialsSelectionTab] User role:', userRole, 'Effective role:', effectiveUserRole, 'Path:', window.location.pathname, 'Profile:', profile);
+  }, [userRole, effectiveUserRole, profile]);
 
   const [materials, setMaterials] = useState<Record<string, Material>>({});
   
