@@ -2747,14 +2747,14 @@ export function MaterialsSelectionTab({
       {/* Package & Warranty Selection for Sales Reps */}
       {effectiveUserRole === 'rep' && (
         <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+          <Card className="h-fit">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
                 <PackageOpen className="h-5 w-5" />
                 Package & Warranty Selection
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3 pt-0">
               <PackageSelector 
                 selectedPackage={selectedPackage} 
                 onPackageSelect={setSelectedPackage} 

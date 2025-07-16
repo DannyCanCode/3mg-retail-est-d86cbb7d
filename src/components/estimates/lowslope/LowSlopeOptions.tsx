@@ -35,27 +35,27 @@ const LowSlopeOptions = ({
   }
   
   return (
-    <div className="bg-white p-4 rounded-md shadow-sm mt-4">
-      <h3 className="text-lg font-medium mb-3">Low Slope Area Options (2/12 Pitch)</h3>
+    <div className="bg-white p-3 rounded-md shadow-sm">
+      <h3 className="text-base font-medium mb-2">Low Slope Area Options (2/12 Pitch)</h3>
       
-      <div className="border p-3 rounded-md bg-blue-50 mb-3">
+      <div className="border p-2 rounded-md bg-blue-50 mb-2">
         <div className="flex justify-between items-center">
           <div>
-            <h4 className="font-medium">Low Slope Area Detected</h4>
-            <p className="text-sm text-gray-600">2/12 pitch area: {lowSlopeArea.toFixed(2)} sq ft ({(lowSlopeArea / 100).toFixed(2)} squares)</p>
+            <h4 className="font-medium text-sm">Low Slope Area Detected</h4>
+            <p className="text-xs text-gray-600">2/12 pitch area: {lowSlopeArea.toFixed(2)} sq ft ({(lowSlopeArea / 100).toFixed(2)} squares)</p>
           </div>
-          <div className="bg-white px-3 py-2 rounded-md shadow-sm border">
-            <p className="text-sm font-medium">Fixed Pricing</p>
-            <p className="text-xs text-gray-600">$100/square with 10% waste</p>
+          <div className="bg-white px-2 py-1 rounded-md shadow-sm border">
+            <p className="text-xs font-medium">Fixed Pricing</p>
+            <p className="text-xs text-gray-600">$100/sq (10% waste)</p>
           </div>
         </div>
       </div>
       
-      <div className="border p-3 rounded-md">
+      <div className="border p-2 rounded-md">
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="font-medium">ISO Installation</h4>
-            <p className="text-sm text-gray-600 mt-1">Add ISO insulation to 2/12 pitch areas ($50/square)</p>
+            <h4 className="font-medium text-sm">ISO Installation</h4>
+            <p className="text-xs text-gray-600">Add ISO insulation to 2/12 pitch areas ($50/square)</p>
           </div>
           <label className="relative inline-flex items-center cursor-pointer">
             <input 
@@ -72,19 +72,19 @@ const LowSlopeOptions = ({
         </div>
       </div>
       
-      <div className="mt-3 p-3 bg-gray-50 rounded-md">
-        <h4 className="font-medium text-sm">Low Slope Area Summary</h4>
-        <div className="flex justify-between mt-2 text-sm">
+      <div className="mt-2 p-2 bg-gray-50 rounded-md">
+        <h4 className="font-medium text-xs">Low Slope Area Summary</h4>
+        <div className="flex justify-between mt-1 text-xs">
           <span>Base Cost (2/12 area):</span>
           <span>${lowSlopeCost.toFixed(2)}</span>
         </div>
         {includeIso && (
-          <div className="flex justify-between mt-1 text-sm">
+          <div className="flex justify-between mt-0.5 text-xs">
             <span>ISO Installation:</span>
             <span>${isoCost.toFixed(2)}</span>
           </div>
         )}
-        <div className="flex justify-between mt-2 font-medium">
+        <div className="flex justify-between mt-1 font-medium text-xs">
           <span>Total Low Slope Cost:</span>
           <span>${totalLowSlopeCost.toFixed(2)}</span>
         </div>
