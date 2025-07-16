@@ -6,8 +6,8 @@ import { Check, Package, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GAFPackageSelectorProps {
-  selectedPackage?: 'gaf1' | 'gaf2';
-  onPackageSelect: (packageType: 'gaf1' | 'gaf2') => void;
+  selectedPackage?: 'gaf-1' | 'gaf-2' | '3mg-1' | '3mg-2';
+  onPackageSelect: (packageType: 'gaf-1' | 'gaf-2' | '3mg-1' | '3mg-2') => void;
   disabled?: boolean;
 }
 
@@ -18,7 +18,7 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
 }) => {
   const packages = [
     {
-      id: 'gaf1' as const,
+      id: 'gaf-1' as const,
       name: 'GAF Package 1',
       description: 'Standard GAF materials with competitive pricing',
       profitMargin: 25,
@@ -32,7 +32,7 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
       badgeColor: 'bg-blue-100 text-blue-800'
     },
     {
-      id: 'gaf2' as const,
+      id: 'gaf-2' as const,
       name: 'GAF Package 2',
       description: 'Premium GAF materials with enhanced features',
       profitMargin: 30,
@@ -44,6 +44,34 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
       ],
       badge: 'Premium',
       badgeColor: 'bg-green-100 text-green-800'
+    },
+    {
+      id: '3mg-1' as const,
+      name: '3MG One Package',
+      description: 'Quality 3MG materials with standard features',
+      profitMargin: 28,
+      features: [
+        '3MG High-Performance Shingles',
+        'Standard Synthetic Underlayment',
+        'Standard Ridge Ventilation',
+        '3MG Standard Warranty'
+      ],
+      badge: '3MG Standard',
+      badgeColor: 'bg-purple-100 text-purple-800'
+    },
+    {
+      id: '3mg-2' as const,
+      name: '3MG Two Package',
+      description: 'Premium 3MG materials with advanced protection',
+      profitMargin: 32,
+      features: [
+        '3MG Premium Architectural Shingles',
+        'Advanced Synthetic Underlayment',
+        'Premium Ridge & Soffit Ventilation',
+        '3MG Extended Warranty Coverage'
+      ],
+      badge: '3MG Premium',
+      badgeColor: 'bg-orange-100 text-orange-800'
     }
   ];
 
@@ -51,7 +79,7 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
     <div className="space-y-4">
       <div className="flex items-center gap-2 mb-4">
         <Package className="h-5 w-5" />
-        <h3 className="text-lg font-semibold">Select GAF Package</h3>
+        <h3 className="text-lg font-semibold">Select Package</h3>
       </div>
       
       <div className="grid md:grid-cols-2 gap-4">
@@ -137,7 +165,7 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
           <div>
             <h4 className="font-medium text-blue-900">Sales Rep Package Selection</h4>
             <p className="text-sm text-blue-800 mt-1">
-              As a sales representative, you can only select from these pre-configured GAF packages. 
+              As a sales representative, you can only select from these pre-configured packages. 
               Each package has a fixed profit margin that cannot be modified. This ensures consistent 
               pricing and maintains company profit standards.
             </p>

@@ -2276,12 +2276,14 @@ export function MaterialsSelectionTab({
         // Package selected - add the appropriate GAF materials
         const packageToPreset: Record<string, string> = {
           'gaf-1': 'GAF 1',
-          'gaf-2': 'GAF 2'
+          'gaf-2': 'GAF 2',
+          '3mg-1': '3MG 1',
+          '3mg-2': '3MG 2'
         };
         
         const presetName = packageToPreset[selectedPackage];
         if (presetName) {
-          console.log(`🎯 GAF Package Selected: Adding ${presetName} materials`);
+          console.log(`🎯 Package Selected: Adding ${presetName} materials`);
             
             // 🏗️ ENHANCED: Updated GAF packages + new flat-only roof logic
             const PRESET_BUNDLES: { [key: string]: { id: string, description: string }[] } = {
@@ -2314,6 +2316,37 @@ export function MaterialsSelectionTab({
               // 🔧 NEW: Additional materials for steep slope areas
               { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
               { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
+              { id: "1inch-plastic-cap-nails", description: "1\" Plastic Cap Nails (3000/bucket)" },
+              { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" },
+              { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
+            ],
+            "3MG 1": [
+              { id: "gaf-timberline-hdz-sg", description: "3MG High-Performance Shingles" },
+              { id: "abc-pro-start-premium", description: "ABC Pro Start Premium Starter Strip" },
+              { id: "gaf-seal-a-ridge", description: "3MG Ridge Cap Shingles" },
+              { id: "gaf-weatherwatch-ice-water-shield", description: "3MG Ice & Water Shield" },
+              { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 Synthetic Underlayment" },
+              { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
+              { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+              { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
+              { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
+              { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
+              { id: "1inch-plastic-cap-nails", description: "1\" Plastic Cap Nails (3000/bucket)" },
+              { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" }
+            ],
+            "3MG 2": [
+              { id: "gaf-timberline-hdz-sg", description: "3MG Premium Architectural Shingles" },
+              { id: "gaf-prostart-starter-shingle-strip", description: "3MG Premium Starter Strip" },
+              { id: "gaf-seal-a-ridge", description: "3MG Premium Ridge Cap System" },
+              { id: "gaf-feltbuster-synthetic-underlayment", description: "3MG Advanced Synthetic Underlayment" },
+              { id: "gaf-weatherwatch-ice-water-shield", description: "3MG Premium Ice & Water Shield" },
+              { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
+              { id: "gaf-cobra-rigid-vent", description: "3MG Premium Ridge Vent System" },
+              { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+              { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
+              { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
+              { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
+              { id: "soffit-vents-continuous", description: "Continuous Soffit Vents (10')"},
               { id: "1inch-plastic-cap-nails", description: "1\" Plastic Cap Nails (3000/bucket)" },
               { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" },
               { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
@@ -2657,7 +2690,9 @@ export function MaterialsSelectionTab({
       // Map package IDs to preset bundle names
       const packageToPreset: { [key: string]: string } = {
         'gaf-1': 'GAF 1',
-        'gaf-2': 'GAF 2'
+        'gaf-2': 'GAF 2',
+        '3mg-1': '3MG 1',
+        '3mg-2': '3MG 2'
       };
       
       const presetName = packageToPreset[selectedPackage];

@@ -11,7 +11,7 @@ interface RoleBasedProfitMarginProps {
   profitMargin: number;
   onProfitMarginChange: (value: number[]) => void;
   onProfitMarginCommit: (value: number[]) => void;
-  selectedPackage?: 'gaf1' | 'gaf2' | 'custom';
+  selectedPackage?: 'gaf-1' | 'gaf-2' | '3mg-1' | '3mg-2' | 'custom';
   readOnly?: boolean;
   // Admin edit mode props
   isAdminEditMode?: boolean;

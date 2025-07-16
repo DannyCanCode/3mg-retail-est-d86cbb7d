@@ -22,7 +22,7 @@ const WarrantySelector = ({
   onPeelStickToggle,
 }: WarrantySelectorProps) => {
   
-  const isGoldPledgeAvailable = selectedPackage === 'gaf-2';
+  const isGoldPledgeAvailable = selectedPackage === 'gaf-2' || selectedPackage === '3mg-2';
   
   // Handle warranty selection
   const handleWarrantyClick = (warrantyId: string) => {
