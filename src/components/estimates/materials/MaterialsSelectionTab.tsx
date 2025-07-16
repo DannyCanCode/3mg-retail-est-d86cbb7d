@@ -2707,8 +2707,41 @@ export function MaterialsSelectionTab({
 
   // Main return structure
   return (
-    <div key={`materials-tab-${measurements?.totalArea || 'default'}`} className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-      {/* Left Column: Material Selection etc. */}
+    <div key={`materials-tab-${measurements?.totalArea || 'default'}`} className={`grid grid-cols-1 ${effectiveUserRole !== 'rep' ? 'lg:grid-cols-5' : 'lg:grid-cols-2'} gap-6`}>
+      {/* Package & Warranty Selection for Sales Reps */}
+      {effectiveUserRole === 'rep' && (
+        <div className="lg:col-span-1">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PackageOpen className="h-5 w-5" />
+                Package & Warranty Selection
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <PackageSelector 
+                selectedPackage={selectedPackage} 
+                onPackageSelect={setSelectedPackage} 
+              />
+              
+              <WarrantySelector 
+                selectedPackage={selectedPackage}
+                selectedWarranty={selectedWarranty}
+                onWarrantySelect={setSelectedWarranty}
+                isPeelStickSelected={isPeelStickSelected}
+                onPeelStickToggle={setIsPeelStickSelected}
+              />
+              
+              {showLowSlope && (
+                <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      {/* Left Column: Material Selection etc. - Hide for sales reps */}
+      {effectiveUserRole !== 'rep' && (
       <div className="lg:col-span-3 space-y-6">
         {/* GAF Package & Warranty Card - Hide for Sales Reps */}
         {effectiveUserRole !== 'rep' && (
@@ -2733,35 +2766,7 @@ export function MaterialsSelectionTab({
           </Card>
         )}
         
-        {/* Sales Rep Package & Warranty Selection - Show only for Sales Reps */}
-        {userRole === 'rep' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PackageOpen className="h-5 w-5" />
-                GAF Package & Warranty Selection
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <PackageSelector 
-                selectedPackage={selectedPackage} 
-                onPackageSelect={setSelectedPackage} 
-              />
-              
-              <WarrantySelector 
-                selectedPackage={selectedPackage}
-                selectedWarranty={selectedWarranty}
-                onWarrantySelect={setSelectedWarranty}
-                isPeelStickSelected={isPeelStickSelected}
-                onPeelStickToggle={setIsPeelStickSelected}
-              />
-              
-              {showLowSlope && (
-                <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
-              )}
-            </CardContent>
-          </Card>
-        )}
+
         
         {/* Material Selection Card */}
         <Card>
@@ -3025,18 +3030,26 @@ export function MaterialsSelectionTab({
            </CardFooter>
         </Card>
       </div>
+      )}
 
       {/* Right Column: Selected Materials */}
-      <div className="lg:col-span-2">
+      <div className={effectiveUserRole !== 'rep' ? "lg:col-span-2" : "lg:col-span-1"}>
         <Card className="sticky top-4">
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Selected Materials</CardTitle>
+            <CardTitle className="text-lg">
+              {effectiveUserRole === 'rep' ? 'Auto-Selected Materials' : 'Selected Materials'}
+            </CardTitle>
+            {effectiveUserRole === 'rep' && (
+              <p className="text-sm text-muted-foreground mt-1">
+                Materials are automatically selected based on your package choice
+              </p>
+            )}
           </CardHeader>
           <CardContent className="space-y-2 px-4 py-3">
             {Object.keys(localSelectedMaterials).length === 0 && !warrantyDetails ? (
               <div className="text-center py-8 text-muted-foreground">
-                <p className="text-sm">No materials selected yet</p>
-                <p className="text-xs mt-1">Select materials from the list</p>
+                <p className="text-sm">{effectiveUserRole === 'rep' ? 'Materials will be auto-populated' : 'No materials selected yet'}</p>
+                <p className="text-xs mt-1">{effectiveUserRole === 'rep' ? 'Based on package selection' : 'Select materials from the list'}</p>
               </div>
             ) : (
               <div className="space-y-2">
