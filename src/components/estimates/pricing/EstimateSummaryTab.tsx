@@ -369,7 +369,7 @@ export function EstimateSummaryTab({
     const totalPermitCost = baseCost + additionalCost;
     
     laborCosts.push({
-      name: `Permits (${safeLaborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"})`,
+      name: `Permits (${safeLaborRates.dumpsterLocation === "orlando" ? "Central Florida" : "Outside Central Florida"})`,
       rate: safeLaborRates.permitRate,
       totalCost: totalPermitCost
     });

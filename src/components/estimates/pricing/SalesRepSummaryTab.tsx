@@ -812,7 +812,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
 
               <div className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
                 <span className="font-medium">Dumpster ({laborRates.dumpsterCount || 1})</span>
-                <span className="text-gray-600">{laborRates.dumpsterLocation === 'orlando' ? 'Orlando' : 'Outside'}</span>
+                <span className="text-gray-600">{laborRates.dumpsterLocation === 'orlando' ? 'Central Florida' : 'Outside Central Florida'}</span>
               </div>
 
               {laborRates.includePermits && (

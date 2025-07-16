@@ -539,8 +539,8 @@ const Pricing = () => {
               </p>
               <p className="text-xs text-muted-foreground mt-1">
                 {laborRates.dumpsterLocation === "orlando" 
-                  ? "Orlando rate" 
-                  : "Outside Orlando rate"}
+                  ? "Central Florida rate" 
+                  : "Outside Central Florida rate"}
               </p>
             </div>
           </div>
@@ -556,8 +556,8 @@ const Pricing = () => {
               {laborRates.includePermits && (
                 <p className="text-xs text-muted-foreground mt-1">
                   {laborRates.dumpsterLocation === "orlando" 
-                    ? "Orlando permit rate" 
-                    : "Outside Orlando permit rate"}
+                    ? "Central Florida permit rate" 
+                    : "Outside Central Florida permit rate"}
                 </p>
               )}
             </div>

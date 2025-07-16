@@ -758,11 +758,11 @@ export function LaborProfitTab({
             >
               <label className="flex items-center space-x-2 cursor-pointer">
                 <RadioGroupItem value="orlando" disabled={!canEditDumpsterLocationAndPermits()}/>
-                <span>Orlando</span>
+                <span>Central Florida</span>
               </label>
               <label className="flex items-center space-x-2 cursor-pointer">
                 <RadioGroupItem value="outside" disabled={!canEditDumpsterLocationAndPermits()}/>
-                <span>Outside Orlando</span>
+                <span>Outside Central Florida</span>
               </label>
             </RadioGroup>
 
@@ -882,7 +882,7 @@ export function LaborProfitTab({
               <>
                 <div className="bg-muted p-3 rounded-md mb-3">
                   <p className="text-sm mb-2">
-                    📍 <strong>Location:</strong> {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}
+                    📍 <strong>Location:</strong> {laborRates.dumpsterLocation === "orlando" ? "Central Florida" : "Outside Central Florida"}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Permit location follows dumpster location setting above
@@ -891,7 +891,7 @@ export function LaborProfitTab({
                 
                 {effectiveUserRole !== 'rep' && (
                   <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm mb-2">Base permit cost for {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}: 
+                    <p className="text-sm mb-2">Base permit cost for {laborRates.dumpsterLocation === "orlando" ? "Central Florida" : "Outside Central Florida"}: 
                       ${laborRates.permitRate.toFixed(2)}
                     </p>
                     <p className="text-sm">Additional permits: ${laborRates.permitAdditionalRate.toFixed(2)} each</p>
