@@ -161,11 +161,10 @@ export function MaterialsSelectionTab({
   
   // Reset ventilation populated flag when job worksheet changes
   useEffect(() => {
-    if (jobWorksheet?.ventilation) {
-      console.log('🔧 [Ventilation] Job worksheet ventilation data changed, resetting populated flag');
-      hasVentilationPopulated.current = false;
-    }
-  }, [jobWorksheet?.ventilation]);
+    // Reset whenever jobWorksheet changes at all
+    console.log('🔧 [Ventilation] Job worksheet changed, resetting populated flag');
+    hasVentilationPopulated.current = false;
+  }, [jobWorksheet]); // Watch entire jobWorksheet object
   
   // State for GAF packages and warranty options
   const [selectedPackage, setSelectedPackage] = useState<string | null>(() => {
@@ -287,6 +286,7 @@ export function MaterialsSelectionTab({
     if (!jobWorksheet?.ventilation || !measurements || hasVentilationPopulated.current) {
       console.log('🔧 [Ventilation Auto-Population] Skipping:', {
         hasVentilation: !!jobWorksheet?.ventilation,
+        ventilationData: jobWorksheet?.ventilation,
         hasMeasurements: !!measurements,
         alreadyPopulated: hasVentilationPopulated.current
       });
@@ -301,34 +301,45 @@ export function MaterialsSelectionTab({
     // Map Job Worksheet fields to material IDs
     const ventilationMapping = {
       // Goosenecks
-      'gooseneck_4_inch': { materialId: 'galvanized-gooseneck-4inch', count: ventilationData.goosenecks?.['4_inch'] || 0 },
-      'gooseneck_10_inch': { materialId: 'galvanized-gooseneck-10inch', count: ventilationData.goosenecks?.['10_inch'] || 0 },
+      'gooseneck_4_inch': { materialId: 'galvanized-gooseneck-4inch', count: Number(ventilationData.goosenecks?.['4_inch']) || 0 },
+      'gooseneck_6_inch': { materialId: 'galvanized-gooseneck-4inch', count: Number(ventilationData.goosenecks?.['6_inch']) || 0 }, // Map 6" to 4" as we don't have 6" in materials
+      'gooseneck_10_inch': { materialId: 'galvanized-gooseneck-10inch', count: Number(ventilationData.goosenecks?.['10_inch']) || 0 },
+      'gooseneck_12_inch': { materialId: 'galvanized-gooseneck-10inch', count: Number(ventilationData.goosenecks?.['12_inch']) || 0 }, // Map 12" to 10" as we don't have 12" in materials
       
       // Boots (Bullet Boot Pipe Flashing)
-      'boot_1_5_inch': { materialId: 'bullet-boot-1-5inch', count: ventilationData.boots?.['1_5_inch'] || 0 },
-      'boot_2_inch': { materialId: 'bullet-boot-2inch', count: ventilationData.boots?.['2_inch'] || 0 },
-      'boot_3_inch': { materialId: 'bullet-boot-3inch', count: ventilationData.boots?.['3_inch'] || 0 },
-      'boot_4_inch': { materialId: 'bullet-boot-4inch', count: ventilationData.boots?.['4_inch'] || 0 },
+      'boot_1_5_inch': { materialId: 'bullet-boot-1-5inch', count: Number(ventilationData.boots?.['1_5_inch']) || 0 },
+      'boot_2_inch': { materialId: 'bullet-boot-2inch', count: Number(ventilationData.boots?.['2_inch']) || 0 },
+      'boot_3_inch': { materialId: 'bullet-boot-3inch', count: Number(ventilationData.boots?.['3_inch']) || 0 },
+      'boot_4_inch': { materialId: 'bullet-boot-4inch', count: Number(ventilationData.boots?.['4_inch']) || 0 },
       
       // Ridge Vents - special handling for linear feet
       'ridge_vent': { 
         materialId: 'gaf-cobra-rigid-vent', 
-        count: ventilationData.ridge_vents_lf ? Math.ceil(ventilationData.ridge_vents_lf / 20) : 0 // 20 LF per bundle
+        count: ventilationData.ridge_vents_lf ? Math.ceil(Number(ventilationData.ridge_vents_lf) / 20) : 0 // 20 LF per bundle
       },
       
-      // Off Ridge Vents (only 4ft is available in materials)
-      'off_ridge_4ft': { materialId: 'galvanized-steel-off-ridge-vent', count: ventilationData.off_ridge_vents?.['4_ft'] || 0 }
+      // Off Ridge Vents (map all sizes to 4ft as it's the only available)
+      'off_ridge_2ft': { materialId: 'galvanized-steel-off-ridge-vent', count: Number(ventilationData.off_ridge_vents?.['2_ft']) || 0 },
+      'off_ridge_4ft': { materialId: 'galvanized-steel-off-ridge-vent', count: Number(ventilationData.off_ridge_vents?.['4_ft']) || 0 },
+      'off_ridge_6ft': { materialId: 'galvanized-steel-off-ridge-vent', count: Number(ventilationData.off_ridge_vents?.['6_ft']) || 0 },
+      'off_ridge_8ft': { materialId: 'galvanized-steel-off-ridge-vent', count: Number(ventilationData.off_ridge_vents?.['8_ft']) || 0 }
     };
 
     console.log('🔧 [Ventilation] Processing ventilation mapping...');
 
-    // Process each mapping
+    // Process each mapping and combine quantities for same material IDs
     Object.entries(ventilationMapping).forEach(([field, { materialId, count }]) => {
       if (count > 0) {
         const material = ROOFING_MATERIALS.find(m => m.id === materialId);
         if (material) {
-          console.log(`🔧 [Ventilation] Adding ${count} x ${material.name} (${materialId})`);
-          materialsToAdd[materialId] = { material, quantity: count };
+          console.log(`🔧 [Ventilation] Field ${field}: Adding ${count} x ${material.name} (${materialId})`);
+          // Combine quantities if material already exists
+          if (materialsToAdd[materialId]) {
+            materialsToAdd[materialId].quantity += count;
+            console.log(`🔧 [Ventilation] Combined quantity for ${materialId}: ${materialsToAdd[materialId].quantity}`);
+          } else {
+            materialsToAdd[materialId] = { material, quantity: count };
+          }
         } else {
           console.warn(`🔧 [Ventilation] Material not found: ${materialId}`);
         }
@@ -1824,6 +1835,16 @@ export function MaterialsSelectionTab({
         return 'py-2 px-3 rounded-md border-2 bg-green-50 border-green-300';
       } else if (isAutoSelected) {
         return 'py-2 px-3 rounded-md border-2 bg-blue-50 border-blue-300';
+      } 
+      // Apply ventilation color coding
+      else if (materialId.includes('gooseneck')) {
+        return 'p-3 rounded-md border border-orange-300 bg-orange-50';
+      } else if (materialId.includes('boot')) {
+        return 'p-3 rounded-md border border-gray-400 bg-gray-50';
+      } else if (materialId.includes('skylight')) {
+        return 'p-3 rounded-md border border-sky-300 bg-sky-50';
+      } else if (materialId.includes('gutter')) {
+        return 'p-3 rounded-md border border-amber-600 bg-amber-50';
       } else {
         return 'p-3 rounded-md border border-gray-200';
       }
@@ -1839,6 +1860,12 @@ export function MaterialsSelectionTab({
               ? 'bg-gradient-to-r from-green-50 to-green-100/50 border border-green-200 hover:border-green-300' 
               : isAutoSelected
               ? 'bg-gradient-to-r from-blue-50 to-blue-100/50 border border-blue-200 hover:border-blue-300'
+              : materialId.includes('gooseneck')
+              ? 'bg-gradient-to-r from-orange-50 to-orange-100/50 border border-orange-300 hover:border-orange-400'
+              : materialId.includes('boot')
+              ? 'bg-gradient-to-r from-gray-50 to-gray-100/50 border border-gray-400 hover:border-gray-500'
+              : materialId.includes('skylight')
+              ? 'bg-gradient-to-r from-sky-50 to-sky-100/50 border border-sky-300 hover:border-sky-400'
               : 'bg-white hover:bg-gray-50 border border-gray-200'
           }`}
         >
@@ -1863,6 +1890,12 @@ export function MaterialsSelectionTab({
                 ? 'bg-gradient-to-br from-green-400 to-green-500 text-white' 
                 : isAutoSelected
                 ? 'bg-gradient-to-br from-blue-400 to-blue-500 text-white'
+                : materialId.includes('gooseneck')
+                ? 'bg-gradient-to-br from-orange-400 to-orange-500 text-white'
+                : materialId.includes('boot')
+                ? 'bg-gradient-to-br from-gray-400 to-gray-500 text-white'
+                : materialId.includes('skylight')
+                ? 'bg-gradient-to-br from-sky-400 to-sky-500 text-white'
                 : 'bg-gradient-to-br from-gray-300 to-gray-400 text-white'
             }`}>
               <span className="text-sm font-bold">
