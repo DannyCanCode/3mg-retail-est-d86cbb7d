@@ -47,7 +47,7 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
     },
     {
       id: '3mg-1' as const,
-      name: '3MG One Package',
+      name: '3MG Package 1',
       description: 'Quality 3MG materials with standard features',
       profitMargin: 28,
       features: [
@@ -61,7 +61,7 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
     },
     {
       id: '3mg-2' as const,
-      name: '3MG Two Package',
+      name: '3MG Package 2',
       description: 'Premium 3MG materials with advanced protection',
       profitMargin: 32,
       features: [

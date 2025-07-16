@@ -55,7 +55,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                     GAF Package 1
                   </h4>
                   <p className={`text-xs ${selectedPackage === 'gaf-1' ? 'text-blue-100' : 'text-gray-500'}`}>
-                    Essential
+                    Standard
                   </p>
                 </div>
               </div>
@@ -157,7 +157,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                 </div>
                 <div>
                   <h4 className={`font-semibold text-sm ${selectedPackage === '3mg-1' ? 'text-white' : 'text-gray-800'}`}>
-                    3MG One Package
+                    3MG Package 1
                   </h4>
                   <p className={`text-xs ${selectedPackage === '3mg-1' ? 'text-green-100' : 'text-gray-500'}`}>
                     Standard
@@ -209,7 +209,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                 </div>
                 <div>
                   <h4 className={`font-semibold text-sm ${selectedPackage === '3mg-2' ? 'text-white' : 'text-gray-800'}`}>
-                    3MG Two Package
+                    3MG Package 2
                   </h4>
                   <p className={`text-xs ${selectedPackage === '3mg-2' ? 'text-emerald-100' : 'text-gray-500'}`}>
                     Premium
@@ -244,8 +244,8 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           <p className="text-xs font-medium text-gray-700 mb-2">
             {selectedPackage === 'gaf-1' ? 'GAF Package 1 includes:' : 
              selectedPackage === 'gaf-2' ? 'GAF Package 2 includes:' :
-             selectedPackage === '3mg-1' ? '3MG One Package includes:' :
-             '3MG Two Package includes:'}
+             selectedPackage === '3mg-1' ? '3MG Package 1 includes:' :
+             '3MG Package 2 includes:'}
           </p>
           <ul className="text-xs text-gray-600 space-y-0.5">
             {selectedPackage === 'gaf-1' ? (
