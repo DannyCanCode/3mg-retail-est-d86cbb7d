@@ -724,15 +724,6 @@ export function EstimateSummaryTab({
         </button>
         <div className="flex items-center gap-4">
           <h1 className="text-3xl font-bold text-green-400">Estimate Summary</h1>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsClientView(!isClientView)}
-            className="flex items-center gap-2"
-          >
-            {isClientView ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            {isClientView ? 'Internal View' : 'Client View'}
-          </Button>
         </div>
       </div>
 
@@ -1237,15 +1228,27 @@ export function EstimateSummaryTab({
           Back to Labor & Profit
         </button>
         
-        <button
-          onClick={() => {
-            // Finalize estimate logic here
-            console.log('Finalizing estimate...');
-          }}
-          className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-400 text-white rounded-lg hover:from-green-600 hover:to-green-500 transition-all shadow-lg shadow-green-500/20 font-semibold"
-        >
-          Finalize Estimate
-        </button>
+        <div className="flex gap-4">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={() => setIsClientView(!isClientView)}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+          >
+            {isClientView ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            {isClientView ? 'Internal View' : 'Client View'}
+          </Button>
+          
+          <button
+            onClick={() => {
+              // Finalize estimate logic here
+              console.log('Finalizing estimate...');
+            }}
+            className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-400 text-white rounded-lg hover:from-green-600 hover:to-green-500 transition-all shadow-lg shadow-green-500/20 font-semibold"
+          >
+            Finalize Estimate
+          </button>
+        </div>
       </div>
         </>
       )}
