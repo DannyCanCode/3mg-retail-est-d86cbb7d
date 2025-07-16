@@ -140,11 +140,11 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
 
   // For managers and admins, show the full profit margin controls
   return (
-    <Card>
+    <Card className={userRole === 'rep' ? "border-green-200 bg-green-50/30" : ""}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           {getRoleIcon()}
-          Profit Margin
+          <span className={userRole === 'rep' ? "text-green-700" : ""}>Profit Margin</span>
           <Badge className={getRoleBadgeColor()}>
             {userRole?.toUpperCase() || 'USER'}
           </Badge>
@@ -155,11 +155,11 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="flex items-center gap-2">
-                <Label htmlFor="profit-margin" className="text-base font-medium">
-                  Current Margin: {effectiveMargin}%
+                <Label htmlFor="profit-margin" className={`text-base font-medium ${userRole === 'rep' ? 'text-green-700' : ''}`}>
+                  Current Margin: <span className={userRole === 'rep' ? "text-green-600 font-bold" : ""}>{effectiveMargin}%</span>
                 </Label>
-                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-              </div>
+                <Info className={`h-4 w-4 cursor-help ${userRole === 'rep' ? 'text-green-600' : 'text-muted-foreground'}`} />
+        </div>
             </TooltipTrigger>
             <TooltipContent>
               <p className="max-w-xs">{constraints.description}</p>
@@ -190,12 +190,12 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
               onValueChange={handleValueChange}
               onValueCommit={handleValueCommit}
               disabled={readOnly && !(isAdminEditMode && userRole === 'admin')}
-              className="w-full"
+              className={userRole === 'rep' ? "w-full [&>span:first-child]:bg-green-100 [&>span>span]:bg-green-500 [&>span:last-child]:border-green-500" : "w-full"}
             />
             
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Min: {constraints.min}%</span>
-              <span>Max: {constraints.max}%</span>
+              <span className={userRole === 'rep' ? "text-green-600 font-medium" : ""}>Min: {constraints.min}%</span>
+              <span className={userRole === 'rep' ? "text-green-600 font-medium" : ""}>Max: {constraints.max}%</span>
             </div>
           </div>
         )}

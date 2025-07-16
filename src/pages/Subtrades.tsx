@@ -134,17 +134,18 @@ const Subtrades: React.FC = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    const variants = {
-      pending: 'secondary',
-      in_progress: 'default',
-      completed: 'success',
-      rejected: 'destructive'
-    } as const;
+    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; className?: string }> = {
+      pending: { variant: "secondary" },
+      assigned: { variant: "outline", className: "text-blue-600 border-blue-600" },
+      in_progress: { variant: "default", className: "bg-yellow-500" },
+      completed: { variant: "default", className: "bg-green-500" }
+    };
+    
+    const config = variants[status] || { variant: "outline" };
     
     return (
-      <Badge variant={variants[status as keyof typeof variants] || 'secondary'}>
-        {getStatusIcon(status)}
-        <span className="ml-1 capitalize">{status.replace('_', ' ')}</span>
+      <Badge variant={config.variant} className={config.className}>
+        {status.replace('_', ' ').charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
       </Badge>
     );
   };
@@ -234,7 +235,10 @@ const Subtrades: React.FC = () => {
                       {new Date(estimate.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      ${estimate.total_price.toLocaleString()}
+                      ${estimate.total_price.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
                     </TableCell>
                     <TableCell>
                       <Dialog>
@@ -306,10 +310,10 @@ const Subtrades: React.FC = () => {
                                     </Button>
                                     <Button 
                                       onClick={() => handleUpdateSubtrade(selectedEstimate.id, 'completed')}
-                                      variant="success"
-                                      className="flex-1"
+                                      variant="default"
+                                      className="bg-green-600 hover:bg-green-700 flex-1"
                                     >
-                                      Mark Complete
+                                      Mark Completed
                                     </Button>
                                     <Button 
                                       onClick={() => handleUpdateSubtrade(selectedEstimate.id, 'rejected')}

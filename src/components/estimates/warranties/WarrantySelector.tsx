@@ -69,7 +69,7 @@ const WarrantySelector = ({
           onClick={() => handleWarrantyClick('silver-pledge')}
         >
           <div className="flex justify-between items-start">
-            <h4 className="font-medium">Silver Pledge Warranty</h4>
+          <h4 className="font-medium">Silver Pledge Warranty</h4>
             <Badge className="bg-green-600 text-white">Available</Badge>
           </div>
           <p className="text-sm text-gray-600 mt-1">Standard GAF warranty coverage</p>

@@ -216,19 +216,19 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
   }) {
     return (
       <div className="w-full">
-        <Card className="overflow-hidden">
-          <CardHeader className="bg-green-50 dark:bg-green-950/30 pb-3">
+        <Card className="overflow-hidden bg-gray-800/50 border-green-600/30">
+          <CardHeader className="bg-green-900/30 pb-3">
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-2">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-                <CardTitle className="text-base font-medium">PDF processed successfully</CardTitle>
+                <CheckCircle2 className="h-5 w-5 text-green-400" />
+                <CardTitle className="text-base font-medium text-white">PDF processed successfully</CardTitle>
               </div>
               {fileUrl && (
                 <a 
                   href={fileUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:underline flex items-center"
+                  className="text-xs text-green-400 hover:text-green-300 hover:underline flex items-center"
                 >
                   <ExternalLink className="h-3 w-3 mr-1" />
                   View PDF
@@ -236,15 +236,15 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
               )}
             </div>
             <CardDescription className="pt-1 text-sm">
-              <code className="text-xs text-muted-foreground">{file.name}</code>
+              <code className="text-xs text-green-300/70">{file.name}</code>
             </CardDescription>
           </CardHeader>
           
           <CardContent className="p-6">
             <div className="space-y-6">
               <div>
-                <h2 className="text-lg font-medium mb-2">Extracted Measurements</h2>
-                <p className="text-sm text-muted-foreground mb-4">
+                <h2 className="text-lg font-medium mb-2 text-white">Extracted Measurements</h2>
+                <p className="text-sm text-green-300/70 mb-4">
                   We've successfully extracted the following measurements from your PDF.
                 </p>
               </div>

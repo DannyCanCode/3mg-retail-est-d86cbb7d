@@ -203,6 +203,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               'chase.lovejoy@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e', // Winter Park territory
               'adam@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
             };
+            
+            // Project managers with their territory assignments
+            const projectManagerConfig = {
+              'taylor.hilton@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
+            };
           
           let defaultRole = 'rep';
           let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
@@ -216,6 +221,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             defaultRole = 'manager';
             shouldCompleteOnboarding = true;
             territoryId = managerConfig[userEmail];
+          } else if (projectManagerConfig[userEmail]) {
+            defaultRole = 'project_manager';
+            shouldCompleteOnboarding = true;
+            territoryId = projectManagerConfig[userEmail];
           } else if (userEmail.endsWith('@3mgroofing.com')) {
             defaultRole = 'rep';
             shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
@@ -314,32 +323,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               'adam@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
             };
             
-            let defaultRole = 'rep';
-            let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
-            let territoryId = null;
-            
-            if (adminEmails.includes(userEmail)) {
-              defaultRole = 'admin';
-              shouldCompleteOnboarding = true;
-              territoryId = null;
-            } else if (managerConfig[userEmail]) {
-              defaultRole = 'manager';
-              shouldCompleteOnboarding = true;
-              territoryId = managerConfig[userEmail];
-            } else if (userEmail.endsWith('@3mgroofing.com')) {
-              defaultRole = 'rep';
-              shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
-              territoryId = null;
-            }
-            
-            return {
-              id: userId,
-              role: defaultRole,
-              completed_onboarding: shouldCompleteOnboarding,
-              full_name: null,
-              org_id: null,
-              territory_id: territoryId
-            } as Profile;
+            // Project managers with their territory assignments
+            const projectManagerConfig = {
+              'taylor.hilton@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
+            };
+          
+          let defaultRole = 'rep';
+          let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
+          let territoryId = null;
+          
+          if (adminEmails.includes(userEmail)) {
+            defaultRole = 'admin';
+            shouldCompleteOnboarding = true;
+            territoryId = null;
+          } else if (managerConfig[userEmail]) {
+            defaultRole = 'manager';
+            shouldCompleteOnboarding = true;
+            territoryId = managerConfig[userEmail];
+          } else if (projectManagerConfig[userEmail]) {
+            defaultRole = 'project_manager';
+            shouldCompleteOnboarding = true;
+            territoryId = projectManagerConfig[userEmail];
+          } else if (userEmail.endsWith('@3mgroofing.com')) {
+            defaultRole = 'rep';
+            shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
+            territoryId = null;
+          }
+          
+          return {
+            id: userId,
+            role: defaultRole,
+            completed_onboarding: shouldCompleteOnboarding,
+            full_name: null,
+            org_id: null,
+            territory_id: territoryId
+          } as Profile;
           } catch (getUserError) {
             if (import.meta.env.DEV) {
               console.error('[AuthContext] Failed to get user for email detection:', getUserError);
@@ -578,44 +596,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   'adam@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
                 };
                 
-                let defaultRole = 'rep';
-                let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
-                let territoryId = null;
-                
-                if (adminEmails.includes(userEmail)) {
-                  defaultRole = 'admin';
-                  shouldCompleteOnboarding = true;
-                  territoryId = null;
-                } else if (managerConfig[userEmail]) {
-                  defaultRole = 'manager';
-                  shouldCompleteOnboarding = true;
-                  territoryId = managerConfig[userEmail];
-                } else if (userEmail.endsWith('@3mgroofing.com')) {
-                  defaultRole = 'rep';
-                  shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
-                  territoryId = null;
-                }
-                
-                setProfile({
-                  id: session.user.id,
-                  role: defaultRole,
-                  completed_onboarding: shouldCompleteOnboarding,
-                  full_name: null,
-                  org_id: null,
-                  territory_id: territoryId
-                });
-              } catch (emailError) {
-                // Last resort fallback
-                setProfile({
-                  id: session.user.id,
-                  role: 'rep',
-                  completed_onboarding: true, // FIXED: Always true to prevent onboarding redirect
-                  full_name: null,
-                  org_id: null,
-                  territory_id: null
-                });
+                const projectManagerConfig = {
+                  'taylor.hilton@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
+                };
+              
+              let defaultRole = 'rep';
+              let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
+              let territoryId = null;
+              
+              if (adminEmails.includes(userEmail)) {
+                defaultRole = 'admin';
+                shouldCompleteOnboarding = true;
+                territoryId = null;
+              } else if (managerConfig[userEmail]) {
+                defaultRole = 'manager';
+                shouldCompleteOnboarding = true;
+                territoryId = managerConfig[userEmail];
+              } else if (projectManagerConfig[userEmail]) {
+                defaultRole = 'project_manager';
+                shouldCompleteOnboarding = true;
+                territoryId = projectManagerConfig[userEmail];
+              } else if (userEmail.endsWith('@3mgroofing.com')) {
+                defaultRole = 'rep';
+                shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
+                territoryId = null;
               }
-              setLoading(false);
+              
+              setProfile({
+                id: session.user.id,
+                role: defaultRole,
+                completed_onboarding: shouldCompleteOnboarding,
+                full_name: null,
+                org_id: null,
+                territory_id: territoryId
+              });
+            } catch (emailError) {
+              // Last resort fallback
+              setProfile({
+                id: session.user.id,
+                role: 'rep',
+                completed_onboarding: true, // FIXED: Always true to prevent onboarding redirect
+                full_name: null,
+                org_id: null,
+                territory_id: null
+              });
+            }
+            setLoading(false);
             }
           }
         }

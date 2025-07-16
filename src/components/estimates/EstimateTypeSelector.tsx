@@ -32,42 +32,42 @@ const SUBTRADE_OPTIONS = [
     name: 'HVAC',
     description: 'Heating, Ventilation, Air Conditioning',
     icon: Wind,
-    color: 'bg-blue-100 text-blue-800'
+    color: 'bg-green-600/20 text-green-400 border-green-600/30'
   },
   {
     id: 'electrical',
     name: 'Electrical',
     description: 'Electrical work and installations',
     icon: Zap,
-    color: 'bg-yellow-100 text-yellow-800'
+    color: 'bg-green-600/20 text-green-400 border-green-600/30'
   },
   {
     id: 'plumbing',
     name: 'Plumbing',
     description: 'Plumbing and water systems',
     icon: Droplets,
-    color: 'bg-blue-100 text-blue-800'
+    color: 'bg-green-600/20 text-green-400 border-green-600/30'
   },
   {
     id: 'gutters',
     name: 'Gutters',
     description: 'Gutter installation and repair',
     icon: Shield,
-    color: 'bg-green-100 text-green-800'
+    color: 'bg-green-600/20 text-green-400 border-green-600/30'
   },
   {
     id: 'siding',
     name: 'Siding',
     description: 'Siding installation and repair',
     icon: Home,
-    color: 'bg-purple-100 text-purple-800'
+    color: 'bg-green-600/20 text-green-400 border-green-600/30'
   },
   {
     id: 'other',
     name: 'Other',
     description: 'Custom subtrade requirements',
     icon: Wrench,
-    color: 'bg-gray-100 text-gray-800'
+    color: 'bg-green-600/20 text-green-400 border-green-600/30'
   }
 ];
 
@@ -98,10 +98,10 @@ export const EstimateTypeSelector: React.FC<EstimateTypeSelectorProps> = ({
 
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="bg-gray-800/50 backdrop-blur-sm border-green-600/30">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Home className="h-5 w-5" />
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Home className="h-5 w-5 text-green-400" />
             Select Estimate Type
           </CardTitle>
         </CardHeader>
@@ -112,42 +112,42 @@ export const EstimateTypeSelector: React.FC<EstimateTypeSelectorProps> = ({
             className="space-y-4"
           >
             {/* Roof Only Option */}
-            <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50">
-              <RadioGroupItem value="roof_only" />
+            <div className="flex items-center space-x-3 rounded-lg border border-green-600/30 bg-gray-800/30 p-4 hover:bg-green-900/20 transition-colors">
+              <RadioGroupItem value="roof_only" className="text-green-400 border-green-600" />
               <Label className="flex-1 cursor-pointer">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Home className="h-4 w-4" />
-                      <span className="font-medium">Roof Shingles Only</span>
-                      <Badge variant="secondary">Standard</Badge>
+                      <Home className="h-4 w-4 text-green-400" />
+                      <span className="font-medium text-white">Roof Shingles Only</span>
+                      <Badge className="bg-green-600/20 text-green-400 border-green-600/30">Standard</Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-green-300/70 mt-1">
                       Traditional roofing estimate with materials and labor
                     </p>
                   </div>
                   {estimateType === 'roof_only' && (
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    <CheckCircle2 className="h-5 w-5 text-green-400" />
                   )}
                 </div>
               </Label>
             </div>
 
             {/* Roof + Subtrades Option */}
-            <div className="flex items-center space-x-3 rounded-lg border p-4 hover:bg-muted/50 opacity-60 cursor-not-allowed">
-              <RadioGroupItem value="with_subtrades" disabled />
+            <div className="flex items-center space-x-3 rounded-lg border border-gray-700/50 bg-gray-800/20 p-4 opacity-60 cursor-not-allowed">
+              <RadioGroupItem value="with_subtrades" disabled className="border-gray-600" />
               <Label className="flex-1 cursor-not-allowed">
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <Wrench className="h-4 w-4" />
-                      <span className="font-medium">Roof + Subtrades</span>
-                      <Badge variant="outline">Complex</Badge>
-                      <Badge variant="destructive" className="bg-orange-100 text-orange-800 border-orange-300">
+                      <Wrench className="h-4 w-4 text-gray-500" />
+                      <span className="font-medium text-gray-400">Roof + Subtrades</span>
+                      <Badge className="bg-gray-700/50 text-gray-400 border-gray-600">Complex</Badge>
+                      <Badge className="bg-orange-600/20 text-orange-400 border-orange-600/30">
                         In Development
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-gray-500 mt-1">
                       Comprehensive estimate including roofing and additional services
                     </p>
                     <p className="text-xs text-orange-600 font-medium mt-1">
@@ -202,8 +202,8 @@ export const EstimateTypeSelector: React.FC<EstimateTypeSelectorProps> = ({
                 </div>
                 
                 {selectedSubtrades.length > 0 && (
-                  <div className="mt-3 p-3 bg-green-50 rounded-lg">
-                    <p className="text-sm text-green-800">
+                  <div className="mt-3 p-3 bg-green-900/20 rounded-lg border border-green-600/30">
+                    <p className="text-sm text-green-400">
                       <strong>{selectedSubtrades.length}</strong> subtrade(s) selected. 
                       These will be included in your estimate workflow.
                     </p>
@@ -214,9 +214,13 @@ export const EstimateTypeSelector: React.FC<EstimateTypeSelectorProps> = ({
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-between pt-4 border-t">
+          <div className="flex justify-between pt-4 border-t border-green-600/20">
             {onBack && (
-              <Button variant="outline" onClick={onBack}>
+              <Button 
+                variant="outline" 
+                onClick={onBack}
+                className="bg-gray-800/50 hover:bg-gray-800/70 text-green-300 border-green-600/30"
+              >
                 Back
               </Button>
             )}
@@ -224,7 +228,7 @@ export const EstimateTypeSelector: React.FC<EstimateTypeSelectorProps> = ({
               <Button 
                 onClick={handleContinue}
                 disabled={!canContinue}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Continue to Upload
                 <ArrowRight className="h-4 w-4" />

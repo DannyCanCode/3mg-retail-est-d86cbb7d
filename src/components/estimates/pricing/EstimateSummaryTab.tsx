@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, CheckCircle, XCircle } from "lucide-react";
+import { ChevronLeft, CheckCircle, XCircle, Info, Package, Settings } from "lucide-react";
 import { MeasurementValues } from "../measurement/types";
 import { Material } from "../materials/types";
 import { LaborRates } from "./LaborProfitTab";
@@ -434,286 +434,361 @@ export function EstimateSummaryTab({
   // Removed console.log to reduce spam
 
   return (
-    <>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Estimate Summary</CardTitle>
-          {isReviewMode && estimate && (
-            <Badge 
-              variant={
-                estimate.status === "approved" ? "default" :
-                estimate.status === "pending" ? "secondary" :
-                estimate.status === "rejected" ? "destructive" : "outline"
-              }
-              className={cn(
-                "capitalize",
-                estimate.status === "approved" && "bg-[#10b981] hover:bg-[#10b981]/80",
-                estimate.status === "pending" && "bg-[#f59e0b] hover:bg-[#f59e0b]/80",
-                estimate.status === "rejected" && "bg-destructive hover:bg-destructive/80"
-              )}
-            >
-              {estimate.status}
-            </Badge>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Project Details</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Total Roof Area:</p>
-                <p className="font-medium">{safeMeasurements.totalArea.toLocaleString()} sq ft ({totalSquares} squares)</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Predominant Pitch:</p>
-                <p className="font-medium">{safeMeasurements.roofPitch}</p>
-              </div>
-              {safeMeasurements.propertyAddress && (
-                <div>
-                  <p className="text-muted-foreground">Property Address:</p>
-                  <p className="font-medium">{safeMeasurements.propertyAddress}</p>
-                </div>
-              )}
-              {(safeMeasurements.latitude && safeMeasurements.longitude) && (
-                <div>
-                  <p className="text-muted-foreground">Coordinates:</p>
-                  <p className="font-medium">{safeMeasurements.latitude}, {safeMeasurements.longitude}</p>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Materials</h3>
-            <div className="border rounded-md">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-4">Material</th>
-                    <th className="text-right py-2 px-4">Quantity</th>
-                    <th className="text-right py-2 px-4">Unit Price</th>
-                    <th className="text-right py-2 px-4">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materialCosts.map((item, index) => (
-                    <tr key={index} className={index < materialCosts.length - 1 ? "border-b" : ""}>
-                      <td className="py-2 px-4">{item.name}</td>
-                      <td className="text-right py-2 px-4">{item.quantity} {item.unit}</td>
-                      <td className="text-right py-2 px-4">${formatNumberWithCommas(item.unitPrice)}</td>
-                      <td className="text-right py-2 px-4">${formatNumberWithCommas(item.totalCost)}</td>
-                    </tr>
-                  ))}
-                  {peelStickAddonCost > 0 && (
-                     <tr className="border-t">
-                       <td className="py-2 px-4 italic">Full Peel & Stick System Cost</td>
-                       <td colSpan={2} className="text-right py-2 px-4">($60.00/sq)</td>
-                       <td className="text-right py-2 px-4">${formatNumberWithCommas(peelStickAddonCost)}</td>
-                     </tr>
-                  )}
-                  <tr className="border-t bg-muted/30">
-                    <td colSpan={3} className="py-2 px-4 font-semibold">Materials Subtotal</td>
-                    <td className="text-right py-2 px-4 font-semibold">${formatNumberWithCommas(totalMaterialCost)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Labor</h3>
-            <div className="border rounded-md">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50">
-                  <tr className="border-b">
-                    <th className="text-left py-2 px-4">Category</th>
-                    <th className="text-right py-2 px-4">Rate</th>
-                    <th className="text-right py-2 px-4">Total (includes 12% waste)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {laborCosts.map((item, index) => (
-                    <tr key={index} className={index < laborCosts.length - 1 ? "border-b" : ""}>
-                      <td className="py-2 px-4">{item.name}</td>
-                      <td className="text-right py-2 px-4">${formatNumberWithCommas(item.rate)}</td>
-                      <td className="text-right py-2 px-4">${formatNumberWithCommas(item.totalCost)}</td>
-                    </tr>
-                  ))}
-                  <tr className="border-t bg-muted/30">
-                    <td colSpan={2} className="py-2 px-4 font-semibold">Labor Subtotal (includes 12% waste)</td>
-                    <td className="text-right py-2 px-4 font-semibold">${formatNumberWithCommas(totalLaborCost)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">Pricing Summary</h3>
-            <div className="border rounded-md">
-              <table className="w-full text-sm">
-                <tbody>
-                  <tr className="border-b">
-                    <td className="py-2 px-4">Materials Subtotal</td>
-                    <td className="text-right py-2 px-4">${formatNumberWithCommas(totalMaterialCost)}</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 px-4">Labor Subtotal (includes 12% waste)</td>
-                    <td className="text-right py-2 px-4">${formatNumberWithCommas(totalLaborCost)}</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 px-4">Project Subtotal</td>
-                    <td className="text-right py-2 px-4">${formatNumberWithCommas(subtotal)}</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="py-2 px-4">Profit Margin ({profitMargin}%)</td>
-                    <td className="text-right py-2 px-4">${formatNumberWithCommas(profitAmount)}</td>
-                  </tr>
-                  <tr className="bg-muted/30">
-                    <td className="py-2 px-4 font-semibold">Total Estimate</td>
-                    <td className="text-right py-2 px-4 font-semibold text-lg">${formatNumberWithCommas(currentTotalEstimate)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+    <div className="space-y-8">
+      {/* Header with Back Button */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="flex items-center gap-2 text-gray-400 hover:text-green-400 transition-colors group"
+        >
+          <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <span>Back to Labor & Profit</span>
+        </button>
+        <h1 className="text-3xl font-bold text-green-400">Estimate Summary</h1>
+      </div>
 
-          {isReviewMode && estimate?.notes && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Notes</h3>
-              <div className="border rounded-md p-4 bg-muted/20">
-                <p className="text-sm">{estimate.notes}</p>
-              </div>
-            </div>
-          )}
-        </CardContent>
+      {/* Project Details Card */}
+      <div className="bg-gray-700/50 backdrop-blur-sm rounded-xl border border-green-500/30 p-6 shadow-lg">
+        <h2 className="text-2xl font-bold text-green-400 mb-6 flex items-center gap-3">
+          <Info className="w-6 h-6" />
+          Project Details
+        </h2>
         
-        <CardFooter className="flex justify-between">
-          {isReviewMode ? (
-            estimate?.status === "pending" ? (
-              <>
-                <Button 
-                  variant="outline" 
-                  className="gap-2"
-                  onClick={() => navigate("/")}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Back to Dashboard
-                </Button>
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
-                    onClick={() => setIsRejectDialogOpen(true)}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Reject
-                  </Button>
-                  <Button 
-                    onClick={() => setIsApproveDialogOpen(true)}
-                    className="gap-2"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    Accept
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <Button 
-                variant="outline" 
-                className="gap-2"
-                onClick={() => navigate("/")}
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Back to Dashboard
-              </Button>
-            )
-          ) : (
-            <>
-              <Button 
-                variant="outline"
-                onClick={() => onBack?.()}
-                className="gap-2"
-              >
-                <ChevronLeft className="h-4 w-4" />
-                Back to Labor & Profit
-              </Button>
-              
-              <Button 
-                onClick={onFinalizeEstimate}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? "Saving..." : "Finalize Estimate"}
-              </Button>
-            </>
-          )}
-        </CardFooter>
-      </Card>
-
-      {/* Approve Dialog */}
-      <Dialog
-        open={isApproveDialogOpen}
-        onOpenChange={setIsApproveDialogOpen}
-      >
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Accept Estimate</DialogTitle>
-                          <DialogDescription>
-                Accepting this estimate will make it final and allow PDF generation. Add any notes before accepting.
-              </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <Textarea
-              placeholder="Add any notes or comments about the approval"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-300">Property Address</p>
+              <p className="text-lg font-semibold text-white">
+                {measurements?.propertyAddress || estimate?.customer_address || 'Not specified'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-300">Total Roof Area</p>
+              <p className="text-lg font-semibold text-white">
+                {totalSquares} squares ({(totalSquares * 100).toFixed(0)} sq ft)
+              </p>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsApproveDialogOpen(false)}>
-              Cancel
-            </Button>
-                            <Button onClick={() => handleUpdateStatus("approved")} disabled={isStatusUpdating}>
-                  {isStatusUpdating ? "Updating..." : "Accept Estimate"}
-                </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reject Dialog */}
-      <Dialog
-        open={isRejectDialogOpen}
-        onOpenChange={setIsRejectDialogOpen}
-      >
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Reject Estimate</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this estimate. This will be stored with the record.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <Textarea
-              placeholder="Reason for rejection"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              required
-            />
+          
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-300">Predominant Pitch</p>
+              <p className="text-lg font-semibold text-white">
+                {measurements?.roofPitch || 'Not specified'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-300">Created Date</p>
+              <p className="text-lg font-semibold text-white">
+                {estimate?.created_at ? new Date(estimate.created_at).toLocaleDateString() : new Date().toLocaleDateString()}
+              </p>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsRejectDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="destructive" 
-              onClick={() => handleUpdateStatus("rejected")}
-              disabled={isStatusUpdating || !notes.trim()}
-            >
-              {isStatusUpdating ? "Updating..." : "Reject Estimate"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+        </div>
+      </div>
+
+      {/* Materials Breakdown Card */}
+      <div className="bg-gray-700/50 backdrop-blur-sm rounded-xl border border-green-500/30 p-6 shadow-lg">
+        <h2 className="text-2xl font-bold text-green-400 mb-6 flex items-center gap-3">
+          <Package className="w-6 h-6" />
+          Materials Breakdown
+        </h2>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-600">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-200">Material</th>
+                <th className="text-center py-3 px-4 text-sm font-semibold text-gray-200">Quantity</th>
+                <th className="text-center py-3 px-4 text-sm font-semibold text-gray-200">Unit Price</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-200">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-600">
+              {/* GAF Package Materials */}
+              {materialCosts.map((material, index) => (
+                <tr key={index} className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div>
+                      <div className="font-medium text-white">{material.name}</div>
+                      <div className="text-sm text-gray-300">{material.unit}</div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    {material.quantity}
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    ${material.unitPrice.toFixed(2)}
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    ${material.totalCost.toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+
+              {/* Additional Systems - using peelStickAddonCost prop */}
+              {peelStickAddonCost > 0 && (
+                <tr className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div>
+                      <div className="font-medium text-white">Full W/W Peel & Stick System</div>
+                      <div className="text-sm text-gray-300">Additional Coverage</div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    -
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    $60.00/sq
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    ${peelStickAddonCost.toFixed(2)}
+                  </td>
+                </tr>
+              )}
+
+              {/* Optional Items from laborRates */}
+              {laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet && laborRates.detachResetGutterLinearFeet > 0 && (
+                <tr className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div>
+                      <div className="font-medium text-white">Detach & Reset Gutters</div>
+                      <div className="text-sm text-gray-300">Linear Feet</div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    {laborRates.detachResetGutterLinearFeet}
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    ${laborRates.detachResetGutterRate || 10}/ft
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    ${(laborRates.detachResetGutterLinearFeet * (laborRates.detachResetGutterRate || 10)).toFixed(2)}
+                  </td>
+                </tr>
+              )}
+
+              {((laborRates.includeSkylights2x2 && laborRates.skylights2x2Count && laborRates.skylights2x2Count > 0) ||
+                (laborRates.includeSkylights2x4 && laborRates.skylights2x4Count && laborRates.skylights2x4Count > 0)) && (
+                <tr className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div>
+                      <div className="font-medium text-white">Replace Skylights</div>
+                      <div className="text-sm text-gray-300">
+                        {laborRates.skylights2x2Count ? `${laborRates.skylights2x2Count} 2x2` : ''}
+                        {laborRates.skylights2x2Count && laborRates.skylights2x4Count ? ', ' : ''}
+                        {laborRates.skylights2x4Count ? `${laborRates.skylights2x4Count} 2x4` : ''}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    {(laborRates.skylights2x2Count || 0) + (laborRates.skylights2x4Count || 0)}
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    Varies
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    ${(
+                      (laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280) +
+                      (laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370)
+                    ).toFixed(2)}
+                  </td>
+                </tr>
+              )}
+
+              {laborRates.includeDownspouts && laborRates.downspoutCount && laborRates.downspoutCount > 0 && (
+                <tr className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div>
+                      <div className="font-medium text-white">Replace Downspouts</div>
+                      <div className="text-sm text-gray-300">Each</div>
+                    </div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    {laborRates.downspoutCount}
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    ${laborRates.downspoutRate || 100}
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    ${(laborRates.downspoutCount * (laborRates.downspoutRate || 100)).toFixed(2)}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-gray-600">
+                <td colSpan={3} className="py-4 px-4 text-right font-semibold text-gray-200">
+                  Materials Subtotal
+                </td>
+                <td className="py-4 px-4 text-right font-bold text-xl text-green-400">
+                  ${totalMaterialCost.toFixed(2)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Labor Breakdown Card */}
+      <div className="bg-gray-700/50 backdrop-blur-sm rounded-xl border border-green-500/30 p-6 shadow-lg">
+        <h2 className="text-2xl font-bold text-green-400 mb-6 flex items-center gap-3">
+          <Settings className="w-6 h-6" />
+          Labor Breakdown
+        </h2>
+
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-600">
+                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-200">Category</th>
+                <th className="text-center py-3 px-4 text-sm font-semibold text-gray-200">Rate</th>
+                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-200">
+                  Total (includes {((laborRates.wastePercentage || 0) * 100).toFixed(0)}% waste)
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-600">
+              {laborCosts.map((item, index) => (
+                <tr key={index} className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div className="font-medium text-white">{item.name}</div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    ${formatNumberWithCommas(item.rate)}/sq
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    ${formatNumberWithCommas(item.totalCost)}
+                  </td>
+                </tr>
+              ))}
+              {laborRates.includeDetachResetGutters && laborRates.detachResetGutterLinearFeet && laborRates.detachResetGutterLinearFeet > 0 && (
+                <tr className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div className="font-medium text-white">Detach & Reset Gutters</div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    ${laborRates.detachResetGutterRate || 10}/ft
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    ${(laborRates.detachResetGutterLinearFeet * (laborRates.detachResetGutterRate || 10)).toFixed(2)}
+                  </td>
+                </tr>
+              )}
+              {((laborRates.includeSkylights2x2 && laborRates.skylights2x2Count && laborRates.skylights2x2Count > 0) ||
+                (laborRates.includeSkylights2x4 && laborRates.skylights2x4Count && laborRates.skylights2x4Count > 0)) && (
+                <tr className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div className="font-medium text-white">Replace Skylights</div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    2x2: ${laborRates.skylights2x2Rate || 280}, 2x4: ${laborRates.skylights2x4Rate || 370}
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    ${(
+                      (laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280) +
+                      (laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370)
+                    ).toFixed(2)}
+                  </td>
+                </tr>
+              )}
+              {laborRates.includeDownspouts && laborRates.downspoutCount && laborRates.downspoutCount > 0 && (
+                <tr className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div className="font-medium text-white">Replace Downspouts</div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    ${laborRates.downspoutRate || 100}/each
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    ${(laborRates.downspoutCount * (laborRates.downspoutRate || 100)).toFixed(2)}
+                  </td>
+                </tr>
+              )}
+              {laborRates.includePermits && (
+                <tr className="hover:bg-gray-600/30 transition-colors">
+                  <td className="py-4 px-4">
+                    <div className="font-medium text-white">Permits (Orlando)</div>
+                  </td>
+                  <td className="py-4 px-4 text-center text-white">
+                    Fixed
+                  </td>
+                  <td className="py-4 px-4 text-right font-semibold text-green-400">
+                    $450.00
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-gray-600">
+                <td colSpan={2} className="py-4 px-4 text-right font-semibold text-gray-200">
+                  Labor Subtotal (includes {((laborRates.wastePercentage || 0) * 100).toFixed(0)}% waste)
+                </td>
+                <td className="py-4 px-4 text-right font-bold text-xl text-green-400">
+                  ${totalLaborCost.toFixed(2)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {/* Total Summary Card */}
+      <div className="bg-gradient-to-r from-green-800/30 to-green-700/30 backdrop-blur-sm rounded-xl border border-green-500/40 p-8 shadow-xl">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <p className="text-sm text-gray-300 mb-2">Materials</p>
+              <p className="text-2xl font-bold text-white">${totalMaterialCost.toFixed(2)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-300 mb-2">Labor</p>
+              <p className="text-2xl font-bold text-white">${totalLaborCost.toFixed(2)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-gray-300 mb-2">Subtotal</p>
+              <p className="text-2xl font-bold text-white">${subtotal.toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-600 pt-6">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-lg text-gray-200">Profit Margin ({(profitMargin * 100).toFixed(0)}%)</span>
+              <span className="text-xl font-semibold text-green-400">
+                ${profitAmount.toFixed(2)}
+              </span>
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <span className="text-2xl font-bold text-white">Total Estimate</span>
+              <span className="text-3xl font-bold text-green-400">
+                ${currentTotalEstimate.toFixed(2)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center pt-6">
+        <button
+          onClick={onBack}
+          className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-all flex items-center gap-2 group"
+        >
+          <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          Back to Labor & Profit
+        </button>
+        
+        <button
+          onClick={() => {
+            // Finalize estimate logic here
+            console.log('Finalizing estimate...');
+          }}
+          className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-400 text-white rounded-lg hover:from-green-600 hover:to-green-500 transition-all shadow-lg shadow-green-500/20 font-semibold"
+        >
+          Finalize Estimate
+        </button>
+      </div>
+    </div>
   );
 }

@@ -293,33 +293,34 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
   return (
     <div className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="basic">Basic Info</TabsTrigger>
-          <TabsTrigger value="shingle">Shingle Roof</TabsTrigger>
-          <TabsTrigger value="ventilation">Ventilation</TabsTrigger>
-          <TabsTrigger value="skylights">Skylights</TabsTrigger>
-          <TabsTrigger value="gutters">Gutters</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 bg-gray-800/70 border-green-600/20">
+          <TabsTrigger value="basic" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Basic Info</TabsTrigger>
+          <TabsTrigger value="shingle" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Shingle Roof</TabsTrigger>
+          <TabsTrigger value="ventilation" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Ventilation</TabsTrigger>
+          <TabsTrigger value="skylights" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Skylights</TabsTrigger>
+          <TabsTrigger value="gutters" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Gutters</TabsTrigger>
         </TabsList>
 
         {/* Basic Info Tab */}
         <TabsContent value="basic" className="space-y-4">
-          <Card>
+          <Card className="bg-gray-800/30 border-green-600/30">
             <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
+              <CardTitle className="text-white">Basic Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="name">Owner Name</Label>
+                  <Label htmlFor="name" className="text-green-300">Owner Name</Label>
                   <Input
                     id="name"
                     value={formData.basic_info.name}
                     onChange={(e) => updateField('basic_info', 'name', e.target.value)}
                     disabled={readOnly}
+                    className="bg-gray-700/50 border-green-600/30 text-white placeholder:text-gray-400"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="job_type">Job Type</Label>
+                  <Label htmlFor="job_type" className="text-green-300">Job Type</Label>
                   <RadioGroup
                     value={formData.basic_info.job_type}
                     onValueChange={(value) => updateField('basic_info', 'job_type', value)}
@@ -1027,8 +1028,8 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                       updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x2: 1 });
                     }
                   }}
-                  disabled={readOnly}
-                />
+                      disabled={readOnly}
+                    />
                 <Label htmlFor="includeSkylights2x2" className="flex-1">
                   Install 2X2 Skylights ($280 per unit)
                 </Label>
@@ -1065,8 +1066,8 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                       updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x4: 1 });
                     }
                   }}
-                  disabled={readOnly}
-                />
+                      disabled={readOnly}
+                    />
                 <Label htmlFor="includeSkylights2x4" className="flex-1">
                   Install 2X4 Skylights ($370 per unit)
                 </Label>
@@ -1089,20 +1090,20 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     </Select>
                   </div>
                 )}
-              </div>
+                </div>
 
               {/* Other Skylights */}
               <div className="pt-2">
                 <Label htmlFor="skylightOther">Other Skylight Needs</Label>
-                <Textarea
+                  <Textarea
                   id="skylightOther"
-                  value={formData.accessories.skylight.other}
+                    value={formData.accessories.skylight.other}
                   onChange={(e) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, other: e.target.value })}
-                  disabled={readOnly}
+                    disabled={readOnly}
                   placeholder="Describe any other skylight requirements..."
                   className="mt-2"
                   rows={3}
-                />
+                  />
               </div>
             </CardContent>
           </Card>
@@ -1135,38 +1136,38 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
               {formData.gutters.gutter_lf > 0 && (
                 <div className="ml-10 space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
+                 <div>
                       <Label htmlFor="gutterLf">Linear Feet</Label>
                       <Input
                         id="gutterLf"
                         type="number"
                         value={formData.gutters.gutter_lf}
                         onChange={(e) => updateField('gutters', 'gutter_lf', parseInt(e.target.value) || 0)}
-                        disabled={readOnly}
+                     disabled={readOnly}
                         min="0"
                       />
-                    </div>
-                    <div>
+                       </div>
+              <div>
                       <Label htmlFor="gutterColor">Gutter Color</Label>
                       <Input
                         id="gutterColor"
                         value={formData.gutters.gutter_color}
                         onChange={(e) => updateField('gutters', 'gutter_color', e.target.value)}
-                        disabled={readOnly}
+                  disabled={readOnly}
                         placeholder="e.g., White, Brown, Black"
-                      />
+                />
                     </div>
-                  </div>
+              </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Gutter Size</Label>
-                      <RadioGroup
-                        value={formData.gutters.gutter_size}
-                        onValueChange={(value) => updateField('gutters', 'gutter_size', value)}
-                        disabled={readOnly}
+                  <div>
+                    <Label>Gutter Size</Label>
+                    <RadioGroup
+                      value={formData.gutters.gutter_size}
+                      onValueChange={(value) => updateField('gutters', 'gutter_size', value)}
+                      disabled={readOnly}
                         className="flex gap-4 mt-2"
-                      >
+                    >
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="6_inch" id="6inch" />
                           <Label htmlFor="6inch">6"</Label>
@@ -1174,49 +1175,49 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="7_inch" id="7inch" />
                           <Label htmlFor="7inch">7"</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
                     <div className="space-y-3">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
+              <div className="flex items-center space-x-2">
+                <Checkbox
                           id="existingGutters"
                           checked={formData.gutters.existing_gutters}
                           onCheckedChange={(checked) => updateField('gutters', 'existing_gutters', checked)}
-                          disabled={readOnly}
-                        />
+                  disabled={readOnly}
+                />
                         <Label htmlFor="existingGutters">Existing Gutters?</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
+              </div>
+                   <div className="flex items-center space-x-2">
+                     <Checkbox
                           id="gutterPhotos"
                           checked={formData.gutters.photos}
                           onCheckedChange={(checked) => updateField('gutters', 'photos', checked)}
-                          disabled={readOnly}
-                        />
+                       disabled={readOnly}
+                     />
                         <Label htmlFor="gutterPhotos">Photos Taken?</Label>
-                      </div>
-                    </div>
-                  </div>
+                   </div>
+                   </div>
+                 </div>
 
                   {formData.gutters.existing_gutters && (
-                    <div>
+                <div>
                       <Label>Keep or Install New?</Label>
-                      <RadioGroup
+                  <RadioGroup
                         value={formData.gutters.keep_or_new}
                         onValueChange={(value) => updateField('gutters', 'keep_or_new', value)}
-                        disabled={readOnly}
+                    disabled={readOnly}
                         className="flex gap-4 mt-2"
-                      >
-                        <div className="flex items-center space-x-2">
+                  >
+                      <div className="flex items-center space-x-2">
                           <RadioGroupItem value="keep" id="keepGutters" />
                           <Label htmlFor="keepGutters">Keep Existing</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
+                      </div>
+                      <div className="flex items-center space-x-2">
                           <RadioGroupItem value="new" id="newGutters" />
                           <Label htmlFor="newGutters">Install New</Label>
-                        </div>
-                      </RadioGroup>
+                    </div>
+                  </RadioGroup>
                     </div>
                   )}
                 </div>
@@ -1228,12 +1229,12 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                   id="detachResetGutters"
                   checked={formData.gutters.detach_reset_gutters || false}
                   onCheckedChange={(checked) => updateField('gutters', 'detach_reset_gutters', checked)}
-                  disabled={readOnly}
-                />
+                    disabled={readOnly}
+                  />
                 <Label htmlFor="detachResetGutters" className="flex-1">
                   Detach and Reset Gutters ($1 per linear foot)
                 </Label>
-              </div>
+                </div>
 
               {formData.gutters.detach_reset_gutters && (
                 <div className="ml-10">
@@ -1270,39 +1271,43 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                 {formData.gutters.downspouts.count > 0 && (
                   <div className="flex items-center gap-2">
                     <Label className="text-sm text-muted-foreground">Quantity:</Label>
-                    <Input
+                <Input
                       id="downspoutCount"
-                      type="number"
+                  type="number"
                       value={formData.gutters.downspouts.count}
                       onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count: parseInt(e.target.value) || 0 })}
-                      disabled={readOnly}
+                  disabled={readOnly}
                       min="1"
                       className="w-20"
-                    />
-                  </div>
+                />
+              </div>
                 )}
               </div>
 
               {formData.gutters.downspouts.count > 0 && (
                 <div className="ml-10">
                   <Label htmlFor="downspoutColor">Downspout Color</Label>
-                  <Input
+                 <Input
                     id="downspoutColor"
                     value={formData.gutters.downspouts.color}
                     onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, color: e.target.value })}
-                    disabled={readOnly}
+                   disabled={readOnly}
                     placeholder="e.g., White, Brown"
                     className="w-48 mt-2"
-                  />
-                </div>
+                 />
+               </div>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+             </CardContent>
+           </Card>
+         </TabsContent>
       </Tabs>
 
-      <Button onClick={handleSubmit} disabled={readOnly}>
-        Save Worksheet
+      <Button 
+        onClick={handleSubmit} 
+        disabled={readOnly}
+        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300"
+      >
+        Save Worksheet & Continue
       </Button>
     </div>
   );

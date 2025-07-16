@@ -40,13 +40,13 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           {selectedPackage === 'gaf-1' && (
             <div className="absolute -top-1.5 -right-1.5 bg-green-500 rounded-full p-0.5">
               <Check className="h-3.5 w-3.5 text-white" />
-            </div>
+          </div>
           )}
           
           <div className="space-y-2">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
                 <div className={`p-1.5 rounded-lg ${selectedPackage === 'gaf-1' ? 'bg-blue-500' : 'bg-blue-100'}`}>
                   <Package className={`h-4 w-4 ${selectedPackage === 'gaf-1' ? 'text-white' : 'text-blue-600'}`} />
                 </div>
@@ -98,7 +98,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           <div className="space-y-2">
             {/* Header */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
                 <div className={`p-1.5 rounded-lg ${selectedPackage === 'gaf-2' ? 'bg-purple-500' : 'bg-purple-100'}`}>
                   <Package className={`h-4 w-4 ${selectedPackage === 'gaf-2' ? 'text-white' : 'text-purple-600'}`} />
                 </div>

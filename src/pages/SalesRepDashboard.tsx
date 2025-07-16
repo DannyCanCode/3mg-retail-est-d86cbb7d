@@ -79,22 +79,22 @@ const SalesRepDashboard: React.FC = () => {
     if (!profile?.id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('estimates')
-        .select('*')
+    const { data, error } = await supabase
+      .from('estimates')
+      .select('*')
         .eq('created_by', profile.id)
         .is('deleted_at', null)
-        .order('created_at', { ascending: false });
-
+      .order('created_at', { ascending: false });
+    
       if (data && !error) {
         // Explicit type casting to avoid deep type inference issues
         setEstimates(data as any[]);
-      } else if (error) {
-        toast({ 
-          variant: 'destructive', 
-          title: 'Error loading estimates', 
-          description: error.message 
-        });
+    } else if (error) {
+      toast({ 
+        variant: 'destructive', 
+        title: 'Error loading estimates', 
+        description: error.message 
+      });
       }
     } catch (error) {
       console.error('Error fetching estimates:', error);
@@ -328,8 +328,8 @@ const SalesRepDashboard: React.FC = () => {
               <Sparkles className="h-5 w-5 text-green-400 animate-pulse" />
             </h2>
             <p className="text-gray-400">Track your sales performance in real-time</p>
-          </div>
-          
+      </div>
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             <MetricCard3D
               icon={<FileText className="h-6 w-6 text-white" />}
@@ -338,7 +338,7 @@ const SalesRepDashboard: React.FC = () => {
               subtitle="In Progress"
               gradient="from-gray-500 to-gray-700"
               delay={0}
-            />
+        />
             <MetricCard3D
               icon={<Clock className="h-6 w-6 text-white" />}
               title="Pending Review"
@@ -357,14 +357,14 @@ const SalesRepDashboard: React.FC = () => {
             />
             <MetricCard3D
               icon={<Award className="h-6 w-6 text-white" />}
-              title="Total Value"
-              value={currency(totalValue)}
+          title="Total Value" 
+          value={currency(totalValue)} 
               subtitle="Pipeline Value"
               gradient="from-blue-500 to-cyan-600"
               delay={300}
-            />
+        />
           </div>
-        </div>
+      </div>
 
         {/* Modern Recent Activity */}
         <Card className="relative overflow-hidden rounded-2xl shadow-2xl border-0 bg-gray-800/50 backdrop-blur-sm border border-gray-700">
@@ -378,8 +378,8 @@ const SalesRepDashboard: React.FC = () => {
               <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
                 LIVE
               </Badge>
-            </CardTitle>
-          </CardHeader>
+          </CardTitle>
+        </CardHeader>
           
           <CardContent className="p-6">
             <div className="space-y-4">
@@ -420,10 +420,10 @@ const SalesRepDashboard: React.FC = () => {
                   </div>
                   <h3 className="text-lg font-semibold text-white mb-2">No estimates yet</h3>
                   <p className="text-gray-400 mb-4">Create your first estimate to get started!</p>
-                  <Button 
-                    onClick={handleCreateEstimate}
+            <Button 
+              onClick={handleCreateEstimate}
                     className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg"
-                  >
+            >
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Get Started
                   </Button>
@@ -440,11 +440,11 @@ const SalesRepDashboard: React.FC = () => {
                 >
                   View All Estimates 
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </div>
+            </Button>
+          </div>
             )}
-          </CardContent>
-        </Card>
+        </CardContent>
+      </Card>
 
         {/* Modern Territory Information */}
         <Card className="relative overflow-hidden rounded-2xl shadow-2xl bg-gray-800/70 backdrop-blur-md border border-green-700/30">
@@ -535,8 +535,8 @@ const SalesRepDashboard: React.FC = () => {
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
         ))}
 
         {estimates.length === 0 && (
@@ -553,19 +553,19 @@ const SalesRepDashboard: React.FC = () => {
           </Card>
         )}
       </div>
-    </div>
+            </div>
   );
 
   if (loading) {
     return (
       <div className="p-4">
-        <Card>
-          <CardContent className="p-6 text-center">
+            <Card>
+              <CardContent className="p-6 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
             <h2 className="text-xl font-semibold mb-2">Loading Dashboard</h2>
             <p className="text-muted-foreground">Setting up your sales dashboard...</p>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
       </div>
     );
   }
@@ -639,7 +639,7 @@ const SalesRepDashboard: React.FC = () => {
           <EstimatesTab />
         </TabsContent>
       </Tabs>
-      </div>
+          </div>
     </div>
   );
 };

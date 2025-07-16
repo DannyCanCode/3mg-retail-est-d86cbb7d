@@ -43,7 +43,7 @@ export function DropZone({ dragActive, handleDrag, handleDrop, handleFileInput }
       
       <Button 
         onClick={() => document.getElementById("pdf-upload")?.click()}
-        className="flex items-center mb-6"
+        className="flex items-center mb-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300"
       >
         <FileText className="mr-2 h-4 w-4" />
         Browse Files
