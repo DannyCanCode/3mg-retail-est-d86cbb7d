@@ -946,7 +946,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
             <div className="relative bg-gray-900/90 backdrop-blur-sm rounded-full px-8 py-4 border border-purple-500/30 group-hover:border-purple-400/50 transition-all duration-300 transform group-hover:scale-105">
               <div className="flex items-center gap-3">
                 <Sparkles className="h-5 w-5 text-purple-400 animate-pulse" />
-                <span className="text-lg font-semibold text-white">Submit for Client View</span>
+                <span className="text-lg font-semibold text-white">Finalized Client Estimate</span>
                 <ArrowDown className="h-5 w-5 text-purple-400 animate-bounce" />
               </div>
             </div>
