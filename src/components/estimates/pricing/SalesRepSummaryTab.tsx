@@ -229,9 +229,28 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
   const generatePDF = async () => {
     setIsGeneratingPDF(true);
     try {
+      // Create a new PDF document
       const pdfDoc = await PDFDocument.create();
       const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      
+      // First, load and copy the 3MG infographic PDF
+      try {
+        const infographicUrl = '/pdf-templates/3mg-company-infographic.pdf';
+        const infographicBytes = await fetch(infographicUrl).then(res => res.arrayBuffer());
+        const infographicPdf = await PDFDocument.load(infographicBytes);
+        
+        // Copy all pages from the infographic to the beginning of our document
+        const infographicPages = await pdfDoc.copyPages(infographicPdf, infographicPdf.getPageIndices());
+        infographicPages.forEach((page) => {
+          pdfDoc.addPage(page);
+        });
+        
+        console.log(`Added ${infographicPages.length} pages from company infographic`);
+      } catch (error) {
+        console.error('Failed to load company infographic, continuing without it:', error);
+        // Continue without the infographic if it fails to load
+      }
       
       // Colors
       const green = rgb(0.4, 0.7, 0.3);
@@ -239,7 +258,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       const lightGray = rgb(0.5, 0.5, 0.5);
       const black = rgb(0, 0, 0);
       
-      // First page
+      // Now add the estimate pages
       let page = pdfDoc.addPage([612, 792]); // Letter size
       const { width, height } = page.getSize();
       let y = height - 50;
