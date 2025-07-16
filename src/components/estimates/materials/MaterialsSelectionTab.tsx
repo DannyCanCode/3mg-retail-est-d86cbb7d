@@ -2928,8 +2928,30 @@ export function MaterialsSelectionTab({
                            const material = editableTemplateMaterials[baseMaterial.id] || baseMaterial;
                            const isSelected = !!localSelectedMaterials[material.id];
 
+                           // Define material-specific colors
+                           const getMaterialColor = (materialId: string) => {
+                             // Goosenecks - Orange
+                             if (materialId.includes('gooseneck')) {
+                               return 'border-orange-300 bg-orange-50 hover:bg-orange-100';
+                             }
+                             // Boots - Grey
+                             if (materialId.includes('boot')) {
+                               return 'border-gray-400 bg-gray-50 hover:bg-gray-100';
+                             }
+                             // Skylights - Light Blue
+                             if (materialId.includes('skylight')) {
+                               return 'border-sky-300 bg-sky-50 hover:bg-sky-100';
+                             }
+                             // Gutters - Bronze (using amber as closest)
+                             if (materialId.includes('gutter')) {
+                               return 'border-amber-600 bg-amber-50 hover:bg-amber-100';
+                             }
+                             // Default styling for other materials
+                             return 'border bg-card hover:bg-muted/50';
+                           };
+
                            return (
-                            <div key={material.id} className="border rounded-md p-3 bg-card hover:bg-muted/50 transition-colors">
+                            <div key={material.id} className={`rounded-md p-3 transition-colors ${getMaterialColor(material.id)}`}>
                               <div className="flex flex-col lg:flex-row justify-between items-start gap-3">
                                 {/* Left Column: Material Info */}
                                 <div className="flex-1 space-y-2">
