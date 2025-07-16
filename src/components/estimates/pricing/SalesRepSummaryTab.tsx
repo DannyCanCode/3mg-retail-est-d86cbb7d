@@ -253,7 +253,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       }
       
       // Colors
-      const green = rgb(0.4, 0.7, 0.3);
+      const green = rgb(0.173, 0.706, 0.424); // 3MG Brand Green #2cb46c
       const darkGray = rgb(0.2, 0.2, 0.2);
       const lightGray = rgb(0.5, 0.5, 0.5);
       const black = rgb(0, 0, 0);

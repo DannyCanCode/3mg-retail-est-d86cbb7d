@@ -162,7 +162,7 @@ export function RecentEstimates() {
       const { width, height } = page.getSize();
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-      const greenColor = rgb(0, 0.5, 0);
+      const greenColor = rgb(0.173, 0.706, 0.424); // 3MG Brand Green #2cb46c
       const margin = 50;
       let currentY = height - margin;
 
