@@ -321,7 +321,7 @@ export function JobWorksheetTab({
       </Card>
 
       {/* Summary */}
-      <Card className="bg-muted/50">
+      <Card className="bg-white">
         <CardContent className="pt-6">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium">Total Items Selected:</span>

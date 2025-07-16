@@ -303,40 +303,20 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
 
         {/* Basic Info Tab */}
         <TabsContent value="basic" className="space-y-4">
-          <Card className="bg-gray-800/30 border-green-600/30">
+          <Card className="bg-white">
             <CardHeader>
-              <CardTitle className="text-white">Basic Information</CardTitle>
+              <CardTitle>Basic Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="name" className="text-green-300">Owner Name</Label>
+                  <Label htmlFor="name">Owner Name</Label>
                   <Input
                     id="name"
                     value={formData.basic_info.name}
                     onChange={(e) => updateField('basic_info', 'name', e.target.value)}
                     disabled={readOnly}
-                    className="bg-gray-700/50 border-green-600/30 text-white placeholder:text-gray-400"
                   />
-                </div>
-                <div>
-                  <Label htmlFor="job_type" className="text-green-300">Job Type</Label>
-                  <RadioGroup
-                    value={formData.basic_info.job_type}
-                    onValueChange={(value) => updateField('basic_info', 'job_type', value)}
-                    disabled={readOnly}
-                  >
-                    <div className="flex space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="insurance" id="insurance" />
-                        <Label htmlFor="insurance">Insurance</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="retail" id="retail" />
-                        <Label htmlFor="retail">Retail</Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
                 </div>
               </div>
 
@@ -347,117 +327,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                   value={formData.basic_info.address}
                   onChange={(e) => updateField('basic_info', 'address', e.target.value)}
                   disabled={readOnly}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Property Access</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hoa"
-                    checked={formData.property_access.hoa}
-                    onCheckedChange={(checked) => updateField('property_access', 'hoa', checked)}
-                    disabled={readOnly}
-                  />
-                  <Label htmlFor="hoa">HOA</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="gate"
-                    checked={formData.property_access.gate}
-                    onCheckedChange={(checked) => updateField('property_access', 'gate', checked)}
-                    disabled={readOnly}
-                  />
-                  <Label htmlFor="gate">Gate</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="pool"
-                    checked={formData.property_access.pool}
-                    onCheckedChange={(checked) => updateField('property_access', 'pool', checked)}
-                    disabled={readOnly}
-                  />
-                  <Label htmlFor="pool">Pool</Label>
-                </div>
-              </div>
-
-              {formData.property_access.gate && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="gate_code">Gate Code</Label>
-                    <Input
-                      id="gate_code"
-                      value={formData.property_access.gate_code}
-                      onChange={(e) => updateField('property_access', 'gate_code', e.target.value)}
-                      disabled={readOnly}
-                    />
-                  </div>
-                  <div>
-                    <Label>Gate Guard</Label>
-                    <RadioGroup
-                      value={formData.property_access.gate_guard ? 'yes' : 'no'}
-                      onValueChange={(value) => updateField('property_access', 'gate_guard', value === 'yes')}
-                      disabled={readOnly}
-                    >
-                      <div className="flex space-x-4">
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="yes" id="gate_guard_yes" />
-                          <Label htmlFor="gate_guard_yes">Yes</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="no" id="gate_guard_no" />
-                          <Label htmlFor="gate_guard_no">No</Label>
-                        </div>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <Label>Driveway</Label>
-                <RadioGroup
-                  value={formData.property_access.driveway}
-                  onValueChange={(value) => updateField('property_access', 'driveway', value)}
-                  disabled={readOnly}
-                >
-                  <div className="flex space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="concrete" id="concrete" />
-                      <Label htmlFor="concrete">Concrete</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="pavers" id="pavers" />
-                      <Label htmlFor="pavers">Pavers</Label>
-                    </div>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="rr_secondary_structure"
-                  checked={formData.property_access.rr_secondary_structure}
-                  onCheckedChange={(checked) => updateField('property_access', 'rr_secondary_structure', checked)}
-                  disabled={readOnly}
-                />
-                <Label htmlFor="rr_secondary_structure">R&R Secondary Roofing Structure?</Label>
-              </div>
-
-              <div>
-                <Label htmlFor="dumpster_notes">Dumpster Notes</Label>
-                <Textarea
-                  id="dumpster_notes"
-                  value={formData.property_access.dumpster_notes}
-                  onChange={(e) => updateField('property_access', 'dumpster_notes', e.target.value)}
-                  disabled={readOnly}
-                  rows={3}
                 />
               </div>
             </CardContent>
@@ -1124,6 +993,8 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                   onCheckedChange={(checked) => {
                     if (!checked) {
                       updateField('gutters', 'gutter_lf', 0);
+                    } else {
+                      updateField('gutters', 'gutter_lf', 1);
                     }
                   }}
                   disabled={readOnly}
@@ -1133,31 +1004,30 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                 </Label>
               </div>
 
-              {formData.gutters.gutter_lf > 0 && (
-                <div className="ml-10 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                 <div>
-                      <Label htmlFor="gutterLf">Linear Feet</Label>
-                      <Input
-                        id="gutterLf"
-                        type="number"
-                        value={formData.gutters.gutter_lf}
-                        onChange={(e) => updateField('gutters', 'gutter_lf', parseInt(e.target.value) || 0)}
-                     disabled={readOnly}
-                        min="0"
-                      />
-                       </div>
-              <div>
-                      <Label htmlFor="gutterColor">Gutter Color</Label>
-                      <Input
-                        id="gutterColor"
-                        value={formData.gutters.gutter_color}
-                        onChange={(e) => updateField('gutters', 'gutter_color', e.target.value)}
-                  disabled={readOnly}
-                        placeholder="e.g., White, Brown, Black"
-                />
-                    </div>
-              </div>
+              <div className="ml-10 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="gutterLf">Linear Feet</Label>
+                    <Input
+                      id="gutterLf"
+                      type="number"
+                      value={formData.gutters.gutter_lf}
+                      onChange={(e) => updateField('gutters', 'gutter_lf', parseInt(e.target.value) || 0)}
+                      disabled={readOnly}
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="gutterColor">Gutter Color</Label>
+                    <Input
+                      id="gutterColor"
+                      value={formData.gutters.gutter_color}
+                      onChange={(e) => updateField('gutters', 'gutter_color', e.target.value)}
+                      disabled={readOnly}
+                      placeholder="e.g., White, Brown, Black"
+                    />
+                  </div>
+                </div>
 
                   <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1221,7 +1091,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     </div>
                   )}
                 </div>
-              )}
 
               {/* Detach and Reset Gutters */}
               <div className="flex items-center space-x-4">

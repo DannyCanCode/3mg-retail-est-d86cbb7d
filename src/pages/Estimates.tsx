@@ -2895,18 +2895,22 @@ const Estimates = () => {
                               </li>
                               <li className="flex items-start gap-2">
                                 <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
-                                <span>Review Measurements - Auto-saved measurements from your PDF</span>
+                                <span>Review Measurements - Verify extracted roof measurements</span>
                               </li>
                               <li className="flex items-start gap-2">
                                 <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
-                                <span>Select Materials - Choose roofing materials and options</span>
+                                <span>Job Worksheet - Add gutters, accessories, and special requirements</span>
                               </li>
                               <li className="flex items-start gap-2">
                                 <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
-                                <span>Set Labor & Profit - Define labor rates and profit margin</span>
+                                <span>Select Materials - Choose roofing materials and packages</span>
                               </li>
                               <li className="flex items-start gap-2">
                                 <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">6</span>
+                                <span>Set Labor & Profit - Define labor rates and profit margin</span>
+                              </li>
+                              <li className="flex items-start gap-2">
+                                <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">7</span>
                                 <span>Review Summary - Finalize and prepare for customer approval</span>
                               </li>
                             </ol>
