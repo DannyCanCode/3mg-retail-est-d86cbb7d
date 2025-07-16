@@ -70,14 +70,14 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
         };
       
       case 'rep':
-        // Sales reps: 30% minimum, 50% maximum profit margin
+        // Sales reps: 20% minimum, 50% maximum profit margin (default 30%)
         return {
-          min: 30,
+          min: 20,
           max: 50,
           step: 1,
           isLocked: false,
           hideInput: false,
-          description: 'Sales reps have a 30% minimum profit margin and can go up to 50%. This ensures consistent pricing while allowing some flexibility.'
+          description: 'Sales reps can adjust profit margin from 20% to 50% (default 30%). This provides flexibility for competitive pricing while maintaining profitability.'
         };
       
       default:
@@ -212,13 +212,25 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
           </div>
         )}
 
-        {/* Warning for sales reps at minimum margin */}
+        {/* Warning for sales reps at low margin */}
+        {userRole === 'rep' && effectiveMargin <= 25 && (
+          <div className="mt-4 p-3 border-l-4 border-yellow-400 bg-yellow-50">
+            <div className="flex items-center gap-2">
+              <Info className="h-4 w-4 text-yellow-600" />
+              <span className="font-medium text-yellow-800">
+                Low profit margin ({effectiveMargin}%) - ensure this is competitive pricing and not below costs
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Info for sales reps at recommended margin */}
         {userRole === 'rep' && effectiveMargin === 30 && (
           <div className="mt-4 p-3 border-l-4 border-green-400 bg-green-50">
             <div className="flex items-center gap-2">
               <Info className="h-4 w-4 text-green-600" />
               <span className="font-medium text-green-800">
-                You're at the minimum 30% margin - consider increasing for better profitability
+                You're at the recommended 30% margin - optimal balance of competitiveness and profitability
               </span>
             </div>
           </div>

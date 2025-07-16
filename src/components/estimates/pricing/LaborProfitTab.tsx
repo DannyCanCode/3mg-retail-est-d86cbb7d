@@ -218,7 +218,14 @@ export function LaborProfitTab({
   }, [measurements]);
 
   const [laborRates, setLaborRates] = useState<LaborRates>(() => getSafeInitialRates(initialLaborRatesProp));
-  const [profitMargin, setProfitMargin] = useState(initialProfitMarginProp || 25);
+  const [profitMargin, setProfitMargin] = useState(() => {
+    // Set default profit margin based on role
+    if (initialProfitMarginProp !== undefined) {
+      return initialProfitMarginProp;
+    }
+    // Default to 30% for sales reps, 25% for others
+    return effectiveUserRole === 'rep' ? 30 : 25;
+  });
 
   const isInitialMount = useRef(true);
   const hasUserInteracted = useRef(false);
@@ -226,9 +233,10 @@ export function LaborProfitTab({
 
   useEffect(() => {
     setLaborRates(getSafeInitialRates(initialLaborRatesProp));
-    setProfitMargin(initialProfitMarginProp || 25);
+    // Set default profit margin based on role when updating
+    setProfitMargin(initialProfitMarginProp !== undefined ? initialProfitMarginProp : (effectiveUserRole === 'rep' ? 30 : 25));
     hasUserInteracted.current = false; 
-  }, [initialLaborRatesProp, initialProfitMarginProp, getSafeInitialRates]);
+  }, [initialLaborRatesProp, initialProfitMarginProp, getSafeInitialRates, effectiveUserRole]);
 
   // Add a delay to allow component to stabilize before allowing callbacks
   useEffect(() => {
