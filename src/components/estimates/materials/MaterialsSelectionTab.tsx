@@ -105,7 +105,11 @@ export function MaterialsSelectionTab({
   // FIXED: Memoize effectiveUserRole to prevent re-calculation issues
   const effectiveUserRole = useMemo(() => {
     const location = window.location.pathname;
-    return location.includes('/sales-estimate') ? 'rep' : userRole;
+    // Double-check: If in sales estimate flow OR user role is rep, treat as rep
+    if (location.includes('/sales-estimate') || userRole === 'rep') {
+      return 'rep';
+    }
+    return userRole;
   }, [userRole]);
   
   // Debug logging to track role changes
@@ -1851,7 +1855,7 @@ export function MaterialsSelectionTab({
     };
 
     // SIMPLIFIED VIEW FOR SALES REPS
-    if (userRole === 'rep') {
+    if (effectiveUserRole === 'rep') {
       return (
         <div
           key={materialId}
@@ -2046,7 +2050,8 @@ export function MaterialsSelectionTab({
             </div>
           )}
           
-          {/* Price Information */}
+          {/* Price Information - Hide for sales reps */}
+          {effectiveUserRole !== 'rep' && (
           <div className="text-xs text-muted-foreground flex flex-wrap items-center gap-x-1">
              {isGafTimberline && material.approxPerSquare && (
                  <>{formatPrice(material.approxPerSquare)} per Square</>
@@ -2061,9 +2066,10 @@ export function MaterialsSelectionTab({
                  <span className="italic">(Cost included in Add-on Price)</span>
              }
           </div>
+          )}
           
-          {/* Calculation Details */}
-          {material.coverageRule && (
+          {/* Calculation Details - Hide for sales reps */}
+          {material.coverageRule && effectiveUserRole !== 'rep' && (
             <div className="text-[10px] text-muted-foreground space-y-1 mt-1">
               <p className="leading-tight">• Calculation Details: {formatCalculationWithMeasurements(material)}</p>
               
