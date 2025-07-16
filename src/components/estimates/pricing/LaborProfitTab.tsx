@@ -1558,6 +1558,7 @@ export function LaborProfitTab({
             isAdminEditMode={isAdminEditMode}
             originalCreator={originalCreator}
             originalCreatorRole={originalCreatorRole}
+            effectiveUserRole={effectiveUserRole}
           />
         </div>
         

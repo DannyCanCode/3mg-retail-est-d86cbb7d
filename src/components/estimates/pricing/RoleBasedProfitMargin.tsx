@@ -17,6 +17,8 @@ interface RoleBasedProfitMarginProps {
   isAdminEditMode?: boolean;
   originalCreator?: string | null;
   originalCreatorRole?: string | null;
+  // Override user role for effective role calculation
+  effectiveUserRole?: string;
 }
 
 export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
@@ -29,9 +31,10 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
   isAdminEditMode = false,
   originalCreator = null,
   originalCreatorRole = null,
+  effectiveUserRole,
 }) => {
   const { profile } = useAuth();
-  const userRole = profile?.role;
+  const userRole = effectiveUserRole || profile?.role;
 
   // Determine margin constraints based on role
   const getMarginConstraints = () => {
@@ -81,13 +84,14 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
         };
       
       default:
+        // Fallback to sales rep permissions if role is unknown/loading
         return {
-          min: 25,
-          max: 30,
+          min: 20,
+          max: 50,
           step: 1,
           isLocked: false,
           hideInput: false,
-          description: 'Default margin range'
+          description: 'Loading role permissions... Using default sales rep range (20%-50%)'
         };
     }
   };
