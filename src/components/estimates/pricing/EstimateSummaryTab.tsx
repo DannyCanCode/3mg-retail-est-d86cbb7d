@@ -852,34 +852,46 @@ export function EstimateSummaryTab({
           </Card>
 
           {/* Action Buttons */}
-          <div className="flex justify-center gap-4">
+          <div className="flex justify-between items-center">
             <Button
-              size="lg"
-              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg transform hover:scale-105 transition-all duration-200"
-              onClick={handleEmailEstimate}
-            >
-              <Mail className="w-5 h-5 mr-2" />
-              Email to collect signature
-            </Button>
-            <Button
-              size="lg"
               variant="outline"
-              className="border-green-600 text-green-700 hover:bg-green-50 shadow-lg transform hover:scale-105 transition-all duration-200"
-              onClick={generatePDF}
-              disabled={isGeneratingPDF}
+              size="lg"
+              onClick={() => setIsClientView(false)}
+              className="flex items-center gap-2"
             >
-              {isGeneratingPDF ? (
-                <>
-                  <span className="animate-spin mr-2">⏳</span>
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5 mr-2" />
-                  Download Estimate
-                </>
-              )}
+              <ChevronLeft className="w-5 h-5" />
+              Back to Internal View
             </Button>
+            
+            <div className="flex gap-4">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg transform hover:scale-105 transition-all duration-200"
+                onClick={handleEmailEstimate}
+              >
+                <Mail className="w-5 h-5 mr-2" />
+                Email to collect signature
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-green-600 text-green-700 hover:bg-green-50 shadow-lg transform hover:scale-105 transition-all duration-200"
+                onClick={generatePDF}
+                disabled={isGeneratingPDF}
+              >
+                {isGeneratingPDF ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5 mr-2" />
+                    Download Estimate
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* CSS for animation */}
@@ -1230,13 +1242,12 @@ export function EstimateSummaryTab({
         
         <div className="flex gap-4">
           <Button
-            variant="outline"
             size="lg"
-            onClick={() => setIsClientView(!isClientView)}
-            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+            onClick={() => setIsClientView(true)}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white border-purple-600 shadow-lg transform hover:scale-105 transition-all duration-200"
           >
-            {isClientView ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-            {isClientView ? 'Internal View' : 'Client View'}
+            <Eye className="w-5 h-5" />
+            Submit for Client View
           </Button>
           
           <button
