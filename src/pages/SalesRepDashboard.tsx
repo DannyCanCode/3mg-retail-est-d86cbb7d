@@ -338,7 +338,7 @@ const SalesRepDashboard: React.FC = () => {
               subtitle="In Progress"
               gradient="from-gray-500 to-gray-700"
               delay={0}
-        />
+            />
             <MetricCard3D
               icon={<Clock className="h-6 w-6 text-white" />}
               title="Pending Review"
@@ -423,7 +423,7 @@ const SalesRepDashboard: React.FC = () => {
             <Button 
               onClick={handleCreateEstimate}
                     className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg"
-            >
+                  >
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Get Started
                   </Button>

@@ -8,7 +8,6 @@ import { Plus, ChevronRight, RefreshCw, ArrowLeft, Loader2, Shield, Info, EyeOff
 import { SimplifiedReviewTab } from "@/components/estimates/measurement/SimplifiedReviewTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MaterialsSelectionTab } from "@/components/estimates/materials/MaterialsSelectionTab";
-import { JobWorksheetTab, JobWorksheetData } from "@/components/estimates/JobWorksheetTab";
 import { MeasurementValues, AreaByPitch } from "@/components/estimates/measurement/types";
 import { Material } from "@/components/estimates/materials/types";
 import { useToast } from "@/hooks/use-toast";
@@ -46,7 +45,6 @@ import { Badge } from "@/components/ui/badge";
 import { trackEvent, trackEstimateCreated } from "@/lib/posthog";
 import { supabase } from "@/integrations/supabase/client";
 import { isSupabaseConfigured } from "@/integrations/supabase/client";
-import { cn } from "@/lib/utils";
 
 // Convert from ParsedMeasurements to MeasurementValues
 const convertToMeasurementValues = (parsedDataRaw: any): MeasurementValues => {
@@ -185,12 +183,6 @@ const Estimates = () => {
   const [measurements, setMeasurements] = useState<MeasurementValues | null>(null);
   const [selectedMaterials, setSelectedMaterials] = useState<{[key: string]: Material}>({});
   const [quantities, setQuantities] = useState<{[key: string]: number}>({});
-  const [worksheetData, setWorksheetData] = useState<JobWorksheetData>({
-    ventilation: {},
-    accessories: {},
-    specialRequirements: {},
-    notes: ''
-  });
   const [laborRates, setLaborRates] = useState<LaborRates>({
     laborRate: 85,
     tearOff: 0,
@@ -2600,816 +2592,749 @@ const Estimates = () => {
 
   return (
     <>
-      <div className={cn(
-        "min-h-screen",
-        profile?.role === 'admin' || profile?.role === 'manager' ? "bg-gray-900" : "bg-gray-50"
-      )}>
-        {/* Animated Background for Admin/Managers */}
-        {(profile?.role === 'admin' || profile?.role === 'manager') && (
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-green-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
-            <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-green-600 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-green-400 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
-          </div>
-        )}
-        
-        <div className="container mx-auto p-4 max-w-7xl relative z-10">
-          <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <h1 className={cn(
-                "text-3xl font-bold tracking-tight",
-                profile?.role === 'admin' || profile?.role === 'manager' ? "text-green-400" : "text-gray-900"
-              )}>
-                {isViewMode ? "Review Estimate" : "Create New Estimate"}
-              </h1>
-              <div className="flex gap-2">
-                {isViewMode ? (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate("/")}
-                    className="flex items-center gap-2"
-                  >
-                    <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-                  </Button>
-                ) : (
-                  <Button 
-                    variant="outline" 
-                    onClick={handleClearEstimate} 
-                    className="flex items-center gap-2" 
-                    title="Clear this estimate and start over"
-                  >
-                    <RefreshCw className="h-4 w-4" /> Start Fresh
-                  </Button>
-                )}
-              </div>
+      <div className="container mx-auto p-4 max-w-7xl">
+        <div className="flex flex-col gap-4">
+          <div className="flex justify-between items-center">
+            <h1 className="text-3xl font-bold tracking-tight">
+              {isViewMode ? "Review Estimate" : "Create New Estimate"}
+            </h1>
+            <div className="flex gap-2">
+              {isViewMode ? (
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate("/")}
+                  className="flex items-center gap-2"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Back to Dashboard
+                </Button>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  onClick={handleClearEstimate} 
+                  className="flex items-center gap-2" 
+                  title="Clear this estimate and start over"
+                >
+                  <RefreshCw className="h-4 w-4" /> Start Fresh
+                </Button>
+              )}
             </div>
-            
-            {isViewMode ? (
-              <p className={cn(
-                "text-muted-foreground",
-                profile?.role === 'admin' || profile?.role === 'manager' ? "text-gray-400" : ""
-              )}>
-                {estimateData?.customer_address ? `Reviewing estimate for ${estimateData.customer_address}` : "Reviewing estimate details"}
-              </p>
-            ) : (
-              <p className={cn(
-                "text-muted-foreground",
-                profile?.role === 'admin' || profile?.role === 'manager' ? "text-gray-400" : ""
-              )}>Follow the steps below to create a complete estimate</p>
-            )}
-            
-            {/* Role-based banner */}
-            <RoleBanner />
-            
-            <Card className={cn(
-              profile?.role === 'admin' || profile?.role === 'manager' 
-                ? "bg-gray-800/50 backdrop-blur-sm border-green-500/20" 
-                : ""
-            )}>
-              <CardContent className="p-6">
-                {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-12">
-                    <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4"></div>
-                    <p className={cn(
-                      "text-muted-foreground",
-                      profile?.role === 'admin' || profile?.role === 'manager' ? "text-green-300/70" : ""
-                    )}>Loading estimate data...</p>
-                  </div>
-                ) : (
-                  <Tabs 
-                    value={activeTab} 
-                    onValueChange={(value) => {
-                      console.log('🎯 [Estimates] Tab onValueChange triggered - from:', activeTab, 'to:', value);
-                      console.trace('Tab change stack trace');
-                      
-                      if (import.meta.env.DEV) {
-                      console.log(`Tab changing from ${activeTab} to ${value}`);
+          </div>
+          
+          {isViewMode ? (
+            <p className="text-muted-foreground">
+              {estimateData?.customer_address ? `Reviewing estimate for ${estimateData.customer_address}` : "Reviewing estimate details"}
+            </p>
+          ) : (
+            <p className="text-muted-foreground">Follow the steps below to create a complete estimate</p>
+          )}
+          
+          {/* Role-based banner */}
+          <RoleBanner />
+          
+          <Card>
+            <CardContent className="p-6">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4"></div>
+                  <p className="text-muted-foreground">Loading estimate data...</p>
+                </div>
+              ) : (
+                <Tabs 
+                  value={activeTab} 
+                  onValueChange={(value) => {
+                    console.log('🎯 [Estimates] Tab onValueChange triggered - from:', activeTab, 'to:', value);
+                    console.trace('Tab change stack trace');
+                    
+                    if (import.meta.env.DEV) {
+                    console.log(`Tab changing from ${activeTab} to ${value}`);
+                    }
+                    
+                    // CRITICAL FIX: Prevent white screen during tab switching
+                    // Use requestAnimationFrame to ensure smooth transition
+                    requestAnimationFrame(() => {
+                      // Special case for materials tab
+                      if (value === "materials" && measurements) {
+                        console.log("Validating measurements before navigating to materials tab");
+                        // Make sure measurements and areasByPitch are properly set
+                        if (!measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+                          console.warn("Measurements are missing areasByPitch data, staying on current tab");
+                          toast({
+                            title: "Missing Data",
+                            description: "Please complete the measurements form before selecting materials.",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
                       }
                       
-                      // CRITICAL FIX: Prevent white screen during tab switching
-                      // Use requestAnimationFrame to ensure smooth transition
+                      // Batch state updates to prevent multiple renders
                       requestAnimationFrame(() => {
-                        // Special case for materials tab
-                        if (value === "materials" && measurements) {
-                          console.log("Validating measurements before navigating to materials tab");
-                          // Make sure measurements and areasByPitch are properly set
-                          if (!measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
-                            console.warn("Measurements are missing areasByPitch data, staying on current tab");
-                            toast({
-                              title: "Missing Data",
-                              description: "Please complete the measurements form before selecting materials.",
-                              variant: "destructive"
-                            });
-                            return;
-                          }
+                        setActiveTab(value);
+                        // Update stored tab for persistence
+                        if (!isViewMode) {
+                          setStoredActiveTab(value);
                         }
-                        
-                        // Batch state updates to prevent multiple renders
-                        requestAnimationFrame(() => {
-                          setActiveTab(value);
-                          // Update stored tab for persistence
-                          if (!isViewMode) {
-                            setStoredActiveTab(value);
-                          }
-                          if (import.meta.env.DEV) {
-                          console.log(`Tab changed, activeTab is now ${value}`);
-                          }
-                        });
+                        if (import.meta.env.DEV) {
+                        console.log(`Tab changed, activeTab is now ${value}`);
+                        }
                       });
-                    }} 
-                    className="w-full"
-                    defaultValue={isViewMode ? "summary" : "type-selection"}
-                  >
-                    <TabsList className="grid grid-cols-7 mb-8">
-                      {!isViewMode && (
-                        <TabsTrigger 
-                          id="tab-trigger-type-selection"
-                          value="type-selection" 
-                          disabled={false}
-                          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                        >
-                          1. Estimate Type
-                        </TabsTrigger>
-                      )}
-                      {!isViewMode && (
-                        <TabsTrigger 
-                          id="tab-trigger-upload"
-                          value="upload" 
-                          disabled={!estimateType}
-                          className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                        >
-                          2. Upload EagleView
-                        </TabsTrigger>
-                      )}
+                    });
+                  }} 
+                  className="w-full"
+                  defaultValue={isViewMode ? "summary" : "type-selection"}
+                >
+                  <TabsList className="grid grid-cols-6 mb-8">
+                    {!isViewMode && (
                       <TabsTrigger 
-                        id="tab-trigger-measurements"
-                        value="measurements" 
-                        disabled={!isViewMode && !extractedPdfData && !measurements}
+                        id="tab-trigger-type-selection"
+                        value="type-selection" 
+                        disabled={false}
                         className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                       >
-                        {isViewMode ? "Measurements" : "3. Review Measurements"}
+                        1. Estimate Type
                       </TabsTrigger>
-                      <TabsTrigger 
-                        id="tab-trigger-job-worksheet"
-                        value="job-worksheet" 
-                        disabled={!isViewMode && !measurements}
-                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                      >
-                        {isViewMode ? "Job Details" : "4. Job Worksheet"}
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        id="tab-trigger-materials"
-                        value="materials" 
-                        disabled={!isViewMode && !measurements}
-                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                      >
-                        {isViewMode ? "Materials" : "5. Select Materials"}
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        id="tab-trigger-pricing"
-                        value="pricing" 
-                        disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
-                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                      >
-                        {isViewMode ? "Labor & Profit" : "6. Labor & Profit"}
-                      </TabsTrigger>
-                      <TabsTrigger 
-                        id="tab-trigger-summary"
-                        value="summary" 
-                        disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
-                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-                      >
-                        {isViewMode ? "Summary" : "7. Summary"}
-                      </TabsTrigger>
-                    </TabsList>
-
-                    {/* Debug measurements info */}
-                    {process.env.NODE_ENV === 'development' && !isViewMode && (
-                      <div className="mb-4 p-2 bg-gray-100 text-xs border rounded">
-                        <details>
-                          <summary>Debug Info</summary>
-                          <div className="mt-2 overflow-auto">
-                            <p>Active Tab: {activeTab}</p>
-                            <p>PDF Filename: {pdfFileName}</p>
-                            <p>Extracted Data: {extractedPdfData ? '✅' : '❌'}</p>
-                            <p>Measurements: {measurements ? '✅' : '❌'}</p>
-                            <p>Materials Selected: {Object.keys(selectedMaterials).length}</p>
-                            {measurements && (
-                              <pre>{JSON.stringify(measurements, null, 2)}</pre>
-                            )}
-                          </div>
-                        </details>
-                        
-                        <details className="mt-2">
-                          <summary>localStorage Migration Status</summary>
-                          <div className="mt-2 space-y-1">
-                            <p>Migration Complete: {migration.isComplete ? '✅' : '❌'}</p>
-                            <p>In Progress: {migration.isInProgress ? '🔄' : '💤'}</p>
-                            {migration.report && (
-                              <>
-                                <p>Total Keys: {migration.report.totalKeys}</p>
-                                <p>Redundant Keys: {migration.report.redundantKeys.length}</p>
-                                <p>Legacy Keys: {migration.report.legacyKeys.length}</p>
-                                <p>Auto-Save Keys: {migration.report.autoSaveKeys.length}</p>
-                                <p>Total Size: {Math.round(migration.report.totalSize / 1024)}KB</p>
-                              </>
-                            )}
-                            {migration.result && (
-                              <>
-                                <p>Migrated: {migration.result.migratedKeys.length}</p>
-                                <p>Removed: {migration.result.removedKeys.length}</p>
-                                <p>Space Freed: {Math.round(migration.result.totalSizeFreed / 1024)}KB</p>
-                              </>
-                            )}
-                            {migration.error && (
-                              <p className="text-red-600">Error: {migration.error}</p>
-                            )}
-                            <div className="flex gap-2 mt-2">
-                              <button 
-                                onClick={migration.generateReport}
-                                className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
-                              >
-                                Refresh Report
-                              </button>
-                              <button 
-                                onClick={migration.startMigration}
-                                disabled={migration.isInProgress}
-                                className="px-2 py-1 bg-green-500 text-white text-xs rounded disabled:opacity-50"
-                              >
-                                Run Migration
-                              </button>
-                              <button 
-                                onClick={migration.forceClean}
-                                disabled={migration.isInProgress}
-                                className="px-2 py-1 bg-red-500 text-white text-xs rounded disabled:opacity-50"
-                              >
-                                Force Clean
-                              </button>
-                            </div>
-                          </div>
-                        </details>
-                      </div>
                     )}
-
-                    {activeTab === 'type-selection' && (
-                      <EstimateTypeSelector 
-                        onSelectionComplete={handleEstimateTypeSelection}
-                      />
+                    {!isViewMode && (
+                      <TabsTrigger 
+                        id="tab-trigger-upload"
+                        value="upload" 
+                        disabled={!estimateType}
+                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      >
+                        2. Upload EagleView
+                      </TabsTrigger>
                     )}
+                    <TabsTrigger 
+                      id="tab-trigger-measurements"
+                      value="measurements" 
+                      disabled={!isViewMode && !extractedPdfData && !measurements}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                    >
+                      {isViewMode ? "Measurements" : "3. Review Measurements"}
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      id="tab-trigger-materials"
+                      value="materials" 
+                      disabled={!isViewMode && !measurements}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                    >
+                      {isViewMode ? "Materials" : "4. Select Materials"}
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      id="tab-trigger-pricing"
+                      value="pricing" 
+                      disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                    >
+                      {isViewMode ? "Labor & Profit" : "5. Labor & Profit"}
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      id="tab-trigger-summary"
+                      value="summary" 
+                      disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
+                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                    >
+                      {isViewMode ? "Summary" : "6. Summary"}
+                    </TabsTrigger>
+                  </TabsList>
 
-                    {activeTab === 'upload' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div>
-                            <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
-                          </div>
-                          
-                          <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
-                            <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
-                            <p className="text-sm text-slate-600 mb-4">
-                              Follow these steps to create a complete estimate
-                            </p>
-                            
-                            {/* Show selected estimate type */}
-                            {estimateType && (
-                              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                <h4 className="font-medium text-blue-900 mb-1">Selected Estimate Type</h4>
-                                <p className="text-sm text-blue-800">
-                                  {estimateType === 'roof_only' ? '🏠 Roof Shingles Only' : `🔧 Roof + ${selectedSubtrades.length} Subtrade(s)`}
-                                </p>
-                                {estimateType === 'with_subtrades' && selectedSubtrades.length > 0 && (
-                                  <p className="text-xs text-blue-700 mt-1">
-                                    Subtrades: {selectedSubtrades.join(', ')}
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                            
-                            <ol className="space-y-2 text-sm">
-                              <li className="flex items-start gap-2">
-                                <span className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">✓</span>
-                                <span>Estimate Type Selected - {estimateType === 'roof_only' ? 'Standard roofing' : 'Roof + subtrades'}</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
-                                <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
-                                <span>Review Measurements - Verify extracted roof measurements</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
-                                <span>Job Worksheet - Add gutters, accessories, and special requirements</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
-                                <span>Select Materials - Choose roofing materials and packages</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">6</span>
-                                <span>Set Labor & Profit - Define labor rates and profit margin</span>
-                              </li>
-                              <li className="flex items-start gap-2">
-                                <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">7</span>
-                                <span>Review Summary - Finalize and prepare for customer approval</span>
-                              </li>
-                            </ol>
+                  {/* Debug measurements info */}
+                  {process.env.NODE_ENV === 'development' && !isViewMode && (
+                    <div className="mb-4 p-2 bg-gray-100 text-xs border rounded">
+                      <details>
+                        <summary>Debug Info</summary>
+                        <div className="mt-2 overflow-auto">
+                          <p>Active Tab: {activeTab}</p>
+                          <p>PDF Filename: {pdfFileName}</p>
+                          <p>Extracted Data: {extractedPdfData ? '✅' : '❌'}</p>
+                          <p>Measurements: {measurements ? '✅' : '❌'}</p>
+                          <p>Materials Selected: {Object.keys(selectedMaterials).length}</p>
+                          {measurements && (
+                            <pre>{JSON.stringify(measurements, null, 2)}</pre>
+                          )}
+                        </div>
+                      </details>
+                      
+                      <details className="mt-2">
+                        <summary>localStorage Migration Status</summary>
+                        <div className="mt-2 space-y-1">
+                          <p>Migration Complete: {migration.isComplete ? '✅' : '❌'}</p>
+                          <p>In Progress: {migration.isInProgress ? '🔄' : '💤'}</p>
+                          {migration.report && (
+                            <>
+                              <p>Total Keys: {migration.report.totalKeys}</p>
+                              <p>Redundant Keys: {migration.report.redundantKeys.length}</p>
+                              <p>Legacy Keys: {migration.report.legacyKeys.length}</p>
+                              <p>Auto-Save Keys: {migration.report.autoSaveKeys.length}</p>
+                              <p>Total Size: {Math.round(migration.report.totalSize / 1024)}KB</p>
+                            </>
+                          )}
+                          {migration.result && (
+                            <>
+                              <p>Migrated: {migration.result.migratedKeys.length}</p>
+                              <p>Removed: {migration.result.removedKeys.length}</p>
+                              <p>Space Freed: {Math.round(migration.result.totalSizeFreed / 1024)}KB</p>
+                            </>
+                          )}
+                          {migration.error && (
+                            <p className="text-red-600">Error: {migration.error}</p>
+                          )}
+                          <div className="flex gap-2 mt-2">
+                            <button 
+                              onClick={migration.generateReport}
+                              className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
+                            >
+                              Refresh Report
+                            </button>
+                            <button 
+                              onClick={migration.startMigration}
+                              disabled={migration.isInProgress}
+                              className="px-2 py-1 bg-green-500 text-white text-xs rounded disabled:opacity-50"
+                            >
+                              Run Migration
+                            </button>
+                            <button 
+                              onClick={migration.forceClean}
+                              disabled={migration.isInProgress}
+                              className="px-2 py-1 bg-red-500 text-white text-xs rounded disabled:opacity-50"
+                            >
+                              Force Clean
+                            </button>
                           </div>
                         </div>
-                    )}
-                    
-                    {activeTab !== 'upload' && (
-                      <>
-                    <TabsContent value="measurements">
-                      <SimplifiedReviewTab
-                        measurements={measurements || {
-                          totalArea: 0,
-                          ridgeLength: 0,
-                          hipLength: 0,
-                          valleyLength: 0,
-                          eaveLength: 0,
-                          rakeLength: 0,
-                          stepFlashingLength: 0,
-                          flashingLength: 0,
-                          dripEdgeLength: 0,
-                          penetrationsArea: 0,
-                          penetrationsPerimeter: 0,
-                          predominantPitch: "",
-                          ridgeCount: 0,
-                          hipCount: 0,
-                          valleyCount: 0,
-                          rakeCount: 0,
-                          eaveCount: 0,
-                          propertyAddress: "",
-                          latitude: "",
-                          longitude: "",
-                          areasByPitch: []
-                        }}
-                        onMeasurementsUpdate={handleMeasurementsSaved}
-                        onBack={() => setActiveTab("upload")}
-                        onContinue={() => setActiveTab("job-worksheet")}
-                        extractedFileName={pdfFileName || undefined}
-                        pdfUrl={pdfUrl}
-                      />
-                    </TabsContent>
-                    
-                    <TabsContent value="job-worksheet">
-                      <div className="space-y-6">
-                        <JobWorksheetTab
-                          worksheetData={worksheetData}
-                          onWorksheetChange={setWorksheetData}
-                          isReadOnly={isViewMode}
-                        />
-                        {!isViewMode && (
-                          <div className="flex justify-between">
-                            <Button
-                              variant="outline"
-                              onClick={() => setActiveTab("measurements")}
-                            >
-                              Back to Measurements
-                            </Button>
-                            <Button
-                              onClick={() => setActiveTab("materials")}
-                            >
-                              Continue to Materials
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </TabsContent>
-                    
-                    <TabsContent value="materials">
-                      {(() => {
-                        // Memoize measurements check to prevent excessive re-renders
-                        const hasMeasurements = measurements && measurements.areasByPitch && Array.isArray(measurements.areasByPitch);
-                        
-                        if (!hasMeasurements) {
-                          return (
-                            <Card>
-                              <CardHeader>
-                                <CardTitle>Missing Measurements</CardTitle>
-                              </CardHeader>
-                              <CardContent>
-                                <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
-                              </CardContent>
-                              <CardFooter>
-                                <Button onClick={() => setActiveTab("measurements")} variant="outline">Go to Measurements</Button>
-                              </CardFooter>
-                            </Card>
-                          );
-                        } else {
-                          return (
-                            <>
-                              {/* UPDATED: Template Selector Card with Management Options */}
-                              {!isViewMode && (
-                                <Card className="mb-6">
-                                  <CardHeader>
-                                    <CardTitle>Select Pricing Template</CardTitle>
-                                    <CardDescription>Choose a pricing template to apply to this estimate</CardDescription>
-                                  </CardHeader>
-                                  <CardContent className="space-y-4">
-                                    <div className="flex items-end gap-4">
-                                      <div className="flex-1">
-                                        <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
-                                        <Select
-                                          value={selectedTemplateId || undefined}
-                                          onValueChange={setSelectedTemplateId}
-                                          disabled={isLoadingTemplates || templates.length === 0}
-                                        >
-                                          <SelectTrigger id="template-select" className="w-full">
-                                            <SelectValue placeholder="Select a template" />
-                                          </SelectTrigger>
-                                          <SelectContent>
-                                            {templates.map(template => (
-                                              <SelectItem key={template.id} value={template.id}>
-                                                {template.name} {template.is_default && "(Default)"}
-                                              </SelectItem>
-                                            ))}
-                                          </SelectContent>
-                                        </Select>
-                                      </div>
-                                      
-                                      {/* Template Action Buttons */}
-                                      <div className="flex gap-2">
-                                        <Button 
-                                          onClick={handleApplyTemplate} 
-                                          disabled={!selectedTemplateId || isLoadingTemplates}
-                                        >
-                                          Apply Template
-                                        </Button>
-                                        <Button 
-                                          variant="outline" 
-                                          onClick={() => handleOpenTemplateDialog('edit')}
-                                          disabled={!selectedTemplateId || isLoadingTemplates}
-                                        >
-                                          Edit
-                                        </Button>
-                                        <Button 
-                                          variant="secondary" 
-                                          onClick={() => handleOpenTemplateDialog('create')}
-                                          disabled={isLoadingTemplates}
-                                        >
-                                          New Template
-                                        </Button>
-                                      </div>
-                                    </div>
-                                    {isLoadingTemplates && (
-                                      <div className="flex items-center justify-center py-2">
-                                        <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
-                                        <p className="text-sm text-muted-foreground">Loading template data...</p>
-                                      </div>
-                                    )}
-                                    {selectedTemplateData && (
-                                      <div className="text-sm text-muted-foreground">
-                                        <p>Template: <span className="font-medium">{selectedTemplateData.name}</span></p>
-                                        <p>Materials: {selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</p>
-                                        {selectedTemplateData.description && (
-                                          <p>Description: {selectedTemplateData.description}</p>
-                                        )}
-                                      </div>
-                                    )}
-                                  </CardContent>
-                                </Card>
-                              )}
-                              
-                              {/* MaterialsSelectionTab component with optimized props */}
-                              <MaterialsSelectionTab
-                                key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
-                                measurements={measurements}
-                                selectedMaterials={selectedMaterials}
-                                quantities={quantities}
-                                onMaterialsUpdate={handleMaterialsUpdate}
-                                readOnly={isViewMode}
-                                isAdminEditMode={isAdminEditMode}
-                                originalCreator={originalCreator}
-                                originalCreatorRole={originalCreatorRole}
-                              />
-                            </>
-                          );
-                        }
-                      })()}
-                    </TabsContent>
-                    
-                    <TabsContent value="pricing">
-                      <LaborProfitTab
-                        key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
-                        measurements={measurements!}
-                        selectedMaterials={selectedMaterials}
-                        quantities={quantities}
-                        initialLaborRates={laborRates}
-                        initialProfitMargin={profitMargin}
-                        onLaborProfitContinue={handleLaborProfitContinue}
-                        onBack={() => setActiveTab("materials")}
-                        readOnly={isViewMode}
-                        isAdminEditMode={isAdminEditMode}
-                        originalCreator={originalCreator}
-                        originalCreatorRole={originalCreatorRole}
-                      />
-                    </TabsContent>
-                    
-                    <TabsContent value="summary">
-                      <EstimateSummaryTab
-                        measurements={measurements || undefined}
-                        selectedMaterials={selectedMaterials}
-                        quantities={quantities}
-                        laborRates={laborRates}
-                        profitMargin={profitMargin}
-                        peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
-                        onFinalizeEstimate={handleFinalizeEstimate} 
-                        isSubmitting={isSubmittingFinal} 
-                        estimate={estimateData} 
-                        isReviewMode={isViewMode}
-                        calculateLiveTotal={calculateLiveEstimateTotal}
-                        onEstimateUpdated={() => { 
-                          fetchEstimatesData(); 
-                          if (estimateId) { 
-                            fetchEstimateData(estimateId);
-                          }
-                        }}
-                        onBack={() => setActiveTab("pricing")}
-                      />
-                    </TabsContent>
-                      </>
-                    )}
-                  </Tabs>
-                )}
-
-                {/* Add Continue buttons at the bottom of each tab */}
-                <div className="flex justify-between mt-8">
-                  {activeTab !== "type-selection" && (
-                    <Button 
-                      variant="outline" 
-                      onClick={() => {
-                        const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
-                        const currentIndex = tabOrder.indexOf(activeTab);
-                        if (currentIndex > 0) {
-                          setActiveTab(tabOrder[currentIndex - 1]);
-                        }
-                      }}
-                    >
-                      Back
-                    </Button>
-                  )}
-                  
-                  {activeTab !== "summary" && (
-                    <Button 
-                      className="ml-auto"
-                      onClick={() => {
-                        const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
-                        const currentIndex = tabOrder.indexOf(activeTab);
-
-                        if (currentIndex < tabOrder.length - 1) {
-                          const nextTab = tabOrder[currentIndex + 1];
-                          
-                          // Validations before navigating FROM a specific tab
-                          if (activeTab === 'type-selection') {
-                            if (!estimateType) {
-                              toast({ 
-                                title: "No Estimate Type Selected", 
-                                description: "Please select an estimate type to continue.",
-                                variant: "destructive"
-                              });
-                              return; 
-                            }
-                          }
-                          
-                          if (activeTab === 'materials') {
-                            if (Object.keys(selectedMaterials).length === 0) {
-                              toast({ 
-                                title: "No Materials Selected", 
-                                description: "Please select at least one material to continue to Labor & Profit.",
-                                variant: "destructive"
-                              });
-                              return; 
-                            }
-                            if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
-                              toast({
-                                title: "Missing Measurements Data",
-                                description: "Cannot proceed to Labor & Profit without valid pitch information from measurements.",
-                                variant: "destructive"
-                              });
-                              return; 
-                            }
-                          }
-                          
-                          if (activeTab === 'pricing') {
-                             // Validation before leaving pricing tab to go to summary
-                             if (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)) {
-                              toast({
-                                  title: "Missing Labor Rates",
-                                  description: "Please ensure valid labor rates are set before proceeding to summary.",
-                                  variant: "destructive"
-                              });
-                              return;
-                             }
-                             // Ensure latest labor/profit are synced before moving to summary
-                             if (handleLaborProfitContinue) {
-                                 handleLaborProfitContinue(laborRates, profitMargin);
-                             }
-                          }
-
-                          if (import.meta.env.DEV) {
-                          console.log(`Main Continue button: Navigating from ${activeTab} to ${nextTab}`);
-                          }
-                          setActiveTab(nextTab);
-                        }
-                      }}
-                      disabled={ // Review and adjust disabled logic as needed
-                        (activeTab === "type-selection" && !estimateType) ||
-                        (activeTab === "upload" && !extractedPdfData) ||
-                        (activeTab === "measurements" && !measurements) ||
-                        (activeTab === "materials" && Object.keys(selectedMaterials).length === 0) ||
-                        (activeTab === "pricing" && (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)))
-                      }
-                    >
-                      Continue
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        <Dialog open={isSoldConfirmDialogOpen} onOpenChange={setIsSoldConfirmDialogOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Confirm Sale Details</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-               {/* Display estimate ID/Address if needed */}
-               {estimateToMarkSold && 
-                  <p className="text-sm text-muted-foreground">
-                      Estimate ID: {estimateToMarkSold.id?.substring(0,8)}... <br/>
-                      Address: {estimateToMarkSold.customer_address}
-                  </p> 
-               }
-
-               <div className="space-y-2">
-                  <Label>Job Type</Label>
-                  <RadioGroup value={jobType} onValueChange={(value: 'Retail' | 'Insurance') => setJobType(value)} className="flex space-x-4">
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <RadioGroupItem value="Retail" />
-                      <span>Retail</span>
-                    </label>
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                      <RadioGroupItem value="Insurance" />
-                      <span>Insurance</span>
-                    </label>
-                  </RadioGroup>
-               </div>
-
-               {jobType === 'Insurance' && (
-                  <div className="space-y-2 animate-fade-in"> {/* Simple fade-in */} 
-                    <Label htmlFor="estimates-insurance-company">Insurance Company Name</Label>
-                    <Input 
-                      id="estimates-insurance-company"
-                      value={insuranceCompany} 
-                      onChange={(e) => setInsuranceCompany(e.target.value)} 
-                      placeholder="Enter company name" 
-                    />
-                  </div>
-               )}
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                 <Button type="button" variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button 
-                 type="button" 
-                 onClick={handleConfirmSale}
-                 disabled={isSubmitting[estimateToMarkSold?.id || ''] || (jobType === 'Insurance' && !insuranceCompany.trim())}
-              >
-                 {isSubmitting[estimateToMarkSold?.id || ''] ? "Confirming..." : "Confirm Sale"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Template Editor/Creator Dialog */}
-        <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-          <DialogContent className="sm:max-w-[550px]">
-            <DialogHeader>
-              <DialogTitle>
-                {templateDialogMode === 'create' ? 'Create New Template' : 
-                templateDialogMode === 'edit' ? 'Edit Template' : 'Save Template As...'}
-              </DialogTitle>
-            </DialogHeader>
-            
-            <div className="grid gap-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="templateName">Template Name</Label>
-                <Input
-                  id="templateName"
-                  value={templateFormData.name} 
-                  onChange={(e) => setTemplateFormData({...templateFormData, name: e.target.value})}
-                  placeholder="e.g., ABC Shingle Template"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="templateDescription">Description (Optional)</Label>
-                <Input
-                  id="templateDescription"
-                  value={templateFormData.description} 
-                  onChange={(e) => setTemplateFormData({...templateFormData, description: e.target.value})}
-                  placeholder="e.g., Standard package with GAF materials"
-                />
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="isDefault" 
-                  checked={templateFormData.is_default}
-                  onCheckedChange={(checked) => 
-                    setTemplateFormData({...templateFormData, is_default: !!checked})
-                  }
-                />
-                <Label htmlFor="isDefault">
-                  Set as default template for new estimates
-                </Label>
-              </div>
-              
-              {templateDialogMode === 'create' && (
-                <div className="space-y-4 border-t pt-4">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="usePresetPackage" 
-                      checked={templateFormData.usePresetPackage}
-                      onCheckedChange={(checked) => 
-                        setTemplateFormData({...templateFormData, usePresetPackage: !!checked})
-                      }
-                    />
-                    <Label htmlFor="usePresetPackage">
-                      Create from predefined package
-                    </Label>
-                  </div>
-                  
-                  {templateFormData.usePresetPackage && (
-                    <div className="space-y-2 pl-6">
-                      <Label htmlFor="presetPackageType">Select Package Type</Label>
-                      <Select 
-                        value={templateFormData.presetPackageType} 
-                        onValueChange={(value) => setTemplateFormData({
-                          ...templateFormData, 
-                          presetPackageType: value,
-                          name: value === 'gaf-basic' ? 'GAF 1 Basic Package' : 
-                                value === 'gaf-premium' ? 'Premium GAF materials with enhanced protection' : 
-                                templateFormData.name
-                        })}
-                      >
-                        <SelectTrigger id="presetPackageType">
-                          <SelectValue placeholder="Select a predefined package" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="gaf-basic">GAF 1 Basic Package</SelectItem>
-                          <SelectItem value="gaf-premium">Premium GAF materials with enhanced protection</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Selecting a predefined package will auto-populate standard materials.
-                      </p>
+                      </details>
                     </div>
                   )}
-                </div>
+
+                  {activeTab === 'type-selection' && (
+                    <EstimateTypeSelector 
+                      onSelectionComplete={handleEstimateTypeSelection}
+                    />
+                  )}
+
+                  {activeTab === 'upload' && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
+                        </div>
+                        
+                        <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
+                          <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
+                          <p className="text-sm text-slate-600 mb-4">
+                            Follow these steps to create a complete estimate
+                          </p>
+                          
+                          {/* Show selected estimate type */}
+                          {estimateType && (
+                            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                              <h4 className="font-medium text-blue-900 mb-1">Selected Estimate Type</h4>
+                              <p className="text-sm text-blue-800">
+                                {estimateType === 'roof_only' ? '🏠 Roof Shingles Only' : `🔧 Roof + ${selectedSubtrades.length} Subtrade(s)`}
+                              </p>
+                              {estimateType === 'with_subtrades' && selectedSubtrades.length > 0 && (
+                                <p className="text-xs text-blue-700 mt-1">
+                                  Subtrades: {selectedSubtrades.join(', ')}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          
+                          <ol className="space-y-2 text-sm">
+                            <li className="flex items-start gap-2">
+                              <span className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">✓</span>
+                              <span>Estimate Type Selected - {estimateType === 'roof_only' ? 'Standard roofing' : 'Roof + subtrades'}</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
+                              <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
+                              <span>Review Measurements - Auto-saved measurements from your PDF</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
+                              <span>Select Materials - Choose roofing materials and options</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
+                              <span>Set Labor & Profit - Define labor rates and profit margin</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">6</span>
+                              <span>Review Summary - Finalize and prepare for customer approval</span>
+                            </li>
+                          </ol>
+                        </div>
+                      </div>
+                  )}
+                  
+                  {activeTab !== 'upload' && (
+                    <>
+                  <TabsContent value="measurements">
+                    <SimplifiedReviewTab
+                      measurements={measurements || {
+                        totalArea: 0,
+                        ridgeLength: 0,
+                        hipLength: 0,
+                        valleyLength: 0,
+                        eaveLength: 0,
+                        rakeLength: 0,
+                        stepFlashingLength: 0,
+                        flashingLength: 0,
+                        dripEdgeLength: 0,
+                        penetrationsArea: 0,
+                        penetrationsPerimeter: 0,
+                        predominantPitch: "",
+                        ridgeCount: 0,
+                        hipCount: 0,
+                        valleyCount: 0,
+                        rakeCount: 0,
+                        eaveCount: 0,
+                        propertyAddress: "",
+                        latitude: "",
+                        longitude: "",
+                        areasByPitch: []
+                      }}
+                      onMeasurementsUpdate={handleMeasurementsSaved}
+                      onBack={() => setActiveTab("upload")}
+                      onContinue={() => setActiveTab("materials")}
+                      extractedFileName={pdfFileName || undefined}
+                      pdfUrl={pdfUrl}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="materials">
+                    {(() => {
+                      // Memoize measurements check to prevent excessive re-renders
+                      const hasMeasurements = measurements && measurements.areasByPitch && Array.isArray(measurements.areasByPitch);
+                      
+                      if (!hasMeasurements) {
+                        return (
+                          <Card>
+                            <CardHeader>
+                              <CardTitle>Missing Measurements</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
+                            </CardContent>
+                            <CardFooter>
+                              <Button onClick={() => setActiveTab("measurements")} variant="outline">Go to Measurements</Button>
+                            </CardFooter>
+                          </Card>
+                        );
+                      } else {
+                        return (
+                          <>
+                            {/* UPDATED: Template Selector Card with Management Options */}
+                            {!isViewMode && (
+                              <Card className="mb-6">
+                                <CardHeader>
+                                  <CardTitle>Select Pricing Template</CardTitle>
+                                  <CardDescription>Choose a pricing template to apply to this estimate</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                  <div className="flex items-end gap-4">
+                                    <div className="flex-1">
+                                      <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
+                                      <Select
+                                        value={selectedTemplateId || undefined}
+                                        onValueChange={setSelectedTemplateId}
+                                        disabled={isLoadingTemplates || templates.length === 0}
+                                      >
+                                        <SelectTrigger id="template-select" className="w-full">
+                                          <SelectValue placeholder="Select a template" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {templates.map(template => (
+                                            <SelectItem key={template.id} value={template.id}>
+                                              {template.name} {template.is_default && "(Default)"}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    
+                                    {/* Template Action Buttons */}
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        onClick={handleApplyTemplate} 
+                                        disabled={!selectedTemplateId || isLoadingTemplates}
+                                      >
+                                        Apply Template
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        onClick={() => handleOpenTemplateDialog('edit')}
+                                        disabled={!selectedTemplateId || isLoadingTemplates}
+                                      >
+                                        Edit
+                                      </Button>
+                                      <Button 
+                                        variant="secondary" 
+                                        onClick={() => handleOpenTemplateDialog('create')}
+                                        disabled={isLoadingTemplates}
+                                      >
+                                        New Template
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  {isLoadingTemplates && (
+                                    <div className="flex items-center justify-center py-2">
+                                      <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
+                                      <p className="text-sm text-muted-foreground">Loading template data...</p>
+                                    </div>
+                                  )}
+                                  {selectedTemplateData && (
+                                    <div className="text-sm text-muted-foreground">
+                                      <p>Template: <span className="font-medium">{selectedTemplateData.name}</span></p>
+                                      <p>Materials: {selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</p>
+                                      {selectedTemplateData.description && (
+                                        <p>Description: {selectedTemplateData.description}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
+                            
+                            {/* MaterialsSelectionTab component with optimized props */}
+                            <MaterialsSelectionTab
+                              key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
+                              measurements={measurements}
+                              selectedMaterials={selectedMaterials}
+                              quantities={quantities}
+                              onMaterialsUpdate={handleMaterialsUpdate}
+                              readOnly={isViewMode}
+                              isAdminEditMode={isAdminEditMode}
+                              originalCreator={originalCreator}
+                              originalCreatorRole={originalCreatorRole}
+                            />
+                          </>
+                        );
+                      }
+                    })()}
+                  </TabsContent>
+                  
+                  <TabsContent value="pricing">
+                    <LaborProfitTab
+                      key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
+                      measurements={measurements!}
+                      selectedMaterials={selectedMaterials}
+                      quantities={quantities}
+                      initialLaborRates={laborRates}
+                      initialProfitMargin={profitMargin}
+                      onLaborProfitContinue={handleLaborProfitContinue}
+                      onBack={() => setActiveTab("materials")}
+                      readOnly={isViewMode}
+                      isAdminEditMode={isAdminEditMode}
+                      originalCreator={originalCreator}
+                      originalCreatorRole={originalCreatorRole}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="summary">
+                    <EstimateSummaryTab
+                      measurements={measurements || undefined}
+                      selectedMaterials={selectedMaterials}
+                      quantities={quantities}
+                      laborRates={laborRates}
+                      profitMargin={profitMargin}
+                      peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
+                      onFinalizeEstimate={handleFinalizeEstimate} 
+                      isSubmitting={isSubmittingFinal} 
+                      estimate={estimateData} 
+                      isReviewMode={isViewMode}
+                      calculateLiveTotal={calculateLiveEstimateTotal}
+                      onEstimateUpdated={() => { 
+                        fetchEstimatesData(); 
+                        if (estimateId) { 
+                          fetchEstimateData(estimateId);
+                        }
+                      }}
+                      onBack={() => setActiveTab("pricing")}
+                    />
+                  </TabsContent>
+                    </>
+                  )}
+                </Tabs>
               )}
-              
-              {templateDialogMode === 'edit' && (
-                <div className="border-t pt-4">
-                  <p className="text-sm">
-                    <strong>Current Materials:</strong> {Object.keys(selectedTemplateData?.materials || {}).length || 0} items
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Changes to this template will apply to any new estimates created using it.
-                  </p>
+
+              {/* Add Continue buttons at the bottom of each tab */}
+              <div className="flex justify-between mt-8">
+                {activeTab !== "type-selection" && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
+                      const currentIndex = tabOrder.indexOf(activeTab);
+                      if (currentIndex > 0) {
+                        setActiveTab(tabOrder[currentIndex - 1]);
+                      }
+                    }}
+                  >
+                    Back
+                  </Button>
+                )}
+                
+                {activeTab !== "summary" && (
+                  <Button 
+                    className="ml-auto"
+                    onClick={() => {
+                      const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
+                      const currentIndex = tabOrder.indexOf(activeTab);
+
+                      if (currentIndex < tabOrder.length - 1) {
+                        const nextTab = tabOrder[currentIndex + 1];
+                        
+                        // Validations before navigating FROM a specific tab
+                        if (activeTab === 'type-selection') {
+                          if (!estimateType) {
+                            toast({ 
+                              title: "No Estimate Type Selected", 
+                              description: "Please select an estimate type to continue.",
+                              variant: "destructive"
+                            });
+                            return; 
+                          }
+                        }
+                        
+                        if (activeTab === 'materials') {
+                          if (Object.keys(selectedMaterials).length === 0) {
+                            toast({ 
+                              title: "No Materials Selected", 
+                              description: "Please select at least one material to continue to Labor & Profit.",
+                              variant: "destructive"
+                            });
+                            return; 
+                          }
+                          if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+                            toast({
+                              title: "Missing Measurements Data",
+                              description: "Cannot proceed to Labor & Profit without valid pitch information from measurements.",
+                              variant: "destructive"
+                            });
+                            return; 
+                          }
+                        }
+                        
+                        if (activeTab === 'pricing') {
+                           // Validation before leaving pricing tab to go to summary
+                           if (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)) {
+                            toast({
+                                title: "Missing Labor Rates",
+                                description: "Please ensure valid labor rates are set before proceeding to summary.",
+                                variant: "destructive"
+                            });
+                            return;
+                           }
+                           // Ensure latest labor/profit are synced before moving to summary
+                           if (handleLaborProfitContinue) {
+                               handleLaborProfitContinue(laborRates, profitMargin);
+                           }
+                        }
+
+                        if (import.meta.env.DEV) {
+                        console.log(`Main Continue button: Navigating from ${activeTab} to ${nextTab}`);
+                        }
+                        setActiveTab(nextTab);
+                      }
+                    }}
+                    disabled={ // Review and adjust disabled logic as needed
+                      (activeTab === "type-selection" && !estimateType) ||
+                      (activeTab === "upload" && !extractedPdfData) ||
+                      (activeTab === "measurements" && !measurements) ||
+                      (activeTab === "materials" && Object.keys(selectedMaterials).length === 0) ||
+                      (activeTab === "pricing" && (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)))
+                    }
+                  >
+                    Continue
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      <Dialog open={isSoldConfirmDialogOpen} onOpenChange={setIsSoldConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Sale Details</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+             {/* Display estimate ID/Address if needed */}
+             {estimateToMarkSold && 
+                <p className="text-sm text-muted-foreground">
+                    Estimate ID: {estimateToMarkSold.id?.substring(0,8)}... <br/>
+                    Address: {estimateToMarkSold.customer_address}
+                </p> 
+             }
+
+             <div className="space-y-2">
+                <Label>Job Type</Label>
+                <RadioGroup value={jobType} onValueChange={(value: 'Retail' | 'Insurance') => setJobType(value)} className="flex space-x-4">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <RadioGroupItem value="Retail" />
+                    <span>Retail</span>
+                  </label>
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <RadioGroupItem value="Insurance" />
+                    <span>Insurance</span>
+                  </label>
+                </RadioGroup>
+             </div>
+
+             {jobType === 'Insurance' && (
+                <div className="space-y-2 animate-fade-in"> {/* Simple fade-in */} 
+                  <Label htmlFor="estimates-insurance-company">Insurance Company Name</Label>
+                  <Input 
+                    id="estimates-insurance-company"
+                    value={insuranceCompany} 
+                    onChange={(e) => setInsuranceCompany(e.target.value)} 
+                    placeholder="Enter company name" 
+                  />
                 </div>
-              )}
+             )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+               <Button type="button" variant="outline">Cancel</Button>
+            </DialogClose>
+            <Button 
+               type="button" 
+               onClick={handleConfirmSale}
+               disabled={isSubmitting[estimateToMarkSold?.id || ''] || (jobType === 'Insurance' && !insuranceCompany.trim())}
+            >
+               {isSubmitting[estimateToMarkSold?.id || ''] ? "Confirming..." : "Confirm Sale"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Editor/Creator Dialog */}
+      <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>
+              {templateDialogMode === 'create' ? 'Create New Template' : 
+              templateDialogMode === 'edit' ? 'Edit Template' : 'Save Template As...'}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="templateName">Template Name</Label>
+              <Input
+                id="templateName"
+                value={templateFormData.name} 
+                onChange={(e) => setTemplateFormData({...templateFormData, name: e.target.value})}
+                placeholder="e.g., ABC Shingle Template"
+              />
             </div>
             
-            <DialogFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => setIsTemplateDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSaveTemplate} 
-                disabled={isSubmittingTemplate || !templateFormData.name.trim()}
-              >
-                {isSubmittingTemplate ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Template'
+            <div className="space-y-2">
+              <Label htmlFor="templateDescription">Description (Optional)</Label>
+              <Input
+                id="templateDescription"
+                value={templateFormData.description} 
+                onChange={(e) => setTemplateFormData({...templateFormData, description: e.target.value})}
+                placeholder="e.g., Standard package with GAF materials"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="isDefault" 
+                checked={templateFormData.is_default}
+                onCheckedChange={(checked) => 
+                  setTemplateFormData({...templateFormData, is_default: !!checked})
+                }
+              />
+              <Label htmlFor="isDefault">
+                Set as default template for new estimates
+              </Label>
+            </div>
+            
+            {templateDialogMode === 'create' && (
+              <div className="space-y-4 border-t pt-4">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="usePresetPackage" 
+                    checked={templateFormData.usePresetPackage}
+                    onCheckedChange={(checked) => 
+                      setTemplateFormData({...templateFormData, usePresetPackage: !!checked})
+                    }
+                  />
+                  <Label htmlFor="usePresetPackage">
+                    Create from predefined package
+                  </Label>
+                </div>
+                
+                {templateFormData.usePresetPackage && (
+                  <div className="space-y-2 pl-6">
+                    <Label htmlFor="presetPackageType">Select Package Type</Label>
+                    <Select 
+                      value={templateFormData.presetPackageType} 
+                      onValueChange={(value) => setTemplateFormData({
+                        ...templateFormData, 
+                        presetPackageType: value,
+                        name: value === 'gaf-basic' ? 'GAF 1 Basic Package' : 
+                              value === 'gaf-premium' ? 'Premium GAF materials with enhanced protection' : 
+                              templateFormData.name
+                      })}
+                    >
+                      <SelectTrigger id="presetPackageType">
+                        <SelectValue placeholder="Select a predefined package" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gaf-basic">GAF 1 Basic Package</SelectItem>
+                        <SelectItem value="gaf-premium">Premium GAF materials with enhanced protection</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Selecting a predefined package will auto-populate standard materials.
+                    </p>
+                  </div>
                 )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+              </div>
+            )}
+            
+            {templateDialogMode === 'edit' && (
+              <div className="border-t pt-4">
+                <p className="text-sm">
+                  <strong>Current Materials:</strong> {Object.keys(selectedTemplateData?.materials || {}).length || 0} items
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Changes to this template will apply to any new estimates created using it.
+                </p>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsTemplateDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveTemplate} 
+              disabled={isSubmittingTemplate || !templateFormData.name.trim()}
+            >
+              {isSubmittingTemplate ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Template'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

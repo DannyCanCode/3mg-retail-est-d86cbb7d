@@ -85,6 +85,15 @@ export function LaborProfitTab({
   const { isAdmin } = useRoleAccess();
   const userRole = profile?.role;
   
+  // Safety check: If we're in the sales rep flow, force rep role
+  const location = window.location.pathname;
+  const effectiveUserRole = location.includes('/sales-estimate') ? 'rep' : userRole;
+  
+  // Debug logging to track role changes
+  useEffect(() => {
+    console.log('🔍 [LaborProfitTab] User role:', userRole, 'Effective role:', effectiveUserRole, 'Path:', location, 'Profile:', profile);
+  }, [userRole, effectiveUserRole, location, profile]);
+  
   // 🔐 CRITICAL SECURITY: Permission functions
   const canEditLaborRates = () => {
     // Admin override: If in admin edit mode and current user is admin, allow editing
@@ -125,7 +134,7 @@ export function LaborProfitTab({
     }
     
     // Normal operation: Sales Reps, Territory Managers AND Admins can edit dumpster location and permits
-    if (!readOnly && (isAdmin || userRole === 'manager' || userRole === 'rep')) {
+    if (!readOnly && (isAdmin || effectiveUserRole === 'manager' || effectiveUserRole === 'rep')) {
       return true; // Sales Reps can select dumpster location and permits
     }
     
@@ -141,8 +150,24 @@ export function LaborProfitTab({
     }
     
     // Normal operation: Sales Reps, Territory Managers AND Admins can edit gutters and skylights
-    if (!readOnly && (isAdmin || userRole === 'manager' || userRole === 'rep')) {
+    if (!readOnly && (isAdmin || effectiveUserRole === 'manager' || effectiveUserRole === 'rep')) {
       return true; // Sales Reps can edit gutters and skylights
+    }
+    
+    // Other roles cannot edit
+    return false;
+  };
+
+  // 🔓 NEW: Sales Reps can edit specific labor toggles (handload and labor scope)
+  const canEditSalesRepLaborToggles = () => {
+    // Admin override: If in admin edit mode and current user is admin, allow editing
+    if (isAdminEditMode && isAdmin) {
+      return true; // Admins can edit any estimate when in admin edit mode
+    }
+    
+    // Normal operation: Sales Reps, Territory Managers AND Admins can edit these specific toggles
+    if (!readOnly && (isAdmin || effectiveUserRole === 'manager' || effectiveUserRole === 'rep')) {
+      return true; // Sales Reps can toggle handload and labor scope options
     }
     
     // Other roles cannot edit
@@ -379,6 +404,11 @@ export function LaborProfitTab({
     // Add specific logging for permits toggle
     if (field === "includePermits") {
       console.log('🎯 [LaborProfitTab] Permits toggle changed to:', value, 'shouldSyncImmediately:', shouldSyncImmediately);
+    }
+
+    // Add specific logging for labor scope toggles
+    if (field === "includeLowSlopeLabor" || field === "includeSteepSlopeLabor") {
+      console.log(`🎯 [LaborProfitTab] ${field} changed to:`, value, 'Current laborRates:', laborRates);
     }
 
     commonStateUpdater(prev => {
@@ -729,7 +759,7 @@ export function LaborProfitTab({
             </RadioGroup>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-              {userRole !== 'rep' && (
+              {effectiveUserRole !== 'rep' && (
                 <div className="space-y-2">
                   <Label htmlFor="labor-dumpsterRate">Rate per Dumpster ($)</Label>
                   <Input
@@ -781,7 +811,7 @@ export function LaborProfitTab({
                   disabled={!canEditQuantitiesAndToggles()}
                 />
               </div>
-              {userRole !== 'rep' && (
+              {effectiveUserRole !== 'rep' && (
                 <div className="space-y-2">
                   <Label htmlFor="dumpsterTotal">Total Dumpster Cost</Label>
                   <Input
@@ -812,13 +842,28 @@ export function LaborProfitTab({
             </div>
           )}
           
+          {/* Sales rep specific message about permits */}
+          {effectiveUserRole === 'rep' && (
+            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
+              <p className="text-sm text-green-700">
+                ✅ <strong>Permits Required:</strong> All estimates must include permits. This ensures compliance with local regulations.
+              </p>
+            </div>
+          )}
+          
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
               <Switch
                 id="labor-includePermits"
-                checked={!!laborRates.includePermits}
-                onCheckedChange={(checked) => handleLaborRateChange("includePermits", checked)}
-                disabled={!canEditDumpsterLocationAndPermits()}
+                checked={effectiveUserRole === 'rep' ? true : !!laborRates.includePermits}
+                onCheckedChange={(checked) => {
+                  // Sales reps cannot turn off permits
+                  if (effectiveUserRole === 'rep' && !checked) {
+                    return;
+                  }
+                  handleLaborRateChange("includePermits", checked);
+                }}
+                disabled={effectiveUserRole === 'rep' || !canEditDumpsterLocationAndPermits()}
               />
               <Label htmlFor="labor-includePermits">
                 Include Permits
@@ -836,7 +881,7 @@ export function LaborProfitTab({
                   </p>
                 </div>
                 
-                {userRole !== 'rep' && (
+                {effectiveUserRole !== 'rep' && (
                   <div className="bg-muted p-3 rounded-md">
                     <p className="text-sm mb-2">Base permit cost for {laborRates.dumpsterLocation === "orlando" ? "Orlando" : "Outside Orlando"}: 
                       ${laborRates.permitRate.toFixed(2)}
@@ -884,7 +929,7 @@ export function LaborProfitTab({
                       </Button>
                     </div>
                   </div>
-                  {userRole !== 'rep' && (
+                  {effectiveUserRole !== 'rep' && (
                     <div className="space-y-2">
                       <Label htmlFor="permitTotal">Total Permit Cost</Label>
                       <Input
@@ -905,7 +950,7 @@ export function LaborProfitTab({
         <Separator />
         
         {/* Gutters Section - HIDE FOR SALES REPS */}
-        {userRole !== 'rep' && (
+        {effectiveUserRole !== 'rep' && (
           <>
             <div>
               <h3 className="text-lg font-semibold mb-4">Gutters</h3>
@@ -914,7 +959,13 @@ export function LaborProfitTab({
                   <Switch
                     id="includeGutters"
                     checked={!!laborRates.includeGutters}
-                    onCheckedChange={(checked) => handleLaborRateChange("includeGutters", checked)}
+                    onCheckedChange={(checked) => {
+                      handleLaborRateChange("includeGutters", checked);
+                      // Clear quantity when toggled off
+                      if (!checked) {
+                        handleLaborRateChange("gutterLinearFeet", 0);
+                      }
+                    }}
                     disabled={!canEditGuttersAndSkylights()}
                   />
                   <Label htmlFor="includeGutters">
@@ -937,7 +988,7 @@ export function LaborProfitTab({
                       disabled={!canEditGuttersAndSkylights()}
                     />
                 </div>
-                {userRole !== 'rep' && (
+                {effectiveUserRole !== 'rep' && (
                   <div className="space-y-2">
                     <Label htmlFor="gutterTotal">Total Gutter Cost</Label>
                     <Input
@@ -956,7 +1007,13 @@ export function LaborProfitTab({
               <Switch
                 id="includeDetachResetGutters"
                 checked={!!laborRates.includeDetachResetGutters}
-                onCheckedChange={(checked) => handleLaborRateChange("includeDetachResetGutters", checked)}
+                onCheckedChange={(checked) => {
+                  handleLaborRateChange("includeDetachResetGutters", checked);
+                  // Clear quantity when toggled off
+                  if (!checked) {
+                    handleLaborRateChange("detachResetGutterLinearFeet", 0);
+                  }
+                }}
                 disabled={!canEditGuttersAndSkylights()}
               />
               <Label htmlFor="includeDetachResetGutters">
@@ -979,7 +1036,7 @@ export function LaborProfitTab({
                       disabled={!canEditGuttersAndSkylights()}
                   />
                 </div>
-                {userRole !== 'rep' && (
+                {effectiveUserRole !== 'rep' && (
                   <div className="space-y-2">
                     <Label htmlFor="detachResetGutterTotal">Total Detach/Reset Cost</Label>
                     <Input
@@ -998,7 +1055,13 @@ export function LaborProfitTab({
               <Switch
                 id="includeDownspouts"
                 checked={!!laborRates.includeDownspouts}
-                onCheckedChange={(checked) => handleLaborRateChange("includeDownspouts", checked)}
+                onCheckedChange={(checked) => {
+                  handleLaborRateChange("includeDownspouts", checked);
+                  // Clear quantity when toggled off
+                  if (!checked) {
+                    handleLaborRateChange("downspoutCount", 0);
+                  }
+                }}
                 disabled={!canEditGuttersAndSkylights()}
               />
               <Label htmlFor="includeDownspouts">
@@ -1021,7 +1084,7 @@ export function LaborProfitTab({
                       disabled={!canEditGuttersAndSkylights()}
                   />
                 </div>
-                {userRole !== 'rep' && (
+                {effectiveUserRole !== 'rep' && (
                   <div className="space-y-2">
                     <Label htmlFor="downspoutTotal">Total Downspout Cost</Label>
                     <Input
@@ -1043,7 +1106,7 @@ export function LaborProfitTab({
         <Separator />
         
         {/* Skylights Section - HIDE FOR SALES REPS */}
-        {userRole !== 'rep' && (
+        {effectiveUserRole !== 'rep' && (
           <>
             <div>
               <h3 className="text-lg font-semibold mb-4">Skylights</h3>
@@ -1053,7 +1116,13 @@ export function LaborProfitTab({
                   <Switch
                     id="includeSkylights2x2"
                     checked={!!laborRates.includeSkylights2x2}
-                    onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x2", checked)}
+                    onCheckedChange={(checked) => {
+                      handleLaborRateChange("includeSkylights2x2", checked);
+                      // Clear quantity when toggled off
+                      if (!checked) {
+                        handleLaborRateChange("skylights2x2Count", 0);
+                      }
+                    }}
                     disabled={!canEditGuttersAndSkylights()}
                   />
                   <Label htmlFor="includeSkylights2x2">
@@ -1101,7 +1170,7 @@ export function LaborProfitTab({
                     </Button>
                   </div>
                 </div>
-                {userRole !== 'rep' && (
+                {effectiveUserRole !== 'rep' && (
                   <div className="space-y-2">
                     <Label htmlFor="skylights2x2Total">Total 2X2 Skylight Cost</Label>
                     <Input
@@ -1121,7 +1190,13 @@ export function LaborProfitTab({
               <Switch
                 id="includeSkylights2x4"
                 checked={!!laborRates.includeSkylights2x4}
-                onCheckedChange={(checked) => handleLaborRateChange("includeSkylights2x4", checked)}
+                onCheckedChange={(checked) => {
+                  handleLaborRateChange("includeSkylights2x4", checked);
+                  // Clear quantity when toggled off
+                  if (!checked) {
+                    handleLaborRateChange("skylights2x4Count", 0);
+                  }
+                }}
                 disabled={!canEditGuttersAndSkylights()}
               />
               <Label htmlFor="includeSkylights2x4">
@@ -1169,7 +1244,7 @@ export function LaborProfitTab({
                     </Button>
                   </div>
                 </div>
-                {userRole !== 'rep' && (
+                {effectiveUserRole !== 'rep' && (
                   <div className="space-y-2">
                     <Label htmlFor="skylights2x4Total">Total 2X4 Skylight Cost</Label>
                     <Input
@@ -1193,13 +1268,23 @@ export function LaborProfitTab({
         {/* Handload Section */}
         <div>
           <h3 className="text-lg font-semibold mb-4">Handload</h3>
+          
+          {/* Sales rep message about handload */}
+          {effectiveUserRole === 'rep' && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-700">
+                💡 <strong>Tip:</strong> Toggle handload on if the job requires manual material handling due to difficult access.
+              </p>
+            </div>
+          )}
+          
           <div className="space-y-4">
             <div className="flex items-center space-x-4">
               <Switch
                 id="labor-handload"
                 checked={!!laborRates.isHandload}
                 onCheckedChange={(checked) => handleLaborRateChange("isHandload", checked)}
-                disabled={!canEditQuantitiesAndToggles()}
+                disabled={!canEditSalesRepLaborToggles()}
               />
               <Label htmlFor="labor-handload">
                 Include Handload (Additional to labor tear off and installation)
@@ -1208,7 +1293,7 @@ export function LaborProfitTab({
             
             {!!laborRates.isHandload && (
               <>
-                {userRole !== 'rep' && (
+                {effectiveUserRole !== 'rep' && (
                   <div className="space-y-2">
                     <Label htmlFor="labor-handloadRate">Handload Rate ($/square)</Label>
                     <Input
@@ -1224,7 +1309,7 @@ export function LaborProfitTab({
                     />
                   </div>
                 )}
-                {userRole !== 'rep' && (
+                {effectiveUserRole !== 'rep' && (
                   <p className="text-sm text-muted-foreground">
                     Handload cost with {laborRates.wastePercentage || 12}% waste: 
                     ${(totalSquares * (1 + (laborRates.wastePercentage || 12)/100) * (laborRates.handloadRate || 10)).toFixed(2)}
@@ -1238,7 +1323,7 @@ export function LaborProfitTab({
         <Separator />
         
         {/* Combined Labor Rate - HIDE FOR SALES REPS */}
-        {userRole !== 'rep' && (
+        {effectiveUserRole !== 'rep' && (
           <>
             <div>
               <h3 className="text-lg font-semibold mb-4">Labor Rates (per square)</h3>
@@ -1305,13 +1390,23 @@ export function LaborProfitTab({
         {/* Labor Scope Section - NEW */}
         <div>
           <h3 className="text-lg font-semibold mb-4">Labor Scope</h3>
+          
+          {/* Sales rep message about labor scope */}
+          {effectiveUserRole === 'rep' && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-blue-700">
+                📐 <strong>Labor Scope:</strong> Both options are enabled by default. Only disable if specific roof sections won't be worked on.
+              </p>
+            </div>
+          )}
+          
           <div className="space-y-3">
             <div className="flex items-center space-x-4 p-3 border rounded-md">
               <Switch
                 id="labor-includeLowSlopeLabor"
                 checked={laborRates.includeLowSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeLowSlopeLabor", checked)}
-                disabled={!canEditQuantitiesAndToggles()}
+                disabled={!canEditSalesRepLaborToggles()}
               />
               <div className="flex-1">
                 <Label htmlFor="labor-includeLowSlopeLabor" className="font-medium">
@@ -1328,7 +1423,7 @@ export function LaborProfitTab({
                 id="labor-includeSteepSlopeLabor"
                 checked={laborRates.includeSteepSlopeLabor ?? true}
                 onCheckedChange={(checked) => handleLaborRateChange("includeSteepSlopeLabor", checked)}
-                disabled={!canEditQuantitiesAndToggles()}
+                disabled={!canEditSalesRepLaborToggles()}
               />
               <div className="flex-1">
                 <Label htmlFor="labor-includeSteepSlopeLabor" className="font-medium">
@@ -1345,7 +1440,7 @@ export function LaborProfitTab({
         <Separator />
         
         {/* Pitch Based Pricing - HIDE FOR SALES REPS */}
-        {userRole !== 'rep' && (
+        {effectiveUserRole !== 'rep' && (
           <>
             <div>
               <h3 className="text-lg font-semibold mb-4">Pitch-Based Labor Rates</h3>

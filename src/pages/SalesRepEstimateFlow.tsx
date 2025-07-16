@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,9 @@ interface EstimateData {
   currentStep?: number; // Add currentStep to persist progress
   pdfUrl?: string | null; // Add pdfUrl to store the PDF URL
   pdfFileName?: string | null; // Add pdfFileName to store the PDF filename
+  warrantyDetails?: any; // Store warranty details
+  warrantyType?: string; // Store warranty type
+  selectedPackage?: string; // Store selected package
 }
 
 const SalesRepEstimateFlow: React.FC = () => {
@@ -74,22 +77,61 @@ const SalesRepEstimateFlow: React.FC = () => {
     customer_email: '',
     measurements: null,
     jobWorksheet: null,
-    materials: null,
+    materials: {},
     quantities: {},
     laborRates: undefined,
     profitMargin: 30, // Fixed 30% for sales reps
     totalPrice: 0,
     currentStep: 0,
     pdfUrl: null,
-    pdfFileName: null
+    pdfFileName: null,
+    warrantyDetails: null,
+    warrantyType: '',
+    selectedPackage: ''
   });
   const [currentStep, setCurrentStep] = useState(estimateData?.currentStep || 0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Sync current step to localStorage whenever it changes
   useEffect(() => {
     setEstimateData(prev => ({ ...prev, currentStep }));
+  }, [currentStep]);
+
+  // Separate effect for scrolling to avoid conflicts
+  useEffect(() => {
+    // Scroll to top whenever step changes - with slight delay for React rendering
+    const scrollTimer = setTimeout(() => {
+      // Try multiple scroll methods to ensure it works
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      
+      // Scroll the container ref if it exists
+      if (containerRef.current) {
+        containerRef.current.scrollTop = 0;
+      }
+      
+      // Also try to find and scroll any scrollable containers
+      const mainContent = document.querySelector('main');
+      if (mainContent) mainContent.scrollTop = 0;
+      
+      // Find any overflow containers
+      const scrollableElements = document.querySelectorAll('.overflow-y-auto, .overflow-y-scroll, [style*="overflow"]');
+      scrollableElements.forEach(el => {
+        (el as HTMLElement).scrollTop = 0;
+      });
+
+      // Force focus to top of page
+      const firstFocusable = document.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') as HTMLElement;
+      if (firstFocusable) {
+        firstFocusable.focus({ preventScroll: true });
+        firstFocusable.blur();
+      }
+    }, 150);
+
+    return () => clearTimeout(scrollTimer);
   }, [currentStep]);
 
   // Prevent UI flash on initial load
@@ -182,7 +224,11 @@ const SalesRepEstimateFlow: React.FC = () => {
       ...prev, 
       materials: update.selectedMaterials,
       quantities: update.quantities,
-      totalPrice 
+      totalPrice,
+      // Preserve warranty and package selections
+      warrantyDetails: update.warrantyDetails,
+      warrantyType: update.warrantyType,
+      selectedPackage: update.selectedPackage
     }));
     // Don't auto-advance or submit - let user click continue
   };
@@ -194,9 +240,26 @@ const SalesRepEstimateFlow: React.FC = () => {
 
   // Handle labor & profit completion
   const handleLaborProfitComplete = (laborRates: LaborRates, profitMargin: number) => {
+    // Merge the laborRates with gutters data from job worksheet
+    const mergedLaborRates = {
+      ...laborRates,
+      // Ensure gutters data from job worksheet is preserved
+      includeGutters: laborRates.includeGutters || estimateData.jobWorksheet?.gutters?.gutter_lf > 0 || false,
+      gutterLinearFeet: laborRates.gutterLinearFeet || estimateData.jobWorksheet?.gutters?.gutter_lf || 0,
+      includeDetachResetGutters: laborRates.includeDetachResetGutters || estimateData.jobWorksheet?.gutters?.detach_reset_gutters || false,
+      detachResetGutterLinearFeet: laborRates.detachResetGutterLinearFeet || estimateData.jobWorksheet?.gutters?.detach_reset_gutter_lf || 0,
+      includeDownspouts: laborRates.includeDownspouts || (estimateData.jobWorksheet?.gutters?.downspouts?.count > 0) || false,
+      downspoutCount: laborRates.downspoutCount || estimateData.jobWorksheet?.gutters?.downspouts?.count || 0,
+      // Preserve skylights data too
+      includeSkylights2x2: laborRates.includeSkylights2x2 || estimateData.jobWorksheet?.accessories?.skylight?.count_2x2 > 0 || false,
+      skylights2x2Count: laborRates.skylights2x2Count || estimateData.jobWorksheet?.accessories?.skylight?.count_2x2 || 0,
+      includeSkylights2x4: laborRates.includeSkylights2x4 || estimateData.jobWorksheet?.accessories?.skylight?.count_2x4 > 0 || false,
+      skylights2x4Count: laborRates.skylights2x4Count || estimateData.jobWorksheet?.accessories?.skylight?.count_2x4 || 0,
+    };
+    
     setEstimateData(prev => ({ 
       ...prev, 
-      laborRates,
+      laborRates: mergedLaborRates,
       profitMargin 
     }));
     // Don't submit yet, go to summary review
@@ -563,6 +626,8 @@ const SalesRepEstimateFlow: React.FC = () => {
                 onMaterialsUpdate={handleMaterialsComplete}
                 readOnly={false}
                 jobWorksheet={estimateData.jobWorksheet}
+                selectedMaterials={estimateData.materials || {}}
+                quantities={estimateData.quantities || {}}
               />
               
               <div className="mt-6 flex justify-end">
@@ -601,7 +666,41 @@ const SalesRepEstimateFlow: React.FC = () => {
                 selectedMaterials={estimateData.materials || {}}
                 quantities={estimateData.quantities || {}}
                 onLaborProfitContinue={handleLaborProfitComplete}
-                initialLaborRates={estimateData.laborRates}
+                initialLaborRates={estimateData.laborRates || {
+                  laborRate: 85,
+                  tearOff: 0,
+                  installation: 0,
+                  isHandload: false,
+                  handloadRate: 10,
+                  dumpsterLocation: "orlando",
+                  dumpsterCount: 1,
+                  dumpsterRate: 400,
+                  includePermits: true,
+                  permitRate: 450,
+                  permitCount: 1,
+                  permitAdditionalRate: 450,
+                  pitchRates: {},
+                  wastePercentage: 12,
+                  // Sync gutters from job worksheet
+                  includeGutters: estimateData.jobWorksheet?.gutters?.gutter_lf > 0 || false,
+                  gutterLinearFeet: estimateData.jobWorksheet?.gutters?.gutter_lf || 0,
+                  gutterRate: 8,
+                  includeDetachResetGutters: estimateData.jobWorksheet?.gutters?.detach_reset_gutters || false,
+                  detachResetGutterLinearFeet: estimateData.jobWorksheet?.gutters?.detach_reset_gutter_lf || 0,
+                  detachResetGutterRate: 1,
+                  includeDownspouts: (estimateData.jobWorksheet?.gutters?.downspouts?.count > 0) || false,
+                  downspoutCount: estimateData.jobWorksheet?.gutters?.downspouts?.count || 0,
+                  downspoutRate: 75,
+                  // Sync skylights from job worksheet
+                  includeSkylights2x2: estimateData.jobWorksheet?.accessories?.skylight?.count_2x2 > 0 || false,
+                  skylights2x2Count: estimateData.jobWorksheet?.accessories?.skylight?.count_2x2 || 0,
+                  skylights2x2Rate: 280,
+                  includeSkylights2x4: estimateData.jobWorksheet?.accessories?.skylight?.count_2x4 > 0 || false,
+                  skylights2x4Count: estimateData.jobWorksheet?.accessories?.skylight?.count_2x4 || 0,
+                  skylights2x4Rate: 370,
+                  includeLowSlopeLabor: true,
+                  includeSteepSlopeLabor: true
+                }}
                 initialProfitMargin={30} // Fixed 30% for sales reps
                 readOnly={false}
               />
@@ -655,25 +754,25 @@ const SalesRepEstimateFlow: React.FC = () => {
                   permitAdditionalRate: 450,
                   pitchRates: {},
                   wastePercentage: 12,
-                  // Sync gutters from job worksheet
-                  includeGutters: estimateData.jobWorksheet?.gutters?.gutter_lf > 0 || false,
-                  gutterLinearFeet: estimateData.jobWorksheet?.gutters?.gutter_lf || 0,
+                  includeGutters: false,
+                  gutterLinearFeet: 0,
                   gutterRate: 8,
-                  includeDetachResetGutters: estimateData.jobWorksheet?.gutters?.detach_reset_gutters || false,
-                  detachResetGutterLinearFeet: estimateData.jobWorksheet?.gutters?.detach_reset_gutter_lf || 0,
-                  detachResetGutterRate: 1,
-                  includeDownspouts: (estimateData.jobWorksheet?.gutters?.downspouts?.count > 0) || false,
-                  downspoutCount: estimateData.jobWorksheet?.gutters?.downspouts?.count || 0,
+                  includeDownspouts: false,
+                  downspoutCount: 0,
                   downspoutRate: 75,
-                  // Sync skylights from job worksheet
-                  includeSkylights2x2: estimateData.jobWorksheet?.accessories?.skylight?.count_2x2 > 0 || false,
-                  skylights2x2Count: estimateData.jobWorksheet?.accessories?.skylight?.count_2x2 || 0,
+                  includeDetachResetGutters: false,
+                  detachResetGutterLinearFeet: 0,
+                  detachResetGutterRate: 1,
+                  includeSkylights2x2: false,
+                  skylights2x2Count: 0,
                   skylights2x2Rate: 280,
-                  includeSkylights2x4: estimateData.jobWorksheet?.accessories?.skylight?.count_2x4 > 0 || false,
-                  skylights2x4Count: estimateData.jobWorksheet?.accessories?.skylight?.count_2x4 || 0,
-                  skylights2x4Rate: 370
+                  includeSkylights2x4: false,
+                  skylights2x4Count: 0,
+                  skylights2x4Rate: 370,
+                  includeLowSlopeLabor: true,
+                  includeSteepSlopeLabor: true
                 }}
-                profitMargin={estimateData.profitMargin}
+                profitMargin={estimateData.profitMargin || 30}
                 jobWorksheet={estimateData.jobWorksheet}
                 customerInfo={{
                   name: estimateData.customer_name,
@@ -755,7 +854,7 @@ const SalesRepEstimateFlow: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-gray-900 text-white">
+    <div ref={containerRef} className="relative min-h-screen bg-gray-900 text-white">
       <AnimatedBackground />
       
       <div className="relative z-10 p-6 max-w-5xl mx-auto">

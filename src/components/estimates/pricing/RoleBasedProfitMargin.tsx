@@ -159,7 +159,7 @@ export const RoleBasedProfitMargin: React.FC<RoleBasedProfitMarginProps> = ({
                   Current Margin: <span className={userRole === 'rep' ? "text-green-600 font-bold" : ""}>{effectiveMargin}%</span>
                 </Label>
                 <Info className={`h-4 w-4 cursor-help ${userRole === 'rep' ? 'text-green-600' : 'text-muted-foreground'}`} />
-        </div>
+              </div>
             </TooltipTrigger>
             <TooltipContent>
               <p className="max-w-xs">{constraints.description}</p>

@@ -170,9 +170,9 @@ export function SimplifiedReviewTab({
                 Using measurements extracted from <strong className="text-green-200">{extractedFileName}</strong>
                 <br className="sm:hidden" />
                 <span className="text-green-400 text-xs block sm:inline sm:ml-1">
-              {canEditMeasurements ? "Please review and make any necessary adjustments." : "Measurements have been automatically extracted and saved."}
+                  {canEditMeasurements ? "Please review and make any necessary adjustments." : "Measurements have been automatically extracted and saved."}
                 </span>
-            </p>
+              </p>
             </div>
             {pdfUrl && (
               <a 

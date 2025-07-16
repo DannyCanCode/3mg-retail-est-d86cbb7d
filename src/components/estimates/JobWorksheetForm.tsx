@@ -9,17 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 import { Info } from 'lucide-react';
 import { Wind } from 'lucide-react';
 import { Package } from 'lucide-react';
+import { useRoleAccess } from '@/components/RoleGuard';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface JobWorksheetData {
   basic_info: {
     name: string;
-    job_type: 'insurance' | 'retail' | '';
-    price_match: boolean;
     address: string;
-    leak: boolean;
   };
   property_access: {
     hoa: boolean;
@@ -117,13 +117,17 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
   onSave,
   readOnly = false
 }) => {
+  const { profile } = useAuth();
+  const userRole = profile?.role;
+  
+  // Safety check: If we're in the sales rep flow, force rep role
+  const location = window.location.pathname;
+  const effectiveUserRole = location.includes('/sales-estimate') ? 'rep' : userRole;
+  
   const [formData, setFormData] = useState<JobWorksheetData>({
     basic_info: {
       name: '',
-      job_type: '',
-      price_match: false,
       address: '',
-      leak: false,
       ...initialData?.basic_info
     },
     property_access: {
@@ -290,34 +294,34 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
     onSave(formData);
   };
 
+  const { isSalesRep } = useRoleAccess();
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 bg-gray-800/70 border-green-600/20">
-          <TabsTrigger value="basic" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Basic Info</TabsTrigger>
-          <TabsTrigger value="shingle" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Shingle Roof</TabsTrigger>
-          <TabsTrigger value="ventilation" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Ventilation</TabsTrigger>
-          <TabsTrigger value="skylights" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Skylights</TabsTrigger>
-          <TabsTrigger value="gutters" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-green-300/70 hover:text-green-300">Gutters</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="basic">Basic Info</TabsTrigger>
+          <TabsTrigger value="shingle">Shingle Roof</TabsTrigger>
+          <TabsTrigger value="ventilation">Ventilation</TabsTrigger>
+          <TabsTrigger value="skylights">Accessories</TabsTrigger>
+          <TabsTrigger value="gutters">Gutters</TabsTrigger>
         </TabsList>
 
         {/* Basic Info Tab */}
         <TabsContent value="basic" className="space-y-4">
-          <Card className="bg-white">
+          <Card>
             <CardHeader>
               <CardTitle>Basic Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Owner Name</Label>
-                  <Input
-                    id="name"
-                    value={formData.basic_info.name}
-                    onChange={(e) => updateField('basic_info', 'name', e.target.value)}
-                    disabled={readOnly}
-                  />
-                </div>
+              <div>
+                <Label htmlFor="name">Owner Name</Label>
+                <Input
+                  id="name"
+                  value={formData.basic_info.name}
+                  onChange={(e) => updateField('basic_info', 'name', e.target.value)}
+                  disabled={readOnly}
+                />
               </div>
 
               <div>
@@ -340,7 +344,7 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
               <CardTitle>Shingle Roof Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className={isSalesRep ? "grid grid-cols-2 gap-4" : "grid grid-cols-3 gap-4"}>
                 <div>
                   <Label htmlFor="manufacturer">Manufacturer</Label>
                   <Select
@@ -377,173 +381,251 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
+                {!isSalesRep && (
+                  <div>
+                    <Label htmlFor="color">Color</Label>
+                    <Select
+                      value={formData.shingle_roof.color}
+                      onValueChange={(value) => updateField('shingle_roof', 'color', value)}
+                      disabled={readOnly}
+                    >
+                      <SelectTrigger id="color">
+                        <SelectValue placeholder="Select color" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {/* GAF Timberline HDZ Colors from the images */}
+                        <SelectItem value="Golden Harvest">Golden Harvest</SelectItem>
+                        <SelectItem value="Hickory">Hickory</SelectItem>
+                        <SelectItem value="Hunter Green">Hunter Green</SelectItem>
+                        <SelectItem value="Mission Brown">Mission Brown</SelectItem>
+                        <SelectItem value="Nantucket Morning">Nantucket Morning</SelectItem>
+                        <SelectItem value="Oyster Gray">Oyster Gray</SelectItem>
+                        <SelectItem value="Shakewood">Shakewood</SelectItem>
+                        <SelectItem value="Slate">Slate</SelectItem>
+                        <SelectItem value="Sunset Brick">Sunset Brick</SelectItem>
+                        <SelectItem value="Weathered Wood">Weathered Wood</SelectItem>
+                        <SelectItem value="Pewter Gray">Pewter Gray</SelectItem>
+                        <SelectItem value="Appalachian Sky">Appalachian Sky</SelectItem>
+                        <SelectItem value="Barkwood">Barkwood</SelectItem>
+                        <SelectItem value="Birchwood">Birchwood</SelectItem>
+                        <SelectItem value="Cedar Falls">Cedar Falls</SelectItem>
+                        <SelectItem value="Charcoal">Charcoal</SelectItem>
+                        <SelectItem value="Driftwood">Driftwood</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {isSalesRep && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="color">Color</Label>
+                    <Select
+                      value={formData.shingle_roof.color}
+                      onValueChange={(value) => updateField('shingle_roof', 'color', value)}
+                      disabled={readOnly}
+                    >
+                      <SelectTrigger id="color">
+                        <SelectValue placeholder="Select color" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {/* GAF Timberline HDZ Colors from the images */}
+                        <SelectItem value="Golden Harvest">Golden Harvest</SelectItem>
+                        <SelectItem value="Hickory">Hickory</SelectItem>
+                        <SelectItem value="Hunter Green">Hunter Green</SelectItem>
+                        <SelectItem value="Mission Brown">Mission Brown</SelectItem>
+                        <SelectItem value="Nantucket Morning">Nantucket Morning</SelectItem>
+                        <SelectItem value="Oyster Gray">Oyster Gray</SelectItem>
+                        <SelectItem value="Shakewood">Shakewood</SelectItem>
+                        <SelectItem value="Slate">Slate</SelectItem>
+                        <SelectItem value="Sunset Brick">Sunset Brick</SelectItem>
+                        <SelectItem value="Weathered Wood">Weathered Wood</SelectItem>
+                        <SelectItem value="Pewter Gray">Pewter Gray</SelectItem>
+                        <SelectItem value="Appalachian Sky">Appalachian Sky</SelectItem>
+                        <SelectItem value="Barkwood">Barkwood</SelectItem>
+                        <SelectItem value="Birchwood">Birchwood</SelectItem>
+                        <SelectItem value="Cedar Falls">Cedar Falls</SelectItem>
+                        <SelectItem value="Charcoal">Charcoal</SelectItem>
+                        <SelectItem value="Driftwood">Driftwood</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="drip">Drip Edge Color</Label>
+                    <Select
+                      value={formData.shingle_roof.drip}
+                      onValueChange={(value) => updateField('shingle_roof', 'drip', value)}
+                      disabled={readOnly}
+                    >
+                      <SelectTrigger id="drip">
+                        <SelectValue placeholder="Select color" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Black">Black</SelectItem>
+                        <SelectItem value="White">White</SelectItem>
+                        <SelectItem value="Gray">Gray</SelectItem>
+                        <SelectItem value="Brown">Brown</SelectItem>
+                        <SelectItem value="Tan">Tan</SelectItem>
+                        <SelectItem value="Silver">Silver</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {!isSalesRep && (
                 <div>
-                  <Label htmlFor="color">Color</Label>
+                  <Label htmlFor="drip">Drip Edge Color</Label>
                   <Select
-                    value={formData.shingle_roof.color}
-                    onValueChange={(value) => updateField('shingle_roof', 'color', value)}
+                    value={formData.shingle_roof.drip}
+                    onValueChange={(value) => updateField('shingle_roof', 'drip', value)}
                     disabled={readOnly}
                   >
-                    <SelectTrigger id="color">
+                    <SelectTrigger id="drip">
                       <SelectValue placeholder="Select color" />
                     </SelectTrigger>
                     <SelectContent>
-                      {/* GAF Timberline HDZ Colors from the images */}
-                      <SelectItem value="Golden Harvest">Golden Harvest</SelectItem>
-                      <SelectItem value="Hickory">Hickory</SelectItem>
-                      <SelectItem value="Hunter Green">Hunter Green</SelectItem>
-                      <SelectItem value="Mission Brown">Mission Brown</SelectItem>
-                      <SelectItem value="Nantucket Morning">Nantucket Morning</SelectItem>
-                      <SelectItem value="Oyster Gray">Oyster Gray</SelectItem>
-                      <SelectItem value="Shakewood">Shakewood</SelectItem>
-                      <SelectItem value="Slate">Slate</SelectItem>
-                      <SelectItem value="Sunset Brick">Sunset Brick</SelectItem>
-                      <SelectItem value="Weathered Wood">Weathered Wood</SelectItem>
-                      <SelectItem value="Pewter Gray">Pewter Gray</SelectItem>
-                      <SelectItem value="Appalachian Sky">Appalachian Sky</SelectItem>
-                      <SelectItem value="Barkwood">Barkwood</SelectItem>
-                      <SelectItem value="Birchwood">Birchwood</SelectItem>
-                      <SelectItem value="Cedar Falls">Cedar Falls</SelectItem>
-                      <SelectItem value="Charcoal">Charcoal</SelectItem>
-                      <SelectItem value="Driftwood">Driftwood</SelectItem>
+                      <SelectItem value="Black">Black</SelectItem>
+                      <SelectItem value="White">White</SelectItem>
+                      <SelectItem value="Gray">Gray</SelectItem>
+                      <SelectItem value="Brown">Brown</SelectItem>
+                      <SelectItem value="Tan">Tan</SelectItem>
+                      <SelectItem value="Silver">Silver</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
+              )}
 
-              <div>
-                <Label htmlFor="drip">Drip</Label>
-                <Input
-                  id="drip"
-                  value={formData.shingle_roof.drip}
-                  onChange={(e) => updateField('shingle_roof', 'drip', e.target.value)}
-                  disabled={readOnly}
-                />
-              </div>
+              {!isSalesRep && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>3MG Warranty</Label>
+                    <RadioGroup
+                      value={formData.shingle_roof.warranty_3mg}
+                      onValueChange={(value) => updateField('shingle_roof', 'warranty_3mg', value)}
+                      disabled={readOnly}
+                    >
+                      <div className="flex space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="10_year" id="10_year" />
+                          <Label htmlFor="10_year">10 Year</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="25_year_uhdz" id="25_year_uhdz" />
+                          <Label htmlFor="25_year_uhdz">25 Year (UHDZ)</Label>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                  <div>
+                    <Label>GAF Warranty</Label>
+                    <RadioGroup
+                      value={formData.shingle_roof.warranty_gaf}
+                      onValueChange={(value) => updateField('shingle_roof', 'warranty_gaf', value)}
+                      disabled={readOnly}
+                    >
+                      <div className="flex space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="silver" id="silver" />
+                          <Label htmlFor="silver">Silver</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="gold" id="gold" />
+                          <Label htmlFor="gold">Gold</Label>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
+              )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>3MG Warranty</Label>
-                  <RadioGroup
-                    value={formData.shingle_roof.warranty_3mg}
-                    onValueChange={(value) => updateField('shingle_roof', 'warranty_3mg', value)}
-                    disabled={readOnly}
-                  >
-                    <div className="flex space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="10_year" id="10_year" />
-                        <Label htmlFor="10_year">10 Year</Label>
+              {!isSalesRep && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>Underlayment</Label>
+                    <RadioGroup
+                      value={formData.shingle_roof.underlayment}
+                      onValueChange={(value) => updateField('shingle_roof', 'underlayment', value)}
+                      disabled={readOnly}
+                    >
+                      <div className="flex space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="synthetic" id="synthetic" />
+                          <Label htmlFor="synthetic">Synthetic</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="peel_stick" id="peel_stick" />
+                          <Label htmlFor="peel_stick">Peel & Stick</Label>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="25_year_uhdz" id="25_year_uhdz" />
-                        <Label htmlFor="25_year_uhdz">25 Year (UHDZ)</Label>
+                    </RadioGroup>
+                  </div>
+                  <div>
+                    <Label>Decking</Label>
+                    <RadioGroup
+                      value={formData.shingle_roof.decking}
+                      onValueChange={(value) => updateField('shingle_roof', 'decking', value)}
+                      disabled={readOnly}
+                    >
+                      <div className="flex space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="plywood" id="plywood" />
+                          <Label htmlFor="plywood">Plywood</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="plank" id="plank" />
+                          <Label htmlFor="plank">Plank</Label>
+                        </div>
                       </div>
-                    </div>
-                  </RadioGroup>
+                    </RadioGroup>
+                  </div>
                 </div>
-                <div>
-                  <Label>GAF Warranty</Label>
-                  <RadioGroup
-                    value={formData.shingle_roof.warranty_gaf}
-                    onValueChange={(value) => updateField('shingle_roof', 'warranty_gaf', value)}
-                    disabled={readOnly}
-                  >
-                    <div className="flex space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="silver" id="silver" />
-                        <Label htmlFor="silver">Silver</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="gold" id="gold" />
-                        <Label htmlFor="gold">Gold</Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
-                </div>
-              </div>
+              )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Underlayment</Label>
-                  <RadioGroup
-                    value={formData.shingle_roof.underlayment}
-                    onValueChange={(value) => updateField('shingle_roof', 'underlayment', value)}
-                    disabled={readOnly}
-                  >
-                    <div className="flex space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="synthetic" id="synthetic" />
-                        <Label htmlFor="synthetic">Synthetic</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="peel_stick" id="peel_stick" />
-                        <Label htmlFor="peel_stick">Peel & Stick</Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
+              {!isSalesRep && (
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="flat_roof_sq">Flat Roof (SQ)</Label>
+                    <Input
+                      id="flat_roof_sq"
+                      type="number"
+                      value={formData.shingle_roof.flat_roof_sq}
+                      onChange={(e) => updateField('shingle_roof', 'flat_roof_sq', parseFloat(e.target.value) || 0)}
+                      disabled={readOnly}
+                      step="0.01"
+                    />
+                    {measurements && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Auto-calculated from measurements
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <Label htmlFor="pitch_gauge">Pitch Gauge</Label>
+                    <Input
+                      id="pitch_gauge"
+                      value={formData.shingle_roof.pitch_gauge}
+                      onChange={(e) => updateField('shingle_roof', 'pitch_gauge', e.target.value)}
+                      disabled={readOnly}
+                    />
+                    {measurements && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Predominant pitch from measurements
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center space-x-2 mt-6">
+                    <Checkbox
+                      id="iso_needed"
+                      checked={formData.shingle_roof.iso_needed}
+                      onCheckedChange={(checked) => updateField('shingle_roof', 'iso_needed', checked)}
+                      disabled={readOnly}
+                    />
+                    <Label htmlFor="iso_needed">ISO Needed?</Label>
+                  </div>
                 </div>
-                <div>
-                  <Label>Decking</Label>
-                  <RadioGroup
-                    value={formData.shingle_roof.decking}
-                    onValueChange={(value) => updateField('shingle_roof', 'decking', value)}
-                    disabled={readOnly}
-                  >
-                    <div className="flex space-x-4">
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="plywood" id="plywood" />
-                        <Label htmlFor="plywood">Plywood</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="plank" id="plank" />
-                        <Label htmlFor="plank">Plank</Label>
-                      </div>
-                    </div>
-                  </RadioGroup>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="flat_roof_sq">Flat Roof (SQ)</Label>
-                  <Input
-                    id="flat_roof_sq"
-                    type="number"
-                    value={formData.shingle_roof.flat_roof_sq}
-                    onChange={(e) => updateField('shingle_roof', 'flat_roof_sq', parseFloat(e.target.value) || 0)}
-                    disabled={readOnly}
-                    step="0.01"
-                  />
-                  {measurements && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Auto-calculated from measurements
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="pitch_gauge">Pitch Gauge</Label>
-                  <Input
-                    id="pitch_gauge"
-                    value={formData.shingle_roof.pitch_gauge}
-                    onChange={(e) => updateField('shingle_roof', 'pitch_gauge', e.target.value)}
-                    disabled={readOnly}
-                  />
-                  {measurements && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Predominant pitch from measurements
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center space-x-2 mt-6">
-                  <Checkbox
-                    id="iso_needed"
-                    checked={formData.shingle_roof.iso_needed}
-                    onCheckedChange={(checked) => updateField('shingle_roof', 'iso_needed', checked)}
-                    disabled={readOnly}
-                  />
-                  <Label htmlFor="iso_needed">ISO Needed?</Label>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -651,14 +733,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                   </Select>
                 </div>
               </div>
-              <div>
-                <Label>Goosenecks Color</Label>
-                <Input
-                  value={formData.ventilation.goosenecks.color}
-                  onChange={(e) => updateField('ventilation', 'goosenecks', { ...formData.ventilation.goosenecks, color: e.target.value })}
-                  disabled={readOnly}
-                />
-              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -755,24 +829,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-              <div>
-                <Label>Boots Color</Label>
-                <Input
-                  value={formData.ventilation.boots.color}
-                  onChange={(e) => updateField('ventilation', 'boots', { ...formData.ventilation.boots, color: e.target.value })}
-                  disabled={readOnly}
-                />
-              </div>
-
-              <div>
-                <Label>Ridge Vents (LF)</Label>
-                <Input
-                  type="number"
-                  value={formData.ventilation.ridge_vents_lf}
-                  onChange={(e) => updateField('ventilation', 'ridge_vents_lf', parseInt(e.target.value) || 0)}
-                  disabled={readOnly}
-                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -875,13 +931,13 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
           </Card>
         </TabsContent>
 
-        {/* Skylights Tab */}
+        {/* Accessories Tab */}
         <TabsContent value="skylights" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5" />
-                Skylights
+                Accessories
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -897,10 +953,10 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                       updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x2: 1 });
                     }
                   }}
-                      disabled={readOnly}
-                    />
+                  disabled={readOnly}
+                />
                 <Label htmlFor="includeSkylights2x2" className="flex-1">
-                  Install 2X2 Skylights ($280 per unit)
+                  Install 2X2 Skylights {effectiveUserRole !== 'rep' && '($280 per unit)'}
                 </Label>
                 {formData.accessories.skylight.count_2x2 > 0 && (
                   <div className="flex items-center gap-2">
@@ -935,10 +991,10 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                       updateField('accessories', 'skylight', { ...formData.accessories.skylight, count_2x4: 1 });
                     }
                   }}
-                      disabled={readOnly}
-                    />
+                  disabled={readOnly}
+                />
                 <Label htmlFor="includeSkylights2x4" className="flex-1">
-                  Install 2X4 Skylights ($370 per unit)
+                  Install 2X4 Skylights {effectiveUserRole !== 'rep' && '($370 per unit)'}
                 </Label>
                 {formData.accessories.skylight.count_2x4 > 0 && (
                   <div className="flex items-center gap-2">
@@ -959,20 +1015,20 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     </Select>
                   </div>
                 )}
-                </div>
+              </div>
 
               {/* Other Skylights */}
               <div className="pt-2">
                 <Label htmlFor="skylightOther">Other Skylight Needs</Label>
-                  <Textarea
+                <Textarea
                   id="skylightOther"
-                    value={formData.accessories.skylight.other}
+                  value={formData.accessories.skylight.other}
                   onChange={(e) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, other: e.target.value })}
-                    disabled={readOnly}
+                  disabled={readOnly}
                   placeholder="Describe any other skylight requirements..."
                   className="mt-2"
                   rows={3}
-                  />
+                />
               </div>
             </CardContent>
           </Card>
@@ -984,199 +1040,149 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
             <CardHeader>
               <CardTitle>Gutters</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               {/* Install Gutters */}
-              <div className="flex items-center space-x-4">
-                <Checkbox
-                  id="includeGutters"
-                  checked={formData.gutters.gutter_lf > 0}
-                  onCheckedChange={(checked) => {
-                    if (!checked) {
-                      updateField('gutters', 'gutter_lf', 0);
-                    } else {
-                      updateField('gutters', 'gutter_lf', 1);
-                    }
-                  }}
-                  disabled={readOnly}
-                />
-                <Label htmlFor="includeGutters" className="flex-1">
-                  Install 6" Aluminum Seamless Gutters ($8 per linear foot)
-                </Label>
-              </div>
-
-              <div className="ml-10 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="gutterLf">Linear Feet</Label>
-                    <Input
-                      id="gutterLf"
-                      type="number"
-                      value={formData.gutters.gutter_lf}
-                      onChange={(e) => updateField('gutters', 'gutter_lf', parseInt(e.target.value) || 0)}
-                      disabled={readOnly}
-                      min="0"
-                    />
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">Install 6" Aluminum Seamless Gutters</div>
+                    {effectiveUserRole !== 'rep' && <div className="text-sm text-muted-foreground">$8 per linear foot</div>}
                   </div>
-                  <div>
-                    <Label htmlFor="gutterColor">Gutter Color</Label>
-                    <Input
-                      id="gutterColor"
-                      value={formData.gutters.gutter_color}
-                      onChange={(e) => updateField('gutters', 'gutter_color', e.target.value)}
-                      disabled={readOnly}
-                      placeholder="e.g., White, Brown, Black"
-                    />
-                  </div>
-                </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Gutter Size</Label>
-                    <RadioGroup
-                      value={formData.gutters.gutter_size}
-                      onValueChange={(value) => updateField('gutters', 'gutter_size', value)}
-                      disabled={readOnly}
-                        className="flex gap-4 mt-2"
-                    >
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="6_inch" id="6inch" />
-                          <Label htmlFor="6inch">6"</Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="7_inch" id="7inch" />
-                          <Label htmlFor="7inch">7"</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                    <div className="space-y-3">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                          id="existingGutters"
-                          checked={formData.gutters.existing_gutters}
-                          onCheckedChange={(checked) => updateField('gutters', 'existing_gutters', checked)}
-                  disabled={readOnly}
-                />
-                        <Label htmlFor="existingGutters">Existing Gutters?</Label>
-              </div>
-                   <div className="flex items-center space-x-2">
-                     <Checkbox
-                          id="gutterPhotos"
-                          checked={formData.gutters.photos}
-                          onCheckedChange={(checked) => updateField('gutters', 'photos', checked)}
-                       disabled={readOnly}
-                     />
-                        <Label htmlFor="gutterPhotos">Photos Taken?</Label>
-                   </div>
-                   </div>
-                 </div>
-
-                  {formData.gutters.existing_gutters && (
-                <div>
-                      <Label>Keep or Install New?</Label>
-                  <RadioGroup
-                        value={formData.gutters.keep_or_new}
-                        onValueChange={(value) => updateField('gutters', 'keep_or_new', value)}
-                    disabled={readOnly}
-                        className="flex gap-4 mt-2"
-                  >
-                      <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="keep" id="keepGutters" />
-                          <Label htmlFor="keepGutters">Keep Existing</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="new" id="newGutters" />
-                          <Label htmlFor="newGutters">Install New</Label>
-                    </div>
-                  </RadioGroup>
-                    </div>
-                  )}
-                </div>
-
-              {/* Detach and Reset Gutters */}
-              <div className="flex items-center space-x-4">
-                <Checkbox
-                  id="detachResetGutters"
-                  checked={formData.gutters.detach_reset_gutters || false}
-                  onCheckedChange={(checked) => updateField('gutters', 'detach_reset_gutters', checked)}
+                  <Switch
+                    id="installGutters"
+                    checked={formData.gutters.existing_gutters || formData.gutters.gutter_lf > 0}
+                    onCheckedChange={(checked) => {
+                      updateField('gutters', 'existing_gutters', checked);
+                      if (!checked) {
+                        updateField('gutters', 'gutter_lf', 0);
+                      }
+                    }}
                     disabled={readOnly}
                   />
-                <Label htmlFor="detachResetGutters" className="flex-1">
-                  Detach and Reset Gutters ($1 per linear foot)
-                </Label>
                 </div>
-
-              {formData.gutters.detach_reset_gutters && (
-                <div className="ml-10">
-                  <Label htmlFor="detachResetGutterLf">Detach/Reset Linear Feet</Label>
-                  <Input
-                    id="detachResetGutterLf"
-                    type="number"
-                    value={formData.gutters.detach_reset_gutter_lf || 0}
-                    onChange={(e) => updateField('gutters', 'detach_reset_gutter_lf', parseInt(e.target.value) || 0)}
-                    disabled={readOnly}
-                    min="0"
-                    className="w-32 mt-2"
-                  />
-                </div>
-              )}
-
-              {/* Downspouts */}
-              <div className="flex items-center space-x-4 pt-4 border-t">
-                <Checkbox
-                  id="includeDownspouts"
-                  checked={formData.gutters.downspouts.count > 0}
-                  onCheckedChange={(checked) => {
-                    if (!checked) {
-                      updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count: 0 });
-                    } else {
-                      updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count: 1 });
-                    }
-                  }}
-                  disabled={readOnly}
-                />
-                <Label htmlFor="includeDownspouts" className="flex-1">
-                  Install Downspouts ($75 each)
-                </Label>
-                {formData.gutters.downspouts.count > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm text-muted-foreground">Quantity:</Label>
-                <Input
-                      id="downspoutCount"
-                  type="number"
-                      value={formData.gutters.downspouts.count}
-                      onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count: parseInt(e.target.value) || 0 })}
-                  disabled={readOnly}
-                      min="1"
-                      className="w-20"
-                />
-              </div>
+                
+                {(formData.gutters.existing_gutters || formData.gutters.gutter_lf > 0) && (
+                  <div className="mt-3 flex items-center gap-4">
+                    <Label className="text-sm">Linear Feet:</Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={formData.gutters.gutter_lf || ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        updateField('gutters', 'gutter_lf', parseInt(value) || 0);
+                      }}
+                      onFocus={(e) => {
+                        // Select all text on focus for easy replacement
+                        e.target.select();
+                      }}
+                      placeholder="Enter linear feet"
+                      disabled={readOnly}
+                      className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
                 )}
               </div>
 
-              {formData.gutters.downspouts.count > 0 && (
-                <div className="ml-10">
-                  <Label htmlFor="downspoutColor">Downspout Color</Label>
-                 <Input
-                    id="downspoutColor"
-                    value={formData.gutters.downspouts.color}
-                    onChange={(e) => updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, color: e.target.value })}
-                   disabled={readOnly}
-                    placeholder="e.g., White, Brown"
-                    className="w-48 mt-2"
-                 />
-               </div>
-              )}
-             </CardContent>
-           </Card>
-         </TabsContent>
+
+
+              {/* Detach and Reset Gutters */}
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">Detach and Reset Gutters</div>
+                    {effectiveUserRole !== 'rep' && <div className="text-sm text-muted-foreground">$1 per linear foot</div>}
+                  </div>
+                  <Switch
+                    id="detachResetGutters"
+                    checked={formData.gutters.detach_reset_gutters || false}
+                    onCheckedChange={(checked) => {
+                      updateField('gutters', 'detach_reset_gutters', checked);
+                      if (!checked) {
+                        updateField('gutters', 'detach_reset_gutter_lf', 0);
+                      }
+                    }}
+                    disabled={readOnly}
+                  />
+                </div>
+
+                {formData.gutters.detach_reset_gutters && (
+                  <div className="mt-3 flex items-center gap-4">
+                    <Label className="text-sm">Linear Feet:</Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={formData.gutters.detach_reset_gutter_lf || ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        updateField('gutters', 'detach_reset_gutter_lf', parseInt(value) || 0);
+                      }}
+                      onFocus={(e) => {
+                        // Select all text on focus for easy replacement
+                        e.target.select();
+                      }}
+                      placeholder="Enter linear feet"
+                      disabled={readOnly}
+                      className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Downspouts */}
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">Install Downspouts</div>
+                    {effectiveUserRole !== 'rep' && <div className="text-sm text-muted-foreground">$75 each</div>}
+                  </div>
+                  <Switch
+                    id="includeDownspouts"
+                    checked={formData.gutters.photos || formData.gutters.downspouts.count > 0}
+                    onCheckedChange={(checked) => {
+                      updateField('gutters', 'photos', checked);
+                      if (!checked) {
+                        updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count: 0 });
+                      }
+                    }}
+                    disabled={readOnly}
+                  />
+                </div>
+                
+                {(formData.gutters.photos || formData.gutters.downspouts.count > 0) && (
+                  <div className="mt-3 flex items-center gap-4">
+                    <Label className="text-sm">Quantity:</Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={formData.gutters.downspouts.count || ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        updateField('gutters', 'downspouts', { ...formData.gutters.downspouts, count: parseInt(value) || 0 });
+                      }}
+                      onFocus={(e) => {
+                        // Select all text on focus for easy replacement
+                        e.target.select();
+                      }}
+                      placeholder="Enter quantity"
+                      disabled={readOnly}
+                      className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
-      <Button 
-        onClick={handleSubmit} 
-        disabled={readOnly}
-        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300"
-      >
-        Save Worksheet & Continue
+      <Button onClick={handleSubmit} disabled={readOnly}>
+        Save Worksheet
       </Button>
     </div>
   );
