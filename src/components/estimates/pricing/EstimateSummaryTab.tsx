@@ -78,7 +78,7 @@ export function EstimateSummaryTab({
     );
   }
 
-  const currentTotalEstimate = calculateLiveTotal();
+  // Calculate total estimate using profit margin (moved to later in component)
 
   const handleUpdateStatus = async (newStatus: EstimateStatus) => {
     if (!estimate?.id) {
@@ -402,8 +402,13 @@ export function EstimateSummaryTab({
     });
   }
 
-  // Add 2x2 skylights if included
-  if (safeLaborRates.includeSkylights2x2 && safeLaborRates.skylights2x2Count > 0) {
+  // Check if skylights are already included as materials to avoid double-counting
+  const hasSkylightMaterials = Object.values(selectedMaterials || {}).some(material => 
+    material.id === 'skylight-2x2' || material.id === 'skylight-2x4'
+  );
+
+  // Add 2x2 skylights if included and NOT already in materials
+  if (safeLaborRates.includeSkylights2x2 && safeLaborRates.skylights2x2Count > 0 && !hasSkylightMaterials) {
     laborCosts.push({
       name: `2X2 Skylights (${safeLaborRates.skylights2x2Count})`,
       rate: safeLaborRates.skylights2x2Rate,
@@ -411,8 +416,8 @@ export function EstimateSummaryTab({
     });
   }
 
-  // Add 2x4 skylights if included
-  if (safeLaborRates.includeSkylights2x4 && safeLaborRates.skylights2x4Count > 0) {
+  // Add 2x4 skylights if included and NOT already in materials
+  if (safeLaborRates.includeSkylights2x4 && safeLaborRates.skylights2x4Count > 0 && !hasSkylightMaterials) {
     laborCosts.push({
       name: `2X4 Skylights (${safeLaborRates.skylights2x4Count})`,
       rate: safeLaborRates.skylights2x4Rate,
@@ -422,8 +427,10 @@ export function EstimateSummaryTab({
   
   const totalLaborCost = laborCosts.reduce((sum, item) => sum + item.totalCost, 0);
   
-  // Calculate total costs
+  // Calculate total costs using profit margin (margin on selling price)
   const subtotal = totalMaterialCost + totalLaborCost;
+  const marginDecimal = profitMargin / 100;
+  const currentTotalEstimate = subtotal / (1 - marginDecimal);
   const profitAmount = currentTotalEstimate - subtotal;
 
   // Helper function to format numbers with commas

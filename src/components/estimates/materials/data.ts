@@ -383,6 +383,22 @@ export const ROOFING_MATERIALS: Material[] = [
     coverageRule: { description: "1 bucket per 300 LF of flashings", calculation: "Ceiling((Valley Length + Drip Edge Length + Wall Flashing Length + Step Flashing Length) / 300)" }
   },
   {
+    id: "skylight-2x2",
+    name: "2x2 Skylight",
+    category: MaterialCategory.ACCESSORIES,
+    price: 280.00,
+    unit: "Each",
+    coverageRule: { description: "1 per skylight", calculation: "Count of skylights from job worksheet" }
+  },
+  {
+    id: "skylight-2x4", 
+    name: "2x4 Skylight",
+    category: MaterialCategory.ACCESSORIES,
+    price: 370.00,
+    unit: "Each",
+    coverageRule: { description: "1 per skylight", calculation: "Count of skylights from job worksheet" }
+  },
+  {
     id: "kennedy-skylight-small",
     name: "Kennedy 2222-TSFG2 Self-Flashing Skylight w/ Tempered Glass & 2\" Curb",
     category: MaterialCategory.ACCESSORIES,

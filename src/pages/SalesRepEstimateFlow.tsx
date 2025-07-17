@@ -65,6 +65,7 @@ interface EstimateData {
   warrantyDetails?: any; // Store warranty details
   warrantyType?: string; // Store warranty type
   selectedPackage?: string; // Store selected package
+  selectedWarranty?: string; // Store selected warranty (silver-pledge, gold-pledge)
 }
 
 const SalesRepEstimateFlow: React.FC = () => {
@@ -87,7 +88,8 @@ const SalesRepEstimateFlow: React.FC = () => {
     pdfFileName: null,
     warrantyDetails: null,
     warrantyType: '',
-    selectedPackage: ''
+    selectedPackage: '',
+    selectedWarranty: 'silver-pledge'
   });
   const [currentStep, setCurrentStep] = useState(estimateData?.currentStep || 0);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -227,7 +229,8 @@ const SalesRepEstimateFlow: React.FC = () => {
       // Preserve warranty and package selections
       warrantyDetails: update.warrantyDetails,
       warrantyType: update.warrantyType,
-      selectedPackage: update.selectedPackage
+      selectedPackage: update.selectedPackage,
+      selectedWarranty: update.selectedWarranty
     }));
     // Don't auto-advance or submit - let user click continue
   };
@@ -626,6 +629,8 @@ const SalesRepEstimateFlow: React.FC = () => {
                 jobWorksheet={estimateData.jobWorksheet}
                 selectedMaterials={estimateData.materials || {}}
                 quantities={estimateData.quantities || {}}
+                selectedWarranty={estimateData.selectedWarranty}
+                selectedPackage={estimateData.selectedPackage}
               />
               
               <div className="mt-6 flex justify-end">
@@ -778,6 +783,7 @@ const SalesRepEstimateFlow: React.FC = () => {
                   phone: estimateData.customer_phone,
                   email: estimateData.customer_email
                 }}
+                warrantyDetails={estimateData.warrantyDetails}
                 onBack={goBack}
                 onSubmit={handleSummaryComplete}
                 isSubmitting={isProcessing}

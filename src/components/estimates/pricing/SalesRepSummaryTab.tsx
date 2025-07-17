@@ -53,6 +53,11 @@ interface SalesRepSummaryTabProps {
     email?: string;
   };
   jobWorksheet?: any;
+  warrantyDetails?: {
+    name: string;
+    price: number;
+    calculation: string;
+  } | null;
 }
 
 export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
@@ -66,7 +71,8 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
   onSubmit,
   isSubmitting = false,
   customerInfo,
-  jobWorksheet
+  jobWorksheet,
+  warrantyDetails
 }) => {
   const [showClientView, setShowClientView] = useState(false);
   const [showInternalView, setShowInternalView] = useState(true);
@@ -105,7 +111,14 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       const quantity = quantities[id] || 0;
       total += material.price * quantity;
     });
-    return total + peelStickAddonCost;
+    total += peelStickAddonCost;
+    
+    // Add warranty cost if it exists
+    if (warrantyDetails && warrantyDetails.price > 0) {
+      total += warrantyDetails.price;
+    }
+    
+    return total;
   };
 
   // Calculate labor costs by pitch
@@ -165,6 +178,11 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
     return laborDetails;
   };
 
+  // Check if skylights are already included as materials to avoid double-counting
+  const hasSkylightMaterials = Object.values(selectedMaterials || {}).some(material => 
+    material.id === 'skylight-2x2' || material.id === 'skylight-2x4'
+  );
+
   const calculateLaborTotal = () => {
     const totalArea = measurements?.totalArea || 0;
     const totalSquares = totalArea / 100;
@@ -199,8 +217,8 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
     const detachResetGutterCost = laborRates.includeDetachResetGutters ?
       (laborRates.detachResetGutterLinearFeet || 0) * (laborRates.detachResetGutterRate || 1) : 0;
     
-    // Add skylights
-    const skylightCost = 
+    // Add skylights only if NOT already in materials
+    const skylightCost = hasSkylightMaterials ? 0 : 
       (laborRates.includeSkylights2x2 ? (laborRates.skylights2x2Count || 0) * (laborRates.skylights2x2Rate || 280) : 0) +
       (laborRates.includeSkylights2x4 ? (laborRates.skylights2x4Count || 0) * (laborRates.skylights2x4Rate || 370) : 0);
     
@@ -210,12 +228,34 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
   const materialTotal = calculateMaterialTotal();
   const laborTotal = calculateLaborTotal();
   const subtotal = materialTotal + laborTotal;
-  const profitAmount = subtotal * (profitMargin / 100);
-  const grandTotal = subtotal + profitAmount;
+  // Profit margin calculation (margin on selling price, not markup on cost)
+  const marginDecimal = profitMargin / 100;
+  const grandTotal = subtotal / (1 - marginDecimal);
+  const profitAmount = grandTotal - subtotal;
 
   const totalSquares = measurements?.totalArea ? (measurements.totalArea / 100).toFixed(1) : '0';
   const predominantPitch = measurements?.predominantPitch || measurements?.roofPitch || 'Unknown';
   const materialCount = Object.keys(selectedMaterials).length;
+
+  // Helper function to format category names for display
+  const formatCategoryName = (category: string): string => {
+    switch (category) {
+      case 'LOW_SLOPE':
+        return 'Low Slope';
+      case 'SHINGLES':
+        return 'Shingles';
+      case 'UNDERLAYMENTS':
+        return 'Underlayments';
+      case 'METAL':
+        return 'Metal';
+      case 'VENTILATION':
+        return 'Ventilation';
+      case 'ACCESSORIES':
+        return 'Accessories';
+      default:
+        return category;
+    }
+  };
 
   // Group materials by category
   const groupedMaterials = Object.entries(selectedMaterials).reduce((acc, [id, material]) => {
@@ -234,19 +274,23 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       
-      // First, load and copy the 3MG infographic PDF
+      // First, load and copy the 3MG infographic PDF (excluding page 6 - blank white page)
       try {
         const infographicUrl = '/pdf-templates/3mg-company-infographic.pdf';
         const infographicBytes = await fetch(infographicUrl).then(res => res.arrayBuffer());
         const infographicPdf = await PDFDocument.load(infographicBytes);
         
-        // Copy all pages from the infographic to the beginning of our document
-        const infographicPages = await pdfDoc.copyPages(infographicPdf, infographicPdf.getPageIndices());
+        // Get all page indices except pages 6 and 7 (indices 5 and 6 since it's 0-based)
+        const allIndices = infographicPdf.getPageIndices();
+        const filteredIndices = allIndices.filter(index => index !== 5 && index !== 6); // Skip pages 6 and 7
+        
+        // Copy filtered pages from the infographic to the beginning of our document
+        const infographicPages = await pdfDoc.copyPages(infographicPdf, filteredIndices);
         infographicPages.forEach((page) => {
           pdfDoc.addPage(page);
         });
         
-        console.log(`Added ${infographicPages.length} pages from company infographic`);
+        console.log(`Added ${infographicPages.length} pages from company infographic (excluded pages 6-7)`);
       } catch (error) {
         console.error('Failed to load company infographic, continuing without it:', error);
         // Continue without the infographic if it fails to load
@@ -272,20 +316,20 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         color: green,
       });
       
-      // 3MG Logo/Title
+      // 3MG Logo/Title - Balanced sizing and positioning
       page.drawText('3MG', {
         x: 50,
         y: height - 45,
-        size: 24,
+        size: 32,
         font: helveticaBold,
         color: rgb(1, 1, 1),
       });
       
-      page.drawText('Roofing and Solar', {
+      page.drawText('ROOFING & SOLAR', {
         x: 50,
         y: height - 65,
         size: 14,
-        font: helvetica,
+        font: helveticaBold,
         color: rgb(1, 1, 1),
       });
       
@@ -327,11 +371,8 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       
       y -= 30;
       
-      // Package description
-      const packageType = jobWorksheet?.shingle_roof?.gaf_package || 'GAF';
-      const warrantyType = jobWorksheet?.shingle_roof?.warranty_type || 'Standard';
-      
-      page.drawText(`${packageType} Roofing System with ${warrantyType} warranty`, {
+      // Package description - 3MG branded
+      page.drawText('3MG Premium Roofing System with Comprehensive Warranty', {
         x: 50,
         y: y,
         size: 12,
@@ -352,12 +393,12 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       
       y -= 20;
       
-      // Draw customer details
+      // Draw customer details - only include phone and email if provided
       const customerDetails = [
         `Name: ${customerInfo?.name || 'N/A'}`,
         `Address: ${measurements?.propertyAddress || customerInfo?.address || 'N/A'}`,
-        `Phone: ${customerInfo?.phone || 'N/A'}`,
-        `Email: ${customerInfo?.email || 'N/A'}`,
+        ...(customerInfo?.phone ? [`Phone: ${customerInfo.phone}`] : []),
+        ...(customerInfo?.email ? [`Email: ${customerInfo.email}`] : []),
         `Date: ${new Date().toLocaleDateString()}`
       ];
       
@@ -395,12 +436,12 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         "If we encounter rotted / saturated wood areas, we will surgically extract those pieces and replace them with new (Like-kind). We will ensure that decking has been returned to a strong nail-able surface.",
         "Once any necessary decking has been addressed, we will re-nail the entire surface every 6 inches to abide by and satisfy the strictly enforced new Florida Building Codes.",
         "Wood decking will be inspected and replaced on a \"as-needed\" basis at the cost of $80.00 per sheet. All framing work (fascia / trim) will be replaced on a \"as-needed\" basis at the cost of $10.00 per linear foot.",
-        `Install ${packageType} roofing materials (color of your choice) to match exact product specifications and requirements for all-inclusive warranties also to abide by and satisfy the strictly enforced new Florida Building Codes.`,
+        "Install 3MG premium roofing materials (color of your choice) to match exact product specifications and requirements for all-inclusive warranties also to abide by and satisfy the strictly enforced new Florida Building Codes.",
         "Install underlayment system to match exact product specifications and requirements for all-inclusive warranties also to abide by and satisfy the strictly enforced new Florida Building Codes.",
         "Install all new ventilation, pipes and attachments to match exact and current roof specifications.",
         "*Maximizing your roof's ventilation is the most beneficial action that can be done to ensure your roof reaches full life expectancy. Please review/discuss with your Account Manager.",
         "Provide 5 Year Limited Contractor's Warranty",
-        `Provide ${warrantyType === 'GAF Silver Pledge' ? '50-Year' : '25-Year'} Limited Manufacturer's Warranty`,
+        "Provide 25-Year Limited 3MG Warranty",
         "Main Shingle Structure Only"
       ];
       
@@ -440,10 +481,10 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
               color: darkGray,
             });
             line = words[i] + ' ';
-            y -= 15;
+            y -= 12;
             
-            // Check for new page
-            if (y < 100) {
+            // Check for new page - reduced threshold for better fit
+            if (y < 80) {
               page = pdfDoc.addPage([612, 792]);
               y = height - 50;
             }
@@ -467,9 +508,14 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         itemNumber++;
       }
       
-      // Add new page for estimate summary
-      page = pdfDoc.addPage([612, 792]);
-      y = height - 50;
+      // Add spacing before estimate summary (same page)
+      y -= 20;
+      
+      // Check if we need a new page for estimate summary
+      if (y < 200) {
+        page = pdfDoc.addPage([612, 792]);
+        y = height - 50;
+      }
       
       // Estimate Summary
       page.drawText('Estimate Summary', {
@@ -510,7 +556,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         color: green,
       });
       
-      y -= 100;
+      y -= 80;
       
       // Payment terms
       page.drawText('This proposal is valid for 30 days from the date above.', {
@@ -531,10 +577,62 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         color: lightGray,
       });
       
-      // Signature section
-      y = 150;
+      y -= 60;
       
-      page.drawText('Customer Acceptance', {
+      // ESTIMATE DISCLAIMER - positioned after payment terms, before signatures
+      page.drawText('ESTIMATE DISCLAIMER:', {
+        x: 50,
+        y: y,
+        size: 12,
+        font: helveticaBold,
+        color: darkGray,
+      });
+      
+      y -= 15;
+      
+      // Disclaimer text
+      const disclaimerText = "A written contract, issued after mutual agreement on the scope of work and inspection findings, will govern the total price, payment terms, timeline, and all other obligations, and will supersede and render of no legal effect any figures contained in this estimate. Until that contract is executed, all amounts should be viewed as preliminary and subject to revision. Pricing may change based on on-site inspection findings; adjustments to project scope, materials, or requested services; fluctuations in labor, material, and permit costs; and unforeseen conditions.";
+      
+      // Word wrap the disclaimer text
+      const disclaimerMaxWidth = width - 100;
+      const disclaimerWords = disclaimerText.split(' ');
+      let disclaimerLine = '';
+      
+      for (let i = 0; i < disclaimerWords.length; i++) {
+        const testLine = disclaimerLine + disclaimerWords[i] + ' ';
+        const testWidth = helvetica.widthOfTextAtSize(testLine, 9);
+        
+        if (testWidth > disclaimerMaxWidth && disclaimerLine !== '') {
+          page.drawText(disclaimerLine.trim(), {
+            x: 50,
+            y: y,
+            size: 9,
+            font: helvetica,
+            color: darkGray,
+          });
+          disclaimerLine = disclaimerWords[i] + ' ';
+          y -= 11;
+        } else {
+          disclaimerLine = testLine;
+        }
+      }
+      
+      // Draw remaining disclaimer text
+      if (disclaimerLine.trim()) {
+        page.drawText(disclaimerLine.trim(), {
+          x: 50,
+          y: y,
+          size: 9,
+          font: helvetica,
+          color: darkGray,
+        });
+        y -= 11;
+      }
+      
+      y -= 120;
+      
+      // Signature section
+      page.drawText('Signature', {
         x: 50,
         y: y,
         size: 14,
@@ -542,7 +640,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         color: darkGray,
       });
       
-      y -= 40;
+      y -= 30;
       
       // Customer signature line
       page.drawLine({
@@ -689,24 +787,36 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Customer Info */}
-            <div className="space-y-2">
+            <div className="space-y-4">
               <h3 className="font-semibold text-sm flex items-center gap-1">
                 <Home className="h-4 w-4" />
                 Customer Information
               </h3>
+              
+              {/* Centered and Larger Address */}
+              <div className="flex justify-center py-4">
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-blue-600" />
+                  <span className="text-lg font-semibold text-gray-800">
+                    {measurements?.propertyAddress || customerInfo?.address || 'Address not provided'}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Other contact info below */}
               <div className="space-y-1 text-sm">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-3 w-3 text-gray-500" />
-                  <span>{customerInfo?.address || 'Not provided'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-3 w-3 text-gray-500" />
-                  <span>{customerInfo?.phone || 'Not provided'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Mail className="h-3 w-3 text-gray-500" />
-                  <span>{customerInfo?.email || 'Not provided'}</span>
-                </div>
+                {customerInfo?.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-3 w-3 text-gray-500" />
+                    <span>{customerInfo.phone}</span>
+                  </div>
+                )}
+                {customerInfo?.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-3 w-3 text-gray-500" />
+                    <span>{customerInfo.email}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -749,7 +859,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
           <CardContent className="space-y-3">
             {Object.entries(groupedMaterials).map(([category, items]) => (
               <div key={category}>
-                <h4 className="font-medium text-xs text-gray-600 mb-1">{category}</h4>
+                <h4 className="font-medium text-xs text-gray-600 mb-1">{formatCategoryName(category)}</h4>
                 <div className="space-y-1">
                   {items.map(({ id, material, quantity }) => (
                     <div key={id} className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
@@ -767,6 +877,13 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
               <div className="flex justify-between items-center p-2 bg-blue-50 rounded text-sm">
                 <p className="font-medium">Full W.W. Peel & Stick System</p>
                 <p className="font-semibold">Included</p>
+              </div>
+            )}
+            
+            {warrantyDetails && warrantyDetails.price > 0 && (
+              <div className="flex justify-between items-center p-2 bg-purple-50 rounded text-sm">
+                <p className="font-medium">{warrantyDetails.name}</p>
+                <p className="font-semibold">1</p>
               </div>
             )}
             
@@ -843,7 +960,8 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
                 </div>
               )}
 
-              {(laborRates.includeSkylights2x2 || laborRates.includeSkylights2x4) && (
+              {/* Only show skylight labor items if NOT already included as materials */}
+              {!hasSkylightMaterials && (laborRates.includeSkylights2x2 || laborRates.includeSkylights2x4) && (
                 <>
                   {laborRates.includeSkylights2x2 && laborRates.skylights2x2Count > 0 && (
                     <div className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
@@ -913,23 +1031,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
           Back to Labor & Profit
         </Button>
         
-        <Button
-          onClick={onSubmit}
-          disabled={isSubmitting}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-        >
-          {isSubmitting ? (
-            <>
-              <Activity className="h-4 w-4 animate-spin" />
-              Submitting...
-            </>
-          ) : (
-            <>
-              <CheckCircle2 className="h-4 w-4" />
-              Submit for Approval
-            </>
-          )}
-        </Button>
+        {/* Sales reps (project managers) don't need approval - button removed */}
       </div>
       </>
       )}
@@ -1067,7 +1169,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
                       <ol className="space-y-2 text-gray-700 ml-7" start={5}>
                         <li>5. Complete removal of existing roofing materials down to deck</li>
                         <li>6. Thorough inspection of entire roof deck for structural integrity</li>
-                        <li>7. Replace any damaged/rotted decking with new CDX plywood (like-kind)</li>
+                        <li>7. Inspect and replace damaged or deteriorated roof decking as needed</li>
                         <li>8. Re-nail entire deck surface every 6" per Florida Building Code</li>
                       </ol>
                       <div className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-3 ml-7">

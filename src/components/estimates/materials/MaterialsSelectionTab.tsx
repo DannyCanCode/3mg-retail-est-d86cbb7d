@@ -45,6 +45,8 @@ interface MaterialsSelectionTabProps {
     peelStickPrice: string,
     warrantyCost: number,
     warrantyDetails?: WarrantyDetails | null;
+    selectedWarranty?: string | null;
+    selectedPackage?: string | null;
     isNavigatingBack?: boolean; // New optional flag
   }) => void;
   readOnly?: boolean;
@@ -56,6 +58,9 @@ interface MaterialsSelectionTabProps {
   originalCreator?: string | null;
   originalCreatorRole?: string | null;
   jobWorksheet?: any; // Job worksheet data from previous step
+  // Warranty and package state props (for sales rep flow)
+  selectedWarranty?: string | null;
+  selectedPackage?: string | null;
 }
 
 // Interface for warranty details
@@ -95,6 +100,9 @@ export function MaterialsSelectionTab({
   originalCreator = null,
   originalCreatorRole = null,
   jobWorksheet = null, // Default to null if not provided
+  // Warranty and package state props
+  selectedWarranty: propSelectedWarranty = 'silver-pledge',
+  selectedPackage: propSelectedPackage = null,
 }: MaterialsSelectionTabProps) { // Added activePricingTemplate, allPricingTemplates, onTemplateChange to props
   // Get auth context early to use in state initialization
   const { profile } = useAuth();
@@ -160,22 +168,18 @@ export function MaterialsSelectionTab({
   // Track if we've auto-populated for sales reps
   const [hasAutoPopulated, setHasAutoPopulated] = useState(false);
   
-  // Track if we've auto-populated ventilation materials
-  const hasVentilationPopulated = useRef(false);
-  
-  // Reset ventilation populated flag when job worksheet changes
-  useEffect(() => {
-    // Reset whenever jobWorksheet changes at all
-    console.log('🔧 [Ventilation] Job worksheet changed, resetting populated flag');
-    hasVentilationPopulated.current = false;
-  }, [jobWorksheet]); // Watch entire jobWorksheet object
+  // Track if we've auto-populated ventilation materials (removed blocking logic)
+  // Note: Ventilation auto-population now works additively and doesn't need blocking
   
   // State for GAF packages and warranty options
   const [selectedPackage, setSelectedPackage] = useState<string | null>(() => {
-    // Don't auto-default to GAF 2 for sales reps - let them choose
-    return null;
+    // Use prop value if provided, otherwise default to null
+    return propSelectedPackage;
   });
-  const [selectedWarranty, setSelectedWarranty] = useState<string | null>('silver-pledge');
+  const [selectedWarranty, setSelectedWarranty] = useState<string | null>(() => {
+    // Use prop value if provided, otherwise default to silver-pledge
+    return propSelectedWarranty;
+  });
   const [isPeelStickSelected, setIsPeelStickSelected] = useState<boolean>(false);
   const [includeIso, setIncludeIso] = useState<boolean>(false);
   const [peelStickPrice, setPeelStickPrice] = useState<string>("0.00");
@@ -287,12 +291,12 @@ export function MaterialsSelectionTab({
 
   // Auto-populate ventilation materials based on job worksheet ventilation data
   useEffect(() => {
-    if (!jobWorksheet?.ventilation || !measurements || hasVentilationPopulated.current) {
+    // Always check if there are NEW ventilation items that need to be added
+    if (!jobWorksheet?.ventilation || !measurements) {
       console.log('🔧 [Ventilation Auto-Population] Skipping:', {
         hasVentilation: !!jobWorksheet?.ventilation,
         ventilationData: jobWorksheet?.ventilation,
-        hasMeasurements: !!measurements,
-        alreadyPopulated: hasVentilationPopulated.current
+        hasMeasurements: !!measurements
       });
       return;
     }
@@ -336,13 +340,17 @@ export function MaterialsSelectionTab({
       if (count > 0) {
         const material = ROOFING_MATERIALS.find(m => m.id === materialId);
         if (material) {
-          console.log(`🔧 [Ventilation] Field ${field}: Adding ${count} x ${material.name} (${materialId})`);
-          // Combine quantities if material already exists
-          if (materialsToAdd[materialId]) {
-            materialsToAdd[materialId].quantity += count;
-            console.log(`🔧 [Ventilation] Combined quantity for ${materialId}: ${materialsToAdd[materialId].quantity}`);
+          // Check if material is already in the selected materials with the correct quantity
+          const currentQuantity = localQuantities[materialId] || 0;
+          const isAlreadyPresent = localSelectedMaterials[materialId] && currentQuantity >= count;
+          
+          if (!isAlreadyPresent) {
+            console.log(`🔧 [Ventilation] Field ${field}: Adding/Updating ${count} x ${material.name} (${materialId})`);
+            // Use the higher quantity (existing or new)
+            const finalQuantity = Math.max(currentQuantity, count);
+            materialsToAdd[materialId] = { material, quantity: finalQuantity };
           } else {
-            materialsToAdd[materialId] = { material, quantity: count };
+            console.log(`🔧 [Ventilation] Field ${field}: Material ${materialId} already present with quantity ${currentQuantity}`);
           }
         } else {
           console.warn(`🔧 [Ventilation] Material not found: ${materialId}`);
@@ -353,7 +361,6 @@ export function MaterialsSelectionTab({
     // If there are materials to add, update the state
     if (Object.keys(materialsToAdd).length > 0) {
       console.log('🔧 [Ventilation] Updating state with materials:', Object.keys(materialsToAdd));
-      hasVentilationPopulated.current = true; // Mark as populated before updating state
       isInternalChange.current = true; // Mark as internal change to prevent reset
       
       setLocalSelectedMaterials(prev => {
@@ -418,7 +425,7 @@ export function MaterialsSelectionTab({
     } else {
       console.log('🔧 [Ventilation] No ventilation materials to add');
     }
-  }, [jobWorksheet?.ventilation, measurements]);
+  }, [jobWorksheet?.ventilation, measurements, Object.keys(localSelectedMaterials).length]);
 
   // Reset function to completely reset state from props
   const resetStateFromProps = useCallback(() => {
@@ -629,12 +636,30 @@ export function MaterialsSelectionTab({
       peelStickPrice,
       warrantyCost: warrantyDetails?.price || 0,
       warrantyDetails,
+      selectedWarranty,
+      selectedPackage,
       isNavigatingBack: false // Explicitly false for regular updates
     });
 
-  }, [localSelectedMaterials, localQuantities, peelStickPrice, warrantyDetails]); 
+  }, [localSelectedMaterials, localQuantities, peelStickPrice, warrantyDetails, selectedWarranty, selectedPackage]); 
   // 🔧 PERFORMANCE FIX: Removed onMaterialsUpdate from dependency array to prevent infinite re-render loop
   // materialWasteFactors removed from dependency array as it's not sent to parent
+  
+  // Sync local warranty and package state with props (for restoration from localStorage)
+  useEffect(() => {
+    // Only sync when prop changes and avoid null values that would clear valid selections
+    if (propSelectedWarranty !== null && propSelectedWarranty !== selectedWarranty) {
+      console.log(`🔄 [WarrantySync] Updating selectedWarranty from prop: ${propSelectedWarranty}`);
+      setSelectedWarranty(propSelectedWarranty);
+    }
+  }, [propSelectedWarranty]); // Only depend on prop, not local state to avoid loop
+
+  useEffect(() => {
+    if (propSelectedPackage !== null && propSelectedPackage !== selectedPackage) {
+      console.log(`🔄 [PackageSync] Updating selectedPackage from prop: ${propSelectedPackage}`);
+      setSelectedPackage(propSelectedPackage);
+    }
+  }, [propSelectedPackage]); // Only depend on prop, not local state to avoid loop
   
   // Set low slope visibility but keep all accordions closed by default per manager request
   useEffect(() => {
@@ -880,6 +905,71 @@ export function MaterialsSelectionTab({
     wasteFactor,
     // Removed unstable references: toast, JSON.stringify, direct object references
   ]);
+
+  // Auto-populate skylights from job worksheet
+  useEffect(() => {
+    if (!jobWorksheet?.accessories?.skylight) {
+      return;
+    }
+
+    const skylightData = jobWorksheet.accessories.skylight;
+    const newMaterials = { ...localSelectedMaterials };
+    const newQuantities = { ...localQuantities };
+    let materialsUpdated = false;
+
+    // Handle 2x2 skylights
+    if (skylightData.count_2x2 > 0) {
+      const skylight2x2 = ROOFING_MATERIALS.find(m => m.id === "skylight-2x2");
+      if (skylight2x2 && !newMaterials["skylight-2x2"]) {
+        newMaterials["skylight-2x2"] = skylight2x2;
+        newQuantities["skylight-2x2"] = skylightData.count_2x2;
+        materialsUpdated = true;
+        console.log(`[SKYLIGHT AUTO-ADD] Added 2x2 skylights: ${skylightData.count_2x2} units`);
+      } else if (skylight2x2 && newMaterials["skylight-2x2"]) {
+        // Update quantity if it changed
+        if (newQuantities["skylight-2x2"] !== skylightData.count_2x2) {
+          newQuantities["skylight-2x2"] = skylightData.count_2x2;
+          materialsUpdated = true;
+          console.log(`[SKYLIGHT UPDATE] Updated 2x2 skylights quantity: ${skylightData.count_2x2} units`);
+        }
+      }
+    } else if (newMaterials["skylight-2x2"]) {
+      // Remove if count becomes 0
+      delete newMaterials["skylight-2x2"];
+      delete newQuantities["skylight-2x2"];
+      materialsUpdated = true;
+      console.log(`[SKYLIGHT REMOVE] Removed 2x2 skylights`);
+    }
+
+    // Handle 2x4 skylights
+    if (skylightData.count_2x4 > 0) {
+      const skylight2x4 = ROOFING_MATERIALS.find(m => m.id === "skylight-2x4");
+      if (skylight2x4 && !newMaterials["skylight-2x4"]) {
+        newMaterials["skylight-2x4"] = skylight2x4;
+        newQuantities["skylight-2x4"] = skylightData.count_2x4;
+        materialsUpdated = true;
+        console.log(`[SKYLIGHT AUTO-ADD] Added 2x4 skylights: ${skylightData.count_2x4} units`);
+      } else if (skylight2x4 && newMaterials["skylight-2x4"]) {
+        // Update quantity if it changed
+        if (newQuantities["skylight-2x4"] !== skylightData.count_2x4) {
+          newQuantities["skylight-2x4"] = skylightData.count_2x4;
+          materialsUpdated = true;
+          console.log(`[SKYLIGHT UPDATE] Updated 2x4 skylights quantity: ${skylightData.count_2x4} units`);
+        }
+      }
+    } else if (newMaterials["skylight-2x4"]) {
+      // Remove if count becomes 0
+      delete newMaterials["skylight-2x4"];
+      delete newQuantities["skylight-2x4"];
+      materialsUpdated = true;
+      console.log(`[SKYLIGHT REMOVE] Removed 2x4 skylights`);
+    }
+
+    if (materialsUpdated) {
+      setLocalSelectedMaterials(newMaterials);
+      setLocalQuantities(newQuantities);
+    }
+  }, [jobWorksheet?.accessories?.skylight, localSelectedMaterials, localQuantities]);
 
   // 🔧 CRITICAL FIX: Moved ref outside useMemo to prevent hook violations
   const prevMaterialCountRef = useRef<number>(0);
@@ -1522,6 +1612,15 @@ export function MaterialsSelectionTab({
     return lowSlopeMaterialIds.includes(materialId) && showLowSlope;
   };
 
+  // Helper to check if material is a skylight material from job worksheet
+  const isSkylightMaterial = (materialId: string): boolean => {
+    const skylightMaterialIds = [
+      'skylight-2x2',
+      'skylight-2x4'
+    ];
+    return skylightMaterialIds.includes(materialId);
+  };
+
   // 🎨 VISUAL STYLING: Check if material is auto-selected (for blue highlighting)
   const isAutoSelectedMaterial = (materialId: string): boolean => {
     const gafPackageMaterialIds = [
@@ -1837,6 +1936,8 @@ export function MaterialsSelectionTab({
     const getContainerStyling = () => {
       if (isLowSlope) {
         return 'py-2 px-3 rounded-md border-2 bg-green-50 border-green-300';
+      } else if (isSkylightMaterial(materialId)) {
+        return 'py-2 px-3 rounded-md border-2 bg-yellow-50 border-yellow-300';
       } else if (isAutoSelected) {
         return 'py-2 px-3 rounded-md border-2 bg-blue-50 border-blue-300';
       } 
@@ -1862,6 +1963,8 @@ export function MaterialsSelectionTab({
           className={`p-4 mb-3 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md ${
             isLowSlope 
               ? 'bg-gradient-to-r from-green-50 to-green-100/50 border border-green-200 hover:border-green-300' 
+              : isSkylightMaterial(materialId)
+              ? 'bg-gradient-to-r from-yellow-50 to-yellow-100/50 border border-yellow-200 hover:border-yellow-300'
               : isAutoSelected
               ? 'bg-gradient-to-r from-blue-50 to-blue-100/50 border border-blue-200 hover:border-blue-300'
               : materialId.includes('gooseneck')
@@ -1877,13 +1980,15 @@ export function MaterialsSelectionTab({
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 pr-2">
               <p className="text-sm font-semibold text-gray-900 leading-tight mb-1">{baseName}</p>
-              {(isAutoSelected || isLowSlope) && (
+              {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && (
                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                   isLowSlope 
                     ? 'bg-green-100 text-green-800 border border-green-200' 
+                    : isSkylightMaterial(materialId)
+                    ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
                     : 'bg-blue-100 text-blue-800 border border-blue-200'
                 }`}>
-                  {isLowSlope ? '🌿 Low-Slope Required' : 'Auto-Selected'}
+                  {isLowSlope ? '🌿 Low-Slope Required' : isSkylightMaterial(materialId) ? '☀️ From Job Worksheet' : 'Auto-Selected'}
                 </span>
               )}
             </div>
@@ -1892,6 +1997,8 @@ export function MaterialsSelectionTab({
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
               isLowSlope 
                 ? 'bg-gradient-to-br from-green-400 to-green-500 text-white' 
+                : isSkylightMaterial(materialId)
+                ? 'bg-gradient-to-br from-yellow-400 to-yellow-500 text-white'
                 : isAutoSelected
                 ? 'bg-gradient-to-br from-blue-400 to-blue-500 text-white'
                 : materialId.includes('gooseneck')
@@ -2014,30 +2121,32 @@ export function MaterialsSelectionTab({
           {/* Title and Badge Row */}
           <div className="flex items-start justify-between gap-2">
             <span className="font-semibold text-gray-800 text-sm leading-tight">{baseName}</span>
-            {(isAutoSelected || isLowSlope) && (
+            {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && (
               <Badge 
                 variant="default" 
                 className={`text-white text-xs px-1.5 py-0.5 whitespace-nowrap ${
                   isLowSlope 
                     ? 'bg-green-600' 
+                    : isSkylightMaterial(materialId)
+                    ? 'bg-yellow-600'
                     : 'bg-blue-600'
                 }`}
               >
-                {isLowSlope ? 'Low-Slope Required' : 'Auto-Selected'}
+                {isLowSlope ? 'Low-Slope Required' : isSkylightMaterial(materialId) ? 'From Job Worksheet' : 'Auto-Selected'}
               </Badge>
             )}
           </div>
           
           {/* Requirement Text */}
-          {(isAutoSelected || isLowSlope) && requirementText && (
-            <p className={`text-[10px] leading-tight ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
+          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && requirementText && (
+            <p className={`text-[10px] leading-tight ${isLowSlope ? 'text-green-700' : isSkylightMaterial(materialId) ? 'text-yellow-700' : 'text-blue-700'}`}>
               {requirementText}
             </p>
           )}
           
           {/* Quantity Summary */}
-          {(isAutoSelected || isLowSlope) && bundleQuantity > 0 && (
-            <div className={`text-xs ${isLowSlope ? 'text-green-700' : 'text-blue-700'}`}>
+          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && bundleQuantity > 0 && (
+            <div className={`text-xs ${isLowSlope ? 'text-green-700' : isSkylightMaterial(materialId) ? 'text-yellow-700' : 'text-blue-700'}`}>
               <p className="font-medium">
                 {isGafTimberline 
                     ? `${Math.ceil(bundleQuantity / 3)} squares (${bundleQuantity} bundles)`
@@ -2774,9 +2883,7 @@ export function MaterialsSelectionTab({
                 onPeelStickToggle={setIsPeelStickSelected}
               />
               
-              {showLowSlope && (
-                <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
-              )}
+              {/* Low Slope Options hidden for sales reps - not needed in their simplified view */}
             </CardContent>
           </Card>
         </div>
@@ -3084,6 +3191,8 @@ export function MaterialsSelectionTab({
                 peelStickPrice: peelStickPrice,
                 warrantyCost: warrantyDetails?.price || 0,
                 warrantyDetails: warrantyDetails,
+                selectedWarranty,
+                selectedPackage,
                 isNavigatingBack: true 
               })}
               className="flex items-center gap-2"
@@ -3158,10 +3267,7 @@ export function MaterialsSelectionTab({
                         </div>
                       )}
                       
-                      {/* Calculation Details */}
-                      <div className="text-[10px] text-muted-foreground mt-1">
-                        <p className="leading-tight">• Calculation Logic: {warrantyDetails.calculation}</p>
-                      </div>
+                      {/* Calculation Details - Hidden for cleaner display */}
                     </div>
                   </div>
                 )}

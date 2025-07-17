@@ -260,10 +260,66 @@ export function RecentEstimates() {
 
       currentY -= 40;
 
-      // TODO: Add Static Text Sections (Terms, Warnings, Signatures) here
-      // This will require copying the text and drawing it, likely spanning multiple pages.
-      page.drawText('GENERAL TERMS AND CONDITIONS - PLACEHOLDER', { x: margin, y: currentY, font: boldFont, size: 10 });
-      // ... more drawText calls ...
+      // Disclaimer section
+      page.drawText('ESTIMATE DISCLAIMER:', { x: margin, y: currentY, font: boldFont, size: 12, color: rgb(0.2, 0.2, 0.2) });
+      currentY -= 20;
+      
+      // Disclaimer text
+      const disclaimerText = "A written contract, issued after mutual agreement on the scope of work and inspection findings, will govern the total price, payment terms, timeline, and all other obligations, and will supersede and render of no legal effect any figures contained in this estimate. Until that contract is executed, all amounts should be viewed as preliminary and subject to revision. Pricing may change based on on-site inspection findings; adjustments to project scope, materials, or requested services; fluctuations in labor, material, and permit costs; and unforeseen conditions.";
+      
+      // Word wrap the disclaimer text
+      const disclaimerMaxWidth = width - 2 * margin;
+      const disclaimerWords = disclaimerText.split(' ');
+      let disclaimerLine = '';
+      
+      for (let i = 0; i < disclaimerWords.length; i++) {
+        const testLine = disclaimerLine + disclaimerWords[i] + ' ';
+        const testWidth = font.widthOfTextAtSize(testLine, 10);
+        
+        if (testWidth > disclaimerMaxWidth && disclaimerLine !== '') {
+          page.drawText(disclaimerLine.trim(), { x: margin, y: currentY, font: font, size: 10 });
+          disclaimerLine = disclaimerWords[i] + ' ';
+          currentY -= 12;
+          
+          // Check if we need a new page
+          if (currentY < 100) {
+            page = pdfDoc.addPage([612, 792]);
+            currentY = height - margin;
+          }
+        } else {
+          disclaimerLine = testLine;
+        }
+      }
+      
+      // Draw remaining disclaimer text
+      if (disclaimerLine.trim()) {
+        page.drawText(disclaimerLine.trim(), { x: margin, y: currentY, font: font, size: 10 });
+        currentY -= 12;
+      }
+      
+      currentY -= 20;
+      
+      // Signature section
+      page.drawText('Customer Acceptance', { x: margin, y: currentY, font: boldFont, size: 12 });
+      currentY -= 30;
+      
+      // Customer signature line
+      page.drawLine({ start: { x: margin, y: currentY }, end: { x: margin + 200, y: currentY }, thickness: 1 });
+      page.drawText('Customer Signature', { x: margin, y: currentY - 15, font: font, size: 9 });
+      
+      // Date line
+      page.drawLine({ start: { x: margin + 250, y: currentY }, end: { x: margin + 350, y: currentY }, thickness: 1 });
+      page.drawText('Date', { x: margin + 250, y: currentY - 15, font: font, size: 9 });
+      
+      currentY -= 50;
+      
+      // Company signature line
+      page.drawLine({ start: { x: margin, y: currentY }, end: { x: margin + 200, y: currentY }, thickness: 1 });
+      page.drawText('3MG Representative', { x: margin, y: currentY - 15, font: font, size: 9 });
+      
+      // Date line
+      page.drawLine({ start: { x: margin + 250, y: currentY }, end: { x: margin + 350, y: currentY }, thickness: 1 });
+      page.drawText('Date', { x: margin + 250, y: currentY - 15, font: font, size: 9 });
 
       // --- End PDF Content ---
 
