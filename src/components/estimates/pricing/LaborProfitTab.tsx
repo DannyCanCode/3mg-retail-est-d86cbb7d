@@ -202,6 +202,9 @@ export function LaborProfitTab({
     if (measurements?.totalArea && measurements.totalArea > 0) {
       combined.dumpsterCount = recommendedDumpsterCount;
     }
+    
+    // Always set permit count to 1 (one permit per job)
+    combined.permitCount = 1;
 
     if (initialRates?.dumpsterLocation === 'outside') {
       combined.dumpsterRate = initialRates.dumpsterRate !== undefined ? initialRates.dumpsterRate : 500;
@@ -358,8 +361,8 @@ export function LaborProfitTab({
                 }
             }
         }
-        // 🔧 FIX: Mark that user has manually changed dumpster count
-        setHasUserChangedDumpsterCount(true);
+        // Ignore manual changes to dumpster count - always auto-calculated based on roof area
+        return;
     } else if (field === "skylights2x2Count" || field === "skylights2x4Count" || field === "downspoutCount" || field === "gutterLinearFeet" || field === "detachResetGutterLinearFeet") {
         const valStr = String(value).trim();
         if (valStr === "") {
@@ -373,17 +376,8 @@ export function LaborProfitTab({
             }
         }
     } else if (field === "permitCount") {
-        const valStr = String(value).trim();
-        if (valStr === "") {
-            processedValue = 1;
-        } else {
-            const parsed = parseInt(valStr, 10);
-            if (!isNaN(parsed) && parsed >= 1) {
-                processedValue = parsed;
-            } else {
-                processedValue = 1;
-            }
-        }
+        // Ignore manual changes to permit count - always auto-calculated as 1
+        return;
     } else if (typeof value === "string" && field !== "dumpsterLocation") {
       if (value.trim() === "") {
         if (field === 'laborRate' || field === 'handloadRate') { // dumpsterCount handled above
@@ -743,10 +737,7 @@ export function LaborProfitTab({
           <h3 className="text-lg font-semibold mb-4">Dumpsters</h3>
           <p className="text-sm text-muted-foreground mb-4">
             Based on roof area of {totalSquares.toFixed(1)} squares, we recommend {recommendedCount} dumpster(s).
-            {laborRates.dumpsterCount === recommendedCount 
-              ? <span className="text-green-600 font-medium"> ✓ Auto-populated with recommendation</span>
-              : <span className="text-orange-600 font-medium"> Current setting: {laborRates.dumpsterCount || 1} (different from recommendation)</span>
-            }
+            <span className="text-green-600 font-medium"> ✓ Auto-calculated based on roof area</span>
           </p>
           
           <div className="space-y-4">
@@ -784,41 +775,6 @@ export function LaborProfitTab({
                 />
               </div>
               )}
-                              <div className="space-y-2">
-                  <Label htmlFor="labor-dumpsterCount">Number of Dumpsters</Label>
-                  <Input
-                  id="labor-dumpsterCount"
-                  type="number"
-                  autoComplete="off"
-                  value={laborRates.dumpsterCount.toString()}
-                  onChange={(e) => {
-                    // 🔧 FIX: Handle all input changes properly
-                    const value = e.target.value;
-                    
-                    // If empty, temporarily set to 0 to allow clearing
-                    if (value === '') {
-                      handleLaborRateChange("dumpsterCount", 0);
-                      return;
-                    }
-                    
-                    const parsed = parseInt(value, 10);
-                    if (!isNaN(parsed) && parsed >= 0) {
-                      handleLaborRateChange("dumpsterCount", parsed);
-                    }
-                  }}
-                  onBlur={(e) => {
-                    // 🔧 FIX: Enforce minimum value on blur
-                    const value = e.target.value;
-                    const parsed = parseInt(value, 10);
-                    if (value === '' || isNaN(parsed) || parsed < 1) {
-                      handleLaborRateChange("dumpsterCount", 1);
-                    }
-                  }}
-                  min="1"
-                  step="1"
-                  disabled={!canEditQuantitiesAndToggles()}
-                />
-              </div>
               {effectiveUserRole !== 'rep' && (
                 <div className="space-y-2">
                   <Label htmlFor="dumpsterTotal">Total Dumpster Cost</Label>
@@ -898,52 +854,17 @@ export function LaborProfitTab({
                   </div>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="permitCount">Number of Permits</Label>
-                    <div className="flex items-center">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleLaborRateChange("permitCount", Math.max(1, (laborRates.permitCount || 1) - 1))}
-                        disabled={(laborRates.permitCount || 1) <= 1 || !canEditQuantitiesAndToggles()}
-                        className="h-8 w-8 rounded-r-none"
-                      >
-                        <span className="sr-only">Decrease</span>
-                        <span className="text-lg font-bold">-</span>
-                      </Button>
-                      <Input
-                        id="permitCount"
-                        type="number"
-                        autoComplete="off"
-                        value={(laborRates.permitCount || 1).toString()}
-                        onChange={(e) => handleLaborRateChange("permitCount", e.target.value)}
-                        min="1"
-                        step="1"
-                        className="h-8 rounded-none text-center"
-                        disabled={!canEditQuantitiesAndToggles()}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        onClick={() => handleLaborRateChange("permitCount", (laborRates.permitCount || 1) + 1)}
-                        disabled={!canEditQuantitiesAndToggles()}
-                        className="h-8 w-8 rounded-l-none"
-                      >
-                        <span className="sr-only">Increase</span>
-                        <span className="text-lg font-bold">+</span>
-                      </Button>
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="text-green-600 font-medium">✓ Auto-calculated: 1 permit required per job</span>
+                  </p>
                   {effectiveUserRole !== 'rep' && (
                     <div className="space-y-2">
                       <Label htmlFor="permitTotal">Total Permit Cost</Label>
                       <Input
                         id="permitTotal"
                         type="text"
-                        value={`$${((laborRates.permitRate || 450) + ((laborRates.permitCount || 1) - 1) * (laborRates.permitAdditionalRate || 450)).toFixed(2)}`}
+                        value={`$${(laborRates.permitRate || 450).toFixed(2)}`}
                         readOnly
                         className="bg-muted"
                       />
