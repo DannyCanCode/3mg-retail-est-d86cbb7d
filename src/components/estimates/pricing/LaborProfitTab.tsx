@@ -205,14 +205,14 @@ export function LaborProfitTab({
     
     // Always set permit count to 1 (one permit per job)
     combined.permitCount = 1;
-
-    if (initialRates?.dumpsterLocation === 'outside') {
-      combined.dumpsterRate = initialRates.dumpsterRate !== undefined ? initialRates.dumpsterRate : 500;
-      combined.permitRate = initialRates.permitRate !== undefined ? initialRates.permitRate : 550;
-    } else {
-      combined.dumpsterRate = initialRates?.dumpsterRate !== undefined ? initialRates.dumpsterRate : 400;
-      combined.permitRate = initialRates?.permitRate !== undefined ? initialRates.permitRate : 450;
-    }
+    
+    // Always include permits for demo
+    combined.includePermits = true;
+    
+    // Fixed rates for demo (Central Florida rates)
+    combined.dumpsterLocation = "orlando";
+    combined.dumpsterRate = initialRates?.dumpsterRate !== undefined ? initialRates.dumpsterRate : 400;
+    combined.permitRate = initialRates?.permitRate !== undefined ? initialRates.permitRate : 450;
 
     if (!combined.laborRate && (combined.tearOff || combined.installation)) {
       combined.laborRate = (combined.tearOff || 0) + (combined.installation || 0);
@@ -741,21 +741,6 @@ export function LaborProfitTab({
           </p>
           
           <div className="space-y-4">
-            <RadioGroup
-              value={laborRates.dumpsterLocation}
-              onValueChange={handleDumpsterLocationChange}
-              className="flex flex-col space-y-1"
-              disabled={!canEditDumpsterLocationAndPermits()}
-            >
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <RadioGroupItem value="orlando" disabled={!canEditDumpsterLocationAndPermits()}/>
-                <span>Central Florida</span>
-              </label>
-              <label className="flex items-center space-x-2 cursor-pointer">
-                <RadioGroupItem value="outside" disabled={!canEditDumpsterLocationAndPermits()}/>
-                <span>Outside Central Florida</span>
-              </label>
-            </RadioGroup>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
               {effectiveUserRole !== 'rep' && (
@@ -806,73 +791,32 @@ export function LaborProfitTab({
             </div>
           )}
           
-          {/* Sales rep specific message about permits */}
-          {effectiveUserRole === 'rep' && (
+
+          
+          <div className="space-y-4">
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
               <p className="text-sm text-green-700">
                 ✅ <strong>Permits Required:</strong> All estimates must include permits. This ensures compliance with local regulations.
               </p>
             </div>
-          )}
-          
-          <div className="space-y-4">
-            <div className="flex items-center space-x-4">
-              <Switch
-                id="labor-includePermits"
-                checked={effectiveUserRole === 'rep' ? true : !!laborRates.includePermits}
-                onCheckedChange={(checked) => {
-                  // Sales reps cannot turn off permits
-                  if (effectiveUserRole === 'rep' && !checked) {
-                    return;
-                  }
-                  handleLaborRateChange("includePermits", checked);
-                }}
-                disabled={effectiveUserRole === 'rep' || !canEditDumpsterLocationAndPermits()}
-              />
-              <Label htmlFor="labor-includePermits">
-                Include Permits
-              </Label>
-            </div>
             
-            {!!laborRates.includePermits && (
-              <>
-                <div className="bg-muted p-3 rounded-md mb-3">
-                  <p className="text-sm mb-2">
-                    📍 <strong>Location:</strong> {laborRates.dumpsterLocation === "orlando" ? "Central Florida" : "Outside Central Florida"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Permit location follows dumpster location setting above
-                  </p>
-                </div>
-                
-                {effectiveUserRole !== 'rep' && (
-                  <div className="bg-muted p-3 rounded-md">
-                    <p className="text-sm mb-2">Base permit cost for {laborRates.dumpsterLocation === "orlando" ? "Central Florida" : "Outside Central Florida"}: 
-                      ${laborRates.permitRate.toFixed(2)}
-                    </p>
-                    <p className="text-sm">Additional permits: ${laborRates.permitAdditionalRate.toFixed(2)} each</p>
-                  </div>
-                )}
-                
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                <span className="text-green-600 font-medium">✓ Auto-calculated: 1 permit required per job</span>
+              </p>
+              {effectiveUserRole !== 'rep' && (
                 <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    <span className="text-green-600 font-medium">✓ Auto-calculated: 1 permit required per job</span>
-                  </p>
-                  {effectiveUserRole !== 'rep' && (
-                    <div className="space-y-2">
-                      <Label htmlFor="permitTotal">Total Permit Cost</Label>
-                      <Input
-                        id="permitTotal"
-                        type="text"
-                        value={`$${(laborRates.permitRate || 450).toFixed(2)}`}
-                        readOnly
-                        className="bg-muted"
-                      />
-                    </div>
-                  )}
+                  <Label htmlFor="permitTotal">Total Permit Cost</Label>
+                  <Input
+                    id="permitTotal"
+                    type="text"
+                    value={`$${(laborRates.permitRate || 450).toFixed(2)}`}
+                    readOnly
+                    className="bg-muted"
+                  />
                 </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
         </div>
         
