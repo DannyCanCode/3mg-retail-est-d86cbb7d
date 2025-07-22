@@ -58,55 +58,63 @@ const WarrantySelector = ({
   };
 
   return (
-    <div className="bg-white p-3 rounded-md shadow-sm">
-      <h3 className="text-base font-medium mb-2">GAF Warranty Options</h3>
-      <p className="text-xs text-gray-600 mb-2">Click a warranty to select it (automatically switches between options)</p>
+    <div className="bg-gray-800/30 backdrop-blur-xl p-3 rounded-md border border-green-600/20">
+      <h3 className="text-base font-medium mb-2 text-white">GAF Warranty Options</h3>
+      <p className="text-xs text-gray-400 mb-2">Click a warranty to select it (automatically switches between options)</p>
       
       <div className="flex flex-col md:grid md:grid-cols-2 gap-3 mb-3">
         {/* Silver Pledge Option */}
         <div 
-          className={`border p-2.5 rounded-md cursor-pointer ${selectedWarranty === 'silver-pledge' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+          className={`border p-2.5 rounded-md cursor-pointer transition-all duration-200 ${
+            selectedWarranty === 'silver-pledge' 
+              ? 'border-green-500 bg-gradient-to-br from-green-600/30 to-emerald-600/30 shadow-lg shadow-green-500/25' 
+              : 'border-gray-600/50 bg-gray-700/40 hover:bg-gray-700/60 hover:border-green-600/50'
+          }`}
           onClick={() => handleWarrantyClick('silver-pledge')}
         >
           <div className="flex justify-between items-start">
-            <h4 className="font-medium text-sm">Silver Pledge Warranty</h4>
-            <Badge className="bg-green-600 text-white text-xs py-0.5">Available</Badge>
+            <h4 className="font-medium text-sm text-white">Silver Pledge Warranty</h4>
+            <Badge className="bg-green-600/20 text-green-400 border border-green-500/50 text-xs py-0.5">Available</Badge>
           </div>
-          <p className="text-xs text-gray-600 mt-1">Standard GAF warranty coverage</p>
-          <ul className="text-xs text-gray-600 mt-1.5 space-y-0.5 list-disc list-inside">
+          <p className="text-xs text-gray-300 mt-1">Standard GAF warranty coverage</p>
+          <ul className="text-xs text-gray-400 mt-1.5 space-y-0.5 list-disc list-inside">
             <li>10-year workmanship coverage</li>
             <li>Lifetime material warranty</li>
             <li>Available with GAF 1 or GAF 2 Package</li>
           </ul>
-          <p className="text-xs font-medium mt-1.5">Basic protection for your roof</p>
+          <p className="text-xs font-medium mt-1.5 text-gray-300">Basic protection for your roof</p>
         </div>
         
         {/* Gold Pledge Option */}
         <div 
-          className={`border p-2.5 rounded-md ${!isGoldPledgeAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${selectedWarranty === 'gold-pledge' ? 'border-blue-500 bg-blue-50' : 'border-gray-300'}`}
+          className={`border p-2.5 rounded-md transition-all duration-200 ${!isGoldPledgeAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${
+            selectedWarranty === 'gold-pledge' 
+              ? 'border-green-500 bg-gradient-to-br from-green-600/30 to-emerald-600/30 shadow-lg shadow-green-500/25' 
+              : 'border-gray-600/50 bg-gray-700/40 hover:bg-gray-700/60 hover:border-green-600/50'
+          }`}
           onClick={() => handleWarrantyClick('gold-pledge')}
         >
           <div className="flex justify-between items-start">
-            <h4 className="font-medium text-sm">Gold Pledge Warranty</h4>
+            <h4 className="font-medium text-sm text-white">Gold Pledge Warranty</h4>
             {isGoldPledgeAvailable ? (
-              <Badge className="bg-green-600 text-white text-xs py-0.5">Available</Badge>
+              <Badge className="bg-green-600/20 text-green-400 border border-green-500/50 text-xs py-0.5">Available</Badge>
             ) : (
-              <Badge className="bg-yellow-500 text-white text-xs py-0.5">Unavailable</Badge>
+              <Badge className="bg-yellow-600/20 text-yellow-400 border border-yellow-500/50 text-xs py-0.5">Unavailable</Badge>
             )}
           </div>
-          <p className="text-xs text-gray-600 mt-1">Premium GAF warranty with enhanced coverage</p>
-          <ul className="text-xs text-gray-600 mt-1.5 space-y-0.5 list-disc list-inside">
+          <p className="text-xs text-gray-300 mt-1">Premium GAF warranty with enhanced coverage</p>
+          <ul className="text-xs text-gray-400 mt-1.5 space-y-0.5 list-disc list-inside">
             <li>25-year workmanship coverage</li>
             <li>Lifetime material warranty</li>
             <li>Requires GAF Cobra Ventilation</li>
             <li>Requires GAF 2 Package</li>
           </ul>
-          <p className="text-xs font-medium mt-1.5 text-green-600">Superior protection for your investment</p>
+          <p className="text-xs font-medium mt-1.5 text-green-400">Superior protection for your investment</p>
         </div>
       </div>
       
       {selectedWarranty === 'gold-pledge' && !isGoldPledgeAvailable && (
-        <div className="mt-2 p-1.5 bg-yellow-50 border border-yellow-200 rounded-md text-xs text-yellow-700">
+        <div className="mt-2 p-1.5 bg-yellow-900/20 border border-yellow-600/30 rounded-md text-xs text-yellow-400">
           <p className="font-medium">Gold Pledge Warranty Unavailable</p>
           <p>Gold Pledge Warranty requires the GAF 2 Premium Package, which includes GAF Cobra ventilation.
           Please select GAF 2 Package to enable this warranty option.</p>
