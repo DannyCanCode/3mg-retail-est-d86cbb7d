@@ -3136,12 +3136,12 @@ export function MaterialsSelectionTab({
                    if (materials.length === 0) return null;
                    
                  return (
-                   <AccordionItem key={category} value={category} className="border-green-700/30">
-                     <AccordionTrigger className="text-lg font-semibold py-3 text-white hover:text-green-300">
+                   <AccordionItem key={category} value={category} className="border-green-600/40">
+                     <AccordionTrigger className="text-lg font-semibold py-4 text-white hover:text-green-300 bg-gray-700/30 hover:bg-gray-700/50 px-4 rounded-t-lg transition-all duration-200">
                        {formatCategoryName(category)}
-                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-300 border-blue-500/50 bg-blue-900/20">Flat/Low-Slope Required</Badge>)}
+                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-300 border-blue-400/50 bg-blue-500/20">Flat/Low-Slope Required</Badge>)}
                      </AccordionTrigger>
-                     <AccordionContent>
+                     <AccordionContent className="bg-gray-800/20 px-4 pb-4 rounded-b-lg">
                        <div className="space-y-2 pt-2">
                          {materials.map(baseMaterial => {
                            const material = editableTemplateMaterials[baseMaterial.id] || baseMaterial;
@@ -3151,26 +3151,26 @@ export function MaterialsSelectionTab({
                            const getMaterialColor = (materialId: string) => {
                              // Goosenecks - Orange
                              if (materialId.includes('gooseneck')) {
-                               return 'border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20';
+                               return 'border-orange-400/50 bg-gradient-to-r from-orange-500/20 to-orange-400/15 hover:from-orange-500/30 hover:to-orange-400/25';
                              }
                              // Boots - Grey
                              if (materialId.includes('boot')) {
-                               return 'border-gray-500/40 bg-gray-700/40 hover:bg-gray-700/60';
+                               return 'border-gray-400/50 bg-gradient-to-r from-gray-600/40 to-gray-500/30 hover:from-gray-600/50 hover:to-gray-500/40';
                              }
                              // Skylights - Light Blue
                              if (materialId.includes('skylight')) {
-                               return 'border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20';
+                               return 'border-sky-400/50 bg-gradient-to-r from-sky-500/20 to-sky-400/15 hover:from-sky-500/30 hover:to-sky-400/25';
                              }
                              // Gutters - Bronze (using amber as closest)
                              if (materialId.includes('gutter')) {
-                               return 'border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20';
+                               return 'border-amber-400/50 bg-gradient-to-r from-amber-500/20 to-amber-400/15 hover:from-amber-500/30 hover:to-amber-400/25';
                              }
                              // Default styling for other materials
-                             return 'border-gray-600/40 bg-gray-700/40 hover:bg-gray-700/60';
+                             return 'border-gray-400/50 bg-gradient-to-r from-gray-600/40 to-gray-500/30 hover:from-gray-600/50 hover:to-gray-500/40';
                            };
 
                            return (
-                            <div key={material.id} className={`rounded-md p-3 transition-colors ${getMaterialColor(material.id)}`}>
+                            <div key={material.id} className={`rounded-lg p-4 transition-all duration-200 shadow-sm hover:shadow-md ${getMaterialColor(material.id)}`}>
                               <div className="flex flex-col lg:flex-row justify-between items-start gap-3">
                                 {/* Left Column: Material Info */}
                                 <div className="flex-1 space-y-2">
@@ -3238,10 +3238,10 @@ export function MaterialsSelectionTab({
                                       if (readOnly) return;
                                       isSelected ? removeMaterial(material.id) : addMaterial(editableTemplateMaterials[baseMaterial.id] || baseMaterial); 
                                     }} 
-                                    className={`min-w-[100px] h-9 ${
+                                    className={`min-w-[100px] h-9 transition-all duration-200 ${
                                       isSelected 
-                                        ? 'bg-green-600/30 text-green-400 border-green-500/50 hover:bg-green-600/40' 
-                                        : 'bg-gray-700/50 text-gray-200 border-gray-600/50 hover:bg-gray-700/70 hover:text-white hover:border-green-500/50'
+                                        ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white border-0 shadow-lg shadow-green-500/25 hover:shadow-green-500/40' 
+                                        : 'bg-gray-700/70 text-white border-gray-500/50 hover:bg-gray-600/70 hover:border-green-500/50 shadow-sm'
                                     }`}
                                     disabled={readOnly}
                                   >
