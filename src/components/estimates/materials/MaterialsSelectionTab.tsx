@@ -3136,12 +3136,12 @@ export function MaterialsSelectionTab({
                    if (materials.length === 0) return null;
                    
                  return (
-                   <AccordionItem key={category} value={category} className="border-green-600/40">
-                     <AccordionTrigger className="text-lg font-semibold py-4 text-white hover:text-green-300 bg-gray-700/30 hover:bg-gray-700/50 px-4 rounded-t-lg transition-all duration-200">
+                   <AccordionItem key={category} value={category} className="border-green-500/40">
+                     <AccordionTrigger className="text-lg font-semibold py-4 text-white hover:text-green-200 bg-gray-600/50 hover:bg-gray-600/70 px-4 rounded-t-lg transition-all duration-200 shadow-sm">
                        {formatCategoryName(category)}
-                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-300 border-blue-400/50 bg-blue-500/20">Flat/Low-Slope Required</Badge>)}
+                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-200 border-blue-400/60 bg-blue-600/30">Flat/Low-Slope Required</Badge>)}
                      </AccordionTrigger>
-                     <AccordionContent className="bg-gray-800/20 px-4 pb-4 rounded-b-lg">
+                     <AccordionContent className="bg-gray-700/30 px-4 pb-4 rounded-b-lg border-x border-b border-green-500/20">
                        <div className="space-y-2 pt-2">
                          {materials.map(baseMaterial => {
                            const material = editableTemplateMaterials[baseMaterial.id] || baseMaterial;
@@ -3151,22 +3151,22 @@ export function MaterialsSelectionTab({
                            const getMaterialColor = (materialId: string) => {
                              // Goosenecks - Orange
                              if (materialId.includes('gooseneck')) {
-                               return 'border-orange-400/50 bg-gradient-to-r from-orange-500/20 to-orange-400/15 hover:from-orange-500/30 hover:to-orange-400/25';
+                               return 'border-orange-400/60 bg-gradient-to-r from-orange-500/30 to-orange-400/25 hover:from-orange-500/40 hover:to-orange-400/35';
                              }
                              // Boots - Grey
                              if (materialId.includes('boot')) {
-                               return 'border-gray-400/50 bg-gradient-to-r from-gray-600/40 to-gray-500/30 hover:from-gray-600/50 hover:to-gray-500/40';
+                               return 'border-gray-400/60 bg-gradient-to-r from-gray-600/50 to-gray-500/40 hover:from-gray-600/60 hover:to-gray-500/50';
                              }
                              // Skylights - Light Blue
                              if (materialId.includes('skylight')) {
-                               return 'border-sky-400/50 bg-gradient-to-r from-sky-500/20 to-sky-400/15 hover:from-sky-500/30 hover:to-sky-400/25';
+                               return 'border-sky-400/60 bg-gradient-to-r from-sky-500/30 to-sky-400/25 hover:from-sky-500/40 hover:to-sky-400/35';
                              }
                              // Gutters - Bronze (using amber as closest)
                              if (materialId.includes('gutter')) {
-                               return 'border-amber-400/50 bg-gradient-to-r from-amber-500/20 to-amber-400/15 hover:from-amber-500/30 hover:to-amber-400/25';
+                               return 'border-amber-400/60 bg-gradient-to-r from-amber-500/30 to-amber-400/25 hover:from-amber-500/40 hover:to-amber-400/35';
                              }
                              // Default styling for other materials
-                             return 'border-gray-400/50 bg-gradient-to-r from-gray-600/40 to-gray-500/30 hover:from-gray-600/50 hover:to-gray-500/40';
+                             return 'border-gray-400/60 bg-gradient-to-r from-gray-600/50 to-gray-500/40 hover:from-gray-600/60 hover:to-gray-500/50';
                            };
 
                            return (
@@ -3174,7 +3174,7 @@ export function MaterialsSelectionTab({
                               <div className="flex flex-col lg:flex-row justify-between items-start gap-3">
                                 {/* Left Column: Material Info */}
                                 <div className="flex-1 space-y-2">
-                                  <h4 className="text-sm font-medium text-white">{material.name}</h4>
+                                  <h4 className="text-sm font-semibold text-white drop-shadow-sm">{material.name}</h4>
                                   
                                   {/* Only show price input/display for non-reps */}
                                   {effectiveUserRole !== 'rep' && (
@@ -3188,41 +3188,41 @@ export function MaterialsSelectionTab({
                                         onBlur={(e) => canEditMaterialPrices() && handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)}
                                         className={`h-8 text-sm rounded-md shadow-sm w-24 ${
                                           canEditMaterialPrices() 
-                                            ? 'bg-gray-700/50 border-gray-600 text-white focus:border-green-500 focus:ring-green-500/20' 
-                                            : 'bg-gray-800/50 border-gray-700 text-gray-400'
+                                            ? 'bg-gray-600/60 border-gray-500 text-white focus:border-green-400 focus:ring-green-400/30' 
+                                            : 'bg-gray-700/60 border-gray-600 text-gray-200'
                                         }`}
                                         disabled={!canEditMaterialPrices()}
                                         placeholder="0.00"
                                         key={`price-input-${material.id}`}
                                       />
-                                      {material.unit && <span className="text-sm text-gray-400">per {material.unit}</span>}
+                                      {material.unit && <span className="text-sm text-gray-200 font-medium">per {material.unit}</span>}
                                       {material.approxPerSquare && material.approxPerSquare > 0 && 
-                                        <span className="text-xs text-gray-500">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
+                                        <span className="text-xs text-gray-300">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
                                       }
                                     </div>
                                   )}
                                   
                                   {/* Role-based pricing info */}
                                   {effectiveUserRole !== 'rep' && !canEditMaterialPrices() && (
-                                    <div className="text-xs text-gray-400 bg-gray-700/30 p-2 rounded">
-                                      <span className="font-medium">Territory Manager:</span> Material pricing is managed by administrators to ensure consistency across all estimates.
+                                    <div className="text-xs text-gray-200 bg-gray-600/40 p-2 rounded border border-gray-500/30">
+                                      <span className="font-semibold text-yellow-300">Territory Manager:</span> Material pricing is managed by administrators to ensure consistency across all estimates.
                                     </div>
                                   )}
                                   
                                   {/* Coverage Rule Description - Keep visible for all roles */}
                                   {material.coverageRule?.description && (
-                                    <p className="text-xs text-gray-400">
-                                      <span className="font-medium text-gray-300">Coverage:</span> {material.coverageRule.description}
+                                    <p className="text-xs text-gray-200 bg-gray-700/40 p-2 rounded">
+                                      <span className="font-semibold text-green-300">Coverage:</span> {material.coverageRule.description}
                                     </p>
                                   )}
                           
                                   {/* Coverage Rule Calculation & Logic - Hide for sales reps */}
                                   {material.coverageRule?.calculation && effectiveUserRole !== 'rep' && (
-                                    <div className="text-xs text-gray-400">
-                                      <p><span className="font-medium text-gray-300">Logic:</span> {material.coverageRule.calculation}</p>
+                                    <div className="text-xs text-gray-200 bg-gray-700/40 p-2 rounded space-y-1">
+                                      <p><span className="font-semibold text-blue-300">Logic:</span> {material.coverageRule.calculation}</p>
                                       {!readOnly && (
-                                        <p className="text-green-400 mt-0.5">
-                                          <span className="font-medium text-gray-300">→ Current Calc:</span> {formatCalculationWithMeasurements(material)}
+                                        <p className="text-green-300 mt-0.5">
+                                          <span className="font-semibold text-gray-200">→ Current Calc:</span> {formatCalculationWithMeasurements(material)}
                                         </p>
                                       )}
                                     </div>
