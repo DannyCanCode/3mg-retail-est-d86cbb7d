@@ -2983,7 +2983,7 @@ export function MaterialsSelectionTab({
 
         
         {/* Package Selection Card */}
-        <Card className="bg-gray-800/30 backdrop-blur-xl border-green-600/20">
+        <Card className="bg-gray-700/40 backdrop-blur-xl border-green-600/30">
           <CardHeader className="border-b border-green-700/30">
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Select Packages</CardTitle>
@@ -3141,7 +3141,7 @@ export function MaterialsSelectionTab({
                        {formatCategoryName(category)}
                        {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-200 border-blue-400/60 bg-blue-600/30">Flat/Low-Slope Required</Badge>)}
                      </AccordionTrigger>
-                     <AccordionContent className="bg-gray-700/30 px-4 pb-4 rounded-b-lg border-x border-b border-green-500/20">
+                     <AccordionContent className="bg-gray-600/30 px-4 pb-4 rounded-b-lg border-x border-b border-green-500/30">
                        <div className="space-y-2 pt-2">
                          {materials.map(baseMaterial => {
                            const material = editableTemplateMaterials[baseMaterial.id] || baseMaterial;
@@ -3199,13 +3199,6 @@ export function MaterialsSelectionTab({
                                       {material.approxPerSquare && material.approxPerSquare > 0 && 
                                         <span className="text-xs text-gray-300">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
                                       }
-                                    </div>
-                                  )}
-                                  
-                                  {/* Role-based pricing info */}
-                                  {effectiveUserRole !== 'rep' && !canEditMaterialPrices() && (
-                                    <div className="text-xs text-gray-200 bg-gray-600/40 p-2 rounded border border-gray-500/30">
-                                      <span className="font-semibold text-yellow-300">Territory Manager:</span> Material pricing is managed by administrators to ensure consistency across all estimates.
                                     </div>
                                   )}
                                   
