@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { MainLayout } from "@/components/layout/MainLayout";
+// MainLayout removed - already handled by ProtectedLayout in routing
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -2630,600 +2630,598 @@ const Estimates = () => {
       </div>
 
       {/* Main Content */}
-      <MainLayout>
-        <div className="relative z-10">
-          <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
-            <CardHeader className="border-b border-green-700/30">
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="text-2xl font-bold text-white">
-                    {isViewMode ? (
-                      <>View Estimate</>
-                    ) : (
-                      <>Create New Estimate</>
-                    )}
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">
-                    {isViewMode ? (
-                      "Review the details of this estimate"
-                    ) : (
-                      "Follow the steps below to create a professional roofing estimate"
-                    )}
-                  </CardDescription>
-                </div>
-                {(isViewMode || estimateId) && (
-                  <div className="flex gap-2">
-                    {isAdminEditMode && (
-                      <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">
-                        Admin Override
-                      </Badge>
-                    )}
-                    {!isViewMode && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsViewMode(true)}
-                        className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
-                      >
-                        <EyeOff className="h-4 w-4 mr-2" />
-                        View Mode
-                      </Button>
-                    )}
+      <div className="relative z-10">
+        <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+          <CardHeader className="border-b border-green-700/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-2xl font-bold text-white">
+                  {isViewMode ? (
+                    <>View Estimate</>
+                  ) : (
+                    <>Create New Estimate</>
+                  )}
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  {isViewMode ? (
+                    "Review the details of this estimate"
+                  ) : (
+                    "Follow the steps below to create a professional roofing estimate"
+                  )}
+                </CardDescription>
+              </div>
+              {(isViewMode || estimateId) && (
+                <div className="flex gap-2">
+                  {isAdminEditMode && (
+                    <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">
+                      Admin Override
+                    </Badge>
+                  )}
+                  {!isViewMode && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate('/estimates')}
+                      onClick={() => setIsViewMode(true)}
                       className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
                     >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Back to Estimates
+                      <EyeOff className="h-4 w-4 mr-2" />
+                      View Mode
                     </Button>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              {isLoading ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <Loader2 className="h-10 w-10 animate-spin text-green-400 mb-4" />
-                  <p className="text-gray-400">Loading estimate data...</p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate('/estimates')}
+                    className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to Estimates
+                  </Button>
                 </div>
-              ) : (
-                <Tabs 
-                  value={activeTab} 
-                  onValueChange={(value) => {
-                    console.log('🎯 [Estimates] Tab onValueChange triggered - from:', activeTab, 'to:', value);
-                    console.trace('Tab change stack trace');
-                    
-                    if (import.meta.env.DEV) {
-                    console.log(`Tab changing from ${activeTab} to ${value}`);
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="h-10 w-10 animate-spin text-green-400 mb-4" />
+                <p className="text-gray-400">Loading estimate data...</p>
+              </div>
+            ) : (
+              <Tabs 
+                value={activeTab} 
+                onValueChange={(value) => {
+                  console.log('🎯 [Estimates] Tab onValueChange triggered - from:', activeTab, 'to:', value);
+                  console.trace('Tab change stack trace');
+                  
+                  if (import.meta.env.DEV) {
+                  console.log(`Tab changing from ${activeTab} to ${value}`);
+                  }
+                  
+                  // CRITICAL FIX: Prevent white screen during tab switching
+                  // Use requestAnimationFrame to ensure smooth transition
+                  requestAnimationFrame(() => {
+                    // Special case for materials tab
+                    if (value === "materials" && measurements) {
+                      console.log("Validating measurements before navigating to materials tab");
+                      // Make sure measurements and areasByPitch are properly set
+                      if (!measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+                        console.warn("Measurements are missing areasByPitch data, staying on current tab");
+                        toast({
+                          title: "Missing Data",
+                          description: "Please complete the measurements form before selecting materials.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
                     }
                     
-                    // CRITICAL FIX: Prevent white screen during tab switching
-                    // Use requestAnimationFrame to ensure smooth transition
+                    // Batch state updates to prevent multiple renders
                     requestAnimationFrame(() => {
-                      // Special case for materials tab
-                      if (value === "materials" && measurements) {
-                        console.log("Validating measurements before navigating to materials tab");
-                        // Make sure measurements and areasByPitch are properly set
-                        if (!measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
-                          console.warn("Measurements are missing areasByPitch data, staying on current tab");
+                      setActiveTab(value);
+                      // Update stored tab for persistence
+                      if (!isViewMode) {
+                        setStoredActiveTab(value);
+                      }
+                      if (import.meta.env.DEV) {
+                      console.log(`Tab changed, activeTab is now ${value}`);
+                      }
+                    });
+                  });
+                }} 
+                className="w-full"
+                defaultValue={isViewMode ? "summary" : "type-selection"}
+              >
+                <TabsList className={`grid ${isViewMode ? 'grid-cols-4' : 'grid-cols-6'} mb-8 bg-gray-800/70 backdrop-blur-md p-1 rounded-2xl shadow-xl border border-green-700/30`}>
+                  {!isViewMode && (
+                    <TabsTrigger 
+                      id="tab-trigger-type-selection"
+                      value="type-selection" 
+                      disabled={false}
+                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300"
+                    >
+                      1. Estimate Type
+                    </TabsTrigger>
+                  )}
+                  {!isViewMode && (
+                    <TabsTrigger 
+                      id="tab-trigger-upload"
+                      value="upload" 
+                      disabled={!estimateType}
+                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
+                    >
+                      2. Upload EagleView
+                    </TabsTrigger>
+                  )}
+                  <TabsTrigger 
+                    id="tab-trigger-measurements"
+                    value="measurements" 
+                    disabled={!isViewMode && !extractedPdfData && !measurements}
+                    className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
+                  >
+                    {isViewMode ? "Measurements" : "3. Review Measurements"}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    id="tab-trigger-materials"
+                    value="materials" 
+                    disabled={!isViewMode && !measurements}
+                    className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
+                  >
+                    {isViewMode ? "Materials" : "4. Select Packages"}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    id="tab-trigger-pricing"
+                    value="pricing" 
+                    disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
+                    className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
+                  >
+                    {isViewMode ? "Project Details" : "5. Project Details"}
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    id="tab-trigger-summary"
+                    value="summary" 
+                    disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
+                    className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
+                  >
+                    {isViewMode ? "Summary" : "6. Summary"}
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Debug measurements info */}
+                {process.env.NODE_ENV === 'development' && !isViewMode && (
+                  <div className="mb-4 p-2 bg-gray-800/50 text-xs border border-green-700/30 rounded-lg text-gray-400">
+                    <details>
+                      <summary className="cursor-pointer text-green-400">Debug Info</summary>
+                      <div className="mt-2 overflow-auto">
+                        <p>Active Tab: {activeTab}</p>
+                        <p>PDF Filename: {pdfFileName}</p>
+                        <p>Extracted Data: {extractedPdfData ? '✅' : '❌'}</p>
+                        <p>Measurements: {measurements ? '✅' : '❌'}</p>
+                        <p>Materials Selected: {Object.keys(selectedMaterials).length}</p>
+                        {measurements && (
+                          <pre>{JSON.stringify(measurements, null, 2)}</pre>
+                        )}
+                      </div>
+                    </details>
+                    
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-green-400">localStorage Migration Status</summary>
+                      <div className="mt-2 space-y-1">
+                        <p>Migration Complete: {migration.isComplete ? '✅' : '❌'}</p>
+                        <p>In Progress: {migration.isInProgress ? '🔄' : '💤'}</p>
+                        {migration.report && (
+                          <>
+                            <p>Total Keys: {migration.report.totalKeys}</p>
+                            <p>Redundant Keys: {migration.report.redundantKeys.length}</p>
+                            <p>Legacy Keys: {migration.report.legacyKeys.length}</p>
+                            <p>Auto-Save Keys: {migration.report.autoSaveKeys.length}</p>
+                            <p>Total Size: {Math.round(migration.report.totalSize / 1024)}KB</p>
+                          </>
+                        )}
+                        {migration.result && (
+                          <>
+                            <p>Migrated: {migration.result.migratedKeys.length}</p>
+                            <p>Removed: {migration.result.removedKeys.length}</p>
+                            <p>Space Freed: {Math.round(migration.result.totalSizeFreed / 1024)}KB</p>
+                          </>
+                        )}
+                        {migration.error && (
+                          <p className="text-red-600">Error: {migration.error}</p>
+                        )}
+                        <div className="flex gap-2 mt-2">
+                          <button 
+                            onClick={migration.generateReport}
+                            className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
+                          >
+                            Refresh Report
+                          </button>
+                          <button 
+                            onClick={migration.startMigration}
+                            disabled={migration.isInProgress}
+                            className="px-2 py-1 bg-green-600/50 text-green-400 border border-green-700/30 text-xs rounded hover:bg-green-600/70 disabled:opacity-50"
+                          >
+                            Run Migration
+                          </button>
+                          <button 
+                            onClick={migration.forceClean}
+                            disabled={migration.isInProgress}
+                            className="px-2 py-1 bg-red-900/50 text-red-400 border border-red-700/30 text-xs rounded hover:bg-red-900/70 disabled:opacity-50"
+                          >
+                            Force Clean
+                          </button>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                )}
+
+                <TabsContent value="type-selection">
+                  <EstimateTypeSelector 
+                    onSelectionComplete={handleEstimateTypeSelection}
+                  />
+                </TabsContent>
+
+                <TabsContent value="upload">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-3xl blur-xl" />
+                        <Card className="relative bg-gray-800/30 backdrop-blur-xl border-green-600/20 p-6">
+                          <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
+                        </Card>
+                      </div>
+                      
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-green-600/10 rounded-3xl blur-xl" />
+                        <Card className="relative bg-gray-800/50 backdrop-blur-xl border-green-700/30 p-6">
+                          <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                            <Shield className="h-5 w-5 text-green-400" />
+                            Estimate Workflow
+                          </h3>
+                          <p className="text-sm text-gray-400 mb-4">
+                            Follow these steps to create a complete estimate
+                          </p>
+                        
+                        {/* Show selected estimate type */}
+                        {estimateType && (
+                          <div className="mb-4 p-3 bg-green-900/20 rounded-lg border border-green-700/30">
+                            <h4 className="font-medium text-green-300 mb-1">Selected Estimate Type</h4>
+                            <p className="text-sm text-green-200">
+                              {estimateType === 'roof_only' ? '🏠 Roof Shingles Only' : `🔧 Roof + ${selectedSubtrades.length} Subtrade(s)`}
+                            </p>
+                            {estimateType === 'with_subtrades' && selectedSubtrades.length > 0 && (
+                              <p className="text-xs text-green-400 mt-1">
+                                Subtrades: {selectedSubtrades.join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        
+                        <ol className="space-y-2 text-sm">
+                          <li className="flex items-start gap-2">
+                            <span className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">✓</span>
+                            <span className="text-gray-300">Estimate Type Selected - {estimateType === 'roof_only' ? 'Standard roofing' : 'Roof + subtrades'}</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
+                            <span className="text-gray-300">Upload EagleView PDF - Start by uploading a roof measurement report</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
+                            <span className="text-gray-400">Review Measurements - Auto-saved measurements from your PDF</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
+                            <span className="text-gray-400">Select Packages - Choose roofing packages and options</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
+                            <span className="text-gray-400">Set Project Details - Define labor rates and profit margin</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">6</span>
+                            <span className="text-gray-400">Review Summary - Finalize and prepare for customer approval</span>
+                          </li>
+                        </ol>
+                        </Card>
+                      </div>
+                    </div>
+                </TabsContent>
+                
+
+                <TabsContent value="measurements">
+                  <SimplifiedReviewTab
+                    measurements={measurements || {
+                      totalArea: 0,
+                      ridgeLength: 0,
+                      hipLength: 0,
+                      valleyLength: 0,
+                      eaveLength: 0,
+                      rakeLength: 0,
+                      stepFlashingLength: 0,
+                      flashingLength: 0,
+                      dripEdgeLength: 0,
+                      penetrationsArea: 0,
+                      penetrationsPerimeter: 0,
+                      predominantPitch: "",
+                      ridgeCount: 0,
+                      hipCount: 0,
+                      valleyCount: 0,
+                      rakeCount: 0,
+                      eaveCount: 0,
+                      propertyAddress: "",
+                      latitude: "",
+                      longitude: "",
+                      areasByPitch: []
+                    }}
+                    onMeasurementsUpdate={handleMeasurementsSaved}
+                    onBack={() => setActiveTab("upload")}
+                    onContinue={() => setActiveTab("materials")}
+                    extractedFileName={pdfFileName || undefined}
+                    pdfUrl={pdfUrl}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="materials">
+                  {(() => {
+                    // Memoize measurements check to prevent excessive re-renders
+                    const hasMeasurements = measurements && measurements.areasByPitch && Array.isArray(measurements.areasByPitch);
+                    
+                    if (!hasMeasurements) {
+                      return (
+                        <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+                          <CardHeader className="border-b border-green-700/30">
+                            <CardTitle className="text-white">Missing Measurements</CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-6">
+                            <p className="text-gray-400">Please go back and enter roof measurements before selecting materials.</p>
+                          </CardContent>
+                          <CardFooter>
+                            <Button 
+                              onClick={() => setActiveTab("measurements")} 
+                              variant="outline"
+                              className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                            >
+                              Go to Measurements
+                            </Button>
+                          </CardFooter>
+                        </Card>
+                      );
+                    } else {
+                      return (
+                        <>
+                          {/* UPDATED: Template Selector Card with Management Options */}
+                          {!isViewMode && (
+                            <Card className="mb-6 bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+                              <CardHeader className="border-b border-green-700/30">
+                                <CardTitle className="text-white">Select Pricing Template</CardTitle>
+                                <CardDescription className="text-gray-400">Choose a pricing template to apply to this estimate</CardDescription>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                <div className="flex items-end gap-4">
+                                  <div className="flex-1">
+                                    <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
+                                    <Select
+                                      value={selectedTemplateId || undefined}
+                                      onValueChange={setSelectedTemplateId}
+                                      disabled={isLoadingTemplates || templates.length === 0}
+                                    >
+                                      <SelectTrigger id="template-select" className="w-full">
+                                        <SelectValue placeholder="Select a template" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {templates.map(template => (
+                                          <SelectItem key={template.id} value={template.id}>
+                                            {template.name} {template.is_default && "(Default)"}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  
+                                  {/* Template Action Buttons */}
+                                  <div className="flex gap-2">
+                                    <Button 
+                                      onClick={handleApplyTemplate} 
+                                      disabled={!selectedTemplateId || isLoadingTemplates}
+                                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
+                                    >
+                                      Apply Template
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      onClick={() => handleOpenTemplateDialog('edit')}
+                                      disabled={!selectedTemplateId || isLoadingTemplates}
+                                      className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                                    >
+                                      Edit
+                                    </Button>
+                                    <Button 
+                                      variant="secondary" 
+                                      onClick={() => handleOpenTemplateDialog('create')}
+                                      disabled={isLoadingTemplates}
+                                      className="bg-gray-700/50 hover:bg-gray-700/70 text-gray-300 border-gray-600"
+                                    >
+                                      New Template
+                                    </Button>
+                                  </div>
+                                </div>
+                                {isLoadingTemplates && (
+                                  <div className="flex items-center justify-center py-2">
+                                    <Loader2 className="h-4 w-4 animate-spin text-green-400 mr-2" />
+                                    <p className="text-sm text-gray-400">Loading template data...</p>
+                                  </div>
+                                )}
+                                {selectedTemplateData && (
+                                  <div className="text-sm text-gray-400">
+                                    <p>Template: <span className="font-medium text-gray-200">{selectedTemplateData.name}</span></p>
+                                    <p>Materials: <span className="text-gray-200">{selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</span></p>
+                                    {selectedTemplateData.description && (
+                                      <p>Description: <span className="text-gray-300">{selectedTemplateData.description}</span></p>
+                                    )}
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )}
+                          
+                          {/* MaterialsSelectionTab component with optimized props */}
+                          <MaterialsSelectionTab
+                            key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
+                            measurements={measurements}
+                            selectedMaterials={selectedMaterials}
+                            quantities={quantities}
+                            onMaterialsUpdate={handleMaterialsUpdate}
+                            readOnly={isViewMode}
+                            isAdminEditMode={isAdminEditMode}
+                            originalCreator={originalCreator}
+                            originalCreatorRole={originalCreatorRole}
+                          />
+                        </>
+                      );
+                    }
+                  })()}
+                </TabsContent>
+                
+                <TabsContent value="pricing">
+                  <LaborProfitTab
+                    key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
+                    measurements={measurements!}
+                    selectedMaterials={selectedMaterials}
+                    quantities={quantities}
+                    initialLaborRates={laborRates}
+                    initialProfitMargin={profitMargin}
+                    onLaborProfitContinue={handleLaborProfitContinue}
+                    onBack={() => setActiveTab("materials")}
+                    readOnly={isViewMode}
+                    isAdminEditMode={isAdminEditMode}
+                    originalCreator={originalCreator}
+                    originalCreatorRole={originalCreatorRole}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="summary">
+                  <EstimateSummaryTab
+                    measurements={measurements || undefined}
+                    selectedMaterials={selectedMaterials}
+                    quantities={quantities}
+                    laborRates={laborRates}
+                    profitMargin={profitMargin}
+                    peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
+                    onFinalizeEstimate={handleFinalizeEstimate} 
+                    isSubmitting={isSubmittingFinal} 
+                    estimate={estimateData} 
+                    isReviewMode={isViewMode}
+                    calculateLiveTotal={calculateLiveEstimateTotal}
+                    onEstimateUpdated={() => { 
+                      fetchEstimatesData(); 
+                      if (estimateId) { 
+                        fetchEstimateData(estimateId);
+                      }
+                    }}
+                    onBack={() => setActiveTab("pricing")}
+                  />
+                </TabsContent>
+              </Tabs>
+            )}
+
+            {/* Add Continue buttons at the bottom of each tab */}
+            <div className="flex justify-between mt-8">
+              {activeTab !== "type-selection" && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
+                    const currentIndex = tabOrder.indexOf(activeTab);
+                    if (currentIndex > 0) {
+                      setActiveTab(tabOrder[currentIndex - 1]);
+                    }
+                  }}
+                  className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              )}
+              
+              {activeTab !== "summary" && (
+                <Button 
+                  className="ml-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
+                  onClick={() => {
+                    const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
+                    const currentIndex = tabOrder.indexOf(activeTab);
+
+                    if (currentIndex < tabOrder.length - 1) {
+                      const nextTab = tabOrder[currentIndex + 1];
+                      
+                      // Validations before navigating FROM a specific tab
+                      if (activeTab === 'type-selection') {
+                        if (!estimateType) {
+                          toast({ 
+                            title: "No Estimate Type Selected", 
+                            description: "Please select an estimate type to continue.",
+                            variant: "destructive"
+                          });
+                          return; 
+                        }
+                      }
+                      
+                      if (activeTab === 'materials') {
+                        if (Object.keys(selectedMaterials).length === 0) {
+                          toast({ 
+                            title: "No Materials Selected", 
+                            description: "Please select at least one material to continue to Project Details.",
+                            variant: "destructive"
+                          });
+                          return;
+                        }
+                        if (!measurements?.areasByPitch || measurements.areasByPitch.length === 0) {
                           toast({
-                            title: "Missing Data",
-                            description: "Please complete the measurements form before selecting materials.",
+                            title: "Missing Pitch Information",
+                            description: "Cannot proceed to Project Details without valid pitch information from measurements.",
                             variant: "destructive"
                           });
                           return;
                         }
                       }
                       
-                      // Batch state updates to prevent multiple renders
-                      requestAnimationFrame(() => {
-                        setActiveTab(value);
-                        // Update stored tab for persistence
-                        if (!isViewMode) {
-                          setStoredActiveTab(value);
-                        }
-                        if (import.meta.env.DEV) {
-                        console.log(`Tab changed, activeTab is now ${value}`);
-                        }
-                      });
-                    });
-                  }} 
-                  className="w-full"
-                  defaultValue={isViewMode ? "summary" : "type-selection"}
-                >
-                  <TabsList className={`grid ${isViewMode ? 'grid-cols-4' : 'grid-cols-6'} mb-8 bg-gray-800/70 backdrop-blur-md p-1 rounded-2xl shadow-xl border border-green-700/30`}>
-                    {!isViewMode && (
-                      <TabsTrigger 
-                        id="tab-trigger-type-selection"
-                        value="type-selection" 
-                        disabled={false}
-                        className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300"
-                      >
-                        1. Estimate Type
-                      </TabsTrigger>
-                    )}
-                    {!isViewMode && (
-                      <TabsTrigger 
-                        id="tab-trigger-upload"
-                        value="upload" 
-                        disabled={!estimateType}
-                        className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
-                      >
-                        2. Upload EagleView
-                      </TabsTrigger>
-                    )}
-                    <TabsTrigger 
-                      id="tab-trigger-measurements"
-                      value="measurements" 
-                      disabled={!isViewMode && !extractedPdfData && !measurements}
-                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
-                    >
-                      {isViewMode ? "Measurements" : "3. Review Measurements"}
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      id="tab-trigger-materials"
-                      value="materials" 
-                      disabled={!isViewMode && !measurements}
-                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
-                    >
-                      {isViewMode ? "Materials" : "4. Select Packages"}
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      id="tab-trigger-pricing"
-                      value="pricing" 
-                      disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
-                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
-                    >
-                      {isViewMode ? "Project Details" : "5. Project Details"}
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      id="tab-trigger-summary"
-                      value="summary" 
-                      disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
-                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
-                    >
-                      {isViewMode ? "Summary" : "6. Summary"}
-                    </TabsTrigger>
-                  </TabsList>
-
-                  {/* Debug measurements info */}
-                  {process.env.NODE_ENV === 'development' && !isViewMode && (
-                    <div className="mb-4 p-2 bg-gray-800/50 text-xs border border-green-700/30 rounded-lg text-gray-400">
-                      <details>
-                        <summary className="cursor-pointer text-green-400">Debug Info</summary>
-                        <div className="mt-2 overflow-auto">
-                          <p>Active Tab: {activeTab}</p>
-                          <p>PDF Filename: {pdfFileName}</p>
-                          <p>Extracted Data: {extractedPdfData ? '✅' : '❌'}</p>
-                          <p>Measurements: {measurements ? '✅' : '❌'}</p>
-                          <p>Materials Selected: {Object.keys(selectedMaterials).length}</p>
-                          {measurements && (
-                            <pre>{JSON.stringify(measurements, null, 2)}</pre>
-                          )}
-                        </div>
-                      </details>
-                      
-                      <details className="mt-2">
-                        <summary className="cursor-pointer text-green-400">localStorage Migration Status</summary>
-                        <div className="mt-2 space-y-1">
-                          <p>Migration Complete: {migration.isComplete ? '✅' : '❌'}</p>
-                          <p>In Progress: {migration.isInProgress ? '🔄' : '💤'}</p>
-                          {migration.report && (
-                            <>
-                              <p>Total Keys: {migration.report.totalKeys}</p>
-                              <p>Redundant Keys: {migration.report.redundantKeys.length}</p>
-                              <p>Legacy Keys: {migration.report.legacyKeys.length}</p>
-                              <p>Auto-Save Keys: {migration.report.autoSaveKeys.length}</p>
-                              <p>Total Size: {Math.round(migration.report.totalSize / 1024)}KB</p>
-                            </>
-                          )}
-                          {migration.result && (
-                            <>
-                              <p>Migrated: {migration.result.migratedKeys.length}</p>
-                              <p>Removed: {migration.result.removedKeys.length}</p>
-                              <p>Space Freed: {Math.round(migration.result.totalSizeFreed / 1024)}KB</p>
-                            </>
-                          )}
-                          {migration.error && (
-                            <p className="text-red-600">Error: {migration.error}</p>
-                          )}
-                          <div className="flex gap-2 mt-2">
-                            <button 
-                              onClick={migration.generateReport}
-                              className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
-                            >
-                              Refresh Report
-                            </button>
-                            <button 
-                              onClick={migration.startMigration}
-                              disabled={migration.isInProgress}
-                              className="px-2 py-1 bg-green-600/50 text-green-400 border border-green-700/30 text-xs rounded hover:bg-green-600/70 disabled:opacity-50"
-                            >
-                              Run Migration
-                            </button>
-                            <button 
-                              onClick={migration.forceClean}
-                              disabled={migration.isInProgress}
-                              className="px-2 py-1 bg-red-900/50 text-red-400 border border-red-700/30 text-xs rounded hover:bg-red-900/70 disabled:opacity-50"
-                            >
-                              Force Clean
-                            </button>
-                          </div>
-                        </div>
-                      </details>
-                    </div>
-                  )}
-
-                  <TabsContent value="type-selection">
-                    <EstimateTypeSelector 
-                      onSelectionComplete={handleEstimateTypeSelection}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="upload">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-3xl blur-xl" />
-                          <Card className="relative bg-gray-800/30 backdrop-blur-xl border-green-600/20 p-6">
-                            <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
-                          </Card>
-                        </div>
-                        
-                        <div className="relative">
-                          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-green-600/10 rounded-3xl blur-xl" />
-                          <Card className="relative bg-gray-800/50 backdrop-blur-xl border-green-700/30 p-6">
-                            <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
-                              <Shield className="h-5 w-5 text-green-400" />
-                              Estimate Workflow
-                            </h3>
-                            <p className="text-sm text-gray-400 mb-4">
-                              Follow these steps to create a complete estimate
-                            </p>
-                          
-                          {/* Show selected estimate type */}
-                          {estimateType && (
-                            <div className="mb-4 p-3 bg-green-900/20 rounded-lg border border-green-700/30">
-                              <h4 className="font-medium text-green-300 mb-1">Selected Estimate Type</h4>
-                              <p className="text-sm text-green-200">
-                                {estimateType === 'roof_only' ? '🏠 Roof Shingles Only' : `🔧 Roof + ${selectedSubtrades.length} Subtrade(s)`}
-                              </p>
-                              {estimateType === 'with_subtrades' && selectedSubtrades.length > 0 && (
-                                <p className="text-xs text-green-400 mt-1">
-                                  Subtrades: {selectedSubtrades.join(', ')}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                          
-                          <ol className="space-y-2 text-sm">
-                            <li className="flex items-start gap-2">
-                              <span className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">✓</span>
-                              <span className="text-gray-300">Estimate Type Selected - {estimateType === 'roof_only' ? 'Standard roofing' : 'Roof + subtrades'}</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
-                              <span className="text-gray-300">Upload EagleView PDF - Start by uploading a roof measurement report</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
-                              <span className="text-gray-400">Review Measurements - Auto-saved measurements from your PDF</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
-                              <span className="text-gray-400">Select Packages - Choose roofing packages and options</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
-                              <span className="text-gray-400">Set Project Details - Define labor rates and profit margin</span>
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">6</span>
-                              <span className="text-gray-400">Review Summary - Finalize and prepare for customer approval</span>
-                            </li>
-                          </ol>
-                          </Card>
-                        </div>
-                      </div>
-                  </TabsContent>
-                  
-
-                  <TabsContent value="measurements">
-                    <SimplifiedReviewTab
-                      measurements={measurements || {
-                        totalArea: 0,
-                        ridgeLength: 0,
-                        hipLength: 0,
-                        valleyLength: 0,
-                        eaveLength: 0,
-                        rakeLength: 0,
-                        stepFlashingLength: 0,
-                        flashingLength: 0,
-                        dripEdgeLength: 0,
-                        penetrationsArea: 0,
-                        penetrationsPerimeter: 0,
-                        predominantPitch: "",
-                        ridgeCount: 0,
-                        hipCount: 0,
-                        valleyCount: 0,
-                        rakeCount: 0,
-                        eaveCount: 0,
-                        propertyAddress: "",
-                        latitude: "",
-                        longitude: "",
-                        areasByPitch: []
-                      }}
-                      onMeasurementsUpdate={handleMeasurementsSaved}
-                      onBack={() => setActiveTab("upload")}
-                      onContinue={() => setActiveTab("materials")}
-                      extractedFileName={pdfFileName || undefined}
-                      pdfUrl={pdfUrl}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="materials">
-                    {(() => {
-                      // Memoize measurements check to prevent excessive re-renders
-                      const hasMeasurements = measurements && measurements.areasByPitch && Array.isArray(measurements.areasByPitch);
-                      
-                      if (!hasMeasurements) {
-                        return (
-                          <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
-                            <CardHeader className="border-b border-green-700/30">
-                              <CardTitle className="text-white">Missing Measurements</CardTitle>
-                            </CardHeader>
-                            <CardContent className="pt-6">
-                              <p className="text-gray-400">Please go back and enter roof measurements before selecting materials.</p>
-                            </CardContent>
-                            <CardFooter>
-                              <Button 
-                                onClick={() => setActiveTab("measurements")} 
-                                variant="outline"
-                                className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
-                              >
-                                Go to Measurements
-                              </Button>
-                            </CardFooter>
-                          </Card>
-                        );
-                      } else {
-                        return (
-                          <>
-                            {/* UPDATED: Template Selector Card with Management Options */}
-                            {!isViewMode && (
-                              <Card className="mb-6 bg-gray-800/50 backdrop-blur-xl border-green-700/30">
-                                <CardHeader className="border-b border-green-700/30">
-                                  <CardTitle className="text-white">Select Pricing Template</CardTitle>
-                                  <CardDescription className="text-gray-400">Choose a pricing template to apply to this estimate</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                  <div className="flex items-end gap-4">
-                                    <div className="flex-1">
-                                      <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
-                                      <Select
-                                        value={selectedTemplateId || undefined}
-                                        onValueChange={setSelectedTemplateId}
-                                        disabled={isLoadingTemplates || templates.length === 0}
-                                      >
-                                        <SelectTrigger id="template-select" className="w-full">
-                                          <SelectValue placeholder="Select a template" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {templates.map(template => (
-                                            <SelectItem key={template.id} value={template.id}>
-                                              {template.name} {template.is_default && "(Default)"}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    
-                                    {/* Template Action Buttons */}
-                                    <div className="flex gap-2">
-                                      <Button 
-                                        onClick={handleApplyTemplate} 
-                                        disabled={!selectedTemplateId || isLoadingTemplates}
-                                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
-                                      >
-                                        Apply Template
-                                      </Button>
-                                      <Button 
-                                        variant="outline" 
-                                        onClick={() => handleOpenTemplateDialog('edit')}
-                                        disabled={!selectedTemplateId || isLoadingTemplates}
-                                        className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
-                                      >
-                                        Edit
-                                      </Button>
-                                      <Button 
-                                        variant="secondary" 
-                                        onClick={() => handleOpenTemplateDialog('create')}
-                                        disabled={isLoadingTemplates}
-                                        className="bg-gray-700/50 hover:bg-gray-700/70 text-gray-300 border-gray-600"
-                                      >
-                                        New Template
-                                      </Button>
-                                    </div>
-                                  </div>
-                                  {isLoadingTemplates && (
-                                    <div className="flex items-center justify-center py-2">
-                                      <Loader2 className="h-4 w-4 animate-spin text-green-400 mr-2" />
-                                      <p className="text-sm text-gray-400">Loading template data...</p>
-                                    </div>
-                                  )}
-                                  {selectedTemplateData && (
-                                    <div className="text-sm text-gray-400">
-                                      <p>Template: <span className="font-medium text-gray-200">{selectedTemplateData.name}</span></p>
-                                      <p>Materials: <span className="text-gray-200">{selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</span></p>
-                                      {selectedTemplateData.description && (
-                                        <p>Description: <span className="text-gray-300">{selectedTemplateData.description}</span></p>
-                                      )}
-                                    </div>
-                                  )}
-                                </CardContent>
-                              </Card>
-                            )}
-                            
-                            {/* MaterialsSelectionTab component with optimized props */}
-                            <MaterialsSelectionTab
-                              key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
-                              measurements={measurements}
-                              selectedMaterials={selectedMaterials}
-                              quantities={quantities}
-                              onMaterialsUpdate={handleMaterialsUpdate}
-                              readOnly={isViewMode}
-                              isAdminEditMode={isAdminEditMode}
-                              originalCreator={originalCreator}
-                              originalCreatorRole={originalCreatorRole}
-                            />
-                          </>
-                        );
-                      }
-                    })()}
-                  </TabsContent>
-                  
-                  <TabsContent value="pricing">
-                    <LaborProfitTab
-                      key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
-                      measurements={measurements!}
-                      selectedMaterials={selectedMaterials}
-                      quantities={quantities}
-                      initialLaborRates={laborRates}
-                      initialProfitMargin={profitMargin}
-                      onLaborProfitContinue={handleLaborProfitContinue}
-                      onBack={() => setActiveTab("materials")}
-                      readOnly={isViewMode}
-                      isAdminEditMode={isAdminEditMode}
-                      originalCreator={originalCreator}
-                      originalCreatorRole={originalCreatorRole}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="summary">
-                    <EstimateSummaryTab
-                      measurements={measurements || undefined}
-                      selectedMaterials={selectedMaterials}
-                      quantities={quantities}
-                      laborRates={laborRates}
-                      profitMargin={profitMargin}
-                      peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
-                      onFinalizeEstimate={handleFinalizeEstimate} 
-                      isSubmitting={isSubmittingFinal} 
-                      estimate={estimateData} 
-                      isReviewMode={isViewMode}
-                      calculateLiveTotal={calculateLiveEstimateTotal}
-                      onEstimateUpdated={() => { 
-                        fetchEstimatesData(); 
-                        if (estimateId) { 
-                          fetchEstimateData(estimateId);
-                        }
-                      }}
-                      onBack={() => setActiveTab("pricing")}
-                    />
-                  </TabsContent>
-                </Tabs>
-              )}
-
-              {/* Add Continue buttons at the bottom of each tab */}
-              <div className="flex justify-between mt-8">
-                {activeTab !== "type-selection" && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
-                      const currentIndex = tabOrder.indexOf(activeTab);
-                      if (currentIndex > 0) {
-                        setActiveTab(tabOrder[currentIndex - 1]);
-                      }
-                    }}
-                    className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
-                  >
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back
-                  </Button>
-                )}
-                
-                {activeTab !== "summary" && (
-                  <Button 
-                    className="ml-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
-                    onClick={() => {
-                      const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
-                      const currentIndex = tabOrder.indexOf(activeTab);
-
-                      if (currentIndex < tabOrder.length - 1) {
-                        const nextTab = tabOrder[currentIndex + 1];
-                        
-                        // Validations before navigating FROM a specific tab
-                        if (activeTab === 'type-selection') {
-                          if (!estimateType) {
-                            toast({ 
-                              title: "No Estimate Type Selected", 
-                              description: "Please select an estimate type to continue.",
+                      if (activeTab === 'pricing') {
+                         // Validation before leaving pricing tab to go to summary
+                         if (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)) {
+                          toast({
+                              title: "Missing Labor Rates",
+                              description: "Please ensure valid labor rates are set before proceeding to summary.",
                               variant: "destructive"
-                            });
-                            return; 
-                          }
-                        }
-                        
-                        if (activeTab === 'materials') {
-                          if (Object.keys(selectedMaterials).length === 0) {
-                            toast({ 
-                              title: "No Materials Selected", 
-                              description: "Please select at least one material to continue to Project Details.",
-                              variant: "destructive"
-                            });
-                            return;
-                          }
-                          if (!measurements?.areasByPitch || measurements.areasByPitch.length === 0) {
-                            toast({
-                              title: "Missing Pitch Information",
-                              description: "Cannot proceed to Project Details without valid pitch information from measurements.",
-                              variant: "destructive"
-                            });
-                            return;
-                          }
-                        }
-                        
-                        if (activeTab === 'pricing') {
-                           // Validation before leaving pricing tab to go to summary
-                           if (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)) {
-                            toast({
-                                title: "Missing Labor Rates",
-                                description: "Please ensure valid labor rates are set before proceeding to summary.",
-                                variant: "destructive"
-                            });
-                            return;
-                           }
-                           // Ensure latest labor/profit are synced before moving to summary
-                           if (handleLaborProfitContinue) {
-                               handleLaborProfitContinue(laborRates, profitMargin);
-                           }
-                        }
-
-                        if (import.meta.env.DEV) {
-                        console.log(`Main Continue button: Navigating from ${activeTab} to ${nextTab}`);
-                        }
-                        setActiveTab(nextTab);
+                          });
+                          return;
+                         }
+                         // Ensure latest labor/profit are synced before moving to summary
+                         if (handleLaborProfitContinue) {
+                             handleLaborProfitContinue(laborRates, profitMargin);
+                         }
                       }
-                    }}
-                    disabled={ // Review and adjust disabled logic as needed
-                      (activeTab === "type-selection" && !estimateType) ||
-                      (activeTab === "upload" && !extractedPdfData) ||
-                      (activeTab === "measurements" && !measurements) ||
-                      (activeTab === "materials" && Object.keys(selectedMaterials).length === 0) ||
-                      (activeTab === "pricing" && (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)))
+
+                      if (import.meta.env.DEV) {
+                      console.log(`Main Continue button: Navigating from ${activeTab} to ${nextTab}`);
+                      }
+                      setActiveTab(nextTab);
                     }
-                  >
-                    Continue
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </MainLayout>
+                  }}
+                  disabled={ // Review and adjust disabled logic as needed
+                    (activeTab === "type-selection" && !estimateType) ||
+                    (activeTab === "upload" && !extractedPdfData) ||
+                    (activeTab === "measurements" && !measurements) ||
+                    (activeTab === "materials" && Object.keys(selectedMaterials).length === 0) ||
+                    (activeTab === "pricing" && (!laborRates || (!laborRates.laborRate && !laborRates.tearOff && !laborRates.installation)))
+                  }
+                >
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <Dialog open={isSoldConfirmDialogOpen} onOpenChange={setIsSoldConfirmDialogOpen}>
         <DialogContent className="sm:max-w-[425px] bg-gray-800 border-green-700/30 text-white">
