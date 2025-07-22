@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowRight, Loader2, Shield, Info, EyeOff } from "lucide-react";
+import { Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowRight, Loader2, Shield, Info, EyeOff, CheckCircle2, RotateCcw } from "lucide-react";
 
 import { SimplifiedReviewTab } from "@/components/estimates/measurement/SimplifiedReviewTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -2592,6 +2592,11 @@ const Estimates = () => {
     );
   };
 
+  const startFresh = () => {
+    handleClearEstimate();
+    setActiveTab("upload");
+  };
+
   return (
     <div className="relative min-h-screen bg-gray-900 text-white">
       {/* Animated Background */}
@@ -2862,6 +2867,51 @@ const Estimates = () => {
                 </TabsContent>
 
                 <TabsContent value="upload">
+                  {/* Show different UI if measurements already exist */}
+                  {measurements && extractedPdfData ? (
+                    <div className="space-y-6">
+                      <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+                        <CardHeader>
+                          <CardTitle className="text-white">Measurements Already Loaded</CardTitle>
+                          <CardDescription className="text-gray-400">
+                            You have already uploaded and processed measurements for this estimate.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-4">
+                            <div className="p-4 bg-green-900/20 rounded-lg border border-green-700/30">
+                              <p className="text-sm text-green-300">
+                                <CheckCircle2 className="inline h-4 w-4 mr-2" />
+                                PDF File: {pdfFileName || 'EagleView Report'}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1">
+                                Total Area: {measurements.totalArea} sq ft
+                              </p>
+                            </div>
+                            
+                            <div className="flex gap-4">
+                              <Button
+                                onClick={() => setActiveTab('measurements')}
+                                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                              >
+                                Review Measurements
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                              </Button>
+                              
+                              <Button
+                                onClick={startFresh}
+                                variant="outline"
+                                className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                              >
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                Start Fresh
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-3xl blur-xl" />
@@ -2925,6 +2975,7 @@ const Estimates = () => {
                         </Card>
                       </div>
                     </div>
+                  )}
                 </TabsContent>
                 
 

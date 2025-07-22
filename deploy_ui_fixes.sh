@@ -1,35 +1,37 @@
 #!/bin/bash
 
-# Deployment script for UI fixes to match sales rep styling
+# Deploy UI fixes for admin and territory manager dashboards
+# Created: $(date)
 
-echo "🎨 Deploying UI fixes for admin and territory manager views..."
+echo "🚀 Deploying UI fixes..."
 
-# Stage all changes
+# Add all changes
 git add -A
 
-# Commit changes
-git commit -m "fix: Update admin and territory manager UI to match sales rep dark theme
+# Create deployment commit
+git commit -m "feat: Apply dark theme with green accents to all dashboards
 
-- Updated EstimateTypeSelector with dark theme styling
-- Fixed all tabs to use green gradient for active state
-- Updated all cards and dialogs to use dark backgrounds
-- Fixed button styling throughout the estimate flow
-- Updated debug info section styling
-- Ensured consistent dark theme across all user roles
-- Fixed template selector and dialog styling
-- Updated form inputs and labels for dark theme"
+- Admin Dashboard: Applied dark theme matching Sales Rep Dashboard
+  - Dark gray backgrounds with green accents
+  - Gradient metric cards with hover effects  
+  - Updated navigation tabs and buttons
+  - Styled dialogs and forms for dark theme
+
+- Territory Manager Dashboard: Applied matching dark theme
+  - Brightened dashboard with green brittle effects
+  - Toned down overly bright sections (header and create estimate)
+  - Redesigned estimate cards to be more compact and differentiated
+  - Added green brittle background to finalized estimate content
+  - Enhanced visual hierarchy with gradients and animations
+
+- Fixed duplicate rendering issues:
+  - Wrapped tab content properly in TabsContent components
+  - Made grid responsive based on view mode
+  - Removed duplicate sidebar by eliminating MainLayout wrapper
+  
+- Consistent styling across all user roles while maintaining functionality"
 
 # Push to remote
 git push origin main
 
-echo "✅ UI fixes deployed successfully!"
-echo ""
-echo "🔍 Changes made:"
-echo "- EstimateTypeSelector: Dark cards with green accents"
-echo "- Tabs: Green gradient active states"
-echo "- Dialogs: Dark backgrounds with proper contrast"
-echo "- Buttons: Consistent green gradients and hover states"
-echo "- Forms: Dark inputs with green focus states"
-echo "- Debug section: Dark theme with green accents"
-echo ""
-echo "📝 All styling now matches the sales rep dashboard while maintaining role-based permissions and functionality." 
+echo "✅ UI fixes deployed successfully!" 

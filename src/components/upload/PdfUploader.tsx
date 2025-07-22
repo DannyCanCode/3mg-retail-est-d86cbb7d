@@ -317,7 +317,7 @@ export function PdfUploader({ onDataExtracted, savedFileName }: PdfUploaderProps
           <div className="mt-4 flex justify-center">
             <Button 
               onClick={handleBrowseClick}
-              className="flex items-center"
+              className="flex items-center bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
             >
               Upload PDF
             </Button>
