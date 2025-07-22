@@ -3118,7 +3118,7 @@ export function MaterialsSelectionTab({
                type="multiple" 
                value={expandedCategories}
                onValueChange={setExpandedCategories}
-               className="w-full">
+               className="w-full space-y-2">
                {Object.keys(materialsByCategory).length === 0 ? (
                  <p>No materials found in template or grouping failed.</p>
                ) : (
@@ -3136,10 +3136,10 @@ export function MaterialsSelectionTab({
                    if (materials.length === 0) return null;
                    
                  return (
-                   <AccordionItem key={category} value={category}>
-                     <AccordionTrigger className="text-lg font-semibold py-3">
+                   <AccordionItem key={category} value={category} className="border-green-700/30">
+                     <AccordionTrigger className="text-lg font-semibold py-3 text-white hover:text-green-300">
                        {formatCategoryName(category)}
-                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-600 border-blue-300 bg-blue-50">Flat/Low-Slope Required</Badge>)}
+                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-300 border-blue-500/50 bg-blue-900/20">Flat/Low-Slope Required</Badge>)}
                      </AccordionTrigger>
                      <AccordionContent>
                        <div className="space-y-2 pt-2">
@@ -3147,26 +3147,26 @@ export function MaterialsSelectionTab({
                            const material = editableTemplateMaterials[baseMaterial.id] || baseMaterial;
                            const isSelected = !!localSelectedMaterials[material.id];
 
-                           // Define material-specific colors
+                           // Define material-specific colors for dark theme
                            const getMaterialColor = (materialId: string) => {
                              // Goosenecks - Orange
                              if (materialId.includes('gooseneck')) {
-                               return 'border-orange-300 bg-orange-50 hover:bg-orange-100';
+                               return 'border-orange-600/30 bg-orange-900/20 hover:bg-orange-900/30';
                              }
                              // Boots - Grey
                              if (materialId.includes('boot')) {
-                               return 'border-gray-400 bg-gray-50 hover:bg-gray-100';
+                               return 'border-gray-600/30 bg-gray-800/30 hover:bg-gray-800/40';
                              }
                              // Skylights - Light Blue
                              if (materialId.includes('skylight')) {
-                               return 'border-sky-300 bg-sky-50 hover:bg-sky-100';
+                               return 'border-sky-600/30 bg-sky-900/20 hover:bg-sky-900/30';
                              }
                              // Gutters - Bronze (using amber as closest)
                              if (materialId.includes('gutter')) {
-                               return 'border-amber-600 bg-amber-50 hover:bg-amber-100';
+                               return 'border-amber-600/30 bg-amber-900/20 hover:bg-amber-900/30';
                              }
                              // Default styling for other materials
-                             return 'border bg-card hover:bg-muted/50';
+                             return 'border-gray-700/30 bg-gray-800/30 hover:bg-gray-800/50';
                            };
 
                            return (
@@ -3174,7 +3174,7 @@ export function MaterialsSelectionTab({
                               <div className="flex flex-col lg:flex-row justify-between items-start gap-3">
                                 {/* Left Column: Material Info */}
                                 <div className="flex-1 space-y-2">
-                                  <h4 className="text-sm font-medium">{material.name}</h4>
+                                  <h4 className="text-sm font-medium text-white">{material.name}</h4>
                                   
                                   {/* Only show price input/display for non-reps */}
                                   {effectiveUserRole !== 'rep' && (
@@ -3186,14 +3186,16 @@ export function MaterialsSelectionTab({
                                         step="0.01"
                                         defaultValue={material.price !== undefined ? String(material.price) : ''} 
                                         onBlur={(e) => canEditMaterialPrices() && handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)}
-                                        className={`h-8 text-sm border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500 w-24 ${
-                                          canEditMaterialPrices() ? 'bg-white text-gray-900' : 'bg-gray-100 text-gray-600'
+                                        className={`h-8 text-sm rounded-md shadow-sm w-24 ${
+                                          canEditMaterialPrices() 
+                                            ? 'bg-gray-700/50 border-gray-600 text-white focus:border-green-500 focus:ring-green-500/20' 
+                                            : 'bg-gray-800/50 border-gray-700 text-gray-400'
                                         }`}
                                         disabled={!canEditMaterialPrices()}
                                         placeholder="0.00"
                                         key={`price-input-${material.id}`}
                                       />
-                                      {material.unit && <span className="text-sm text-gray-600">per {material.unit}</span>}
+                                      {material.unit && <span className="text-sm text-gray-400">per {material.unit}</span>}
                                       {material.approxPerSquare && material.approxPerSquare > 0 && 
                                         <span className="text-xs text-gray-500">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
                                       }
@@ -3236,7 +3238,11 @@ export function MaterialsSelectionTab({
                                       if (readOnly) return;
                                       isSelected ? removeMaterial(material.id) : addMaterial(editableTemplateMaterials[baseMaterial.id] || baseMaterial); 
                                     }} 
-                                    className="min-w-[100px] h-9"
+                                    className={`min-w-[100px] h-9 ${
+                                      isSelected 
+                                        ? 'bg-green-600/20 text-green-400 border-green-600/50 hover:bg-green-600/30' 
+                                        : 'bg-gray-700/30 text-gray-300 border-gray-600 hover:bg-gray-700/50 hover:text-white hover:border-green-600/50'
+                                    }`}
                                     disabled={readOnly}
                                   >
                                     {isSelected ? <Check className="mr-1.5 h-4 w-4" /> : <Plus className="mr-1.5 h-4 w-4" />}
