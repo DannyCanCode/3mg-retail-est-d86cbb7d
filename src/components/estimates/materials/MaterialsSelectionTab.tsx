@@ -2925,10 +2925,10 @@ export function MaterialsSelectionTab({
       {/* Package & Warranty Selection for Sales Reps */}
       {effectiveUserRole === 'rep' && (
         <div className="lg:col-span-1">
-          <Card className="h-fit">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <PackageOpen className="h-5 w-5" />
+          <Card className="h-fit bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+            <CardHeader className="pb-3 border-b border-green-700/30">
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <PackageOpen className="h-5 w-5 text-green-400" />
                 Package & Warranty Selection
               </CardTitle>
             </CardHeader>
@@ -2957,8 +2957,10 @@ export function MaterialsSelectionTab({
       <div className="lg:col-span-3 space-y-6">
         {/* GAF Package & Warranty Card - Hide for Sales Reps */}
         {effectiveUserRole !== 'rep' && (
-          <Card>
-             <CardHeader><CardTitle>GAF Package & Warranty Selection</CardTitle></CardHeader>
+          <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+             <CardHeader className="border-b border-green-700/30">
+               <CardTitle className="text-white">GAF Package & Warranty Selection</CardTitle>
+             </CardHeader>
              <CardContent className="space-y-4">
                <PackageSelector 
                  selectedPackage={selectedPackage} 
@@ -2981,10 +2983,10 @@ export function MaterialsSelectionTab({
 
         
         {/* Package Selection Card */}
-        <Card>
-          <CardHeader>
+        <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+          <CardHeader className="border-b border-green-700/30">
             <div className="flex items-center justify-between">
-              <CardTitle>Select Packages</CardTitle>
+              <CardTitle className="text-white">Select Packages</CardTitle>
               {/* Preset Bundles Button - Only show for non-sales reps */}
               {effectiveUserRole !== 'rep' && (
                 <div className="flex items-center gap-2">
@@ -3001,6 +3003,7 @@ export function MaterialsSelectionTab({
                       }
                     }}
                     disabled={Object.keys(localSelectedMaterials).length === 0}
+                    className="bg-gray-700/50 hover:bg-gray-700/70 text-gray-400 border-gray-600"
                   >
                     Clear All
                   </Button>
@@ -3008,7 +3011,7 @@ export function MaterialsSelectionTab({
                     <Button
                       variant="default"
                       size="sm"
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
                       onClick={() => setShowPresetMenu(!showPresetMenu)}
                     >
                       <PackageOpen className="h-4 w-4" />
@@ -3016,10 +3019,10 @@ export function MaterialsSelectionTab({
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                     {showPresetMenu && (
-                      <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                      <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-green-700/30 rounded-md shadow-lg z-10">
                         <div className="py-1">
                           <button
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-green-900/30 hover:text-white"
                             onClick={() => {
                               applyPresetBundle('GAF 1');
                               setShowPresetMenu(false);
@@ -3028,7 +3031,7 @@ export function MaterialsSelectionTab({
                             GAF 1 - Basic
                           </button>
                           <button
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-green-900/30 hover:text-white"
                             onClick={() => {
                               applyPresetBundle('GAF 2');
                               setShowPresetMenu(false);
@@ -3037,7 +3040,7 @@ export function MaterialsSelectionTab({
                             GAF 2 - Premium
                           </button>
                           <button
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-green-900/30 hover:text-white"
                             onClick={() => {
                               applyPresetBundle('OC 1');
                               setShowPresetMenu(false);
@@ -3046,7 +3049,7 @@ export function MaterialsSelectionTab({
                             OC 1 - Basic
                           </button>
                           <button
-                            className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                            className="block w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-green-900/30 hover:text-white"
                             onClick={() => {
                               applyPresetBundle('OC 2');
                               setShowPresetMenu(false);
@@ -3061,13 +3064,13 @@ export function MaterialsSelectionTab({
                 </div>
               )}
             </div>
-            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+            <div className="mt-2 p-2 bg-blue-900/20 border border-blue-700/30 rounded-md">
               {canEditMaterialPrices() ? (
-                <p className="text-sm text-blue-800">
+                <p className="text-sm text-blue-300">
                   🔓 <strong>Admin Access:</strong> You can modify material prices for this estimate.
                 </p>
               ) : (
-                <p className="text-sm text-blue-800">
+                <p className="text-sm text-blue-300">
                   🔒 <strong>Territory Manager:</strong> Material prices are locked for consistency across estimates.
                 </p>
               )}
@@ -3076,26 +3079,33 @@ export function MaterialsSelectionTab({
           <CardContent className="space-y-4">
              {/* Waste Factor Inputs */}
              <div className="flex items-center space-x-4 pb-4">
-               <Label htmlFor="wasteFactor">Waste Factor:</Label>
+               <Label htmlFor="wasteFactor" className="text-gray-300">Waste Factor:</Label>
                <Input 
                  id="wasteFactor" 
                  type="number" 
                  value={wasteFactorInput} 
                  onChange={handleWasteFactorInputChange} 
                  onBlur={handleWasteFactorBlur}
-                 className="w-24" 
+                 className="w-24 bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-green-500 focus:ring-green-500/20" 
                  min="0" 
                  max="50" 
                />
-               <span className="text-sm text-muted-foreground">%</span>
-               <span className="text-sm text-muted-foreground">(Applies to all materials except GAF Timberline HDZ)</span>
+               <span className="text-sm text-gray-400">%</span>
+               <span className="text-sm text-gray-400">(Applies to all materials except GAF Timberline HDZ)</span>
              </div>
              {localSelectedMaterials["gaf-timberline-hdz-sg"] && (
-              <div className="flex items-center space-x-4 pb-4 pt-2 border-t">
-                <Label htmlFor="gafWasteFactor">GAF Timberline HDZ Waste Factor:</Label>
+              <div className="flex items-center space-x-4 pb-4 pt-2 border-t border-green-700/30">
+                <Label htmlFor="gafWasteFactor" className="text-gray-300">GAF Timberline HDZ Waste Factor:</Label>
                 <div className="flex space-x-2">
                   {[12, 15, 20].map(factor => (
-                    <Button key={factor} variant="outline" className={gafTimberlineWasteFactor === factor ? "bg-blue-100" : ""} onClick={() => handleGafTimberlineWasteFactorChange(factor)}>{factor}%</Button>
+                    <Button 
+                      key={factor} 
+                      variant="outline" 
+                      className={gafTimberlineWasteFactor === factor ? "bg-green-900/30 text-green-400 border-green-600" : "bg-gray-700/50 hover:bg-gray-700/70 text-gray-400 border-gray-600"} 
+                      onClick={() => handleGafTimberlineWasteFactorChange(factor)}
+                    >
+                      {factor}%
+                    </Button>
                   ))}
                  </div>
                  <span className="text-sm text-blue-600 font-medium">Current: {gafTimberlineWasteFactor}%</span>
@@ -3192,25 +3202,25 @@ export function MaterialsSelectionTab({
                                   
                                   {/* Role-based pricing info */}
                                   {effectiveUserRole !== 'rep' && !canEditMaterialPrices() && (
-                                    <div className="text-xs text-muted-foreground bg-gray-50 p-2 rounded">
+                                    <div className="text-xs text-gray-400 bg-gray-700/30 p-2 rounded">
                                       <span className="font-medium">Territory Manager:</span> Material pricing is managed by administrators to ensure consistency across all estimates.
                                     </div>
                                   )}
                                   
                                   {/* Coverage Rule Description - Keep visible for all roles */}
                                   {material.coverageRule?.description && (
-                                    <p className="text-xs text-gray-600">
-                                      <span className="font-medium text-gray-700">Coverage:</span> {material.coverageRule.description}
+                                    <p className="text-xs text-gray-400">
+                                      <span className="font-medium text-gray-300">Coverage:</span> {material.coverageRule.description}
                                     </p>
                                   )}
                           
                                   {/* Coverage Rule Calculation & Logic - Hide for sales reps */}
                                   {material.coverageRule?.calculation && effectiveUserRole !== 'rep' && (
-                                    <div className="text-xs text-gray-600">
-                                      <p><span className="font-medium text-gray-700">Logic:</span> {material.coverageRule.calculation}</p>
+                                    <div className="text-xs text-gray-400">
+                                      <p><span className="font-medium text-gray-300">Logic:</span> {material.coverageRule.calculation}</p>
                                       {!readOnly && (
-                                        <p className="text-indigo-500 mt-0.5">
-                                          <span className="font-medium text-gray-700">→ Current Calc:</span> {formatCalculationWithMeasurements(material)}
+                                        <p className="text-green-400 mt-0.5">
+                                          <span className="font-medium text-gray-300">→ Current Calc:</span> {formatCalculationWithMeasurements(material)}
                                         </p>
                                       )}
                                     </div>
@@ -3245,7 +3255,7 @@ export function MaterialsSelectionTab({
                )}
              </Accordion>
           </CardContent>
-          <CardFooter className="flex justify-between items-center mt-4">
+          <CardFooter className="flex justify-between items-center mt-4 border-t border-green-700/30 pt-6">
             <Button 
               variant="outline" 
               onClick={() => onMaterialsUpdate({ 
@@ -3258,7 +3268,7 @@ export function MaterialsSelectionTab({
                 selectedPackage,
                 isNavigatingBack: true 
               })}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
             >
               <ChevronLeft className="h-4 w-4" />
               Back to Measurements
@@ -3270,20 +3280,20 @@ export function MaterialsSelectionTab({
 
       {/* Right Column: Selected Materials */}
       <div className={effectiveUserRole !== 'rep' ? "lg:col-span-2" : "lg:col-span-1"}>
-        <Card className="sticky top-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">
+        <Card className="sticky top-4 bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+          <CardHeader className="pb-3 border-b border-green-700/30">
+            <CardTitle className="text-lg text-white">
               {effectiveUserRole === 'rep' ? 'Auto-Selected Materials' : 'Selected Materials'}
             </CardTitle>
             {effectiveUserRole === 'rep' && (
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-gray-400 mt-1">
                 Materials are automatically selected based on your package choice
               </p>
             )}
           </CardHeader>
           <CardContent className="space-y-2 px-4 py-3">
             {Object.keys(localSelectedMaterials).length === 0 && !warrantyDetails ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-gray-400">
                 <p className="text-sm">{effectiveUserRole === 'rep' ? 'Materials will be auto-populated' : 'No materials selected yet'}</p>
                 <p className="text-xs mt-1">{effectiveUserRole === 'rep' ? 'Based on package selection' : 'Select packages from the list'}</p>
               </div>
