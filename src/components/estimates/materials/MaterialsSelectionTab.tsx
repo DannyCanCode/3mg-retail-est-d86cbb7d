@@ -2925,7 +2925,7 @@ export function MaterialsSelectionTab({
       {/* Package & Warranty Selection for Sales Reps */}
       {effectiveUserRole === 'rep' && (
         <div className="lg:col-span-1">
-          <Card className="h-fit bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+          <Card className="h-fit bg-gray-800/30 backdrop-blur-xl border-green-600/20">
             <CardHeader className="pb-3 border-b border-green-700/30">
               <CardTitle className="flex items-center gap-2 text-lg text-white">
                 <PackageOpen className="h-5 w-5 text-green-400" />
@@ -2957,7 +2957,7 @@ export function MaterialsSelectionTab({
       <div className="lg:col-span-3 space-y-6">
         {/* GAF Package & Warranty Card - Hide for Sales Reps */}
         {effectiveUserRole !== 'rep' && (
-          <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+          <Card className="bg-gray-800/30 backdrop-blur-xl border-green-600/20">
              <CardHeader className="border-b border-green-700/30">
                <CardTitle className="text-white">GAF Package & Warranty Selection</CardTitle>
              </CardHeader>
@@ -2983,7 +2983,7 @@ export function MaterialsSelectionTab({
 
         
         {/* Package Selection Card */}
-        <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+        <Card className="bg-gray-800/30 backdrop-blur-xl border-green-600/20">
           <CardHeader className="border-b border-green-700/30">
             <div className="flex items-center justify-between">
               <CardTitle className="text-white">Select Packages</CardTitle>
@@ -3280,7 +3280,7 @@ export function MaterialsSelectionTab({
 
       {/* Right Column: Selected Materials */}
       <div className={effectiveUserRole !== 'rep' ? "lg:col-span-2" : "lg:col-span-1"}>
-        <Card className="sticky top-4 bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+        <Card className="sticky top-4 bg-gray-800/30 backdrop-blur-xl border-green-600/20">
           <CardHeader className="pb-3 border-b border-green-700/30">
             <CardTitle className="text-lg text-white">
               {effectiveUserRole === 'rep' ? 'Auto-Selected Materials' : 'Selected Materials'}

@@ -2861,16 +2861,21 @@ const Estimates = () => {
                 )}
 
                 <TabsContent value="type-selection">
-                  <EstimateTypeSelector 
-                    onSelectionComplete={handleEstimateTypeSelection}
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-3xl blur-xl" />
+                    <div className="relative">
+                      <EstimateTypeSelector 
+                        onSelectionComplete={handleEstimateTypeSelection}
+                      />
+                    </div>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="upload">
                   {/* Show different UI if measurements already exist */}
                   {measurements && extractedPdfData ? (
                     <div className="space-y-6">
-                      <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+                      <Card className="bg-gray-800/30 backdrop-blur-xl border-green-600/20">
                         <CardHeader>
                           <CardTitle className="text-white">Measurements Already Loaded</CardTitle>
                           <CardDescription className="text-gray-400">
@@ -2922,7 +2927,7 @@ const Estimates = () => {
                       
                       <div className="relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-green-600/10 rounded-3xl blur-xl" />
-                        <Card className="relative bg-gray-800/50 backdrop-blur-xl border-green-700/30 p-6">
+                        <Card className="relative bg-gray-800/30 backdrop-blur-xl border-green-600/20 p-6">
                           <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
                             <Shield className="h-5 w-5 text-green-400" />
                             Estimate Workflow
@@ -2980,36 +2985,41 @@ const Estimates = () => {
                 
 
                 <TabsContent value="measurements">
-                  <SimplifiedReviewTab
-                    measurements={measurements || {
-                      totalArea: 0,
-                      ridgeLength: 0,
-                      hipLength: 0,
-                      valleyLength: 0,
-                      eaveLength: 0,
-                      rakeLength: 0,
-                      stepFlashingLength: 0,
-                      flashingLength: 0,
-                      dripEdgeLength: 0,
-                      penetrationsArea: 0,
-                      penetrationsPerimeter: 0,
-                      predominantPitch: "",
-                      ridgeCount: 0,
-                      hipCount: 0,
-                      valleyCount: 0,
-                      rakeCount: 0,
-                      eaveCount: 0,
-                      propertyAddress: "",
-                      latitude: "",
-                      longitude: "",
-                      areasByPitch: []
-                    }}
-                    onMeasurementsUpdate={handleMeasurementsSaved}
-                    onBack={() => setActiveTab("upload")}
-                    onContinue={() => setActiveTab("materials")}
-                    extractedFileName={pdfFileName || undefined}
-                    pdfUrl={pdfUrl}
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-3xl blur-xl" />
+                    <div className="relative">
+                      <SimplifiedReviewTab
+                        measurements={measurements || {
+                          totalArea: 0,
+                          ridgeLength: 0,
+                          hipLength: 0,
+                          valleyLength: 0,
+                          eaveLength: 0,
+                          rakeLength: 0,
+                          stepFlashingLength: 0,
+                          flashingLength: 0,
+                          dripEdgeLength: 0,
+                          penetrationsArea: 0,
+                          penetrationsPerimeter: 0,
+                          predominantPitch: "",
+                          ridgeCount: 0,
+                          hipCount: 0,
+                          valleyCount: 0,
+                          rakeCount: 0,
+                          eaveCount: 0,
+                          propertyAddress: "",
+                          latitude: "",
+                          longitude: "",
+                          areasByPitch: []
+                        }}
+                        onMeasurementsUpdate={handleMeasurementsSaved}
+                        onBack={() => setActiveTab("upload")}
+                        onContinue={() => setActiveTab("materials")}
+                        extractedFileName={pdfFileName}
+                        pdfUrl={pdfUrl}
+                      />
+                    </div>
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="materials">
@@ -3019,7 +3029,7 @@ const Estimates = () => {
                     
                     if (!hasMeasurements) {
                       return (
-                        <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+                        <Card className="bg-gray-800/30 backdrop-blur-xl border-green-600/20">
                           <CardHeader className="border-b border-green-700/30">
                             <CardTitle className="text-white">Missing Measurements</CardTitle>
                           </CardHeader>
@@ -3039,138 +3049,151 @@ const Estimates = () => {
                       );
                     } else {
                       return (
-                        <>
-                          {/* UPDATED: Template Selector Card with Management Options */}
-                          {!isViewMode && (
-                            <Card className="mb-6 bg-gray-800/50 backdrop-blur-xl border-green-700/30">
-                              <CardHeader className="border-b border-green-700/30">
-                                <CardTitle className="text-white">Select Pricing Template</CardTitle>
-                                <CardDescription className="text-gray-400">Choose a pricing template to apply to this estimate</CardDescription>
-                              </CardHeader>
-                              <CardContent className="space-y-4">
-                                <div className="flex items-end gap-4">
-                                  <div className="flex-1">
-                                    <Label htmlFor="template-select" className="mb-2 block">Pricing Template</Label>
-                                    <Select
-                                      value={selectedTemplateId || undefined}
-                                      onValueChange={setSelectedTemplateId}
-                                      disabled={isLoadingTemplates || templates.length === 0}
-                                    >
-                                      <SelectTrigger id="template-select" className="w-full">
-                                        <SelectValue placeholder="Select a template" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {templates.map(template => (
-                                          <SelectItem key={template.id} value={template.id}>
-                                            {template.name} {template.is_default && "(Default)"}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-green-600/10 rounded-3xl blur-xl" />
+                          <div className="relative space-y-6">
+                            {/* UPDATED: Template Selector Card with Management Options */}
+                            {!isViewMode && (
+                              <Card className="bg-gray-800/30 backdrop-blur-xl border-green-600/20">
+                                <CardHeader className="border-b border-green-700/30">
+                                  <CardTitle className="text-white">Select Pricing Template</CardTitle>
+                                  <CardDescription className="text-gray-400">Choose a pricing template to apply to this estimate</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                  <div className="flex items-end gap-4">
+                                    <div className="flex-1">
+                                      <Label htmlFor="template-select" className="mb-2 block text-gray-300">Pricing Template</Label>
+                                      <Select
+                                        value={selectedTemplateId || undefined}
+                                        onValueChange={setSelectedTemplateId}
+                                        disabled={isLoadingTemplates || templates.length === 0}
+                                      >
+                                        <SelectTrigger id="template-select" className="w-full bg-gray-700/50 border-gray-600 text-white">
+                                          <SelectValue placeholder="Select a template" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-gray-800 border-green-700/30">
+                                          {templates.map(template => (
+                                            <SelectItem key={template.id} value={template.id} className="text-gray-300 hover:bg-green-900/30">
+                                              {template.name} {template.is_default && "(Default)"}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    
+                                    {/* Template Action Buttons */}
+                                    <div className="flex gap-2">
+                                      <Button 
+                                        onClick={handleApplyTemplate} 
+                                        disabled={!selectedTemplateId || isLoadingTemplates}
+                                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
+                                      >
+                                        Apply Template
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        onClick={() => handleOpenTemplateDialog('edit')}
+                                        disabled={!selectedTemplateId || isLoadingTemplates}
+                                        className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                                      >
+                                        Edit
+                                      </Button>
+                                      <Button 
+                                        variant="secondary" 
+                                        onClick={() => handleOpenTemplateDialog('create')}
+                                        disabled={isLoadingTemplates}
+                                        className="bg-gray-700/50 hover:bg-gray-700/70 text-gray-300 border-gray-600"
+                                      >
+                                        New Template
+                                      </Button>
+                                    </div>
                                   </div>
-                                  
-                                  {/* Template Action Buttons */}
-                                  <div className="flex gap-2">
-                                    <Button 
-                                      onClick={handleApplyTemplate} 
-                                      disabled={!selectedTemplateId || isLoadingTemplates}
-                                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
-                                    >
-                                      Apply Template
-                                    </Button>
-                                    <Button 
-                                      variant="outline" 
-                                      onClick={() => handleOpenTemplateDialog('edit')}
-                                      disabled={!selectedTemplateId || isLoadingTemplates}
-                                      className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
-                                    >
-                                      Edit
-                                    </Button>
-                                    <Button 
-                                      variant="secondary" 
-                                      onClick={() => handleOpenTemplateDialog('create')}
-                                      disabled={isLoadingTemplates}
-                                      className="bg-gray-700/50 hover:bg-gray-700/70 text-gray-300 border-gray-600"
-                                    >
-                                      New Template
-                                    </Button>
-                                  </div>
-                                </div>
-                                {isLoadingTemplates && (
-                                  <div className="flex items-center justify-center py-2">
-                                    <Loader2 className="h-4 w-4 animate-spin text-green-400 mr-2" />
-                                    <p className="text-sm text-gray-400">Loading template data...</p>
-                                  </div>
-                                )}
-                                {selectedTemplateData && (
-                                  <div className="text-sm text-gray-400">
-                                    <p>Template: <span className="font-medium text-gray-200">{selectedTemplateData.name}</span></p>
-                                    <p>Materials: <span className="text-gray-200">{selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</span></p>
-                                    {selectedTemplateData.description && (
-                                      <p>Description: <span className="text-gray-300">{selectedTemplateData.description}</span></p>
-                                    )}
-                                  </div>
-                                )}
-                              </CardContent>
-                            </Card>
-                          )}
-                          
-                          {/* MaterialsSelectionTab component with optimized props */}
-                          <MaterialsSelectionTab
-                            key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
-                            measurements={measurements}
-                            selectedMaterials={selectedMaterials}
-                            quantities={quantities}
-                            onMaterialsUpdate={handleMaterialsUpdate}
-                            readOnly={isViewMode}
-                            isAdminEditMode={isAdminEditMode}
-                            originalCreator={originalCreator}
-                            originalCreatorRole={originalCreatorRole}
-                          />
-                        </>
+                                  {isLoadingTemplates && (
+                                    <div className="flex items-center justify-center py-2">
+                                      <Loader2 className="h-4 w-4 animate-spin text-green-400 mr-2" />
+                                      <p className="text-sm text-gray-400">Loading template data...</p>
+                                    </div>
+                                  )}
+                                  {selectedTemplateData && (
+                                    <div className="text-sm text-gray-400">
+                                      <p>Template: <span className="font-medium text-gray-200">{selectedTemplateData.name}</span></p>
+                                      <p>Materials: <span className="text-gray-200">{selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</span></p>
+                                      {selectedTemplateData.description && (
+                                        <p>Description: <span className="text-gray-300">{selectedTemplateData.description}</span></p>
+                                      )}
+                                    </div>
+                                  )}
+                                </CardContent>
+                              </Card>
+                            )}
+                            
+                            {/* MaterialsSelectionTab component with optimized props */}
+                            <MaterialsSelectionTab
+                              key={`materials-tab-${lastTemplateApplied || selectedTemplateId || "no-template"}`}
+                              measurements={measurements}
+                              selectedMaterials={selectedMaterials}
+                              quantities={quantities}
+                              onMaterialsUpdate={handleMaterialsUpdate}
+                              readOnly={isViewMode}
+                              isAdminEditMode={isAdminEditMode}
+                              originalCreator={originalCreator}
+                              originalCreatorRole={originalCreatorRole}
+                            />
+                          </div>
+                        </div>
                       );
                     }
                   })()}
                 </TabsContent>
                 
                 <TabsContent value="pricing">
-                  <LaborProfitTab
-                    key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
-                    measurements={measurements!}
-                    selectedMaterials={selectedMaterials}
-                    quantities={quantities}
-                    initialLaborRates={laborRates}
-                    initialProfitMargin={profitMargin}
-                    onLaborProfitContinue={handleLaborProfitContinue}
-                    onBack={() => setActiveTab("materials")}
-                    readOnly={isViewMode}
-                    isAdminEditMode={isAdminEditMode}
-                    originalCreator={originalCreator}
-                    originalCreatorRole={originalCreatorRole}
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-600/15 to-emerald-600/15 rounded-3xl blur-xl" />
+                    <div className="relative">
+                      <LaborProfitTab
+                        key={`labor-profit-${activeTab === 'pricing' ? Date.now() : 'inactive'}`}
+                        measurements={measurements!}
+                        selectedMaterials={selectedMaterials}
+                        quantities={quantities}
+                        initialLaborRates={laborRates}
+                        initialProfitMargin={profitMargin}
+                        onLaborProfitContinue={handleLaborProfitContinue}
+                        onBack={() => setActiveTab("materials")}
+                        readOnly={isViewMode}
+                        isAdminEditMode={isAdminEditMode}
+                        originalCreator={originalCreator}
+                        originalCreatorRole={originalCreatorRole}
+                      />
+                    </div>
+                  </div>
                 </TabsContent>
                 
                 <TabsContent value="summary">
-                  <EstimateSummaryTab
-                    measurements={measurements || undefined}
-                    selectedMaterials={selectedMaterials}
-                    quantities={quantities}
-                    laborRates={laborRates}
-                    profitMargin={profitMargin}
-                    peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
-                    onFinalizeEstimate={handleFinalizeEstimate} 
-                    isSubmitting={isSubmittingFinal} 
-                    estimate={estimateData} 
-                    isReviewMode={isViewMode}
-                    calculateLiveTotal={calculateLiveEstimateTotal}
-                    onEstimateUpdated={() => { 
-                      fetchEstimatesData(); 
-                      if (estimateId) { 
-                        fetchEstimateData(estimateId);
-                      }
-                    }}
-                    onBack={() => setActiveTab("pricing")}
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/20 to-green-600/20 rounded-3xl blur-xl" />
+                    <div className="relative">
+                      <EstimateSummaryTab
+                        measurements={measurements || undefined}
+                        selectedMaterials={selectedMaterials}
+                        quantities={quantities}
+                        laborRates={laborRates}
+                        profitMargin={profitMargin}
+                        peelStickAddonCost={parseFloat(peelStickAddonCost) || 0}
+                        onFinalizeEstimate={handleFinalizeEstimate} 
+                        isSubmitting={isSubmittingFinal} 
+                        estimate={estimateData} 
+                        isReviewMode={isViewMode}
+                        calculateLiveTotal={calculateLiveEstimateTotal}
+                        onEstimateUpdated={() => { 
+                          fetchEstimatesData(); 
+                          if (estimateId) { 
+                            fetchEstimateData(estimateId);
+                          }
+                        }}
+                        onBack={() => setActiveTab("pricing")}
+                      />
+                    </div>
+                  </div>
                 </TabsContent>
               </Tabs>
             )}

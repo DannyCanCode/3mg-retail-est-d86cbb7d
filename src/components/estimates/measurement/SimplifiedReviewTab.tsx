@@ -186,7 +186,7 @@ export function SimplifiedReviewTab({
         </div>
       )}
       
-      <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+      <Card className="bg-gray-800/30 backdrop-blur-xl border-green-600/20">
         <CardHeader className="flex flex-row items-center justify-between border-b border-green-700/30">
           <CardTitle className="text-white">Review Measurements</CardTitle>
           
