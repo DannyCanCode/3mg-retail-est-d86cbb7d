@@ -3151,22 +3151,22 @@ export function MaterialsSelectionTab({
                            const getMaterialColor = (materialId: string) => {
                              // Goosenecks - Orange
                              if (materialId.includes('gooseneck')) {
-                               return 'border-orange-600/30 bg-orange-900/20 hover:bg-orange-900/30';
+                               return 'border-orange-500/40 bg-orange-500/10 hover:bg-orange-500/20';
                              }
                              // Boots - Grey
                              if (materialId.includes('boot')) {
-                               return 'border-gray-600/30 bg-gray-800/30 hover:bg-gray-800/40';
+                               return 'border-gray-500/40 bg-gray-700/40 hover:bg-gray-700/60';
                              }
                              // Skylights - Light Blue
                              if (materialId.includes('skylight')) {
-                               return 'border-sky-600/30 bg-sky-900/20 hover:bg-sky-900/30';
+                               return 'border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20';
                              }
                              // Gutters - Bronze (using amber as closest)
                              if (materialId.includes('gutter')) {
-                               return 'border-amber-600/30 bg-amber-900/20 hover:bg-amber-900/30';
+                               return 'border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20';
                              }
                              // Default styling for other materials
-                             return 'border-gray-700/30 bg-gray-800/30 hover:bg-gray-800/50';
+                             return 'border-gray-600/40 bg-gray-700/40 hover:bg-gray-700/60';
                            };
 
                            return (
@@ -3240,8 +3240,8 @@ export function MaterialsSelectionTab({
                                     }} 
                                     className={`min-w-[100px] h-9 ${
                                       isSelected 
-                                        ? 'bg-green-600/20 text-green-400 border-green-600/50 hover:bg-green-600/30' 
-                                        : 'bg-gray-700/30 text-gray-300 border-gray-600 hover:bg-gray-700/50 hover:text-white hover:border-green-600/50'
+                                        ? 'bg-green-600/30 text-green-400 border-green-500/50 hover:bg-green-600/40' 
+                                        : 'bg-gray-700/50 text-gray-200 border-gray-600/50 hover:bg-gray-700/70 hover:text-white hover:border-green-500/50'
                                     }`}
                                     disabled={readOnly}
                                   >
