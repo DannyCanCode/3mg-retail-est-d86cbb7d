@@ -63,10 +63,9 @@ export function useSalesRepRestrictions(): SalesRepRestrictions {
           defaultProfitMargin: 30
         };
         
-      case 'project_manager':
       case 'rep':
         return {
-          canViewProfitMargins: false, // Sales reps/project managers cannot see profit margins
+          canViewProfitMargins: false, // Sales reps cannot see profit margins
           canEditProfitMargins: false,
           canViewAllEstimates: false, // Only their own
           canViewCompanyMetrics: false,

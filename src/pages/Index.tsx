@@ -16,8 +16,7 @@ const Index: React.FC = () => {
           navigate('/manager', { replace: true });
           return;
         case 'rep':
-        case 'project_manager':
-          console.log('🔄 [Index] Redirecting sales rep/project manager to /sales dashboard');
+          console.log('🔄 [Index] Redirecting sales rep to /sales dashboard');
           navigate('/sales', { replace: true });
           return;
         case 'admin':
@@ -32,7 +31,7 @@ const Index: React.FC = () => {
   }, [profile, navigate]);
 
   // If user is being redirected, show loading state
-  if (profile?.role === 'manager' || profile?.role === 'rep' || profile?.role === 'project_manager') {
+  if (profile?.role === 'manager' || profile?.role === 'rep') {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">

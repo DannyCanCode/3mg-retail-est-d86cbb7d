@@ -1806,8 +1806,14 @@ export function MaterialsSelectionTab({
     const isLowSlope = isLowSlopeMaterial(materialId);
     const isAutoSelected = isAutoSelectedMaterial(materialId);
     
+    // Check if this is a JWS accessory (accessories that sales reps can edit)
+    const isJWSAccessory = material.category === MaterialCategory.ACCESSORIES;
+    
+    // Sales reps can edit all materials - remove the old project manager restriction
+    const isReadOnlyForProjectManager = false;
+    
     // Ensure waste factor exists, falling back to the default for the material if not in state yet.
-    const currentWasteFactorForMaterial = materialWasteFactors[materialId] ?? determineWasteFactor(material, undefined, dbWastePercentages); 
+    const currentWasteFactorForMaterial = materialWasteFactors[materialId] ?? determineWasteFactor(material, undefined, dbWastePercentages);
 
     const initialDisplayValue = () => {
       const qty = localQuantities[materialId] || 0;
@@ -1979,7 +1985,23 @@ export function MaterialsSelectionTab({
           {/* Material name and badge */}
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1 pr-2">
-              <p className="text-sm font-semibold text-gray-900 leading-tight mb-1">{baseName}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-gray-900 leading-tight mb-1">{baseName}</p>
+                {isReadOnlyForProjectManager && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Quantity locked - Package materials cannot be modified</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
               {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && (
                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                   isLowSlope 
@@ -2042,56 +2064,70 @@ export function MaterialsSelectionTab({
             
             {/* Controls section - prevent shrinking */}
             <div className="flex items-center gap-1 flex-shrink-0">
-              <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden bg-white">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (isGafTimberline) {
-                      const currentQty = localQuantities[materialId] || 0;
-                      const currentSq = currentQty / 3;
-                      const nextSq = Math.max(0, parseFloat((currentSq - 0.1).toFixed(1)));
-                      updateQuantity(materialId, Math.ceil(nextSq * 3));
-                    } else {
-                      updateQuantity(materialId, Math.max(0, (localQuantities[materialId] || 0) - 1));
-                    }
-                  }}
-                  className="px-3 py-2 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
-                >
-                  <span className="text-gray-600 font-medium">−</span>
-                </button>
-                
-                <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-x border-gray-200 bg-gray-50 min-w-[3rem] text-center">
+              {isReadOnlyForProjectManager ? (
+                // Read-only display for project managers (except for accessories)
+                <div className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-lg bg-gray-50 min-w-[3rem] text-center">
                   {isGafTimberline 
                     ? Math.ceil(bundleQuantity / 3)
                     : bundleQuantity
                   }
+                  <span className="text-xs text-gray-500 ml-1">
+                    {isGafTimberline ? 'sq' : material.unit === 'Bundle' ? 'bnd' : material.unit.slice(0, 3).toLowerCase()}
+                  </span>
                 </div>
-                
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (isGafTimberline) {
-                      const currentQty = localQuantities[materialId] || 0;
-                      const currentSq = currentQty / 3;
-                      const nextSq = parseFloat((currentSq + 0.1).toFixed(1));
-                      updateQuantity(materialId, Math.ceil(nextSq * 3));
-                    } else {
-                      updateQuantity(materialId, (localQuantities[materialId] || 0) + 1);
+              ) : (
+                // Editable controls for other roles or JWS accessories
+                <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden bg-white">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (isGafTimberline) {
+                        const currentQty = localQuantities[materialId] || 0;
+                        const currentSq = currentQty / 3;
+                        const nextSq = Math.max(0, parseFloat((currentSq - 0.1).toFixed(1)));
+                        updateQuantity(materialId, Math.ceil(nextSq * 3));
+                      } else {
+                        updateQuantity(materialId, Math.max(0, (localQuantities[materialId] || 0) - 1));
+                      }
+                    }}
+                    className="px-3 py-2 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                  >
+                    <span className="text-gray-600 font-medium">−</span>
+                  </button>
+                  
+                  <div className="px-4 py-2 text-sm font-semibold text-gray-700 border-x border-gray-200 bg-gray-50 min-w-[3rem] text-center">
+                    {isGafTimberline 
+                      ? Math.ceil(bundleQuantity / 3)
+                      : bundleQuantity
                     }
-                  }}
-                  className="px-3 py-2 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
-                  aria-label={`Increase quantity for ${baseName}`}
-                >
-                  <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
-              </div>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (isGafTimberline) {
+                        const currentQty = localQuantities[materialId] || 0;
+                        const currentSq = currentQty / 3;
+                        const nextSq = parseFloat((currentSq + 0.1).toFixed(1));
+                        updateQuantity(materialId, Math.ceil(nextSq * 3));
+                      } else {
+                        updateQuantity(materialId, (localQuantities[materialId] || 0) + 1);
+                      }
+                    }}
+                    className="px-3 py-2 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+                    aria-label={`Increase quantity for ${baseName}`}
+                  >
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                </div>
+              )}
               
-              {/* Delete button - Only show if not mandatory */}
-              {!isMandatory && (
+              {/* Delete button - Only show if not mandatory and not read-only for project managers */}
+              {!isMandatory && !isReadOnlyForProjectManager && (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -2239,7 +2275,15 @@ export function MaterialsSelectionTab({
         {/* Quantity Controls and Delete Button */}
         <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
           <div className="flex items-center flex-1">
-             {isGafTimberline ? (
+             {isReadOnlyForProjectManager ? (
+               // Read-only display for project managers (except for accessories)
+               <div className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-lg bg-gray-50 text-center">
+                 {isGafTimberline 
+                   ? `${Math.ceil(bundleQuantity / 3)} squares`
+                   : `${bundleQuantity} ${material.unit.toLowerCase()}`
+                 }
+               </div>
+             ) : isGafTimberline ? (
                <> {/* Timberline Input (Squares) */}
                  <Button type="button" variant="outline" size="icon" className="h-7 w-7 rounded-r-none" 
                     onClick={(e) => { 
@@ -2317,8 +2361,8 @@ export function MaterialsSelectionTab({
              variant="ghost" 
              size="icon" 
              onClick={() => removeMaterial(materialId)} 
-             className={`h-7 w-7 text-red-500 hover:bg-red-50 ${isMandatory ? 'opacity-50 cursor-not-allowed' : ''}`} 
-             disabled={isMandatory}
+             className={`h-7 w-7 text-red-500 hover:bg-red-50 ${isMandatory || isReadOnlyForProjectManager ? 'opacity-50 cursor-not-allowed' : ''}`} 
+             disabled={isMandatory || isReadOnlyForProjectManager}
              aria-label={`Remove ${baseName}`}
            >
              <Trash className="h-4 w-4" />
@@ -2345,8 +2389,27 @@ export function MaterialsSelectionTab({
       return;
     }
     
-    // If changing from GAF 2 to GAF 1 and Gold Pledge is selected, reset to Silver Pledge
-    if (selectedPackage === 'gaf-1' && selectedWarranty === 'gold-pledge') {
+    // Auto-select warranty based on package
+    if (selectedPackage === '3mg-1' && selectedWarranty !== 'silver-pledge') {
+      console.log("Auto-selecting Silver Pledge warranty for 3MG Standard package");
+      setSelectedWarranty('silver-pledge');
+      toast({
+        title: "Silver Pledge Warranty Selected",
+        description: "3MG Standard package includes 10-year workmanship warranty with Silver Pledge.",
+        duration: 4000,
+        variant: "default"
+      });
+    } else if (selectedPackage === '3mg-2' && selectedWarranty !== 'gold-pledge') {
+      console.log("Auto-selecting Gold Pledge warranty for 3MG Select package");
+      setSelectedWarranty('gold-pledge');
+      toast({
+        title: "Gold Pledge Warranty Selected",
+        description: "3MG Select package includes 25-year workmanship warranty with Gold Pledge.",
+        duration: 4000,
+        variant: "default"
+      });
+    } else if (selectedPackage === 'gaf-1' && selectedWarranty === 'gold-pledge') {
+      // If changing from GAF 2 to GAF 1 and Gold Pledge is selected, reset to Silver Pledge
       console.log("Changing warranty from Gold Pledge to Silver Pledge because GAF 1 Basic Package was selected");
       setSelectedWarranty('silver-pledge');
       toast({
@@ -2472,11 +2535,11 @@ export function MaterialsSelectionTab({
               { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
             ],
             "3MG 1": [
-              { id: "gaf-timberline-hdz-sg", description: "3MG High-Performance Shingles" },
-              { id: "abc-pro-start-premium", description: "ABC Pro Start Premium Starter Strip" },
-              { id: "gaf-seal-a-ridge", description: "3MG Ridge Cap Shingles" },
-              { id: "gaf-weatherwatch-ice-water-shield", description: "3MG Ice & Water Shield" },
-              { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 Synthetic Underlayment" },
+              { id: "oc-oakridge", description: "OC Oakridge Shingles" },
+              { id: "oc-starter", description: "OC Starter" },
+              { id: "oc-hip-ridge", description: "OC Hip & Ridge" },
+              { id: "maxfelt-nc", description: "MaxFelt Synthetic Underlayment" },
+              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
               { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
@@ -2486,13 +2549,13 @@ export function MaterialsSelectionTab({
               { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" }
             ],
             "3MG 2": [
-              { id: "gaf-timberline-hdz-sg", description: "3MG Premium Architectural Shingles" },
-              { id: "gaf-prostart-starter-shingle-strip", description: "3MG Premium Starter Strip" },
-              { id: "gaf-seal-a-ridge", description: "3MG Premium Ridge Cap System" },
-              { id: "gaf-feltbuster-synthetic-underlayment", description: "3MG Advanced Synthetic Underlayment" },
-              { id: "gaf-weatherwatch-ice-water-shield", description: "3MG Premium Ice & Water Shield" },
+              { id: "gaf-uhdz", description: "GAF Timberline UHDZ Shingles" },
+              { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
+              { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge" },
+              { id: "maxfelt-nc", description: "MaxFelt Synthetic Underlayment" },
+              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
-              { id: "gaf-cobra-rigid-vent", description: "3MG Premium Ridge Vent System" },
+              { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
               { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
               { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
@@ -2889,7 +2952,7 @@ export function MaterialsSelectionTab({
         </div>
       )}
       
-      {/* Left Column: Material Selection etc. - Hide for sales reps */}
+      {/* Left Column: Package Selection etc. - Hide for sales reps */}
       {effectiveUserRole !== 'rep' && (
       <div className="lg:col-span-3 space-y-6">
         {/* GAF Package & Warranty Card - Hide for Sales Reps */}
@@ -2917,11 +2980,11 @@ export function MaterialsSelectionTab({
         
 
         
-        {/* Material Selection Card */}
+        {/* Package Selection Card */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Select Materials</CardTitle>
+              <CardTitle>Select Packages</CardTitle>
               {/* Preset Bundles Button - Only show for non-sales reps */}
               {effectiveUserRole !== 'rep' && (
                 <div className="flex items-center gap-2">
@@ -3222,7 +3285,7 @@ export function MaterialsSelectionTab({
             {Object.keys(localSelectedMaterials).length === 0 && !warrantyDetails ? (
               <div className="text-center py-8 text-muted-foreground">
                 <p className="text-sm">{effectiveUserRole === 'rep' ? 'Materials will be auto-populated' : 'No materials selected yet'}</p>
-                <p className="text-xs mt-1">{effectiveUserRole === 'rep' ? 'Based on package selection' : 'Select materials from the list'}</p>
+                <p className="text-xs mt-1">{effectiveUserRole === 'rep' ? 'Based on package selection' : 'Select packages from the list'}</p>
               </div>
             ) : (
               <div className="space-y-2">

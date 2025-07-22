@@ -174,6 +174,23 @@ export function LaborProfitTab({
     return false;
   };
 
+  // 🔓 NEW: Only Territory Managers can edit permit count
+  const canEditPermitCount = () => {
+    // Admin override: If in admin edit mode and current user is admin, allow editing
+    if (isAdminEditMode && isAdmin) {
+      return true; // Admins can edit any estimate when in admin edit mode
+    }
+    
+    // Normal operation: Only Territory Managers and Admins can edit permit count
+    // Sales Reps CANNOT edit permit count
+    if (!readOnly && (isAdmin || userRole === 'manager')) {
+      return true; // Only Territory Managers and Admins can adjust permit count
+    }
+    
+    // Sales Reps and other roles cannot edit permit count
+    return false;
+  };
+
   const getSafeInitialRates = useCallback((initialRates?: LaborRates): LaborRates => {
     // Calculate recommended dumpster count based on roof area
     const recommendedDumpsterCount = measurements?.totalArea && measurements.totalArea > 0 
@@ -203,10 +220,10 @@ export function LaborProfitTab({
       combined.dumpsterCount = recommendedDumpsterCount;
     }
     
-    // Always set permit count to 1 (one permit per job)
-    combined.permitCount = 1;
+    // Ensure permit count is at least 1 (minimum one permit per job)
+    combined.permitCount = Math.max(1, combined.permitCount || 1);
     
-    // Always include permits for demo
+    // Always include permits
     combined.includePermits = true;
     
     // Fixed rates for demo (Central Florida rates)
@@ -376,8 +393,18 @@ export function LaborProfitTab({
             }
         }
     } else if (field === "permitCount") {
-        // Ignore manual changes to permit count - always auto-calculated as 1
-        return;
+        // Allow editing permit count but enforce minimum of 1
+        const valStr = String(value).trim();
+        if (valStr === "") {
+            processedValue = 1; // Default to 1 if empty
+        } else {
+            const parsed = parseInt(valStr, 10);
+            if (!isNaN(parsed) && parsed >= 1) {
+                processedValue = parsed;
+            } else {
+                processedValue = 1; // Minimum 1 permit
+            }
+        }
     } else if (typeof value === "string" && field !== "dumpsterLocation") {
       if (value.trim() === "") {
         if (field === 'laborRate' || field === 'handloadRate') { // dumpsterCount handled above
@@ -796,21 +823,50 @@ export function LaborProfitTab({
           <div className="space-y-4">
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md">
               <p className="text-sm text-green-700">
-                ✅ <strong>Permits Required:</strong> All estimates must include permits. This ensures compliance with local regulations.
+                ✅ <strong>Permits Required:</strong> All estimates must include at least one permit. This ensures compliance with local regulations.
               </p>
             </div>
             
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                <span className="text-green-600 font-medium">✓ Auto-calculated: 1 permit required per job</span>
-              </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Permit Count */}
+              <div className="space-y-2">
+                <Label htmlFor="permitCount">Number of Permits</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="permitCount"
+                    type="number"
+                    min="1"
+                    value={laborRates.permitCount || 1}
+                    onChange={(e) => handleLaborRateChange("permitCount", e.target.value)}
+                    disabled={!canEditPermitCount()}
+                    className={canEditPermitCount() ? "" : "bg-muted"}
+                  />
+                  {!canEditPermitCount() && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Only Territory Managers can adjust permit count</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Minimum 1 permit required per job
+                </p>
+              </div>
+              
+              {/* Permit Cost */}
               {effectiveUserRole !== 'rep' && (
                 <div className="space-y-2">
                   <Label htmlFor="permitTotal">Total Permit Cost</Label>
                   <Input
                     id="permitTotal"
                     type="text"
-                    value={`$${(laborRates.permitRate || 450).toFixed(2)}`}
+                    value={`$${((laborRates.permitCount || 1) * (laborRates.permitRate || 450)).toFixed(2)}`}
                     readOnly
                     className="bg-muted"
                   />
@@ -1425,12 +1481,6 @@ export function LaborProfitTab({
             originalCreatorRole={originalCreatorRole}
             effectiveUserRole={effectiveUserRole}
           />
-        </div>
-        
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <div className="text-sm text-blue-700">
-            <strong>Note:</strong> Labor rates are applied per square of roof area. The profit margin is applied to the total cost of materials and labor.
-          </div>
         </div>
       </CardContent>
       <CardFooter className="flex justify-between">

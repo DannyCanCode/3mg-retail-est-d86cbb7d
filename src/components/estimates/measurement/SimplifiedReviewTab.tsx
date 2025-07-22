@@ -136,7 +136,7 @@ export function SimplifiedReviewTab({
       // Show success toast
       toast({
         title: "Measurements saved",
-        description: `Now you can select materials for your estimate.${lowSlopeMessage}`,
+        description: `Now you can select packages for your estimate.${lowSlopeMessage}`,
       });
       
       // Navigate to materials immediately without delay to prevent flashing
@@ -515,7 +515,7 @@ export function SimplifiedReviewTab({
                 </>
               ) : (
                 <>
-                  Continue to Select Materials
+                  Continue to Select Packages
                   <ChevronRight className="h-4 w-4" />
                 </>
               )}

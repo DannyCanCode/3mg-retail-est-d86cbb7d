@@ -1,23 +1,20 @@
 /* @ts-nocheck */
 import React, { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff } from "lucide-react";
-import { AnimatedLogo } from "@/components/ui/AnimatedLogo";
-
-const brandGreen = "#0F9D58";
+import { useToast } from "@/components/ui/use-toast";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AlertCircle, Lock, Mail, Shield } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,75 +32,47 @@ export default function Login() {
     setLoading(true);
     
     try {
-      if (import.meta.env.DEV) {
-        console.log('[Login] Attempting login for:', email);
-      }
-      
-      // No need to sign out before login - Supabase handles session replacement automatically
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Simple login without IP checking
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
         password,
       });
       
-      if (import.meta.env.DEV) {
-        console.log('[Login] Auth response:', { data: !!data, error: error?.message });
-      }
-      
-      if (error) {
-        if (import.meta.env.DEV) {
-          console.error('[Login] Authentication error:', {
-            message: error.message,
-            status: error.status,
-            name: error.name
-          });
-        }
-        
-        // Handle specific error cases
-        if (error.message.includes('Email not confirmed')) {
-          toast({
-            title: "Account Not Confirmed",
-            description: "Please check your email and click the confirmation link before logging in.",
-            variant: "destructive"
-          });
-        } else if (error.message.includes('Invalid login credentials')) {
+      if (authError) {
+        // Handle auth errors
+        if (authError.message.includes('Invalid login credentials')) {
           toast({
             title: "Invalid Credentials",
-            description: "The email or password you entered is incorrect. Please try again.",
-            variant: "destructive"
-          });
-        } else if (error.message.includes('Too many requests')) {
-          toast({
-            title: "Too Many Attempts",
-            description: "Too many login attempts. Please wait a moment before trying again.",
-            variant: "destructive"
-          });
-        } else if (error.message.includes('Network')) {
-          toast({
-            title: "Network Error",
-            description: "Please check your internet connection and try again.",
+            description: "The email or password you entered is incorrect.",
             variant: "destructive"
           });
         } else {
-          // Generic error handling
           toast({ 
             title: "Login Failed", 
-            description: error.message || "An unexpected error occurred during login.",
+            description: authError.message,
             variant: "destructive" 
           });
         }
-      } else {
-        if (import.meta.env.DEV) {
-          console.log('[Login] Login successful, navigating to dashboard...');
-        }
-        
-        // Navigate immediately - auth context will handle the session
-        navigate("/", { replace: true });
+        setLoading(false);
+        return;
       }
-    } catch (error) {
+      
+      // Login successful
       if (import.meta.env.DEV) {
-        console.error('[Login] Unexpected error during login:', error);
+        console.log('[Login] Login successful');
       }
+      
+      // Show success message
+      toast({
+        title: "Login Successful",
+        description: "Welcome back!",
+      });
+      
+      // Navigate to dashboard
+      navigate("/", { replace: true });
+      
+    } catch (error) {
+      console.error('[Login] Unexpected error:', error);
       toast({
         title: "Login Error",
         description: "An unexpected error occurred. Please try again.",
@@ -115,85 +84,86 @@ export default function Login() {
   };
 
   return (
-    <div
-      className="min-h-screen w-full flex items-center justify-center p-4"
-      style={{ background: `linear-gradient(135deg, ${brandGreen} 0%, #ffffff 65%)` }}
-    >
-      <Card className="w-full max-w-md shadow-2xl border-0 bg-white/95 backdrop-blur-sm">
-        <CardHeader className="text-center space-y-4 pb-6">
-          <div className="mx-auto mb-4">
-            <AnimatedLogo size={120} />
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-semibold text-gray-800 mb-2">
-              Sign in to Estimator
-            </CardTitle>
-            <p className="text-gray-600">Enter your credentials to access the platform</p>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium text-gray-700">
-                Email Address
-              </label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Requires @3mgroofing.com email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-                className="h-12 border-2 focus:border-green-500"
-              />
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Animated background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-green-900/20 to-emerald-900/30" />
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-[1000px] h-[1000px] bg-green-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-emerald-500/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        </div>
+      </div>
+
+      <Card className="w-full max-w-md relative z-10 bg-gray-800/90 backdrop-blur-xl border-green-700/30 shadow-2xl shadow-black/50">
+        <CardHeader className="space-y-1">
+          <div className="flex items-center justify-center mb-4">
+            <div className="p-3 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl shadow-lg shadow-green-500/25">
+              <Shield className="h-8 w-8 text-white" />
             </div>
+          </div>
+          <CardTitle className="text-2xl font-bold text-center text-white">
+            3MG Retail Estimator
+          </CardTitle>
+          <CardDescription className="text-center text-gray-400">
+            Sign in to your account
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            
             <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="text-sm font-medium text-gray-300">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@3mgroofing.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-green-500 focus:ring-green-500/20"
+                  disabled={loading}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-gray-300">
                 Password
               </label>
               <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
                 <Input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
+                  type="password"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-green-500 focus:ring-green-500/20"
+                  disabled={loading}
                   required
-                  disabled={loading}
-                  className="h-12 border-2 focus:border-green-500 pr-12"
                 />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={loading}
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
               </div>
             </div>
-            <Button 
-              type="submit" 
-              className="w-full h-12 text-lg font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-200"
+
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
               disabled={loading}
-              style={{ 
-                backgroundColor: brandGreen,
-                borderRadius: '8px'
-              }}
             >
               {loading ? (
-                <div className="flex items-center space-x-2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  <span>Signing in...</span>
-                </div>
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Signing in...
+                </>
               ) : (
                 'Sign In'
               )}
             </Button>
           </form>
-          
-          {/* Test accounts section removed for production use */}
         </CardContent>
       </Card>
     </div>

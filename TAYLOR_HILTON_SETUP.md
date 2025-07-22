@@ -19,7 +19,7 @@
    - Click Edit (pencil icon)
    - Update these fields:
      - `full_name`: Taylor Hilton
-     - `role`: project_manager
+     - `role`: rep
      - `territory`: Winter Park
    - Save changes
 
@@ -62,15 +62,15 @@ npx supabase db execute -f create-taylor-hilton.sql
 
 If login fails:
 1. Check that the user exists in Authentication → Users
-2. Verify the profile has `role: project_manager` in profiles table
+2. Verify the profile has `role: rep` in profiles table
 3. Ensure email is confirmed (email_confirmed_at should have a timestamp)
 4. Check browser console for any errors
 
 ## User Details
 
-- **Name**: Taylor Hilton
-- **Email**: Taylor.Hilton@3MGRoofing.com
-- **Password**: Taylor2024!
-- **Role**: project_manager
+- **Email**: `Taylor.Hilton@3MGRoofing.com`
+- **Password**: `Taylor2024!`
+- **Role**: rep
 - **Territory**: Winter Park
-- **Reports to**: Adam and Chase Lovejoy (Territory Managers) 
+- **Dashboard**: Sales Dashboard
+- **Permissions**: Same as other sales representatives 

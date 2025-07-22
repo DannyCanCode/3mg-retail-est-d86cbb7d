@@ -54,6 +54,15 @@ export const ROOFING_MATERIALS: Material[] = [
     coverageRule: { description: "120 LF/Bundle", calculation: "(Eave Length + Rake Length) * (1 + Waste%) / 120 rounded up" }
   },
   {
+    id: "gaf-uhdz",
+    name: "GAF Timberline UHDZ",
+    category: MaterialCategory.SHINGLES,
+    price: 48.50,
+    unit: "Bundle",
+    approxPerSquare: 145.50,
+    coverageRule: { description: "3 Bundles/Square (33.3 sq ft per bundle)", calculation: "Steep Slope Area / 33.3 rounded up" }
+  },
+  {
     id: "oc-duration",
     name: "OC Duration",
     category: MaterialCategory.SHINGLES,
@@ -107,6 +116,15 @@ export const ROOFING_MATERIALS: Material[] = [
     unit: "Roll",
     approxPerSquare: 6.56,
     coverageRule: { description: "10 Squares/Roll (1,000 sq ft)", calculation: "Ceiling(Total Squares / 10)" }
+  },
+  {
+    id: "polyglass-ice-water-shield",
+    name: "Polyglass Ice & Water Shield",
+    category: MaterialCategory.UNDERLAYMENTS,
+    price: 125.00,
+    unit: "Roll",
+    approxPerSquare: 62.50,
+    coverageRule: { description: "2 Squares/Roll (200 sq ft)", calculation: "Total Area / 2 rounded up" }
   },
   {
     id: "rhino-synthetic",
@@ -471,6 +489,22 @@ export const ROOFING_MATERIALS: Material[] = [
     unit: "Tube",
     coverageRule: { description: "1 tube per 20 squares", calculation: "Ceiling(Total Squares / 20)" }
   },
+  {
+    id: "abc-pro-start-premium",
+    name: "ABC Pro Start Premium Starter Strip",
+    category: MaterialCategory.SHINGLES,
+    price: 75.00,
+    unit: "Bundle",
+    coverageRule: { description: "120 LF/Bundle", calculation: "(Eave Length + Rake Length) * (1 + Waste%) / 120 rounded up" }
+  },
+  {
+    id: "soffit-vents-continuous",
+    name: "Continuous Soffit Vents (10')",
+    category: MaterialCategory.VENTILATION,
+    price: 18.50,
+    unit: "Piece",
+    coverageRule: { description: "10'/Piece", calculation: "Soffit Length / 10 rounded up" }
+  }
 ];
 
 // Optional: Log counts for verification

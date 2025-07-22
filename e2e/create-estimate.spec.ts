@@ -40,7 +40,7 @@ test.describe.skip('Create New Estimate via PDF Upload', () => {
     
     // Step 6: Click the "Continue" button to go to the materials tab
     await page.getByRole('button', { name: 'Continue' }).click();
-    await expect(page.getByRole('tab', { name: 'Select Materials', selected: true })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Select Packages', selected: true })).toBeVisible();
 
     // Add a final assertion to confirm we are on the materials tab
     await expect(page.getByRole('heading', { name: 'Select Pricing Template' })).toBeVisible();

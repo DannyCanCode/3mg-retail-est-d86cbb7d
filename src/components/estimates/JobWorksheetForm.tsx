@@ -20,6 +20,8 @@ interface JobWorksheetData {
   basic_info: {
     name: string;
     address: string;
+    email: string;
+    phone: string;
   };
   property_access: {
     hoa: boolean;
@@ -71,7 +73,6 @@ interface JobWorksheetData {
     skylight: {
       count_2x2: number;
       count_2x4: number;
-      other: string;
     };
   };
   gutters: {
@@ -128,6 +129,8 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
     basic_info: {
       name: '',
       address: '',
+      email: '',
+      phone: '',
       ...initialData?.basic_info
     },
     property_access: {
@@ -185,7 +188,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
       skylight: {
         count_2x2: 0,
         count_2x4: 0,
-        other: '',
         ...initialData?.accessories?.skylight
       }
     },
@@ -300,7 +302,7 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
     <div className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="basic">Basic Info</TabsTrigger>
+          <TabsTrigger value="basic">Homeowner Info</TabsTrigger>
           <TabsTrigger value="ventilation">Ventilation</TabsTrigger>
           <TabsTrigger value="skylights">Accessories</TabsTrigger>
           <TabsTrigger value="gutters">Gutters</TabsTrigger>
@@ -310,7 +312,7 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
         <TabsContent value="basic" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
+              <CardTitle>Homeowner Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -330,6 +332,41 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                   value={formData.basic_info.address}
                   onChange={(e) => updateField('basic_info', 'address', e.target.value)}
                   disabled={readOnly}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.basic_info.email}
+                  onChange={(e) => updateField('basic_info', 'email', e.target.value)}
+                  disabled={readOnly}
+                  placeholder="homeowner@example.com"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={formData.basic_info.phone}
+                  onChange={(e) => {
+                    // Format phone number as user types
+                    const cleaned = e.target.value.replace(/\D/g, '');
+                    let formatted = cleaned;
+                    if (cleaned.length >= 6) {
+                      formatted = `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6, 10)}`;
+                    } else if (cleaned.length >= 3) {
+                      formatted = `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+                    }
+                    updateField('basic_info', 'phone', formatted);
+                  }}
+                  disabled={readOnly}
+                  placeholder="(555) 123-4567"
+                  maxLength={14}
                 />
               </div>
             </CardContent>
@@ -723,20 +760,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     </Select>
                   </div>
                 )}
-              </div>
-
-              {/* Other Skylights */}
-              <div className="pt-2">
-                <Label htmlFor="skylightOther">Other Skylight Needs</Label>
-                <Textarea
-                  id="skylightOther"
-                  value={formData.accessories.skylight.other}
-                  onChange={(e) => updateField('accessories', 'skylight', { ...formData.accessories.skylight, other: e.target.value })}
-                  disabled={readOnly}
-                  placeholder="Describe any other skylight requirements..."
-                  className="mt-2"
-                  rows={3}
-                />
               </div>
             </CardContent>
           </Card>

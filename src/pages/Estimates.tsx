@@ -3,7 +3,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { PdfUploader } from "@/components/upload/PdfUploader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronRight, RefreshCw, ArrowLeft, Loader2, Shield, Info, EyeOff } from "lucide-react";
+import { Plus, ChevronRight, RefreshCw, ArrowLeft, ArrowRight, Loader2, Shield, Info, EyeOff } from "lucide-react";
 
 import { SimplifiedReviewTab } from "@/components/estimates/measurement/SimplifiedReviewTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -2558,24 +2558,26 @@ const Estimates = () => {
     const roleInfo = getRoleDescription();
     
     return (
-      <Card className={`border-2 ${getRoleBadgeColor().replace('bg-', 'border-').replace('text-', 'bg-').replace('100', '200')} mb-6`}>
+      <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30 mb-6">
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              {getRoleIcon()}
+              <div className="p-2 bg-gradient-to-br from-green-600/20 to-emerald-600/20 rounded-lg">
+                {getRoleIcon()}
+              </div>
               <div>
-                <h3 className="font-semibold text-sm">{roleInfo.title}</h3>
-                <p className="text-xs text-muted-foreground">{roleInfo.description}</p>
+                <h3 className="font-semibold text-sm text-white">{roleInfo.title}</h3>
+                <p className="text-xs text-gray-400">{roleInfo.description}</p>
               </div>
             </div>
-            <Badge className={getRoleBadgeColor()}>
+            <Badge className="bg-green-600/20 text-green-400 border-green-600/30">
               {profile?.role?.toUpperCase() || 'USER'}
             </Badge>
           </div>
           {roleInfo.restrictions.length > 0 && (
-            <div className="mt-3 pt-3 border-t">
-              <p className="text-xs font-medium mb-1">Role Restrictions:</p>
-              <ul className="text-xs text-muted-foreground space-y-1">
+            <div className="mt-3 pt-3 border-t border-green-700/30">
+              <p className="text-xs font-medium mb-1 text-gray-300">Role Restrictions:</p>
+              <ul className="text-xs text-gray-500 space-y-1">
                 {roleInfo.restrictions.map((restriction, index) => (
                   <li key={index} className="flex items-center gap-1">
                     <span className="w-1 h-1 bg-current rounded-full"></span>
@@ -2591,52 +2593,100 @@ const Estimates = () => {
   };
 
   return (
-    <>
-      <div className="container mx-auto p-4 max-w-7xl">
-        <div className="flex flex-col gap-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-3xl font-bold tracking-tight">
-              {isViewMode ? "Review Estimate" : "Create New Estimate"}
-            </h1>
-            <div className="flex gap-2">
-              {isViewMode ? (
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate("/")}
-                  className="flex items-center gap-2"
-                >
-                  <ArrowLeft className="h-4 w-4" /> Back to Dashboard
-                </Button>
-              ) : (
-                <Button 
-                  variant="outline" 
-                  onClick={handleClearEstimate} 
-                  className="flex items-center gap-2" 
-                  title="Clear this estimate and start over"
-                >
-                  <RefreshCw className="h-4 w-4" /> Start Fresh
-                </Button>
-              )}
-            </div>
-          </div>
-          
-          {isViewMode ? (
-            <p className="text-muted-foreground">
-              {estimateData?.customer_address ? `Reviewing estimate for ${estimateData.customer_address}` : "Reviewing estimate details"}
-            </p>
-          ) : (
-            <p className="text-muted-foreground">Follow the steps below to create a complete estimate</p>
-          )}
-          
-          {/* Role-based banner */}
-          <RoleBanner />
-          
-          <Card>
+    <div className="relative min-h-screen bg-gray-900 text-white">
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/40 via-green-900/20 to-emerald-900/15" />
+        
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-[1000px] h-[1000px] bg-green-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-emerald-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-green-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
+        </div>
+        
+        {[...Array(30)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-white rounded-full animate-twinkle"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 10}s`,
+              animationDuration: `${3 + Math.random() * 7}s`
+            }}
+          />
+        ))}
+        
+        <div 
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px'
+          }}
+        />
+      </div>
+
+      {/* Main Content */}
+      <MainLayout>
+        <div className="relative z-10">
+          <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+            <CardHeader className="border-b border-green-700/30">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl font-bold text-white">
+                    {isViewMode ? (
+                      <>View Estimate</>
+                    ) : (
+                      <>Create New Estimate</>
+                    )}
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    {isViewMode ? (
+                      "Review the details of this estimate"
+                    ) : (
+                      "Follow the steps below to create a professional roofing estimate"
+                    )}
+                  </CardDescription>
+                </div>
+                {(isViewMode || estimateId) && (
+                  <div className="flex gap-2">
+                    {isAdminEditMode && (
+                      <Badge className="bg-amber-600/20 text-amber-400 border-amber-600/30">
+                        Admin Override
+                      </Badge>
+                    )}
+                    {!isViewMode && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsViewMode(true)}
+                        className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                      >
+                        <EyeOff className="h-4 w-4 mr-2" />
+                        View Mode
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate('/estimates')}
+                      className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to Estimates
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
             <CardContent className="p-6">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-12">
-                  <div className="h-10 w-10 rounded-full border-4 border-primary border-t-transparent animate-spin mb-4"></div>
-                  <p className="text-muted-foreground">Loading estimate data...</p>
+                  <Loader2 className="h-10 w-10 animate-spin text-green-400 mb-4" />
+                  <p className="text-gray-400">Loading estimate data...</p>
                 </div>
               ) : (
                 <Tabs 
@@ -2683,13 +2733,13 @@ const Estimates = () => {
                   className="w-full"
                   defaultValue={isViewMode ? "summary" : "type-selection"}
                 >
-                  <TabsList className="grid grid-cols-6 mb-8">
+                  <TabsList className={`grid ${isViewMode ? 'grid-cols-4' : 'grid-cols-6'} mb-8 bg-gray-800/70 backdrop-blur-md p-1 rounded-2xl shadow-xl border border-green-700/30`}>
                     {!isViewMode && (
                       <TabsTrigger 
                         id="tab-trigger-type-selection"
                         value="type-selection" 
                         disabled={false}
-                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                        className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300"
                       >
                         1. Estimate Type
                       </TabsTrigger>
@@ -2699,7 +2749,7 @@ const Estimates = () => {
                         id="tab-trigger-upload"
                         value="upload" 
                         disabled={!estimateType}
-                        className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                        className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                       >
                         2. Upload EagleView
                       </TabsTrigger>
@@ -2708,7 +2758,7 @@ const Estimates = () => {
                       id="tab-trigger-measurements"
                       value="measurements" 
                       disabled={!isViewMode && !extractedPdfData && !measurements}
-                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                     >
                       {isViewMode ? "Measurements" : "3. Review Measurements"}
                     </TabsTrigger>
@@ -2716,23 +2766,23 @@ const Estimates = () => {
                       id="tab-trigger-materials"
                       value="materials" 
                       disabled={!isViewMode && !measurements}
-                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                     >
-                      {isViewMode ? "Materials" : "4. Select Materials"}
+                      {isViewMode ? "Materials" : "4. Select Packages"}
                     </TabsTrigger>
                     <TabsTrigger 
                       id="tab-trigger-pricing"
                       value="pricing" 
                       disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
-                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                     >
-                      {isViewMode ? "Labor & Profit" : "5. Labor & Profit"}
+                      {isViewMode ? "Project Details" : "5. Project Details"}
                     </TabsTrigger>
                     <TabsTrigger 
                       id="tab-trigger-summary"
                       value="summary" 
                       disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
-                      className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                     >
                       {isViewMode ? "Summary" : "6. Summary"}
                     </TabsTrigger>
@@ -2740,9 +2790,9 @@ const Estimates = () => {
 
                   {/* Debug measurements info */}
                   {process.env.NODE_ENV === 'development' && !isViewMode && (
-                    <div className="mb-4 p-2 bg-gray-100 text-xs border rounded">
+                    <div className="mb-4 p-2 bg-gray-800/50 text-xs border border-green-700/30 rounded-lg text-gray-400">
                       <details>
-                        <summary>Debug Info</summary>
+                        <summary className="cursor-pointer text-green-400">Debug Info</summary>
                         <div className="mt-2 overflow-auto">
                           <p>Active Tab: {activeTab}</p>
                           <p>PDF Filename: {pdfFileName}</p>
@@ -2756,7 +2806,7 @@ const Estimates = () => {
                       </details>
                       
                       <details className="mt-2">
-                        <summary>localStorage Migration Status</summary>
+                        <summary className="cursor-pointer text-green-400">localStorage Migration Status</summary>
                         <div className="mt-2 space-y-1">
                           <p>Migration Complete: {migration.isComplete ? '✅' : '❌'}</p>
                           <p>In Progress: {migration.isInProgress ? '🔄' : '💤'}</p>
@@ -2789,14 +2839,14 @@ const Estimates = () => {
                             <button 
                               onClick={migration.startMigration}
                               disabled={migration.isInProgress}
-                              className="px-2 py-1 bg-green-500 text-white text-xs rounded disabled:opacity-50"
+                              className="px-2 py-1 bg-green-600/50 text-green-400 border border-green-700/30 text-xs rounded hover:bg-green-600/70 disabled:opacity-50"
                             >
                               Run Migration
                             </button>
                             <button 
                               onClick={migration.forceClean}
                               disabled={migration.isInProgress}
-                              className="px-2 py-1 bg-red-500 text-white text-xs rounded disabled:opacity-50"
+                              className="px-2 py-1 bg-red-900/50 text-red-400 border border-red-700/30 text-xs rounded hover:bg-red-900/70 disabled:opacity-50"
                             >
                               Force Clean
                             </button>
@@ -2806,33 +2856,41 @@ const Estimates = () => {
                     </div>
                   )}
 
-                  {activeTab === 'type-selection' && (
+                  <TabsContent value="type-selection">
                     <EstimateTypeSelector 
                       onSelectionComplete={handleEstimateTypeSelection}
                     />
-                  )}
+                  </TabsContent>
 
-                  {activeTab === 'upload' && (
+                  <TabsContent value="upload">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-3xl blur-xl" />
+                          <Card className="relative bg-gray-800/30 backdrop-blur-xl border-green-600/20 p-6">
+                            <PdfUploader onDataExtracted={handlePdfDataExtracted} savedFileName={pdfFileName} />
+                          </Card>
                         </div>
                         
-                        <div className="bg-slate-50 p-6 rounded-md border border-slate-200">
-                          <h3 className="text-lg font-medium mb-3">Estimate Workflow</h3>
-                          <p className="text-sm text-slate-600 mb-4">
-                            Follow these steps to create a complete estimate
-                          </p>
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-green-600/10 rounded-3xl blur-xl" />
+                          <Card className="relative bg-gray-800/50 backdrop-blur-xl border-green-700/30 p-6">
+                            <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                              <Shield className="h-5 w-5 text-green-400" />
+                              Estimate Workflow
+                            </h3>
+                            <p className="text-sm text-gray-400 mb-4">
+                              Follow these steps to create a complete estimate
+                            </p>
                           
                           {/* Show selected estimate type */}
                           {estimateType && (
-                            <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                              <h4 className="font-medium text-blue-900 mb-1">Selected Estimate Type</h4>
-                              <p className="text-sm text-blue-800">
+                            <div className="mb-4 p-3 bg-green-900/20 rounded-lg border border-green-700/30">
+                              <h4 className="font-medium text-green-300 mb-1">Selected Estimate Type</h4>
+                              <p className="text-sm text-green-200">
                                 {estimateType === 'roof_only' ? '🏠 Roof Shingles Only' : `🔧 Roof + ${selectedSubtrades.length} Subtrade(s)`}
                               </p>
                               {estimateType === 'with_subtrades' && selectedSubtrades.length > 0 && (
-                                <p className="text-xs text-blue-700 mt-1">
+                                <p className="text-xs text-green-400 mt-1">
                                   Subtrades: {selectedSubtrades.join(', ')}
                                 </p>
                               )}
@@ -2842,35 +2900,35 @@ const Estimates = () => {
                           <ol className="space-y-2 text-sm">
                             <li className="flex items-start gap-2">
                               <span className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">✓</span>
-                              <span>Estimate Type Selected - {estimateType === 'roof_only' ? 'Standard roofing' : 'Roof + subtrades'}</span>
+                              <span className="text-gray-300">Estimate Type Selected - {estimateType === 'roof_only' ? 'Standard roofing' : 'Roof + subtrades'}</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="bg-primary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
-                              <span>Upload EagleView PDF - Start by uploading a roof measurement report</span>
+                              <span className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">2</span>
+                              <span className="text-gray-300">Upload EagleView PDF - Start by uploading a roof measurement report</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
-                              <span>Review Measurements - Auto-saved measurements from your PDF</span>
+                              <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">3</span>
+                              <span className="text-gray-400">Review Measurements - Auto-saved measurements from your PDF</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
-                              <span>Select Materials - Choose roofing materials and options</span>
+                              <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">4</span>
+                              <span className="text-gray-400">Select Packages - Choose roofing packages and options</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
-                              <span>Set Labor & Profit - Define labor rates and profit margin</span>
+                              <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">5</span>
+                              <span className="text-gray-400">Set Project Details - Define labor rates and profit margin</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="bg-slate-300 text-slate-700 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">6</span>
-                              <span>Review Summary - Finalize and prepare for customer approval</span>
+                              <span className="bg-gray-700 text-gray-400 rounded-full w-5 h-5 flex items-center justify-center text-xs flex-shrink-0">6</span>
+                              <span className="text-gray-400">Review Summary - Finalize and prepare for customer approval</span>
                             </li>
                           </ol>
+                          </Card>
                         </div>
                       </div>
-                  )}
+                  </TabsContent>
                   
-                  {activeTab !== 'upload' && (
-                    <>
+
                   <TabsContent value="measurements">
                     <SimplifiedReviewTab
                       measurements={measurements || {
@@ -2911,15 +2969,21 @@ const Estimates = () => {
                       
                       if (!hasMeasurements) {
                         return (
-                          <Card>
-                            <CardHeader>
-                              <CardTitle>Missing Measurements</CardTitle>
+                          <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+                            <CardHeader className="border-b border-green-700/30">
+                              <CardTitle className="text-white">Missing Measurements</CardTitle>
                             </CardHeader>
-                            <CardContent>
-                              <p className="text-muted-foreground">Please go back and enter roof measurements before selecting materials.</p>
+                            <CardContent className="pt-6">
+                              <p className="text-gray-400">Please go back and enter roof measurements before selecting materials.</p>
                             </CardContent>
                             <CardFooter>
-                              <Button onClick={() => setActiveTab("measurements")} variant="outline">Go to Measurements</Button>
+                              <Button 
+                                onClick={() => setActiveTab("measurements")} 
+                                variant="outline"
+                                className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
+                              >
+                                Go to Measurements
+                              </Button>
                             </CardFooter>
                           </Card>
                         );
@@ -2928,10 +2992,10 @@ const Estimates = () => {
                           <>
                             {/* UPDATED: Template Selector Card with Management Options */}
                             {!isViewMode && (
-                              <Card className="mb-6">
-                                <CardHeader>
-                                  <CardTitle>Select Pricing Template</CardTitle>
-                                  <CardDescription>Choose a pricing template to apply to this estimate</CardDescription>
+                              <Card className="mb-6 bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+                                <CardHeader className="border-b border-green-700/30">
+                                  <CardTitle className="text-white">Select Pricing Template</CardTitle>
+                                  <CardDescription className="text-gray-400">Choose a pricing template to apply to this estimate</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                   <div className="flex items-end gap-4">
@@ -2960,6 +3024,7 @@ const Estimates = () => {
                                       <Button 
                                         onClick={handleApplyTemplate} 
                                         disabled={!selectedTemplateId || isLoadingTemplates}
+                                        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
                                       >
                                         Apply Template
                                       </Button>
@@ -2967,6 +3032,7 @@ const Estimates = () => {
                                         variant="outline" 
                                         onClick={() => handleOpenTemplateDialog('edit')}
                                         disabled={!selectedTemplateId || isLoadingTemplates}
+                                        className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
                                       >
                                         Edit
                                       </Button>
@@ -2974,6 +3040,7 @@ const Estimates = () => {
                                         variant="secondary" 
                                         onClick={() => handleOpenTemplateDialog('create')}
                                         disabled={isLoadingTemplates}
+                                        className="bg-gray-700/50 hover:bg-gray-700/70 text-gray-300 border-gray-600"
                                       >
                                         New Template
                                       </Button>
@@ -2981,16 +3048,16 @@ const Estimates = () => {
                                   </div>
                                   {isLoadingTemplates && (
                                     <div className="flex items-center justify-center py-2">
-                                      <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin mr-2"></div>
-                                      <p className="text-sm text-muted-foreground">Loading template data...</p>
+                                      <Loader2 className="h-4 w-4 animate-spin text-green-400 mr-2" />
+                                      <p className="text-sm text-gray-400">Loading template data...</p>
                                     </div>
                                   )}
                                   {selectedTemplateData && (
-                                    <div className="text-sm text-muted-foreground">
-                                      <p>Template: <span className="font-medium">{selectedTemplateData.name}</span></p>
-                                      <p>Materials: {selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</p>
+                                    <div className="text-sm text-gray-400">
+                                      <p>Template: <span className="font-medium text-gray-200">{selectedTemplateData.name}</span></p>
+                                      <p>Materials: <span className="text-gray-200">{selectedTemplateData.materials ? Object.keys(selectedTemplateData.materials).length : 0} items</span></p>
                                       {selectedTemplateData.description && (
-                                        <p>Description: {selectedTemplateData.description}</p>
+                                        <p>Description: <span className="text-gray-300">{selectedTemplateData.description}</span></p>
                                       )}
                                     </div>
                                   )}
@@ -3055,8 +3122,6 @@ const Estimates = () => {
                       onBack={() => setActiveTab("pricing")}
                     />
                   </TabsContent>
-                    </>
-                  )}
                 </Tabs>
               )}
 
@@ -3072,14 +3137,16 @@ const Estimates = () => {
                         setActiveTab(tabOrder[currentIndex - 1]);
                       }
                     }}
+                    className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
                   >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                   </Button>
                 )}
                 
                 {activeTab !== "summary" && (
                   <Button 
-                    className="ml-auto"
+                    className="ml-auto bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
                     onClick={() => {
                       const tabOrder = ["type-selection", "upload", "measurements", "materials", "pricing", "summary"];
                       const currentIndex = tabOrder.indexOf(activeTab);
@@ -3103,18 +3170,18 @@ const Estimates = () => {
                           if (Object.keys(selectedMaterials).length === 0) {
                             toast({ 
                               title: "No Materials Selected", 
-                              description: "Please select at least one material to continue to Labor & Profit.",
+                              description: "Please select at least one material to continue to Project Details.",
                               variant: "destructive"
                             });
-                            return; 
+                            return;
                           }
-                          if (!measurements || !measurements.areasByPitch || !Array.isArray(measurements.areasByPitch) || measurements.areasByPitch.length === 0) {
+                          if (!measurements?.areasByPitch || measurements.areasByPitch.length === 0) {
                             toast({
-                              title: "Missing Measurements Data",
-                              description: "Cannot proceed to Labor & Profit without valid pitch information from measurements.",
+                              title: "Missing Pitch Information",
+                              description: "Cannot proceed to Project Details without valid pitch information from measurements.",
                               variant: "destructive"
                             });
-                            return; 
+                            return;
                           }
                         }
                         
@@ -3149,62 +3216,65 @@ const Estimates = () => {
                     }
                   >
                     Continue
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 )}
               </div>
             </CardContent>
           </Card>
         </div>
-      </div>
+      </MainLayout>
 
       <Dialog open={isSoldConfirmDialogOpen} onOpenChange={setIsSoldConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] bg-gray-800 border-green-700/30 text-white">
           <DialogHeader>
-            <DialogTitle>Confirm Sale Details</DialogTitle>
+            <DialogTitle className="text-white">Confirm Sale Details</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-4">
              {/* Display estimate ID/Address if needed */}
              {estimateToMarkSold && 
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-gray-400">
                     Estimate ID: {estimateToMarkSold.id?.substring(0,8)}... <br/>
                     Address: {estimateToMarkSold.customer_address}
                 </p> 
              }
 
              <div className="space-y-2">
-                <Label>Job Type</Label>
+                <Label className="text-gray-300">Job Type</Label>
                 <RadioGroup value={jobType} onValueChange={(value: 'Retail' | 'Insurance') => setJobType(value)} className="flex space-x-4">
                   <label className="flex items-center space-x-2 cursor-pointer">
-                    <RadioGroupItem value="Retail" />
-                    <span>Retail</span>
+                    <RadioGroupItem value="Retail" className="text-green-400 border-green-600" />
+                    <span className="text-gray-200">Retail</span>
                   </label>
                   <label className="flex items-center space-x-2 cursor-pointer">
-                    <RadioGroupItem value="Insurance" />
-                    <span>Insurance</span>
+                    <RadioGroupItem value="Insurance" className="text-green-400 border-green-600" />
+                    <span className="text-gray-200">Insurance</span>
                   </label>
                 </RadioGroup>
              </div>
 
              {jobType === 'Insurance' && (
                 <div className="space-y-2 animate-fade-in"> {/* Simple fade-in */} 
-                  <Label htmlFor="estimates-insurance-company">Insurance Company Name</Label>
+                  <Label htmlFor="estimates-insurance-company" className="text-gray-300">Insurance Company Name</Label>
                   <Input 
                     id="estimates-insurance-company"
                     value={insuranceCompany} 
                     onChange={(e) => setInsuranceCompany(e.target.value)} 
-                    placeholder="Enter company name" 
+                    placeholder="Enter company name"
+                    className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-green-500 focus:ring-green-500/20"
                   />
                 </div>
              )}
           </div>
           <DialogFooter>
             <DialogClose asChild>
-               <Button type="button" variant="outline">Cancel</Button>
+               <Button type="button" variant="outline" className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30">Cancel</Button>
             </DialogClose>
             <Button 
                type="button" 
                onClick={handleConfirmSale}
                disabled={isSubmitting[estimateToMarkSold?.id || ''] || (jobType === 'Insurance' && !insuranceCompany.trim())}
+               className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25 disabled:opacity-50"
             >
                {isSubmitting[estimateToMarkSold?.id || ''] ? "Confirming..." : "Confirm Sale"}
             </Button>
@@ -3214,9 +3284,9 @@ const Estimates = () => {
 
       {/* Template Editor/Creator Dialog */}
       <Dialog open={isTemplateDialogOpen} onOpenChange={setIsTemplateDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px] bg-gray-800 border-green-700/30 text-white">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-white">
               {templateDialogMode === 'create' ? 'Create New Template' : 
               templateDialogMode === 'edit' ? 'Edit Template' : 'Save Template As...'}
             </DialogTitle>
@@ -3224,22 +3294,24 @@ const Estimates = () => {
           
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="templateName">Template Name</Label>
+              <Label htmlFor="templateName" className="text-gray-300">Template Name</Label>
               <Input
                 id="templateName"
                 value={templateFormData.name} 
                 onChange={(e) => setTemplateFormData({...templateFormData, name: e.target.value})}
                 placeholder="e.g., ABC Shingle Template"
+                className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-green-500 focus:ring-green-500/20"
               />
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="templateDescription">Description (Optional)</Label>
+              <Label htmlFor="templateDescription" className="text-gray-300">Description (Optional)</Label>
               <Input
                 id="templateDescription"
                 value={templateFormData.description} 
                 onChange={(e) => setTemplateFormData({...templateFormData, description: e.target.value})}
                 placeholder="e.g., Standard package with GAF materials"
+                className="bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-green-500 focus:ring-green-500/20"
               />
             </div>
             
@@ -3250,8 +3322,9 @@ const Estimates = () => {
                 onCheckedChange={(checked) => 
                   setTemplateFormData({...templateFormData, is_default: !!checked})
                 }
+                className="text-green-400 border-green-600"
               />
-              <Label htmlFor="isDefault">
+              <Label htmlFor="isDefault" className="text-gray-300">
                 Set as default template for new estimates
               </Label>
             </div>
@@ -3335,7 +3408,7 @@ const Estimates = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 };
 

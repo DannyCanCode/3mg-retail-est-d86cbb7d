@@ -59,7 +59,6 @@ export function Sidebar() {
           { name: "Accounting", href: "/accounting-report", icon: FileSpreadsheet },
         ];
       
-      case 'project_manager':
       case 'rep':
         return [
           { name: "Sales Dashboard", href: "/sales", icon: Home },
@@ -100,17 +99,27 @@ export function Sidebar() {
     }
   };
 
+  // Use dark theme with green accents for all users
+  const isDarkTheme = true; // Always use dark theme
+  const sidebarBg = 'bg-gray-800';
+  const sidebarBorder = 'border-green-600/50';
+  const sidebarText = 'text-gray-100';
+  const sidebarShadow = 'shadow-2xl shadow-green-500/20';
+
   // For desktop view
   const desktopSidebar = (
     <div
       className={cn(
-        "hidden md:flex h-screen flex-col bg-gray-800 border-r-2 border-green-600/50 text-gray-100 p-4 transition-all duration-300 shadow-2xl shadow-green-500/20",
+        `hidden md:flex h-screen flex-col ${sidebarBg} border-r-2 ${sidebarBorder} ${sidebarText} p-4 transition-all duration-300 ${sidebarShadow}`,
         expanded ? "w-64" : "w-20"
       )}
     >
       <div className="flex items-center justify-between mb-8">
         {expanded && (
-          <div className="text-xl font-semibold tracking-tight text-green-400 animate-fade-in drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]">
+          <div className={cn(
+            "text-xl font-semibold tracking-tight animate-fade-in",
+            isDarkTheme ? "text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" : "text-gray-900"
+          )}>
             {getSidebarTitle()}
           </div>
         )}
@@ -168,9 +177,17 @@ export function Sidebar() {
 
   const mobileSidebar = mobileOpen && (
     <div className="md:hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm animate-fade-in">
-      <div className="w-64 h-full bg-gray-800 border-r-2 border-green-600/50 p-4 animate-slide-in-left shadow-2xl shadow-green-500/20">
+      <div className={cn(
+        "w-64 h-full p-4 animate-slide-in-left border-r-2",
+        isDarkTheme 
+          ? "bg-gray-800 border-green-600/50 shadow-2xl shadow-green-500/20" 
+          : "bg-white border-gray-200 shadow-lg"
+      )}>
         <div className="flex items-center justify-between mb-8">
-          <div className="text-xl font-semibold tracking-tight text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]">
+          <div className={cn(
+            "text-xl font-semibold tracking-tight",
+            isDarkTheme ? "text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" : "text-gray-900"
+          )}>
             {getSidebarTitle()}
           </div>
           <Button
@@ -191,23 +208,36 @@ export function Sidebar() {
               className={cn(
                 "flex items-center py-3 px-4 rounded-lg text-sm transition-all duration-200 font-medium",
                 location.pathname === item.href
-                  ? "bg-gradient-to-r from-green-600/40 to-emerald-600/40 text-green-200 border border-green-500/50 shadow-lg shadow-green-500/20 backdrop-blur-sm"
-                  : "text-gray-300 hover:text-green-200 hover:bg-green-800/30 hover:border-green-600/30 border border-transparent"
+                  ? isDarkTheme 
+                    ? "bg-gradient-to-r from-green-600/40 to-emerald-600/40 text-green-200 border border-green-500/50 shadow-lg shadow-green-500/20 backdrop-blur-sm"
+                    : "bg-blue-50 text-blue-700 border border-blue-200"
+                  : isDarkTheme
+                    ? "text-gray-300 hover:text-green-200 hover:bg-green-800/30 hover:border-green-600/30 border border-transparent"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-transparent"
               )}
               onClick={() => setMobileOpen(false)}
             >
               <item.icon className={cn(
                 "h-5 w-5 mr-3 transition-colors",
-                location.pathname === item.href ? "text-green-300 drop-shadow-[0_0_8px_rgba(74,222,128,0.6)]" : "text-gray-400"
+                location.pathname === item.href 
+                  ? isDarkTheme 
+                    ? "text-green-300 drop-shadow-[0_0_8px_rgba(74,222,128,0.6)]" 
+                    : "text-blue-600"
+                  : isDarkTheme 
+                    ? "text-gray-400" 
+                    : "text-gray-500"
               )} />
               <span className="drop-shadow-sm">{item.name}</span>
             </Link>
           ))}
         </nav>
 
-        <div className="mt-auto pt-4 space-y-4 absolute bottom-4 left-4 border-t border-green-700/30 w-56">
+        <div className={cn(
+          "mt-auto pt-4 space-y-4 absolute bottom-4 left-4 border-t w-56",
+          isDarkTheme ? "border-green-700/30" : "border-gray-200"
+        )}>
           <UserMenu />
-          <div className="text-xs text-gray-400">© 2025 3MG Roofing</div>
+          <div className={cn("text-xs", isDarkTheme ? "text-gray-400" : "text-gray-500")}>© 2025 3MG Roofing</div>
         </div>
       </div>
     </div>

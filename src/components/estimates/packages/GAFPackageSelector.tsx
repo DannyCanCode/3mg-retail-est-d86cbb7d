@@ -47,28 +47,28 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
     },
     {
       id: '3mg-1' as const,
-      name: '3MG Package 1',
-      description: 'Quality 3MG materials with standard features',
+      name: '3MG Standard',
+      description: 'OC Oakridge or GAF HDZ with MaxFelt synthetic underlayment',
       profitMargin: 28,
       features: [
-        '3MG High-Performance Shingles',
-        'Standard Synthetic Underlayment',
-        'Standard Ridge Ventilation',
-        '3MG Standard Warranty'
+        'OC Oakridge Shingles',
+        'MaxFelt Synthetic Underlayment',
+        'Self-Adhering Upgrade Available',
+        '10 Year 3MG Workmanship Warranty'
       ],
       badge: '3MG Standard',
       badgeColor: 'bg-purple-100 text-purple-800'
     },
     {
       id: '3mg-2' as const,
-      name: '3MG Package 2',
-      description: 'Premium 3MG materials with advanced protection',
+      name: '3MG Select',
+      description: 'GAF UHDZ premium shingles with MaxFelt synthetic underlayment',
       profitMargin: 32,
       features: [
-        '3MG Premium Architectural Shingles',
-        'Advanced Synthetic Underlayment',
-        'Premium Ridge & Soffit Ventilation',
-        '3MG Extended Warranty Coverage'
+        'GAF UHDZ Premium Shingles',
+        'MaxFelt Synthetic Underlayment',
+        'Self-Adhering Upgrade Available',
+        '25 Year 3MG Workmanship Warranty'
       ],
       badge: '3MG Premium',
       badgeColor: 'bg-orange-100 text-orange-800'

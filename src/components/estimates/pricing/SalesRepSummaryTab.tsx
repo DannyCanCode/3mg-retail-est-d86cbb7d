@@ -1028,7 +1028,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
           className="flex items-center gap-2"
         >
           <ChevronLeft className="h-4 w-4" />
-          Back to Labor & Profit
+          Back to Project Details
         </Button>
         
         {/* Sales reps (project managers) don't need approval - button removed */}

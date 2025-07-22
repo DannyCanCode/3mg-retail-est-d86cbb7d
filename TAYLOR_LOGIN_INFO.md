@@ -1,14 +1,27 @@
 # Taylor Hilton Login Information
 
-## Production URL
-**https://3mgretailestimator.netlify.app/**
+## Production Login
+- **URL**: https://3mgretailestimator.netlify.app/
+- **Email**: Taylor.Hilton@3MGRoofing.com
+- **Password**: Taylor2024!
 
-## Login Credentials
-- **Email**: taylor@3mgretailestimator.com
-- **Password**: [Check with administrator for current password]
-- **Role**: Sales Rep (project_manager in database)
+## User Details
+- **Name**: Taylor Hilton
+- **Role**: Sales Rep
 - **Territory**: Winter Park
-- **Territory Managers**: Chase Lovejoy, Adam
+- **Reports to**: Adam and Chase Lovejoy (Territory Managers)
+
+## Access Level
+- Can create and view own estimates
+- Cannot see profit margins
+- Has 35% fixed profit margin (hidden from view)
+- Can only see Sales Dashboard and My Estimates
+
+## If Login Fails
+1. Clear browser cache/cookies
+2. Try incognito/private browsing mode
+3. Check with admin to ensure account is active
+4. Verify using correct email (case-sensitive)
 
 ## Key Features for Taylor
 

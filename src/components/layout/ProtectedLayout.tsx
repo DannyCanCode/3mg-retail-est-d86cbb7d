@@ -217,10 +217,13 @@ const ProtectedLayout: React.FC = () => {
     );
   }
 
+  // Use dark theme for all users for consistency
+  const bgClass = 'bg-gray-900';
+  
   return (
-    <div className="h-screen w-screen flex flex-row bg-gray-900 overflow-hidden">
+    <div className={`h-screen w-screen flex flex-row ${bgClass} overflow-hidden`}>
       <Sidebar />
-      <main className="flex-1 overflow-y-auto bg-gray-900">
+      <main className={`flex-1 overflow-y-auto ${bgClass}`}>
         <div className="h-full">
           <Outlet />
         </div>

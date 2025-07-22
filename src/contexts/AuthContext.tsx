@@ -203,11 +203,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               'chase.lovejoy@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e', // Winter Park territory
               'adam@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
             };
-            
-            // Project managers with their territory assignments
-            const projectManagerConfig = {
-              'taylor.hilton@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
-            };
           
           let defaultRole = 'rep';
           let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
@@ -221,10 +216,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             defaultRole = 'manager';
             shouldCompleteOnboarding = true;
             territoryId = managerConfig[userEmail];
-          } else if (projectManagerConfig[userEmail]) {
-            defaultRole = 'project_manager';
-            shouldCompleteOnboarding = true;
-            territoryId = projectManagerConfig[userEmail];
           } else if (userEmail.endsWith('@3mgroofing.com')) {
             defaultRole = 'rep';
             shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
@@ -322,11 +313,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               'chase.lovejoy@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e', // Winter Park territory
               'adam@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
             };
-            
-            // Project managers with their territory assignments
-            const projectManagerConfig = {
-              'taylor.hilton@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
-            };
           
           let defaultRole = 'rep';
           let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
@@ -340,10 +326,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             defaultRole = 'manager';
             shouldCompleteOnboarding = true;
             territoryId = managerConfig[userEmail];
-          } else if (projectManagerConfig[userEmail]) {
-            defaultRole = 'project_manager';
-            shouldCompleteOnboarding = true;
-            territoryId = projectManagerConfig[userEmail];
           } else if (userEmail.endsWith('@3mgroofing.com')) {
             defaultRole = 'rep';
             shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
@@ -595,10 +577,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                   'chase.lovejoy@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e', // Winter Park territory
                   'adam@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
                 };
-                
-                const projectManagerConfig = {
-                  'taylor.hilton@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
-                };
               
               let defaultRole = 'rep';
               let shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect
@@ -612,10 +590,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 defaultRole = 'manager';
                 shouldCompleteOnboarding = true;
                 territoryId = managerConfig[userEmail];
-              } else if (projectManagerConfig[userEmail]) {
-                defaultRole = 'project_manager';
-                shouldCompleteOnboarding = true;
-                territoryId = projectManagerConfig[userEmail];
               } else if (userEmail.endsWith('@3mgroofing.com')) {
                 defaultRole = 'rep';
                 shouldCompleteOnboarding = true; // FIXED: Always true to prevent onboarding redirect

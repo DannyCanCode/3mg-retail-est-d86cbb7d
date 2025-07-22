@@ -155,11 +155,35 @@ const Subtrades: React.FC = () => {
   );
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-900 relative">
+      {/* Animated background similar to sales dashboard */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/40 via-green-900/20 to-emerald-900/15" />
+        
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-[1000px] h-[1000px] bg-green-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-emerald-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-green-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
+        </div>
+        
+        {/* Grid pattern */}
+        <div 
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px'
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 container mx-auto p-4 md:p-6 lg:p-8">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Subtrades Management</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold text-white">Subtrades Management</h1>
+          <p className="text-gray-400">
             Manage estimates requiring subtrade work and pricing
           </p>
         </div>
@@ -370,6 +394,7 @@ const Subtrades: React.FC = () => {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

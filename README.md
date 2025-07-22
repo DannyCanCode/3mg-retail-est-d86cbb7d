@@ -2,6 +2,12 @@
 
 This is a production-ready version of the 3MG Roofing Estimator, focused on providing immediate, stable functionality for Admins and Territory Managers.
 
+## 📅 Implementation Status
+**Current Phase:** Pre-Launch  
+**Go-Live Date:** August 12, 2025  
+**Full Roadmap:** [See Implementation Roadmap](./README-IMPLEMENTATION-ROADMAP-2025.md)  
+**Visual Timeline:** [See Project Timeline](./PROJECT-TIMELINE-VISUAL.md)
+
 ## 🚀 **Deployment & Access**
 
 This version is deployed on Netlify from the `release/admin-estimator-v1` branch.

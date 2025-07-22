@@ -157,10 +157,10 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                 </div>
                 <div>
                   <h4 className={`font-semibold text-sm ${selectedPackage === '3mg-1' ? 'text-white' : 'text-gray-800'}`}>
-                    3MG Package 1
+                    3MG Standard
                   </h4>
                   <p className={`text-xs ${selectedPackage === '3mg-1' ? 'text-green-100' : 'text-gray-500'}`}>
-                    Standard
+                    10-Year Warranty
                   </p>
                 </div>
               </div>
@@ -169,12 +169,12 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             {/* Features */}
             <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === '3mg-1' ? 'text-green-100' : 'text-gray-600'}`}>
               <Shield className="h-3 w-3" />
-              <span>3MG Standard Warranty</span>
+              <span>10 Year 3MG Workmanship</span>
             </div>
             
             {/* Quick materials count */}
             <div className={`text-xs ${selectedPackage === '3mg-1' ? 'text-green-100' : 'text-gray-500'}`}>
-              Quality 3MG materials
+              OC Oakridge with MaxFelt
             </div>
           </div>
         </div>
@@ -209,10 +209,10 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                 </div>
                 <div>
                   <h4 className={`font-semibold text-sm ${selectedPackage === '3mg-2' ? 'text-white' : 'text-gray-800'}`}>
-                    3MG Package 2
+                    3MG Select
                   </h4>
                   <p className={`text-xs ${selectedPackage === '3mg-2' ? 'text-emerald-100' : 'text-gray-500'}`}>
-                    Premium
+                    25-Year Warranty
                   </p>
                 </div>
               </div>
@@ -222,7 +222,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             <div className="space-y-1">
               <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === '3mg-2' ? 'text-emerald-100' : 'text-gray-600'}`}>
                 <Shield className="h-3 w-3" />
-                <span>3MG Extended Warranty</span>
+                <span>25 Year 3MG Workmanship</span>
               </div>
               <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === '3mg-2' ? 'text-emerald-100' : 'text-gray-600'}`}>
                 <Star className="h-3 w-3" />
@@ -232,7 +232,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             
             {/* Quick materials count */}
             <div className={`text-xs ${selectedPackage === '3mg-2' ? 'text-emerald-100' : 'text-gray-500'}`}>
-              Premium 3MG materials
+              GAF UHDZ with MaxFelt
             </div>
           </div>
         </div>
@@ -244,8 +244,8 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           <p className="text-xs font-medium text-gray-700 mb-2">
             {selectedPackage === 'gaf-1' ? 'GAF Package 1 includes:' : 
              selectedPackage === 'gaf-2' ? 'GAF Package 2 includes:' :
-             selectedPackage === '3mg-1' ? '3MG Package 1 includes:' :
-             '3MG Package 2 includes:'}
+             selectedPackage === '3mg-1' ? '3MG Standard includes:' :
+             '3MG Select includes:'}
           </p>
           <ul className="text-xs text-gray-600 space-y-0.5">
             {selectedPackage === 'gaf-1' ? (
@@ -266,19 +266,22 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
               </>
             ) : selectedPackage === '3mg-1' ? (
               <>
-                <li>• 3MG High-Performance Shingles</li>
-                <li>• ABC Pro Start Premium Starter Strip</li>
-                <li>• 3MG Ridge Cap Shingles</li>
-                <li>• 3MG Ice & Water Shield</li>
-                <li>• ABC Pro Guard 20 Synthetic</li>
+                <li>• OC Oakridge Shingles</li>
+                <li>• OC Starter Strip</li>
+                <li>• OC Hip & Ridge Cap</li>
+                <li>• MaxFelt Synthetic Underlayment</li>
+                <li>• Ice & Water Shield (Valleys)</li>
+                <li>• 10 Year 3MG Workmanship Warranty</li>
               </>
             ) : (
               <>
-                <li>• 3MG Premium Architectural Shingles</li>
-                <li>• 3MG Premium Starter Strip</li>
-                <li>• 3MG Premium Ridge Cap System</li>
-                <li>• 3MG Advanced Synthetic Underlayment</li>
-                <li>• 3MG Premium Ice & Water Shield</li>
+                <li>• GAF Timberline UHDZ Shingles</li>
+                <li>• GAF ProStart Starter Strip</li>
+                <li>• GAF Seal-A-Ridge Cap</li>
+                <li>• MaxFelt Synthetic Underlayment</li>
+                <li>• Ice & Water Shield (Valleys)</li>
+                <li>• GAF Cobra Ridge Vent</li>
+                <li>• 25 Year 3MG Workmanship Warranty</li>
               </>
             )}
           </ul>

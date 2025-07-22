@@ -107,6 +107,20 @@
   animation: gentle-pulse 2s ease-in-out infinite;
 }
 
+/* Shine effect animation */
+@keyframes shine {
+  0% {
+    transform: translateX(-100%) skewX(-12deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(-12deg);
+  }
+}
+
+.animate-shine {
+  animation: shine 3s ease-in-out infinite;
+}
+
 /* Prevent white flash on load */
 html {
   background-color: #111827;

@@ -16,8 +16,7 @@ export const useRoleAccess = () => {
   
   const isAdmin = profile?.role === 'admin';
   const isManager = profile?.role === 'manager';
-  const isSalesRep = profile?.role === 'rep' || profile?.role === 'project_manager';
-  const isProjectManager = profile?.role === 'project_manager';
+  const isSalesRep = profile?.role === 'rep';
   const isSubtradeManager = profile?.role === 'subtrade_manager';
   
   const canAccess = (roles: string[]) => {
@@ -31,7 +30,6 @@ export const useRoleAccess = () => {
     isAdmin,
     isManager,
     isSalesRep,
-    isProjectManager,
     isSubtradeManager,
     canAccess,
     hasTerritory,

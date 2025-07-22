@@ -646,7 +646,7 @@ export function EstimateSummaryTab({
                 className="gap-2"
               >
                 <ChevronLeft className="h-4 w-4" />
-                Back to Labor & Profit
+                Back to Project Details
               </Button>
               
               <Button 

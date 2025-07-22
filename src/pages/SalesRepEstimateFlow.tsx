@@ -25,7 +25,9 @@ import {
   Calendar,
   Home,
   Calculator,
-  Trash2
+  Trash2,
+  FileCheck,
+  Package
 } from 'lucide-react';
 import { PdfUploader } from '@/components/upload/PdfUploader';
 import { SimplifiedReviewTab } from '@/components/estimates/measurement/SimplifiedReviewTab';
@@ -155,11 +157,11 @@ const SalesRepEstimateFlow: React.FC = () => {
 
   const steps = [
     { id: 'upload', title: 'Upload PDF', icon: <Upload className="h-5 w-5" /> },
-    { id: 'review', title: 'Review Measurements', icon: <Eye className="h-5 w-5" /> },
-    { id: 'worksheet', title: 'Job Worksheet', icon: <FileText className="h-5 w-5" /> },
-    { id: 'materials', title: 'Select Materials', icon: <Building className="h-5 w-5" /> },
-    { id: 'labor', title: 'Labor & Profit', icon: <Calculator className="h-5 w-5" /> },
-    { id: 'summary', title: 'Summary Review', icon: <CheckCircle2 className="h-5 w-5" /> }
+    { id: 'homeowner', title: 'Homeowner Info', icon: <Home className="h-5 w-5" /> },
+    { id: 'review', title: 'Review Measurements', icon: <FileCheck className="h-5 w-5" /> },
+    { id: 'materials', title: 'Select Packages', icon: <Package className="h-5 w-5" /> },
+    { id: 'labor', title: 'Project Details', icon: <Calculator className="h-5 w-5" /> },
+    { id: 'summary', title: 'Summary', icon: <FileText className="h-5 w-5" /> },
   ];
 
   // Handle PDF upload success
@@ -205,7 +207,9 @@ const SalesRepEstimateFlow: React.FC = () => {
       ...prev, 
       jobWorksheet: worksheetData,
       customer_name: worksheetData.basic_info?.name || prev.customer_name,
-      customer_address: worksheetData.basic_info?.address || prev.customer_address
+      customer_address: worksheetData.basic_info?.address || prev.customer_address,
+      customer_email: worksheetData.basic_info?.email || prev.customer_email,
+      customer_phone: worksheetData.basic_info?.phone || prev.customer_phone
     }));
     setCurrentStep(3); // Go to Materials
     toast({
@@ -235,12 +239,12 @@ const SalesRepEstimateFlow: React.FC = () => {
     // Don't auto-advance or submit - let user click continue
   };
 
-  // Handle continuing from materials to labor & profit
+  // Handle continuing from materials to project details
   const handleMaterialsContinue = () => {
-    setCurrentStep(4); // Go to Labor & Profit
+    setCurrentStep(4); // Go to Project Details
   };
 
-  // Handle labor & profit completion
+  // Handle project details completion
   const handleLaborProfitComplete = (laborRates: LaborRates, profitMargin: number) => {
     // Merge the laborRates with gutters data from job worksheet
     const mergedLaborRates = {
@@ -587,7 +591,9 @@ const SalesRepEstimateFlow: React.FC = () => {
                   basic_info: {
                     ...estimateData.jobWorksheet?.basic_info,
                     name: estimateData.customer_name || estimateData.jobWorksheet?.basic_info?.name || '',
-                    address: estimateData.customer_address || ''
+                    address: estimateData.customer_address || '',
+                    email: estimateData.customer_email || '',
+                    phone: estimateData.customer_phone || ''
                   }
                 }}
               />
@@ -603,7 +609,7 @@ const SalesRepEstimateFlow: React.FC = () => {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-white flex items-center gap-3">
                   <Building className="h-6 w-6 text-green-400" />
-                  Material Selection
+                  Package Selection
                 </h2>
                 <Badge className="bg-green-600/20 text-green-400 border-green-600/30">
                   <Rocket className="h-3 w-3 mr-1" />
@@ -639,7 +645,7 @@ const SalesRepEstimateFlow: React.FC = () => {
                   disabled={!estimateData.materials || Object.keys(estimateData.materials).length === 0}
                   className="bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:shadow-lg hover:shadow-green-500/25 transition-all duration-300"
                 >
-                  Continue to Labor & Profit
+                  Continue to Project Details
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
@@ -647,7 +653,7 @@ const SalesRepEstimateFlow: React.FC = () => {
           </div>
         );
 
-      case 4: // Labor & Profit
+      case 4: // Project Details
         return (
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-3xl blur-xl" />
@@ -655,7 +661,7 @@ const SalesRepEstimateFlow: React.FC = () => {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-white flex items-center gap-3">
                   <Calculator className="h-6 w-6 text-green-400" />
-                  Labor & Profit
+                  Project Details
                 </h2>
                 <Badge className="bg-green-600/20 text-green-400 border-green-600/30">
                   <Zap className="h-3 w-3 mr-1" />
@@ -734,7 +740,7 @@ const SalesRepEstimateFlow: React.FC = () => {
                   className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
                 >
                   <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to Labor & Profit
+                  Back to Project Details
                 </Button>
               </div>
               

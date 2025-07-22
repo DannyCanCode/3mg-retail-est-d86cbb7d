@@ -23,7 +23,7 @@ Implemented a comprehensive digital Job Worksheet (JWS) form for sales reps/proj
   - Accessories: Skylights (removed satellite, attic fan, chimney per request)
 
 ### 3. Role Updates
-- Added `project_manager` role support to:
+- Added sales rep (`rep`) role support to:
   - `src/hooks/useSalesRepRestrictions.ts`: Same permissions as sales_rep
   - `src/components/layout/Sidebar.tsx`: Shows Sales Dashboard and My Estimates
   - Both roles have 35% fixed profit margin (hidden from view)
@@ -39,13 +39,12 @@ Based on the paper form, these ventilation items map to existing materials:
 - Gooseneck 4" → `galvanized-gooseneck-4inch`
 - Ridge Vent → `gaf-cobra-ridge-vent`
 
-## User Creation
-Taylor Hilton (Project Manager):
-- Email: Taylor.Hilton@3MGRoofing.com
-- Password: Taylor2024!
-- Role: project_manager
-- Territory: Winter Park
-- Reports to: Adam and Chase Lovejoy
+## Users Created
+- Taylor Hilton (taylor.hilton@3mgroofing.com)
+  - Password: Taylor2024!
+  - Role: rep
+  - Territory: Winter Park
+  - Can create estimates with Job Worksheet
 
 ## Testing Instructions
 1. Create Taylor Hilton user in Supabase Dashboard
