@@ -2599,7 +2599,7 @@ const Estimates = () => {
 
   return (
     <div className="relative min-h-screen bg-gray-900 text-white">
-      {/* Animated Background */}
+      {/* Animated Background - KEEP THIS FOR ALL USERS */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900/40 via-green-900/20 to-emerald-900/15" />
         

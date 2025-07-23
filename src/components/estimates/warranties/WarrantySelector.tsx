@@ -7,20 +7,20 @@ import { Badge } from "@/components/ui/badge";
 interface WarrantySelectorProps {
   selectedPackage: string | null;
   selectedWarranty: string | null;
-  onWarrantySelect: (warrantyId: string | null) => void;
+  onWarrantySelect: (warrantyType: string | null) => void;
   onPeelStickPriceUpdate?: (price: string) => void;
   isPeelStickSelected?: boolean;
   onPeelStickToggle?: (selected: boolean) => void;
 }
 
-const WarrantySelector = ({ 
+export const WarrantySelector: React.FC<WarrantySelectorProps> = ({ 
   selectedPackage, 
   selectedWarranty, 
   onWarrantySelect,
   onPeelStickPriceUpdate,
   isPeelStickSelected = false,
   onPeelStickToggle,
-}: WarrantySelectorProps) => {
+}) => {
   
   const isGoldPledgeAvailable = selectedPackage === 'gaf-2' || selectedPackage === '3mg-2';
   
@@ -122,6 +122,4 @@ const WarrantySelector = ({
       )}
     </div>
   );
-};
-
-export default WarrantySelector; 
+}; 

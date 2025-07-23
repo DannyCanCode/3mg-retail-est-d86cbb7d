@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import PackageSelector from "../packages/PackageSelector";
-import WarrantySelector from "../warranties/WarrantySelector";
+import { WarrantySelector } from "../warranties/WarrantySelector";
 import LowSlopeOptions from "../lowslope/LowSlopeOptions";
 import { useToast } from "@/hooks/use-toast";
 import { getDefaultPricingTemplate, PricingTemplate, createPricingTemplate, updatePricingTemplate } from "@/api/pricing-templates"; // Added createPricingTemplate, updatePricingTemplate
@@ -119,6 +119,15 @@ export function MaterialsSelectionTab({
     }
     return userRole;
   }, [userRole]);
+  
+  // Always use dark theme for all users - matching the sick UI
+  const isDarkTheme = true;
+  
+  // Theme-aware styles - always dark theme
+  const cardStyles = "bg-gray-700/40 backdrop-blur-xl border-green-600/30";
+  const headerStyles = "border-b border-green-700/30";
+  const titleStyles = "text-white";
+  const descriptionStyles = "text-gray-400";
   
   // Debug logging to track role changes
   useEffect(() => {
@@ -2983,10 +2992,10 @@ export function MaterialsSelectionTab({
 
         
         {/* Package Selection Card */}
-        <Card className="bg-gray-700/40 backdrop-blur-xl border-green-600/30">
-          <CardHeader className="border-b border-green-700/30">
+        <Card className={cardStyles}>
+          <CardHeader className={headerStyles}>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white">Select Packages</CardTitle>
+              <CardTitle className={titleStyles}>Select Packages</CardTitle>
               {/* Preset Bundles Button - Only show for non-sales reps */}
               {effectiveUserRole !== 'rep' && (
                 <div className="flex items-center gap-2">
@@ -3003,7 +3012,7 @@ export function MaterialsSelectionTab({
                       }
                     }}
                     disabled={Object.keys(localSelectedMaterials).length === 0}
-                    className="bg-gray-700/50 hover:bg-gray-700/70 text-gray-400 border-gray-600"
+                    className={`${descriptionStyles} border-gray-600`}
                   >
                     Clear All
                   </Button>
@@ -3011,7 +3020,7 @@ export function MaterialsSelectionTab({
                     <Button
                       variant="default"
                       size="sm"
-                      className="flex items-center gap-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                      className={`${descriptionStyles} bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white`}
                       onClick={() => setShowPresetMenu(!showPresetMenu)}
                     >
                       <PackageOpen className="h-4 w-4" />
@@ -3066,11 +3075,11 @@ export function MaterialsSelectionTab({
             </div>
             <div className="mt-2 p-2 bg-blue-900/20 border border-blue-700/30 rounded-md">
               {canEditMaterialPrices() ? (
-                <p className="text-sm text-blue-300">
+                <p className={`${descriptionStyles}`}>
                   🔓 <strong>Admin Access:</strong> You can modify material prices for this estimate.
                 </p>
               ) : (
-                <p className="text-sm text-blue-300">
+                <p className={`${descriptionStyles}`}>
                   🔒 <strong>Territory Manager:</strong> Material prices are locked for consistency across estimates.
                 </p>
               )}
@@ -3079,14 +3088,14 @@ export function MaterialsSelectionTab({
           <CardContent className="space-y-4">
              {/* Waste Factor Inputs */}
              <div className="flex items-center space-x-4 pb-4">
-               <Label htmlFor="wasteFactor" className="text-gray-300">Waste Factor:</Label>
+               <Label htmlFor="wasteFactor" className={`${descriptionStyles}`}>Waste Factor:</Label>
                <Input 
                  id="wasteFactor" 
                  type="number" 
                  value={wasteFactorInput} 
                  onChange={handleWasteFactorInputChange} 
                  onBlur={handleWasteFactorBlur}
-                 className="w-24 bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-green-500 focus:ring-green-500/20" 
+                 className={`${descriptionStyles} w-24 bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-green-500 focus:ring-green-500/20`} 
                  min="0" 
                  max="50" 
                />
@@ -3095,20 +3104,21 @@ export function MaterialsSelectionTab({
              </div>
              {localSelectedMaterials["gaf-timberline-hdz-sg"] && (
               <div className="flex items-center space-x-4 pb-4 pt-2 border-t border-green-700/30">
-                <Label htmlFor="gafWasteFactor" className="text-gray-300">GAF Timberline HDZ Waste Factor:</Label>
+                <Label htmlFor="gafWasteFactor" className={`${descriptionStyles}`}>GAF Timberline HDZ Waste Factor:</Label>
                 <div className="flex space-x-2">
                   {[12, 15, 20].map(factor => (
                     <Button 
                       key={factor} 
                       variant="outline" 
-                      className={gafTimberlineWasteFactor === factor ? "bg-green-900/30 text-green-400 border-green-600" : "bg-gray-700/50 hover:bg-gray-700/70 text-gray-400 border-gray-600"} 
+                      className={`${gafTimberlineWasteFactor === factor ? "bg-green-900/30 text-green-400 border-green-600" : "bg-gray-700/50 hover:bg-gray-700/70 text-gray-400 border-gray-600"} 
+                      ${isDarkTheme ? "bg-gray-700/50 hover:bg-gray-700/70 text-gray-400 border-gray-600" : ""}`} 
                       onClick={() => handleGafTimberlineWasteFactorChange(factor)}
                     >
                       {factor}%
                     </Button>
                   ))}
                  </div>
-                 <span className="text-sm text-blue-600 font-medium">Current: {gafTimberlineWasteFactor}%</span>
+                 <span className="text-sm text-blue-600 font-medium">{gafTimberlineWasteFactor}%</span>
                </div>
              )}
              
