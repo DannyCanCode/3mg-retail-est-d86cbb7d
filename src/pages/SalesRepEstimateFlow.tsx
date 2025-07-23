@@ -347,8 +347,8 @@ const SalesRepEstimateFlow: React.FC = () => {
           labor_rates: estimateData.laborRates ? JSON.parse(JSON.stringify(estimateData.laborRates)) : {},
           profit_margin: estimateData.profitMargin || 30,
           total_price: estimateData.totalPrice,
-          status: 'pending',
-          submission_status: 'submitted',
+          status: 'approved',
+          submission_status: 'approved',
           submitted_at: new Date().toISOString(),
           submitted_by: profile?.id,
           created_by: profile?.id,
@@ -362,8 +362,8 @@ const SalesRepEstimateFlow: React.FC = () => {
       if (error) throw error;
       
       toast({
-        title: "Estimate Submitted! 🚀",
-        description: "Your estimate has been sent for manager approval.",
+        title: "Estimate Generated! 🚀",
+        description: "Your estimate is ready for client review and signature.",
       });
       
       // Clear local storage

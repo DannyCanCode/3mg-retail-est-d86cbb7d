@@ -35,6 +35,7 @@ import { Material } from '../materials/types';
 import { LaborRates } from './LaborProfitTab';
 import { PDFDocument, rgb, StandardFonts, PDFPage } from 'pdf-lib';
 import { saveAs } from 'file-saver';
+import { toast } from '@/components/ui/use-toast';
 
 interface SalesRepSummaryTabProps {
   measurements?: MeasurementValues;
@@ -1032,7 +1033,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         </Button>
         
         <div className="flex gap-3">
-          {/* Submit for Manager Approval */}
+          {/* Generate PDF & Submit */}
           <Button
             onClick={onSubmit}
             disabled={isSubmitting}
@@ -1041,21 +1042,27 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
             {isSubmitting ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                Submitting...
+                Generating...
               </>
             ) : (
               <>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Submit for Manager Approval
+                <FileText className="h-4 w-4 mr-2" />
+                Generate Estimate
               </>
             )}
           </Button>
           
-          {/* Send for Signature - will be enabled after approval */}
+          {/* Send for Signature - enabled for sales reps */}
           <Button
-            disabled={true} // Will be enabled after manager approval
-            className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/25 opacity-50 cursor-not-allowed"
-            title="Submit for manager approval first"
+            onClick={() => {
+              // TODO: Implement SignNow integration
+              toast({
+                title: "Send for Signature",
+                description: "This feature will be available soon!",
+              });
+            }}
+            disabled={isSubmitting}
+            className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/25"
           >
             <Send className="h-4 w-4 mr-2" />
             Send for Signature
