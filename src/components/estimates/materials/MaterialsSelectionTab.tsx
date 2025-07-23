@@ -3179,12 +3179,45 @@ export function MaterialsSelectionTab({
                              return 'border-gray-300 bg-white hover:bg-gray-50';
                            };
 
+                           // Get accent colors for titles and highlights
+                           const getMaterialAccentColor = (materialId: string) => {
+                             if (materialId.includes('gooseneck')) {
+                               return { title: 'text-orange-700', coverage: 'bg-orange-100 border-orange-200', logic: 'bg-orange-50 border-orange-200' };
+                             }
+                             if (materialId.includes('boot')) {
+                               return { title: 'text-gray-700', coverage: 'bg-gray-100 border-gray-300', logic: 'bg-gray-50 border-gray-200' };
+                             }
+                             if (materialId.includes('skylight')) {
+                               return { title: 'text-sky-700', coverage: 'bg-sky-100 border-sky-200', logic: 'bg-sky-50 border-sky-200' };
+                             }
+                             if (materialId.includes('gutter')) {
+                               return { title: 'text-amber-700', coverage: 'bg-amber-100 border-amber-200', logic: 'bg-amber-50 border-amber-200' };
+                             }
+                             // Check for specific material categories
+                             if (materialId.includes('shingle') || materialId.includes('hdz')) {
+                               return { title: 'text-green-700', coverage: 'bg-green-100 border-green-200', logic: 'bg-green-50 border-green-200' };
+                             }
+                             if (materialId.includes('underlayment') || materialId.includes('shield')) {
+                               return { title: 'text-blue-700', coverage: 'bg-blue-100 border-blue-200', logic: 'bg-blue-50 border-blue-200' };
+                             }
+                             if (materialId.includes('vent') || materialId.includes('cobra')) {
+                               return { title: 'text-purple-700', coverage: 'bg-purple-100 border-purple-200', logic: 'bg-purple-50 border-purple-200' };
+                             }
+                             if (materialId.includes('nail') || materialId.includes('coil')) {
+                               return { title: 'text-indigo-700', coverage: 'bg-indigo-100 border-indigo-200', logic: 'bg-indigo-50 border-indigo-200' };
+                             }
+                             // Default neutral colors
+                             return { title: 'text-gray-900', coverage: 'bg-gray-100 border-gray-200', logic: 'bg-gray-50 border-gray-200' };
+                           };
+
+                           const accentColors = getMaterialAccentColor(material.id);
+
                            return (
                             <div key={material.id} className={`rounded-lg p-4 transition-all duration-200 shadow-sm hover:shadow-md ${getMaterialColor(material.id)}`}>
                               <div className="flex flex-col lg:flex-row justify-between items-start gap-3">
                                 {/* Left Column: Material Info */}
                                 <div className="flex-1 space-y-2">
-                                  <h4 className="text-sm font-semibold text-gray-900">{material.name}</h4>
+                                  <h4 className={`text-sm font-semibold ${accentColors.title}`}>{material.name}</h4>
                                   
                                   {/* Only show price input/display for non-reps */}
                                   {effectiveUserRole !== 'rep' && (
@@ -3214,14 +3247,14 @@ export function MaterialsSelectionTab({
                                   
                                   {/* Coverage Rule Description - Keep visible for all roles */}
                                   {material.coverageRule?.description && (
-                                    <p className="text-xs text-gray-700 p-2 rounded border border-gray-200 bg-gray-50">
+                                    <p className={`text-xs text-gray-700 p-2 rounded border ${accentColors.coverage}`}>
                                       <span className="font-semibold text-gray-900">Coverage:</span> {material.coverageRule.description}
                                     </p>
                                   )}
                           
                                   {/* Coverage Rule Calculation & Logic - Hide for sales reps */}
                                   {material.coverageRule?.calculation && effectiveUserRole !== 'rep' && (
-                                    <div className="text-xs text-gray-700 p-2 rounded border border-gray-200 bg-gray-50 space-y-1">
+                                    <div className={`text-xs text-gray-700 p-2 rounded border ${accentColors.logic} space-y-1`}>
                                       <p><span className="font-semibold text-gray-900">Logic:</span> {material.coverageRule.calculation}</p>
                                       {!readOnly && (
                                         <p className="text-gray-600 mt-0.5">
