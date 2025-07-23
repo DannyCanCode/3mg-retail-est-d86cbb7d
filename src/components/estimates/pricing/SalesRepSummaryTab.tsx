@@ -649,10 +649,28 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       
       y -= 30;
       
-      // Customer signature line
+      // Signature section title
+      page.drawText('Customer Approval & Authorization:', {
+        x: 50,
+        y: y + 20,
+        size: 12,
+        font: helveticaBold,
+        color: darkGray,
+      });
+      
+      // Authorization text
+      page.drawText('By signing below, I approve this estimate and authorize 3MG Roofing to proceed with the work described above.', {
+        x: 50,
+        y: y + 5,
+        size: 9,
+        font: helvetica,
+        color: darkGray,
+      });
+      
+      // Customer signature line (longer for e-signature)
       page.drawLine({
         start: { x: 50, y: y },
-        end: { x: 250, y: y },
+        end: { x: 300, y: y },
         thickness: 1,
         color: darkGray,
       });
@@ -667,15 +685,47 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       
       // Date line
       page.drawLine({
-        start: { x: 300, y: y },
-        end: { x: 400, y: y },
+        start: { x: 320, y: y },
+        end: { x: 450, y: y },
         thickness: 1,
         color: darkGray,
       });
       
       page.drawText('Date', {
-        x: 300,
+        x: 320,
         y: y - 15,
+        size: 10,
+        font: helvetica,
+        color: lightGray,
+      });
+      
+      // Print name line  
+      page.drawLine({
+        start: { x: 50, y: y - 40 },
+        end: { x: 250, y: y - 40 },
+        thickness: 1,
+        color: darkGray,
+      });
+      
+      page.drawText('Print Name', {
+        x: 50,
+        y: y - 55,
+        size: 10,
+        font: helvetica,
+        color: lightGray,
+      });
+      
+      // Email line
+      page.drawLine({
+        start: { x: 270, y: y - 40 },
+        end: { x: 450, y: y - 40 },
+        thickness: 1,
+        color: darkGray,
+      });
+      
+      page.drawText('Email Address', {
+        x: 270,
+        y: y - 55,
         size: 10,
         font: helvetica,
         color: lightGray,
