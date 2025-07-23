@@ -101,7 +101,7 @@ export function MaterialsSelectionTab({
   originalCreatorRole = null,
   jobWorksheet = null, // Default to null if not provided
   // Warranty and package state props
-  selectedWarranty: propSelectedWarranty = 'silver-pledge',
+  selectedWarranty: propSelectedWarranty = null, // FIXED: Don't default to silver-pledge without package selection
   selectedPackage: propSelectedPackage = null,
 }: MaterialsSelectionTabProps) { // Added activePricingTemplate, allPricingTemplates, onTemplateChange to props
   // Get auth context early to use in state initialization
@@ -186,8 +186,8 @@ export function MaterialsSelectionTab({
     return propSelectedPackage;
   });
   const [selectedWarranty, setSelectedWarranty] = useState<string | null>(() => {
-    // Use prop value if provided, otherwise default to silver-pledge
-    return propSelectedWarranty || 'silver-pledge';
+    // Use prop value if provided, otherwise default to null (no warranty without package)
+    return propSelectedWarranty;
   });
   const [isPeelStickSelected, setIsPeelStickSelected] = useState<boolean>(false);
   const [includeIso, setIncludeIso] = useState<boolean>(false);
@@ -2437,6 +2437,13 @@ export function MaterialsSelectionTab({
       return;
     }
     
+    // CRITICAL FIX: Don't auto-populate for empty string packages
+    if (selectedPackage === '') {
+      console.log(`🎯 GAF Package Sync: Skipping auto-populate for empty string package`);
+      previousPackageRef.current = selectedPackage;
+      return;
+    }
+    
     // Clear any pending updates to prevent rapid-fire updates
     if (packageUpdateTimeoutRef.current) {
       clearTimeout(packageUpdateTimeoutRef.current);
@@ -2908,35 +2915,40 @@ export function MaterialsSelectionTab({
 
   // Auto-populate materials when package selection changes
   useEffect(() => {
-    if (selectedPackage && measurements?.totalArea > 0) {
-      // Check if we already have materials from this package
-      const hasGafMaterials = localSelectedMaterials['gaf-timberline-hdz-sg'] || 
-                             localSelectedMaterials['gaf-prostart-starter-shingle-strip'] ||
-                             localSelectedMaterials['gaf-seal-a-ridge'];
-      
-      if (hasGafMaterials) {
-        console.log(`[PackageEffect] Already have GAF materials, skipping auto-populate`);
-        return;
-      }
-      
-      console.log(`[PackageEffect] Package selected: ${selectedPackage}, auto-populating materials`);
-      
-      // Map package IDs to preset bundle names
-      const packageToPreset: { [key: string]: string } = {
-        'gaf-1': 'GAF 1',
-        'gaf-2': 'GAF 2',
-        '3mg-standard-oc': '3MG Standard - OC',
-        '3mg-standard-gaf': '3MG Standard - GAF',
-        '3mg-select': '3MG Select'
-      };
-      
-      const presetName = packageToPreset[selectedPackage];
-      if (presetName) {
-        // Small delay to ensure measurements are fully loaded
-        setTimeout(() => {
-          applyPresetBundle(presetName);
-        }, 100);
-      }
+    // CRITICAL FIX: Only auto-populate if user has actually selected a package
+    // Don't auto-populate for empty string or null - user must make an explicit choice
+    if (!selectedPackage || selectedPackage === '' || !measurements?.totalArea) {
+      console.log(`[PackageEffect] Skipping auto-populate - no valid package selected: '${selectedPackage}'`);
+      return;
+    }
+
+    // Check if we already have materials from this package
+    const hasGafMaterials = localSelectedMaterials['gaf-timberline-hdz-sg'] || 
+                           localSelectedMaterials['gaf-prostart-starter-shingle-strip'] ||
+                           localSelectedMaterials['gaf-seal-a-ridge'];
+    
+    if (hasGafMaterials) {
+      console.log(`[PackageEffect] Already have GAF materials, skipping auto-populate`);
+      return;
+    }
+    
+    console.log(`[PackageEffect] Package selected: ${selectedPackage}, auto-populating materials`);
+    
+    // Map package IDs to preset bundle names
+    const packageToPreset: { [key: string]: string } = {
+      'gaf-1': 'GAF 1',
+      'gaf-2': 'GAF 2',
+      '3mg-standard-oc': '3MG Standard - OC',
+      '3mg-standard-gaf': '3MG Standard - GAF',
+      '3mg-select': '3MG Select'
+    };
+    
+    const presetName = packageToPreset[selectedPackage];
+    if (presetName) {
+      // Small delay to ensure measurements are fully loaded
+      setTimeout(() => {
+        applyPresetBundle(presetName);
+      }, 100);
     }
   }, [selectedPackage, measurements?.totalArea]); // Only trigger when package or measurements change
 

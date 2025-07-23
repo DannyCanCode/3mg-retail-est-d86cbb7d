@@ -90,8 +90,8 @@ const SalesRepEstimateFlow: React.FC = () => {
     pdfFileName: null,
     warrantyDetails: null,
     warrantyType: '',
-    selectedPackage: '',
-    selectedWarranty: 'silver-pledge'
+    selectedPackage: null, // FIXED: Use null instead of empty string to prevent auto-population
+    selectedWarranty: null // FIXED: Use null instead of auto-defaulting to silver-pledge
   });
   const [currentStep, setCurrentStep] = useState(estimateData?.currentStep || 0);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -316,7 +316,11 @@ const SalesRepEstimateFlow: React.FC = () => {
       totalPrice: 0,
       currentStep: 0,
       pdfUrl: null,
-      pdfFileName: null
+      pdfFileName: null,
+      warrantyDetails: null,
+      warrantyType: '',
+      selectedPackage: null, // FIXED: Use null instead of empty string
+      selectedWarranty: null // FIXED: Use null instead of auto-defaulting to silver-pledge
     });
     
     // Reset to first step
