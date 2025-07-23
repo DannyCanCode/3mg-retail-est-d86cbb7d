@@ -187,7 +187,7 @@ export function MaterialsSelectionTab({
   });
   const [selectedWarranty, setSelectedWarranty] = useState<string | null>(() => {
     // Use prop value if provided, otherwise default to silver-pledge
-    return propSelectedWarranty;
+    return propSelectedWarranty || 'silver-pledge';
   });
   const [isPeelStickSelected, setIsPeelStickSelected] = useState<boolean>(false);
   const [includeIso, setIncludeIso] = useState<boolean>(false);
@@ -2398,37 +2398,33 @@ export function MaterialsSelectionTab({
       return;
     }
     
-    // Auto-select warranty based on package
-    if (selectedPackage === '3mg-1' && selectedWarranty !== 'silver-pledge') {
-      console.log("Auto-selecting Silver Pledge warranty for 3MG Standard package");
-      setSelectedWarranty('silver-pledge');
-      toast({
-        title: "Silver Pledge Warranty Selected",
-        description: "3MG Standard package includes 10-year workmanship warranty with Silver Pledge.",
-        duration: 4000,
-        variant: "default"
-      });
-    } else if (selectedPackage === '3mg-2' && selectedWarranty !== 'gold-pledge') {
-      console.log("Auto-selecting Gold Pledge warranty for 3MG Select package");
-      setSelectedWarranty('gold-pledge');
-      toast({
-        title: "Gold Pledge Warranty Selected",
-        description: "3MG Select package includes 25-year workmanship warranty with Gold Pledge.",
-        duration: 4000,
-        variant: "default"
-      });
-    } else if (selectedPackage === 'gaf-1' && selectedWarranty === 'gold-pledge') {
-      // If changing from GAF 2 to GAF 1 and Gold Pledge is selected, reset to Silver Pledge
-      console.log("Changing warranty from Gold Pledge to Silver Pledge because GAF 1 Basic Package was selected");
-      setSelectedWarranty('silver-pledge');
-      toast({
-        title: "Warranty Changed",
-        description: "Silver Pledge warranty selected because GAF 1 Basic Package does not support Gold Pledge.",
-        duration: 4000,
-        variant: "default"
-      });
+    // Auto-select warranty based on package - only if warranty is not already set appropriately
+    if (selectedPackage === '3mg-1') {
+      // 3MG Standard always uses Silver Pledge
+      if (selectedWarranty !== 'silver-pledge') {
+        console.log("Auto-selecting Silver Pledge warranty for 3MG Standard package");
+        setSelectedWarranty('silver-pledge');
+      }
+    } else if (selectedPackage === '3mg-2') {
+      // 3MG Select always uses Gold Pledge
+      if (selectedWarranty !== 'gold-pledge') {
+        console.log("Auto-selecting Gold Pledge warranty for 3MG Select package");
+        setSelectedWarranty('gold-pledge');
+      }
+    } else if (selectedPackage === 'gaf-1') {
+      // GAF 1 can only use Silver Pledge
+      if (selectedWarranty === 'gold-pledge') {
+        console.log("Changing warranty from Gold Pledge to Silver Pledge because GAF 1 Basic Package was selected");
+        setSelectedWarranty('silver-pledge');
+      }
+    } else if (selectedPackage === 'gaf-2') {
+      // GAF 2 can use either warranty, default to Gold Pledge if none selected
+      if (!selectedWarranty) {
+        console.log("Auto-selecting Gold Pledge warranty for GAF 2 Premium Package");
+        setSelectedWarranty('gold-pledge');
+      }
     }
-  }, [selectedPackage, selectedWarranty, toast]);
+  }, [selectedPackage]); // Removed selectedWarranty and toast from deps to prevent loops
 
   // 🎯 CRITICAL FIX: Auto-sync GAF package selection with material presets
   // When users select GAF 1 or GAF 2 in the big boxes at top, automatically apply materials
