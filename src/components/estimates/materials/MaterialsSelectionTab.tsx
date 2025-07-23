@@ -3198,34 +3198,34 @@ export function MaterialsSelectionTab({
                                         onBlur={(e) => canEditMaterialPrices() && handleEditableMaterialPropertyChange(material.id, 'price', e.target.value, true)}
                                         className={`h-8 text-sm rounded-md shadow-sm w-24 ${
                                           canEditMaterialPrices() 
-                                            ? 'bg-gray-600/60 border-gray-500 text-white focus:border-green-400 focus:ring-green-400/30' 
-                                            : 'bg-gray-700/60 border-gray-600 text-gray-200'
+                                            ? 'bg-white border-gray-300 text-gray-900 focus:border-green-400 focus:ring-green-400/30' 
+                                            : 'bg-gray-100 border-gray-300 text-gray-600'
                                         }`}
                                         disabled={!canEditMaterialPrices()}
                                         placeholder="0.00"
                                         key={`price-input-${material.id}`}
                                       />
-                                      {material.unit && <span className="text-sm text-gray-200 font-medium">per {material.unit}</span>}
+                                      {material.unit && <span className="text-sm text-gray-700 font-medium">per {material.unit}</span>}
                                       {material.approxPerSquare && material.approxPerSquare > 0 && 
-                                        <span className="text-xs text-gray-300">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
+                                        <span className="text-xs text-gray-600">(≈ {formatPrice(material.approxPerSquare)}/sq)</span>
                                       }
                                     </div>
                                   )}
                                   
                                   {/* Coverage Rule Description - Keep visible for all roles */}
                                   {material.coverageRule?.description && (
-                                    <p className="text-xs text-gray-200 bg-gray-700/40 p-2 rounded">
-                                      <span className="font-semibold text-green-300">Coverage:</span> {material.coverageRule.description}
+                                    <p className="text-xs text-gray-700 p-2 rounded border border-gray-200 bg-gray-50">
+                                      <span className="font-semibold text-gray-900">Coverage:</span> {material.coverageRule.description}
                                     </p>
                                   )}
                           
                                   {/* Coverage Rule Calculation & Logic - Hide for sales reps */}
                                   {material.coverageRule?.calculation && effectiveUserRole !== 'rep' && (
-                                    <div className="text-xs text-gray-200 bg-gray-700/40 p-2 rounded space-y-1">
-                                      <p><span className="font-semibold text-blue-300">Logic:</span> {material.coverageRule.calculation}</p>
+                                    <div className="text-xs text-gray-700 p-2 rounded border border-gray-200 bg-gray-50 space-y-1">
+                                      <p><span className="font-semibold text-gray-900">Logic:</span> {material.coverageRule.calculation}</p>
                                       {!readOnly && (
-                                        <p className="text-green-300 mt-0.5">
-                                          <span className="font-semibold text-gray-200">→ Current Calc:</span> {formatCalculationWithMeasurements(material)}
+                                        <p className="text-gray-600 mt-0.5">
+                                          <span className="font-semibold text-gray-900">→ Current Calc:</span> {formatCalculationWithMeasurements(material)}
                                         </p>
                                       )}
                                     </div>
@@ -3244,7 +3244,7 @@ export function MaterialsSelectionTab({
                                     className={`min-w-[100px] h-9 transition-all duration-200 ${
                                       isSelected 
                                         ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white border-0 shadow-lg shadow-green-500/25 hover:shadow-green-500/40' 
-                                        : 'bg-gray-700/70 text-white border-gray-500/50 hover:bg-gray-600/70 hover:border-green-500/50 shadow-sm'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-green-500 shadow-sm'
                                     }`}
                                     disabled={readOnly}
                                   >
