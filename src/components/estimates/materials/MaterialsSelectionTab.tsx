@@ -2441,8 +2441,9 @@ export function MaterialsSelectionTab({
     packageUpdateTimeoutRef.current = setTimeout(() => {
       console.log(`🎯 GAF Package Changed: ${previousPackageRef.current} → ${selectedPackage}`);
       
-      // Define all GAF materials that could be in either package
-      const allGafMaterials = [
+      // CRITICAL FIX: Define ALL package materials (GAF AND OC) that should be removed when switching
+      const allPackageMaterials = [
+        // GAF Package Materials
         "gaf-timberline-hdz-sg",
         "gaf-prostart-starter-shingle-strip", 
         "gaf-seal-a-ridge",
@@ -2457,19 +2458,28 @@ export function MaterialsSelectionTab({
         "karnak-flashing-cement",
         "1inch-plastic-cap-nails",
         "abc-electro-galvanized-coil-nails",
-        "coil-nails-ring-shank"
+        "coil-nails-ring-shank",
+        // OC Package Materials (3MG Standard - OC)
+        "oc-duration-shingles",
+        "oc-oakridge",
+        "oc-proedge-hip-ridge", 
+        "oc-starter",
+        "oc-proedge-starter-shingle",
+        "polyglass-irxe-synthetic", // Used in both GAF and OC packages
+        // 3MG Select Materials
+        "gaf-uhdz-shingles"
       ];
       
-      // 🔧 PRESERVE ORDER: Instead of deleting all GAF materials, preserve existing order
+      // 🔧 PRESERVE ORDER: Remove all package materials when switching, preserve accessories/ventilation
       // Create arrays to track current order of materials
       const currentMaterialOrder = Object.keys(localSelectedMaterials);
       const newMaterials: {[key: string]: Material} = {};
       const newQuantities: {[key: string]: number} = {};
       const newWasteFactors: {[key: string]: number} = {};
       
-      // First, preserve all NON-GAF materials in their current order
+      // First, preserve all NON-PACKAGE materials (accessories, ventilation, low-slope)
       currentMaterialOrder.forEach(materialId => {
-        if (!allGafMaterials.includes(materialId)) {
+        if (!allPackageMaterials.includes(materialId)) {
           newMaterials[materialId] = localSelectedMaterials[materialId];
           newQuantities[materialId] = localQuantities[materialId];
           if (materialWasteFactors[materialId] !== undefined) {
@@ -2481,9 +2491,9 @@ export function MaterialsSelectionTab({
       let toastMessage = "";
       
       if (!selectedPackage) {
-        // Package deselected - just remove GAF materials
-        toastMessage = "GAF package materials removed from selection";
-        console.log("🎯 GAF Package Deselected: Removing all GAF materials");
+        // Package deselected - remove all package materials
+        toastMessage = "Package materials removed from selection";
+        console.log("🎯 Package Deselected: Removing all package materials");
       } else {
         // Package selected - add the appropriate GAF materials
         const packageToPreset: Record<string, string> = {
@@ -2736,7 +2746,7 @@ export function MaterialsSelectionTab({
       if (toastMessage) {
         const isLowSlopeWarning = toastMessage.includes("only applicable to roofs with steep slope areas");
         toast({
-          title: selectedPackage ? "GAF Package Materials Applied! ✅" : "GAF Package Materials Removed",
+          title: selectedPackage ? "Package Materials Applied! ✅" : "Package Materials Removed",
           description: toastMessage,
           duration: 4000,
           variant: isLowSlopeWarning ? "destructive" : "default"
@@ -2910,13 +2920,15 @@ export function MaterialsSelectionTab({
       return;
     }
 
-    // Check if we already have materials from this package
-    const hasGafMaterials = localSelectedMaterials['gaf-timberline-hdz-sg'] || 
-                           localSelectedMaterials['gaf-prostart-starter-shingle-strip'] ||
-                           localSelectedMaterials['gaf-seal-a-ridge'];
+    // Check if we already have materials from any package
+    const hasPackageMaterials = localSelectedMaterials['gaf-timberline-hdz-sg'] || 
+                               localSelectedMaterials['gaf-prostart-starter-shingle-strip'] ||
+                               localSelectedMaterials['gaf-seal-a-ridge'] ||
+                               localSelectedMaterials['oc-duration-shingles'] ||
+                               localSelectedMaterials['oc-oakridge'];
     
-    if (hasGafMaterials) {
-      console.log(`[PackageEffect] Already have GAF materials, skipping auto-populate`);
+    if (hasPackageMaterials) {
+      console.log(`[PackageEffect] Already have package materials, skipping auto-populate`);
       return;
     }
     
