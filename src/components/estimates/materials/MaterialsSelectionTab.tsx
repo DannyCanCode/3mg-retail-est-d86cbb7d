@@ -329,10 +329,10 @@ export function MaterialsSelectionTab({
       'boot_3_inch': { materialId: 'bullet-boot-3inch', count: Number(ventilationData.boots?.['3_inch']) || 0 },
       'boot_4_inch': { materialId: 'bullet-boot-4inch', count: Number(ventilationData.boots?.['4_inch']) || 0 },
       
-      // Ridge Vents - special handling for linear feet
+      // Ridge Vents - special handling for linear feet (4 LF per piece)
       'ridge_vent': { 
         materialId: 'gaf-cobra-rigid-vent', 
-        count: ventilationData.ridge_vents_lf ? Math.ceil(Number(ventilationData.ridge_vents_lf) / 20) : 0 // 20 LF per bundle
+        count: ventilationData.ridge_vents_lf ? Math.ceil(Number(ventilationData.ridge_vents_lf) / 4) : 0 // 4 LF per piece
       },
       
       // Off Ridge Vents 
@@ -2494,8 +2494,9 @@ export function MaterialsSelectionTab({
         const packageToPreset: Record<string, string> = {
           'gaf-1': 'GAF 1',
           'gaf-2': 'GAF 2',
-          '3mg-1': '3MG 1',
-          '3mg-2': '3MG 2'
+          '3mg-standard-oc': '3MG Standard - OC',
+          '3mg-standard-gaf': '3MG Standard - GAF',
+          '3mg-select': '3MG Select'
         };
         
         const presetName = packageToPreset[selectedPackage];
@@ -2537,12 +2538,13 @@ export function MaterialsSelectionTab({
               { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" },
               { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
             ],
-            "3MG 1": [
-              { id: "oc-oakridge", description: "OC Oakridge Shingles" },
-              { id: "oc-starter", description: "OC Starter" },
-              { id: "oc-hip-ridge", description: "OC Hip & Ridge" },
+            "3MG Standard - OC": [
+              { id: "oc-duration", description: "Owens Corning Duration" },
+              { id: "oc-oakridge", description: "Owens Corning Oakridge" },
+              { id: "oc-proedge-hip-ridge", description: "Owens Corning Proedge Hip and Ridge" },
+              { id: "oc-starter-strip-plus", description: "Owens Corning Starter Strip Plus" },
               { id: "maxfelt-nc", description: "MaxFelt Synthetic Underlayment" },
-              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+              { id: "polyglass-irxe", description: "Polyglass IRXE (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
               { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
@@ -2551,12 +2553,27 @@ export function MaterialsSelectionTab({
               { id: "1inch-plastic-cap-nails", description: "1\" Plastic Cap Nails (3000/bucket)" },
               { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" }
             ],
-            "3MG 2": [
+            "3MG Standard - GAF": [
+              { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
+              { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
+              { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
+              { id: "polyglass-irxe", description: "Polyglass IRXE (Valleys)" },
+              { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
+              { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
+              { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
+              { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
+              { id: "millennium-galvanized-drip-edge", description: "Millennium Galvanized Steel Drip Edge - 26GA - 6\"" },
+              { id: "karnak-flashing-cement", description: "Karnak #19 Ultra Rubberized Flashing Cement (5 Gal)" },
+              { id: "1inch-plastic-cap-nails", description: "1\" Plastic Cap Nails (3000/bucket)" },
+              { id: "abc-electro-galvanized-coil-nails", description: "ABC Electro Galvanized Coil Nails - 1 1/4\" (7200 Cnt)" },
+              { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
+            ],
+            "3MG Select": [
               { id: "gaf-uhdz", description: "GAF Timberline UHDZ Shingles" },
               { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
               { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge" },
               { id: "maxfelt-nc", description: "MaxFelt Synthetic Underlayment" },
-              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+              { id: "polyglass-irxe", description: "Polyglass IRXE (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
@@ -2908,8 +2925,9 @@ export function MaterialsSelectionTab({
       const packageToPreset: { [key: string]: string } = {
         'gaf-1': 'GAF 1',
         'gaf-2': 'GAF 2',
-        '3mg-1': '3MG 1',
-        '3mg-2': '3MG 2'
+        '3mg-standard-oc': '3MG Standard - OC',
+        '3mg-standard-gaf': '3MG Standard - GAF',
+        '3mg-select': '3MG Select'
       };
       
       const presetName = packageToPreset[selectedPackage];
