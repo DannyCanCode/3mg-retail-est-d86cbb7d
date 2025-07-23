@@ -23,16 +23,16 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
   return (
     <div className="space-y-2">
       <div>
-        <h3 className="text-sm font-semibold text-gray-300">Select Package</h3>
+        <h3 className="text-sm font-semibold">Select Package</h3>
       </div>
       
       <div className="grid grid-cols-2 gap-3">
         {/* GAF 1 - Basic Package */}
         <div 
-          className={`relative rounded-xl p-4 cursor-pointer transition-all duration-200 ${
+          className={`relative rounded-lg p-4 cursor-pointer transition-all duration-200 border ${
             selectedPackage === 'gaf-1' 
-              ? 'bg-gradient-to-br from-green-600/30 to-emerald-600/30 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500 ring-offset-1 ring-offset-gray-800' 
-              : 'bg-gray-800/50 hover:bg-gray-800/70 border border-gray-700 hover:border-green-600/50'
+              ? 'bg-green-50 border-green-500 shadow-md' 
+              : 'bg-gray-50 hover:bg-gray-100 border-gray-300 hover:border-gray-400'
           }`}
           onClick={() => handlePackageClick('gaf-1')}
         >
@@ -47,14 +47,14 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className={`p-1.5 rounded-lg ${selectedPackage === 'gaf-1' ? 'bg-green-500/30' : 'bg-green-900/30'}`}>
-                  <Package className={`h-4 w-4 ${selectedPackage === 'gaf-1' ? 'text-green-300' : 'text-green-400'}`} />
+                <div className={`p-1.5 rounded-lg ${selectedPackage === 'gaf-1' ? 'bg-green-100' : 'bg-gray-200'}`}>
+                  <Package className={`h-4 w-4 ${selectedPackage === 'gaf-1' ? 'text-green-600' : 'text-gray-600'}`} />
                 </div>
                 <div>
-                  <h4 className={`font-semibold text-sm ${selectedPackage === 'gaf-1' ? 'text-white' : 'text-gray-800'}`}>
+                  <h4 className="font-semibold text-sm text-gray-900">
                     GAF Package 1
                   </h4>
-                  <p className={`text-xs ${selectedPackage === 'gaf-1' ? 'text-blue-100' : 'text-gray-500'}`}>
+                  <p className="text-xs text-gray-600">
                     Standard
                   </p>
                 </div>
@@ -62,13 +62,13 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             </div>
             
             {/* Warranty */}
-            <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === 'gaf-1' ? 'text-blue-100' : 'text-gray-600'}`}>
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
               <Shield className="h-3 w-3" />
               <span>Silver Pledge</span>
             </div>
             
             {/* Quick materials count */}
-            <div className={`text-xs ${selectedPackage === 'gaf-1' ? 'text-blue-100' : 'text-gray-500'}`}>
+            <div className="text-xs text-gray-600">
               5 core materials included
             </div>
           </div>
@@ -76,10 +76,10 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
         
         {/* GAF 2 - Premium Package */}
         <div 
-          className={`relative rounded-xl p-4 cursor-pointer transition-all duration-200 ${
+          className={`relative rounded-lg p-4 cursor-pointer transition-all duration-200 border ${
             selectedPackage === 'gaf-2' 
-              ? 'bg-gradient-to-br from-purple-600/30 to-purple-500/30 text-white shadow-lg shadow-purple-500/25 ring-2 ring-purple-500 ring-offset-1 ring-offset-gray-800' 
-              : 'bg-gray-800/50 hover:bg-gray-800/70 border border-gray-700 hover:border-purple-600/50'
+              ? 'bg-green-50 border-green-500 shadow-md' 
+              : 'bg-gray-50 hover:bg-gray-100 border-gray-300 hover:border-gray-400'
           }`}
           onClick={() => handlePackageClick('gaf-2')}
         >
@@ -134,10 +134,10 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
 
         {/* 3MG 1 - Standard Package */}
         <div 
-          className={`relative rounded-xl p-4 cursor-pointer transition-all duration-200 ${
+          className={`relative rounded-lg p-4 cursor-pointer transition-all duration-200 border ${
             selectedPackage === '3mg-1' 
-              ? 'bg-gradient-to-br from-green-600/30 to-emerald-600/30 text-white shadow-lg shadow-green-500/25 ring-2 ring-green-500 ring-offset-1 ring-offset-gray-800' 
-              : 'bg-gray-800/50 hover:bg-gray-800/70 border border-gray-700 hover:border-green-600/50'
+              ? 'bg-green-50 border-green-500 shadow-md' 
+              : 'bg-gray-50 hover:bg-gray-100 border-gray-300 hover:border-gray-400'
           }`}
           onClick={() => handlePackageClick('3mg-1')}
         >
@@ -152,14 +152,14 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className={`p-1.5 rounded-lg ${selectedPackage === '3mg-1' ? 'bg-green-500/30' : 'bg-green-900/30'}`}>
-                  <Package className={`h-4 w-4 ${selectedPackage === '3mg-1' ? 'text-green-300' : 'text-green-400'}`} />
+                <div className={`p-1.5 rounded-lg ${selectedPackage === '3mg-1' ? 'bg-green-100' : 'bg-gray-200'}`}>
+                  <Package className={`h-4 w-4 ${selectedPackage === '3mg-1' ? 'text-green-600' : 'text-gray-600'}`} />
                 </div>
                 <div>
-                  <h4 className={`font-semibold text-sm ${selectedPackage === '3mg-1' ? 'text-white' : 'text-gray-200'}`}>
+                  <h4 className="font-semibold text-sm text-gray-900">
                     3MG Standard
                   </h4>
-                  <p className={`text-xs ${selectedPackage === '3mg-1' ? 'text-green-100' : 'text-gray-500'}`}>
+                  <p className="text-xs text-gray-600">
                     10-Year Warranty
                   </p>
                 </div>
@@ -167,13 +167,13 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             </div>
             
             {/* Features */}
-            <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === '3mg-1' ? 'text-green-100' : 'text-gray-400'}`}>
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
               <Shield className="h-3 w-3" />
               <span>10 Year 3MG Workmanship</span>
             </div>
             
             {/* Quick materials count */}
-            <div className={`text-xs ${selectedPackage === '3mg-1' ? 'text-green-100' : 'text-gray-500'}`}>
+            <div className="text-xs text-gray-600">
               OC Oakridge with MaxFelt
             </div>
           </div>
@@ -181,10 +181,10 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
         
         {/* 3MG 2 - Premium Package */}
         <div 
-          className={`relative rounded-xl p-4 cursor-pointer transition-all duration-200 ${
+          className={`relative rounded-lg p-4 cursor-pointer transition-all duration-200 border ${
             selectedPackage === '3mg-2' 
-              ? 'bg-gradient-to-br from-emerald-600/30 to-teal-600/30 text-white shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-500 ring-offset-1 ring-offset-gray-800' 
-              : 'bg-gray-800/50 hover:bg-gray-800/70 border border-gray-700 hover:border-emerald-600/50'
+              ? 'bg-green-50 border-green-500 shadow-md' 
+              : 'bg-gray-50 hover:bg-gray-100 border-gray-300 hover:border-gray-400'
           }`}
           onClick={() => handlePackageClick('3mg-2')}
         >
@@ -208,10 +208,10 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                   <Package className={`h-4 w-4 ${selectedPackage === '3mg-2' ? 'text-emerald-300' : 'text-emerald-400'}`} />
                 </div>
                 <div>
-                  <h4 className={`font-semibold text-sm ${selectedPackage === '3mg-2' ? 'text-white' : 'text-gray-200'}`}>
+                  <h4 className="font-semibold text-sm text-gray-900">
                     3MG Select
                   </h4>
-                  <p className={`text-xs ${selectedPackage === '3mg-2' ? 'text-emerald-100' : 'text-gray-500'}`}>
+                  <p className="text-xs text-gray-600">
                     25-Year Warranty
                   </p>
                 </div>
@@ -220,18 +220,18 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
             
             {/* Features */}
             <div className="space-y-1">
-              <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === '3mg-2' ? 'text-emerald-100' : 'text-gray-400'}`}>
+              <div className="flex items-center gap-1.5 text-xs text-gray-600">
                 <Shield className="h-3 w-3" />
                 <span>25 Year 3MG Workmanship</span>
               </div>
-              <div className={`flex items-center gap-1.5 text-xs ${selectedPackage === '3mg-2' ? 'text-emerald-100' : 'text-gray-400'}`}>
+              <div className="flex items-center gap-1.5 text-xs text-gray-600">
                 <Star className="h-3 w-3" />
                 <span>Premium Protection</span>
               </div>
             </div>
             
             {/* Quick materials count */}
-            <div className={`text-xs ${selectedPackage === '3mg-2' ? 'text-emerald-100' : 'text-gray-500'}`}>
+            <div className="text-xs text-gray-600">
               GAF UHDZ with MaxFelt
             </div>
           </div>

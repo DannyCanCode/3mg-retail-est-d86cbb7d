@@ -123,11 +123,11 @@ export function MaterialsSelectionTab({
   // Always use dark theme for all users - matching the sick UI
   const isDarkTheme = true;
   
-  // Theme-aware styles - always dark theme
-  const cardStyles = "bg-gray-700/40 backdrop-blur-xl border-green-600/30";
-  const headerStyles = "border-b border-green-700/30";
-  const titleStyles = "text-white";
-  const descriptionStyles = "text-gray-400";
+  // Theme-aware styles - updated for better readability in package section
+  const cardStyles = "bg-white shadow-sm";
+  const headerStyles = "border-b";
+  const titleStyles = "text-gray-900";
+  const descriptionStyles = "text-gray-600";
   
   // Debug logging to track role changes
   useEffect(() => {
@@ -3147,36 +3147,36 @@ export function MaterialsSelectionTab({
                    
                  return (
                    <AccordionItem key={category} value={category} className="border-green-500/40">
-                     <AccordionTrigger className="text-lg font-semibold py-4 text-white hover:text-green-200 bg-gray-600/50 hover:bg-gray-600/70 px-4 rounded-t-lg transition-all duration-200 shadow-sm">
+                                               <AccordionTrigger className="text-lg font-semibold py-4 bg-gray-100 hover:bg-gray-200 px-4 rounded-t-lg transition-all duration-200 shadow-sm">
                        {formatCategoryName(category)}
-                       {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-200 border-blue-400/60 bg-blue-600/30">Flat/Low-Slope Required</Badge>)}
+                                               {category === MaterialCategory.LOW_SLOPE && showLowSlope && (<Badge variant="outline" className="ml-2 text-blue-700 border-blue-300 bg-blue-100">Flat/Low-Slope Required</Badge>)}
                      </AccordionTrigger>
-                     <AccordionContent className="bg-gray-600/30 px-4 pb-4 rounded-b-lg border-x border-b border-green-500/30">
+                                           <AccordionContent className="bg-gray-50 px-4 pb-4 rounded-b-lg border-x border-b border-gray-200">
                        <div className="space-y-2 pt-2">
                          {materials.map(baseMaterial => {
                            const material = editableTemplateMaterials[baseMaterial.id] || baseMaterial;
                            const isSelected = !!localSelectedMaterials[material.id];
 
-                           // Define material-specific colors for dark theme
+                           // Define material-specific colors with lighter backgrounds
                            const getMaterialColor = (materialId: string) => {
                              // Goosenecks - Orange
                              if (materialId.includes('gooseneck')) {
-                               return 'border-orange-400/60 bg-gradient-to-r from-orange-500/30 to-orange-400/25 hover:from-orange-500/40 hover:to-orange-400/35';
+                               return 'border-orange-300 bg-orange-50 hover:bg-orange-100';
                              }
                              // Boots - Grey
                              if (materialId.includes('boot')) {
-                               return 'border-gray-400/60 bg-gradient-to-r from-gray-600/50 to-gray-500/40 hover:from-gray-600/60 hover:to-gray-500/50';
+                               return 'border-gray-300 bg-gray-50 hover:bg-gray-100';
                              }
                              // Skylights - Light Blue
                              if (materialId.includes('skylight')) {
-                               return 'border-sky-400/60 bg-gradient-to-r from-sky-500/30 to-sky-400/25 hover:from-sky-500/40 hover:to-sky-400/35';
+                               return 'border-sky-300 bg-sky-50 hover:bg-sky-100';
                              }
                              // Gutters - Bronze (using amber as closest)
                              if (materialId.includes('gutter')) {
-                               return 'border-amber-400/60 bg-gradient-to-r from-amber-500/30 to-amber-400/25 hover:from-amber-500/40 hover:to-amber-400/35';
+                               return 'border-amber-300 bg-amber-50 hover:bg-amber-100';
                              }
                              // Default styling for other materials
-                             return 'border-gray-400/60 bg-gradient-to-r from-gray-600/50 to-gray-500/40 hover:from-gray-600/60 hover:to-gray-500/50';
+                             return 'border-gray-300 bg-white hover:bg-gray-50';
                            };
 
                            return (
@@ -3184,7 +3184,7 @@ export function MaterialsSelectionTab({
                               <div className="flex flex-col lg:flex-row justify-between items-start gap-3">
                                 {/* Left Column: Material Info */}
                                 <div className="flex-1 space-y-2">
-                                  <h4 className="text-sm font-semibold text-white drop-shadow-sm">{material.name}</h4>
+                                  <h4 className="text-sm font-semibold text-gray-900">{material.name}</h4>
                                   
                                   {/* Only show price input/display for non-reps */}
                                   {effectiveUserRole !== 'rep' && (
@@ -3289,9 +3289,9 @@ export function MaterialsSelectionTab({
 
       {/* Right Column: Selected Materials */}
       <div className={effectiveUserRole !== 'rep' ? "lg:col-span-2" : "lg:col-span-1"}>
-        <Card className="sticky top-4 bg-gray-800/30 backdrop-blur-xl border-green-600/20">
-          <CardHeader className="pb-3 border-b border-green-700/30">
-            <CardTitle className="text-lg text-white">
+        <Card className="sticky top-4 bg-white shadow-sm">
+          <CardHeader className="pb-3 border-b">
+            <CardTitle className="text-lg text-gray-900">
               {effectiveUserRole === 'rep' ? 'Auto-Selected Materials' : 'Selected Materials'}
             </CardTitle>
             {effectiveUserRole === 'rep' && (
