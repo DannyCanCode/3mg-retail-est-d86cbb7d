@@ -278,7 +278,13 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       // First, load and copy the 3MG infographic PDF (excluding page 6 - blank white page)
       try {
         const infographicUrl = '/pdf-templates/3mg-company-infographic.pdf';
-        const infographicBytes = await fetch(infographicUrl).then(res => res.arrayBuffer());
+        const response = await fetch(infographicUrl);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch infographic: ${response.status} ${response.statusText}`);
+        }
+        
+        const infographicBytes = await response.arrayBuffer();
         const infographicPdf = await PDFDocument.load(infographicBytes);
         
         // Get all page indices except pages 6 and 7 (indices 5 and 6 since it's 0-based)

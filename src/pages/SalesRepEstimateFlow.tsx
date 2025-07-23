@@ -338,7 +338,7 @@ const SalesRepEstimateFlow: React.FC = () => {
         .from('estimates')
         .insert({
           customer_name: estimateData.customer_name,
-          customer_address: estimateData.customer_address,
+          customer_address: estimateData.customer_address || 'Address not provided',
           customer_phone: estimateData.customer_phone,
           customer_email: estimateData.customer_email,
           measurements: estimateData.measurements || {},
