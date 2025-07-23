@@ -1333,10 +1333,43 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
                   <Button 
                     size="lg" 
                     className="relative bg-gradient-to-r from-lime-600 to-green-600 hover:from-lime-700 hover:to-green-700 text-white font-bold px-10 py-7 text-lg shadow-2xl transform hover:scale-105 transition-all duration-300 rounded-2xl border-b-4 border-lime-800 hover:border-b-2 hover:translate-y-1"
-                    onClick={() => {
-                      // TODO: Implement email signature collection
-                      console.log('Email to collect signature clicked');
-                    }}
+                                         onClick={async () => {
+                       // Get customer email from customerInfo or jobWorksheet
+                       const customerEmail = customerInfo?.email || 
+                                            jobWorksheet?.basic_info?.email ||
+                                            prompt('Enter customer email for signature:');
+                       
+                       if (!customerEmail) {
+                         toast({
+                           title: "Email Required",
+                           description: "Please enter a customer email address.",
+                           variant: "destructive"
+                         });
+                         return;
+                       }
+                       
+                       try {
+                         toast({
+                           title: "Generating PDF...",
+                           description: `Preparing estimate for ${customerEmail}`,
+                         });
+                         
+                         // Generate PDF (current function doesn't return blob, so call directly)
+                         await generatePDF();
+                         
+                         toast({
+                           title: "PDF Generated!",
+                           description: "SignNow email integration coming soon. PDF downloaded for now.",
+                         });
+                       } catch (error) {
+                         console.error('Error generating PDF:', error);
+                         toast({
+                           title: "Error",
+                           description: "Failed to generate PDF. Please try again.",
+                           variant: "destructive"
+                         });
+                       }
+                     }}
                   >
                     <span className="flex items-center gap-3">
                       <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
