@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import PackageSelector from "../packages/PackageSelector";
-import WarrantySelector from "../warranties/WarrantySelector";
+import { WarrantySelector } from "../warranties/WarrantySelector";
 import LowSlopeOptions from "../lowslope/LowSlopeOptions";
 import { useToast } from "@/hooks/use-toast";
 import { getDefaultPricingTemplate, PricingTemplate, createPricingTemplate, updatePricingTemplate } from "@/api/pricing-templates"; // Added createPricingTemplate, updatePricingTemplate
@@ -119,6 +119,23 @@ export function MaterialsSelectionTab({
     }
     return userRole;
   }, [userRole]);
+  
+  // Determine theme based on role
+  const isDarkTheme = effectiveUserRole === 'rep';
+  
+  // Theme-aware styles
+  const cardStyles = isDarkTheme 
+    ? "bg-gray-700/40 backdrop-blur-xl border-green-600/30" 
+    : "bg-white shadow-sm";
+  const headerStyles = isDarkTheme 
+    ? "border-b border-green-700/30" 
+    : "border-b";
+  const titleStyles = isDarkTheme 
+    ? "text-white" 
+    : "text-gray-900";
+  const descriptionStyles = isDarkTheme 
+    ? "text-gray-400" 
+    : "text-gray-600";
   
   // Debug logging to track role changes
   useEffect(() => {
@@ -2944,6 +2961,7 @@ export function MaterialsSelectionTab({
                 onWarrantySelect={setSelectedWarranty}
                 isPeelStickSelected={isPeelStickSelected}
                 onPeelStickToggle={setIsPeelStickSelected}
+                isDarkTheme={isDarkTheme}
               />
               
               {/* Low Slope Options hidden for sales reps - not needed in their simplified view */}
@@ -2972,6 +2990,7 @@ export function MaterialsSelectionTab({
                  onWarrantySelect={setSelectedWarranty}
                  isPeelStickSelected={isPeelStickSelected}
                  onPeelStickToggle={setIsPeelStickSelected}
+                 isDarkTheme={isDarkTheme}
                />
                {showLowSlope && (
                  <LowSlopeOptions measurements={measurements} includeIso={includeIso} onIsoToggle={setIncludeIso} />
@@ -2983,10 +3002,10 @@ export function MaterialsSelectionTab({
 
         
         {/* Package Selection Card */}
-        <Card className="bg-gray-700/40 backdrop-blur-xl border-green-600/30">
-          <CardHeader className="border-b border-green-700/30">
+        <Card className={cardStyles}>
+          <CardHeader className={headerStyles}>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white">Select Packages</CardTitle>
+              <CardTitle className={titleStyles}>Select Packages</CardTitle>
               {/* Preset Bundles Button - Only show for non-sales reps */}
               {effectiveUserRole !== 'rep' && (
                 <div className="flex items-center gap-2">
@@ -3066,11 +3085,11 @@ export function MaterialsSelectionTab({
             </div>
             <div className="mt-2 p-2 bg-blue-900/20 border border-blue-700/30 rounded-md">
               {canEditMaterialPrices() ? (
-                <p className="text-sm text-blue-300">
+                <p className={`text-sm text-blue-300`}>
                   🔓 <strong>Admin Access:</strong> You can modify material prices for this estimate.
                 </p>
               ) : (
-                <p className="text-sm text-blue-300">
+                <p className={`text-sm text-blue-300`}>
                   🔒 <strong>Territory Manager:</strong> Material prices are locked for consistency across estimates.
                 </p>
               )}
@@ -3079,7 +3098,7 @@ export function MaterialsSelectionTab({
           <CardContent className="space-y-4">
              {/* Waste Factor Inputs */}
              <div className="flex items-center space-x-4 pb-4">
-               <Label htmlFor="wasteFactor" className="text-gray-300">Waste Factor:</Label>
+               <Label htmlFor="wasteFactor" className={`${descriptionStyles} text-sm`}>Waste Factor:</Label>
                <Input 
                  id="wasteFactor" 
                  type="number" 
@@ -3095,7 +3114,7 @@ export function MaterialsSelectionTab({
              </div>
              {localSelectedMaterials["gaf-timberline-hdz-sg"] && (
               <div className="flex items-center space-x-4 pb-4 pt-2 border-t border-green-700/30">
-                <Label htmlFor="gafWasteFactor" className="text-gray-300">GAF Timberline HDZ Waste Factor:</Label>
+                <Label htmlFor="gafWasteFactor" className={`${descriptionStyles} text-sm`}>GAF Timberline HDZ Waste Factor:</Label>
                 <div className="flex space-x-2">
                   {[12, 15, 20].map(factor => (
                     <Button 
@@ -3108,7 +3127,7 @@ export function MaterialsSelectionTab({
                     </Button>
                   ))}
                  </div>
-                 <span className="text-sm text-blue-600 font-medium">Current: {gafTimberlineWasteFactor}%</span>
+                 <span className="text-sm text-blue-600 font-medium">{gafTimberlineWasteFactor}%</span>
                </div>
              )}
              
@@ -3281,11 +3300,11 @@ export function MaterialsSelectionTab({
       <div className={effectiveUserRole !== 'rep' ? "lg:col-span-2" : "lg:col-span-1"}>
         <Card className="sticky top-4 bg-gray-800/30 backdrop-blur-xl border-green-600/20">
           <CardHeader className="pb-3 border-b border-green-700/30">
-            <CardTitle className="text-lg text-white">
+            <CardTitle className={`${titleStyles} text-lg`}>
               {effectiveUserRole === 'rep' ? 'Auto-Selected Materials' : 'Selected Materials'}
             </CardTitle>
             {effectiveUserRole === 'rep' && (
-              <p className="text-sm text-gray-400 mt-1">
+              <p className={`${descriptionStyles} text-sm`}>
                 Materials are automatically selected based on your package choice
               </p>
             )}
@@ -3326,7 +3345,7 @@ export function MaterialsSelectionTab({
                     <div className="flex flex-col gap-1">
                       {/* Title and Badge Row */}
                       <div className="flex items-start justify-between gap-2">
-                        <span className="font-semibold text-gray-800 text-sm leading-tight">{warrantyDetails.name}</span>
+                        <span className={`${titleStyles} text-sm leading-tight`}>{warrantyDetails.name}</span>
                         <Badge variant="default" className="bg-purple-600 text-white text-xs px-1.5 py-0.5 whitespace-nowrap">
                           Warranty
                         </Badge>
@@ -3334,7 +3353,7 @@ export function MaterialsSelectionTab({
                       
                       {/* Price Information - Hide from sales reps */}
                       {effectiveUserRole !== 'rep' && (
-                        <div className="text-xs text-muted-foreground">
+                        <div className={`${descriptionStyles} text-xs`}>
                           {formatPrice(warrantyDetails.price)}
                         </div>
                       )}
@@ -3346,7 +3365,7 @@ export function MaterialsSelectionTab({
                 {/* Only show total for non-sales reps */}
                 {effectiveUserRole !== 'rep' && (
                   <div className="flex justify-between font-medium text-lg pt-2 border-t">
-                    <span>Total:</span>
+                    <span>{titleStyles}:</span>
                     <span>{formatPrice(calculateEstimateTotal())}</span>
                   </div>
                 )}

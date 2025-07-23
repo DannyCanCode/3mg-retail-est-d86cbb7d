@@ -7,20 +7,22 @@ import { Badge } from "@/components/ui/badge";
 interface WarrantySelectorProps {
   selectedPackage: string | null;
   selectedWarranty: string | null;
-  onWarrantySelect: (warrantyId: string | null) => void;
+  onWarrantySelect: (warrantyType: string | null) => void;
   onPeelStickPriceUpdate?: (price: string) => void;
   isPeelStickSelected?: boolean;
   onPeelStickToggle?: (selected: boolean) => void;
+  isDarkTheme?: boolean;
 }
 
-const WarrantySelector = ({ 
+export const WarrantySelector: React.FC<WarrantySelectorProps> = ({ 
   selectedPackage, 
   selectedWarranty, 
   onWarrantySelect,
   onPeelStickPriceUpdate,
   isPeelStickSelected = false,
   onPeelStickToggle,
-}: WarrantySelectorProps) => {
+  isDarkTheme = true
+}) => {
   
   const isGoldPledgeAvailable = selectedPackage === 'gaf-2' || selectedPackage === '3mg-2';
   
@@ -58,17 +60,21 @@ const WarrantySelector = ({
   };
 
   return (
-    <div className="bg-gray-800/30 backdrop-blur-xl p-3 rounded-md border border-green-600/20">
-      <h3 className="text-base font-medium mb-2 text-white">GAF Warranty Options</h3>
-      <p className="text-xs text-gray-400 mb-2">Click a warranty to select it (automatically switches between options)</p>
+    <div className={isDarkTheme ? "bg-gray-800/30 backdrop-blur-xl p-3 rounded-md border border-green-600/20" : "bg-white p-3 rounded-md border shadow-sm"}>
+      <h3 className={`text-base font-medium mb-2 ${isDarkTheme ? 'text-white' : 'text-gray-900'}`}>GAF Warranty Options</h3>
+      <p className={`text-xs mb-2 ${isDarkTheme ? 'text-gray-400' : 'text-gray-600'}`}>Click a warranty to select it (automatically switches between options)</p>
       
       <div className="flex flex-col md:grid md:grid-cols-2 gap-3 mb-3">
         {/* Silver Pledge Option */}
         <div 
           className={`border p-2.5 rounded-md cursor-pointer transition-all duration-200 ${
             selectedWarranty === 'silver-pledge' 
-              ? 'border-green-500 bg-gradient-to-br from-green-600/30 to-emerald-600/30 shadow-lg shadow-green-500/25' 
-              : 'border-gray-600/50 bg-gray-700/40 hover:bg-gray-700/60 hover:border-green-600/50'
+              ? isDarkTheme 
+                ? 'border-green-500 bg-gradient-to-br from-green-600/30 to-emerald-600/30 shadow-lg shadow-green-500/25' 
+                : 'border-blue-500 bg-blue-50'
+              : isDarkTheme
+                ? 'border-gray-600/50 bg-gray-700/40 hover:bg-gray-700/60 hover:border-green-600/50'
+                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
           }`}
           onClick={() => handleWarrantyClick('silver-pledge')}
         >
@@ -89,8 +95,12 @@ const WarrantySelector = ({
         <div 
           className={`border p-2.5 rounded-md transition-all duration-200 ${!isGoldPledgeAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${
             selectedWarranty === 'gold-pledge' 
-              ? 'border-green-500 bg-gradient-to-br from-green-600/30 to-emerald-600/30 shadow-lg shadow-green-500/25' 
-              : 'border-gray-600/50 bg-gray-700/40 hover:bg-gray-700/60 hover:border-green-600/50'
+              ? isDarkTheme
+                ? 'border-green-500 bg-gradient-to-br from-green-600/30 to-emerald-600/30 shadow-lg shadow-green-500/25' 
+                : 'border-blue-500 bg-blue-50'
+              : isDarkTheme
+                ? 'border-gray-600/50 bg-gray-700/40 hover:bg-gray-700/60 hover:border-green-600/50'
+                : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
           }`}
           onClick={() => handleWarrantyClick('gold-pledge')}
         >
@@ -122,6 +132,4 @@ const WarrantySelector = ({
       )}
     </div>
   );
-};
-
-export default WarrantySelector; 
+}; 
