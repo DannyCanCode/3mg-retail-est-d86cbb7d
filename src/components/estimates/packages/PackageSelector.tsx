@@ -223,64 +223,101 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           
           {/* Sub-Options */}
           {show3mgStandardOptions && (
-            <div className="ml-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* OC Option */}
-              <div 
-                className={`relative rounded-lg p-4 cursor-pointer transition-all duration-200 border ${
-                  selectedPackage === '3mg-standard-oc' 
-                    ? 'bg-orange-50 border-orange-400 shadow-md ring-1 ring-orange-200' 
-                    : 'bg-white hover:bg-orange-25 border-gray-200 hover:border-orange-300'
-                }`}
-                onClick={() => onPackageSelect('3mg-standard-oc')}
-              >
-                {selectedPackage === '3mg-standard-oc' && (
-                  <div className="absolute -top-1.5 -right-1.5 bg-orange-500 rounded-full p-1">
-                    <Check className="h-3 w-3 text-white" />
-                  </div>
-                )}
-                
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <span className="text-orange-600 font-bold text-sm">OC</span>
+            <div className="ml-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* OC Option */}
+                <div 
+                  className={`relative rounded-lg p-4 cursor-pointer transition-all duration-200 border ${
+                    selectedPackage === '3mg-standard-oc' 
+                      ? 'bg-orange-50 border-orange-400 shadow-md ring-1 ring-orange-200' 
+                      : 'bg-white hover:bg-orange-25 border-gray-200 hover:border-orange-300'
+                  }`}
+                  onClick={() => onPackageSelect('3mg-standard-oc')}
+                >
+                  {selectedPackage === '3mg-standard-oc' && (
+                    <div className="absolute -top-1.5 -right-1.5 bg-orange-500 rounded-full p-1">
+                      <Check className="h-3 w-3 text-white" />
                     </div>
-                    <h5 className="font-semibold text-sm text-gray-900">Owens Corning</h5>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+                        <span className="text-orange-600 font-bold text-sm">OC</span>
+                      </div>
+                      <h5 className="font-semibold text-sm text-gray-900">Owens Corning</h5>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      Oakridge Shingles + Proedge Hip & Ridge + Polyglass IRXE Valleys
+                    </p>
+                    <div className="text-xs text-orange-600 font-medium">Click to Select</div>
                   </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    Oakridge Shingles + Proedge Hip & Ridge + Polyglass IRXE Valleys
-                  </p>
-                  <div className="text-xs text-orange-600 font-medium">Click to Select</div>
+                </div>
+                
+                {/* GAF Option */}
+                <div 
+                  className={`relative rounded-lg p-4 cursor-pointer transition-all duration-200 border ${
+                    selectedPackage === '3mg-standard-gaf' 
+                      ? 'bg-blue-50 border-blue-400 shadow-md ring-1 ring-blue-200' 
+                      : 'bg-white hover:bg-blue-25 border-gray-200 hover:border-blue-300'
+                  }`}
+                  onClick={() => onPackageSelect('3mg-standard-gaf')}
+                >
+                  {selectedPackage === '3mg-standard-gaf' && (
+                    <div className="absolute -top-1.5 -right-1.5 bg-blue-500 rounded-full p-1">
+                      <Check className="h-3 w-3 text-white" />
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <span className="text-blue-600 font-bold text-sm">GAF</span>
+                      </div>
+                      <h5 className="font-semibold text-sm text-gray-900">GAF Materials</h5>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                      Timberline HDZ + ProStart Starter + Polyglass IRXE Valleys
+                    </p>
+                    <div className="text-xs text-blue-600 font-medium">Click to Select</div>
+                  </div>
                 </div>
               </div>
               
-              {/* GAF Option */}
-              <div 
-                className={`relative rounded-lg p-4 cursor-pointer transition-all duration-200 border ${
-                  selectedPackage === '3mg-standard-gaf' 
-                    ? 'bg-blue-50 border-blue-400 shadow-md ring-1 ring-blue-200' 
-                    : 'bg-white hover:bg-blue-25 border-gray-200 hover:border-blue-300'
-                }`}
-                onClick={() => onPackageSelect('3mg-standard-gaf')}
-              >
-                {selectedPackage === '3mg-standard-gaf' && (
-                  <div className="absolute -top-1.5 -right-1.5 bg-blue-500 rounded-full p-1">
-                    <Check className="h-3 w-3 text-white" />
+              {/* 3MG Standard Package Details - Show when sub-option is selected */}
+              {is3mgStandardSelected && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Package className="h-4 w-4 text-blue-600" />
+                    <p className="font-medium text-gray-800">
+                      {selectedPackage === '3mg-standard-oc' ? '3MG Standard (OC) Materials:' : '3MG Standard (GAF) Materials:'}
+                    </p>
                   </div>
-                )}
-                
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <span className="text-blue-600 font-bold text-sm">GAF</span>
-                    </div>
-                    <h5 className="font-semibold text-sm text-gray-900">GAF Materials</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+                    <ul className="text-sm text-gray-600 space-y-1">
+                      {selectedPackage === '3mg-standard-oc' ? (
+                        <>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>Owens Corning Oakridge Shingles</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>OC Proedge Hip & Ridge</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>OC Starter Strip Plus</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>MaxFelt Synthetic Underlayment</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>Polyglass IRXE (Valleys)</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-green-600 rounded-full"></div>10 Year 3MG Workmanship Warranty</li>
+                        </>
+                      ) : (
+                        <>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>GAF Timberline HDZ Shingles</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>GAF ProStart Starter Strip</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>GAF Seal-A-Ridge</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>ABC Pro Guard 20 Underlayment</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>Polyglass IRXE (Valleys)</li>
+                          <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-green-600 rounded-full"></div>10 Year 3MG Workmanship Warranty</li>
+                        </>
+                      )}
+                    </ul>
                   </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">
-                    Timberline HDZ + ProStart Starter + Polyglass IRXE Valleys
-                  </p>
-                  <div className="text-xs text-blue-600 font-medium">Click to Select</div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -340,16 +377,14 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
         </div>
       </div>
       
-      {/* Package Details */}
-      {selectedPackage && (
+      {/* Package Details - Only show for non-3MG Standard packages */}
+      {selectedPackage && !is3mgStandardSelected && (
         <div className="mt-6 p-4 bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl border border-gray-200">
           <div className="flex items-center gap-2 mb-3">
             <Package className="h-4 w-4 text-blue-600" />
             <p className="font-medium text-gray-800">
               {selectedPackage === 'gaf-1' ? 'GAF Package 1 Materials:' : 
                selectedPackage === 'gaf-2' ? 'GAF Package 2 Materials:' :
-               selectedPackage === '3mg-standard-oc' ? '3MG Standard (OC) Materials:' :
-               selectedPackage === '3mg-standard-gaf' ? '3MG Standard (GAF) Materials:' :
                selectedPackage === '3mg-select' ? '3MG Select Materials:' :
                'Package Materials:'}
             </p>
@@ -371,24 +406,6 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>GAF ProStart Starter Strip</li>
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>FeltBuster Synthetic Underlayment</li>
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>WeatherWatch Ice & Water Shield</li>
-                </>
-              ) : selectedPackage === '3mg-standard-oc' ? (
-                <>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>Owens Corning Oakridge Shingles</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>OC Proedge Hip & Ridge</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>OC Starter Strip Plus</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>MaxFelt Synthetic Underlayment</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>Polyglass IRXE (Valleys)</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-green-600 rounded-full"></div>10 Year 3MG Workmanship Warranty</li>
-                </>
-              ) : selectedPackage === '3mg-standard-gaf' ? (
-                <>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>GAF Timberline HDZ Shingles</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>GAF ProStart Starter Strip</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>GAF Seal-A-Ridge</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>ABC Pro Guard 20 Underlayment</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>Polyglass IRXE (Valleys)</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-green-600 rounded-full"></div>10 Year 3MG Workmanship Warranty</li>
                 </>
               ) : selectedPackage === '3mg-select' ? (
                 <>
