@@ -2598,21 +2598,56 @@ const Estimates = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-gray-50">
-      {/* Main Content - No animated background for admin/territory managers */}
+    <div className="relative min-h-screen bg-gray-900 text-white">
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900/40 via-green-900/20 to-emerald-900/15" />
+        
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-[1000px] h-[1000px] bg-green-500/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-emerald-500/15 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-green-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
+        </div>
+        
+        {[...Array(30)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-white rounded-full animate-twinkle"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 10}s`,
+              animationDuration: `${3 + Math.random() * 7}s`
+            }}
+          />
+        ))}
+        
+        <div 
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(34, 197, 94, 0.1) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(34, 197, 94, 0.1) 1px, transparent 1px)
+            `,
+            backgroundSize: '50px 50px'
+          }}
+        />
+      </div>
+
+      {/* Main Content */}
       <div className="relative z-10">
-        <Card className="bg-white shadow-sm">
-          <CardHeader className="border-b">
+        <Card className="bg-gray-800/50 backdrop-blur-xl border-green-700/30">
+          <CardHeader className="border-b border-green-700/30">
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-2xl font-bold text-gray-900">
+                <CardTitle className="text-2xl font-bold text-white">
                   {isViewMode ? (
                     <>View Estimate</>
                   ) : (
                     <>Create New Estimate</>
                   )}
                 </CardTitle>
-                <CardDescription className="text-gray-600">
+                <CardDescription className="text-gray-400">
                   {isViewMode ? (
                     "Review the details of this estimate"
                   ) : (
@@ -2632,7 +2667,7 @@ const Estimates = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => setIsViewMode(true)}
-                      className="text-gray-600 hover:text-gray-900 border-gray-300"
+                      className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
                     >
                       <EyeOff className="h-4 w-4 mr-2" />
                       View Mode
@@ -2642,7 +2677,7 @@ const Estimates = () => {
                     variant="outline"
                     size="sm"
                     onClick={() => navigate('/estimates')}
-                    className="text-gray-600 hover:text-gray-900 border-gray-300"
+                    className="bg-gray-700/50 hover:bg-gray-700/70 text-green-400 border-green-600/30"
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Back to Estimates
@@ -2702,13 +2737,13 @@ const Estimates = () => {
                 className="w-full"
                 defaultValue={isViewMode ? "summary" : "type-selection"}
               >
-                <TabsList className={`grid ${isViewMode ? 'grid-cols-4' : 'grid-cols-6'} mb-8 bg-gray-100 p-1 rounded-lg shadow-sm`}>
+                <TabsList className={`grid ${isViewMode ? 'grid-cols-4' : 'grid-cols-6'} mb-8 bg-gray-800/70 backdrop-blur-md p-1 rounded-2xl shadow-xl border border-green-700/30`}>
                   {!isViewMode && (
                     <TabsTrigger 
                       id="tab-trigger-type-selection"
                       value="type-selection" 
                       disabled={false}
-                      className="text-gray-700 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 transition-all duration-300 disabled:opacity-50"
+                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300"
                     >
                       1. Estimate Type
                     </TabsTrigger>
@@ -2718,7 +2753,7 @@ const Estimates = () => {
                       id="tab-trigger-upload"
                       value="upload" 
                       disabled={!estimateType}
-                      className="text-gray-700 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 transition-all duration-300 disabled:opacity-50"
+                      className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                     >
                       2. Upload EagleView
                     </TabsTrigger>
@@ -2727,7 +2762,7 @@ const Estimates = () => {
                     id="tab-trigger-measurements"
                     value="measurements" 
                     disabled={!isViewMode && !extractedPdfData && !measurements}
-                    className="text-gray-700 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 transition-all duration-300 disabled:opacity-50"
+                    className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                   >
                     {isViewMode ? "Measurements" : "3. Review Measurements"}
                   </TabsTrigger>
@@ -2735,7 +2770,7 @@ const Estimates = () => {
                     id="tab-trigger-materials"
                     value="materials" 
                     disabled={!isViewMode && !measurements}
-                    className="text-gray-700 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 transition-all duration-300 disabled:opacity-50"
+                    className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                   >
                     {isViewMode ? "Materials" : "4. Select Packages"}
                   </TabsTrigger>
@@ -2743,7 +2778,7 @@ const Estimates = () => {
                     id="tab-trigger-pricing"
                     value="pricing" 
                     disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
-                    className="text-gray-700 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 transition-all duration-300 disabled:opacity-50"
+                    className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                   >
                     {isViewMode ? "Project Details" : "5. Project Details"}
                   </TabsTrigger>
@@ -2751,7 +2786,7 @@ const Estimates = () => {
                     id="tab-trigger-summary"
                     value="summary" 
                     disabled={!isViewMode && (!measurements || Object.keys(selectedMaterials).length === 0)}
-                    className="text-gray-700 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-blue-600 transition-all duration-300 disabled:opacity-50"
+                    className="text-gray-300 data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:text-white transition-all duration-300 disabled:opacity-50"
                   >
                     {isViewMode ? "Summary" : "6. Summary"}
                   </TabsTrigger>
@@ -2826,10 +2861,13 @@ const Estimates = () => {
                 )}
 
                 <TabsContent value="type-selection">
-                  <div>
-                    <EstimateTypeSelector 
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-600/10 to-emerald-600/10 rounded-3xl blur-xl" />
+                    <div className="relative">
+                      <EstimateTypeSelector 
                         onSelectionComplete={handleEstimateTypeSelection}
                       />
+                    </div>
                   </div>
                 </TabsContent>
 
@@ -2837,10 +2875,10 @@ const Estimates = () => {
                   {/* Show different UI if measurements already exist */}
                   {measurements && extractedPdfData ? (
                     <div className="space-y-6">
-                      <Card>
+                      <Card className="bg-gray-800/30 backdrop-blur-xl border-green-600/20">
                         <CardHeader>
-                          <CardTitle>Measurements Already Loaded</CardTitle>
-                          <CardDescription>
+                          <CardTitle className="text-white">Measurements Already Loaded</CardTitle>
+                          <CardDescription className="text-gray-400">
                             You have already uploaded and processed measurements for this estimate.
                           </CardDescription>
                         </CardHeader>
