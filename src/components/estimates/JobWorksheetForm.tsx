@@ -590,6 +590,35 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                 </div>
               </div>
 
+              {/* Ridge Vent Linear Feet */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="ridgeVentLF">Ridge Vent (Linear Feet)</Label>
+                  <Input
+                    id="ridgeVentLF"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={formData.ventilation.ridge_vents_lf || ''}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '');
+                      updateField('ventilation', 'ridge_vents_lf', parseInt(value) || 0);
+                    }}
+                    onFocus={(e) => {
+                      e.target.select();
+                    }}
+                    placeholder="Enter linear feet"
+                    disabled={readOnly}
+                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <div className="text-sm text-muted-foreground">
+                    Linear feet of ridge that needs ridge vent coverage
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>2ft Off Ridge Vents (Lomanco 750D Vent)</Label>
