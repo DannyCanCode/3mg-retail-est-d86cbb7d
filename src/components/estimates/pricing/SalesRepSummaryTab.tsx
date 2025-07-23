@@ -782,6 +782,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       saveAs(blob, fileName);
       
       console.log('PDF generated successfully');
+      return blob; // Return the blob for SignNow integration
     } catch (error) {
       console.error('Error generating PDF:', error);
     } finally {
@@ -1400,22 +1401,61 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
                        
                        try {
                          toast({
-                           title: "Generating PDF...",
+                           title: "🚀 Sending for Signature...",
                            description: `Preparing estimate for ${customerEmail}`,
                          });
                          
-                         // Generate PDF (current function doesn't return blob, so call directly)
-                         await generatePDF();
+                         // Generate PDF and get the blob for SignNow
+                         const pdfBlob = await generatePDF();
                          
-                         toast({
-                           title: "PDF Generated!",
-                           description: "SignNow email integration coming soon. PDF downloaded for now.",
-                         });
+                                                   // Create file object for SignNow API
+                          const pdfFile = new File([pdfBlob], `3MG-Estimate-${customerInfo?.name?.replace(/[^a-z0-9]/gi, '-') || 'Draft'}.pdf`, {
+                            type: 'application/pdf'
+                          });
+                         
+                         // Try SignNow integration
+                         try {
+                           console.log('🚀 Attempting SignNow API integration...');
+                           
+                           // Dynamic import to avoid build issues if SignNow not ready
+                           const { sendEstimateForSignature } = await import('@/lib/signnow-api');
+                           
+                           // Generate temporary estimate ID
+                           const tempEstimateId = `estimate-${Date.now()}`;
+                           
+                           // Send via SignNow
+                           await sendEstimateForSignature(tempEstimateId, pdfFile, customerEmail);
+                           
+                           toast({
+                             title: "📧 Signature Request Sent!",
+                             description: `Email sent to ${customerEmail} via SignNow with signing instructions.`,
+                           });
+                           
+                         } catch (signNowError) {
+                           console.warn('⚠️ SignNow API not ready, using manual fallback:', signNowError);
+                           
+                                                       // Download PDF as fallback
+                            const filename = `3MG-Estimate-${customerInfo?.name?.replace(/[^a-z0-9]/gi, '-') || 'Draft'}-${new Date().toISOString().split('T')[0]}.pdf`;
+                           const url = URL.createObjectURL(pdfBlob);
+                           const a = document.createElement('a');
+                           a.href = url;
+                           a.download = filename;
+                           document.body.appendChild(a);
+                           a.click();
+                           document.body.removeChild(a);
+                           URL.revokeObjectURL(url);
+                           
+                           toast({
+                             title: "📄 PDF Downloaded",
+                             description: `Please manually email to ${customerEmail}. Auto-send feature coming soon!`,
+                           });
+                         }
+                         
                        } catch (error) {
-                         console.error('Error generating PDF:', error);
+                         console.error('❌ Error with signature process:', error);
                          toast({
                            title: "Error",
-                           description: "Failed to generate PDF. Please try again.",
+                           description: "Failed to process signature request. Please try again.",
                            variant: "destructive"
                          });
                        }
