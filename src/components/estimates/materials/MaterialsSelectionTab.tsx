@@ -1423,16 +1423,16 @@ export function MaterialsSelectionTab({
         { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
       ],
       "OC 1": [
-        { id: "oc-oakridge-shingles", description: "OC Oakridge Shingles" },
-        { id: "oc-proedge-starter-shingle", description: "OC ProEdge Starter Shingle" },
-        { id: "oc-proshield-ice-water-protector", description: "OC ProShield Ice & Water Protector" },
+        { id: "oc-oakridge", description: "OC Oakridge Shingles" },
+        { id: "oc-starter", description: "OC Starter" },
+        { id: "oc-hip-ridge", description: "OC Hip & Ridge" },
         { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" }
       ],
       "OC 2": [
-        { id: "oc-duration-shingles", description: "OC Duration Shingles" },
-        { id: "oc-proedge-starter-shingle", description: "OC ProEdge Starter Shingle" },
-        { id: "oc-proshield-ice-water-protector", description: "OC ProShield Ice & Water Protector" },
-        { id: "oc-prodeck-synthetic-underlayment", description: "OC ProDeck Synthetic Underlayment" }
+        { id: "oc-duration", description: "OC Duration Shingles" },
+        { id: "oc-starter", description: "OC Starter" },
+        { id: "oc-hip-ridge", description: "OC Hip & Ridge" },
+        { id: "maxfelt-nc", description: "MaxFelt NC Synthetic Underlayment" }
       ]
     };
 
@@ -2460,12 +2460,11 @@ export function MaterialsSelectionTab({
         "abc-electro-galvanized-coil-nails",
         "coil-nails-ring-shank",
         // OC Package Materials (3MG Standard - OC)
-        "oc-duration-shingles",
+        "oc-duration",
         "oc-oakridge",
-        "oc-proedge-hip-ridge", 
+        "oc-hip-ridge", 
         "oc-starter",
-        "oc-proedge-starter-shingle",
-        "polyglass-irxe-synthetic", // Used in both GAF and OC packages
+        "poly-glass-irxe", // Used in both GAF and OC packages
         // 3MG Select Materials
         "gaf-uhdz-shingles"
       ];
@@ -2544,12 +2543,11 @@ export function MaterialsSelectionTab({
               { id: "coil-nails-ring-shank", description: "Coil Nails - Ring Shank - 2 3/8\"x.113\" (5000 Cnt)" }
             ],
             "3MG Standard - OC": [
-              { id: "oc-duration", description: "Owens Corning Duration" },
-              { id: "oc-oakridge", description: "Owens Corning Oakridge" },
-              { id: "oc-proedge-hip-ridge", description: "Owens Corning Proedge Hip and Ridge" },
-              { id: "oc-starter-strip-plus", description: "Owens Corning Starter Strip Plus" },
+              { id: "oc-oakridge", description: "Owens Corning Oakridge" }, // FIXED: Only OC Oakridge, not Duration
+              { id: "oc-hip-ridge", description: "OC Hip & Ridge" }, // FIXED: Use existing material ID
+              { id: "oc-starter", description: "OC Starter" }, // FIXED: Use existing material ID
               { id: "maxfelt-nc", description: "MaxFelt Synthetic Underlayment" },
-              { id: "polyglass-irxe", description: "Polyglass IRXE (Valleys)" },
+              { id: "poly-glass-irxe", description: "Poly Glass IRXE (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
               { id: "cdx-plywood", description: "1/2\"x4'x8' CDX Plywood - 4-Ply" },
@@ -2562,7 +2560,7 @@ export function MaterialsSelectionTab({
               { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
               { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
               { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
-              { id: "polyglass-irxe", description: "Polyglass IRXE (Valleys)" },
+              { id: "poly-glass-irxe", description: "Poly Glass IRXE (Valleys)" },
               { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
@@ -2578,7 +2576,7 @@ export function MaterialsSelectionTab({
               { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
               { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge" },
               { id: "maxfelt-nc", description: "MaxFelt Synthetic Underlayment" },
-              { id: "polyglass-irxe", description: "Polyglass IRXE (Valleys)" },
+              { id: "poly-glass-irxe", description: "Poly Glass IRXE (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
@@ -2924,7 +2922,7 @@ export function MaterialsSelectionTab({
     const hasPackageMaterials = localSelectedMaterials['gaf-timberline-hdz-sg'] || 
                                localSelectedMaterials['gaf-prostart-starter-shingle-strip'] ||
                                localSelectedMaterials['gaf-seal-a-ridge'] ||
-                               localSelectedMaterials['oc-duration-shingles'] ||
+                               localSelectedMaterials['oc-duration'] ||
                                localSelectedMaterials['oc-oakridge'];
     
     if (hasPackageMaterials) {
