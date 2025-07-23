@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SignNow API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SignNow API Integration Test</h1>
+        
+        <div class="test-section">
+            <h2>1. Test API Connection</h2>
+            <p>Your API Key: <code>b4dd2c6f7962f82e4d8b69805d4500b93bff6e35f12530c6ee1420c3b3d86f91</code></p>
+            <button onclick="testConnection()">Test Connection</button>
+            <div id="connectionResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>2. Get Access Token</h2>
+            <p>Enter your SignNow credentials:</p>
+            <input type="email" id="username" placeholder="SignNow Email">
+            <input type="password" id="password" placeholder="SignNow Password">
+            <button onclick="getToken()">Get Token</button>
+            <div id="tokenResult" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>3. Create Test Document</h2>
+            <p>This will create a simple test document for signing</p>
+            <button onclick="createTestDoc()">Create Test Document</button>
+            <div id="docResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = 'b4dd2c6f7962f82e4d8b69805d4500b93bff6e35f12530c6ee1420c3b3d86f91';
+        const BASIC_TOKEN = 'MDZjYmE3YTZkMTVmNzBlNGQ1YWJlMDk2YzIyZGJmOWU6YTdkNjAwNWRhMzY1MzE5NWY5MWY1Y2EzZGI2MjVmYzQ=';
+        const BASE_URL = 'https://api.signnow.com';
+        let accessToken = '';
+
+        function showResult(elementId, content, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = content;
+            element.style.display = 'block';
+            element.className = isError ? 'result error' : 'result';
+        }
+
+        async function testConnection() {
+            try {
+                showResult('connectionResult', 'Testing connection to SignNow API...');
+                
+                // Test basic API endpoint
+                const response = await fetch(`${BASE_URL}/user`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`
+                    }
+                });
+
+                if (response.status === 401) {
+                    showResult('connectionResult', '✓ API Key is valid! Connection successful.\nNote: You need an access token for most operations.');
+                } else {
+                    showResult('connectionResult', `Response status: ${response.status}\nAPI is reachable.`);
+                }
+            } catch (error) {
+                showResult('connectionResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function getToken() {
+            try {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+
+                if (!username || !password) {
+                    showResult('tokenResult', 'Please enter both username and password', true);
+                    return;
+                }
+
+                showResult('tokenResult', 'Getting access token...');
+
+                const response = await fetch(`${BASE_URL}/oauth2/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Basic ${BASIC_TOKEN}`,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: new URLSearchParams({
+                        'grant_type': 'password',
+                        'username': username,
+                        'password': password
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    accessToken = data.access_token;
+                    showResult('tokenResult', `✓ Access token obtained successfully!\nToken: ${accessToken.substring(0, 20)}...\nExpires in: ${data.expires_in} seconds`);
+                } else {
+                    showResult('tokenResult', `Error: ${JSON.stringify(data, null, 2)}`, true);
+                }
+            } catch (error) {
+                showResult('tokenResult', `Error: ${error.message}`, true);
+            }
+        }
+
+        async function createTestDoc() {
+            if (!accessToken) {
+                showResult('docResult', 'Please get an access token first!', true);
+                return;
+            }
+
+            try {
+                showResult('docResult', 'Creating test document...');
+
+                // Create a simple text file
+                const content = `
+ROOFING ESTIMATE TEST DOCUMENT
+Date: ${new Date().toLocaleDateString()}
+
+Customer: Test Customer
+Address: 123 Test Street
+
+Total Estimate: $5,000
+
+Please sign below to approve this estimate.
+
+_______________________________
+Customer Signature
+                `;
+
+                const blob = new Blob([content], { type: 'text/plain' });
+                const formData = new FormData();
+                formData.append('file', blob, 'test-estimate.txt');
+
+                const response = await fetch(`${BASE_URL}/document`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showResult('docResult', `✓ Document created successfully!\nDocument ID: ${data.id}\nDocument Name: ${data.document_name || 'test-estimate.txt'}`);
+                } else {
+                    showResult('docResult', `Error: ${JSON.stringify(data, null, 2)}`, true);
+                }
+            } catch (error) {
+                showResult('docResult', `Error: ${error.message}`, true);
+            }
+        }
+    </script>
+</body>
+</html> 
