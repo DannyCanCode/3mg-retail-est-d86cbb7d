@@ -1031,7 +1031,36 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
           Back to Project Details
         </Button>
         
-        {/* Sales reps (project managers) don't need approval - button removed */}
+        <div className="flex gap-3">
+          {/* Submit for Manager Approval */}
+          <Button
+            onClick={onSubmit}
+            disabled={isSubmitting}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-lg shadow-green-500/25"
+          >
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                Submitting...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Submit for Manager Approval
+              </>
+            )}
+          </Button>
+          
+          {/* Send for Signature - will be enabled after approval */}
+          <Button
+            disabled={true} // Will be enabled after manager approval
+            className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg shadow-blue-500/25 opacity-50 cursor-not-allowed"
+            title="Submit for manager approval first"
+          >
+            <Send className="h-4 w-4 mr-2" />
+            Send for Signature
+          </Button>
+        </div>
       </div>
       </>
       )}
