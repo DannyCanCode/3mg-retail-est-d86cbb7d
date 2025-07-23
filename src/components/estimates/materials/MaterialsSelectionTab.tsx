@@ -335,11 +335,9 @@ export function MaterialsSelectionTab({
         count: ventilationData.ridge_vents_lf ? Math.ceil(Number(ventilationData.ridge_vents_lf) / 20) : 0 // 20 LF per bundle
       },
       
-      // Off Ridge Vents (map all sizes to 4ft as it's the only available)
-      'off_ridge_2ft': { materialId: 'galvanized-steel-off-ridge-vent', count: Number(ventilationData.off_ridge_vents?.['2_ft']) || 0 },
-      'off_ridge_4ft': { materialId: 'galvanized-steel-off-ridge-vent', count: Number(ventilationData.off_ridge_vents?.['4_ft']) || 0 },
-      'off_ridge_6ft': { materialId: 'galvanized-steel-off-ridge-vent', count: Number(ventilationData.off_ridge_vents?.['6_ft']) || 0 },
-      'off_ridge_8ft': { materialId: 'galvanized-steel-off-ridge-vent', count: Number(ventilationData.off_ridge_vents?.['8_ft']) || 0 }
+      // Off Ridge Vents 
+      'off_ridge_2ft': { materialId: 'lomanco-750d-vent', count: Number(ventilationData.off_ridge_vents?.['2_ft']) || 0 },
+      'off_ridge_4ft': { materialId: 'galvanized-steel-off-ridge-vent', count: Number(ventilationData.off_ridge_vents?.['4_ft']) || 0 }
     };
 
     console.log('🔧 [Ventilation] Processing ventilation mapping...');

@@ -65,14 +65,16 @@ interface JobWorksheetData {
     off_ridge_vents: {
       '2_ft': number;
       '4_ft': number;
-      '6_ft': number;
-      '8_ft': number;
     };
   };
   accessories: {
     skylight: {
       count_2x2: number;
       count_2x4: number;
+    };
+    solar_attic_fans: {
+      kennedy_35w: number;
+      attic_breeze_45w: number;
     };
   };
   gutters: {
@@ -88,6 +90,10 @@ interface JobWorksheetData {
     };
     detach_reset_gutters: boolean;
     detach_reset_gutter_lf: number;
+    leaf_guards: {
+      install: boolean;
+      linear_feet: number;
+    };
   };
   solar: {
     existing: boolean;
@@ -179,8 +185,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
       off_ridge_vents: {
         '2_ft': 0,
         '4_ft': 0,
-        '6_ft': 0,
-        '8_ft': 0,
         ...initialData?.ventilation?.off_ridge_vents
       }
     },
@@ -189,6 +193,11 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
         count_2x2: 0,
         count_2x4: 0,
         ...initialData?.accessories?.skylight
+      },
+      solar_attic_fans: {
+        kennedy_35w: 0,
+        attic_breeze_45w: 0,
+        ...initialData?.accessories?.solar_attic_fans
       }
     },
     gutters: {
@@ -205,6 +214,11 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
       },
       detach_reset_gutters: false,
       detach_reset_gutter_lf: 0,
+      leaf_guards: {
+        install: false,
+        linear_feet: 0,
+        ...initialData?.gutters?.leaf_guards
+      },
       ...initialData?.gutters
     },
     solar: {
@@ -578,7 +592,7 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Off Ridge Vents (2ft)</Label>
+                  <Label>2ft Off Ridge Vents (Lomanco 750D Vent)</Label>
                   <Select
                     value={formData.ventilation.off_ridge_vents['2_ft']?.toString() || "0"}
                     onValueChange={(value) => updateField('ventilation', 'off_ridge_vents', { ...formData.ventilation.off_ridge_vents, '2_ft': parseInt(value) || 0 })}
@@ -608,54 +622,6 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     disabled={readOnly}
                   >
                     <SelectTrigger id="offRidgeVents4ft">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Off Ridge Vents (6ft)</Label>
-                  <Select
-                    value={formData.ventilation.off_ridge_vents['6_ft']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'off_ridge_vents', { ...formData.ventilation.off_ridge_vents, '6_ft': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="offRidgeVents6ft">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Off Ridge Vents (8ft)</Label>
-                  <Select
-                    value={formData.ventilation.off_ridge_vents['8_ft']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'off_ridge_vents', { ...formData.ventilation.off_ridge_vents, '8_ft': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="offRidgeVents8ft">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -760,6 +726,87 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                     </Select>
                   </div>
                 )}
+              </div>
+
+              {/* Solar Attic Fans Section */}
+              <div className="pt-6 border-t">
+                <h4 className="text-lg font-semibold mb-4">Solar Attic Fans</h4>
+                
+                {/* Kennedy 35W Solar Fan */}
+                <div className="flex items-center space-x-4">
+                  <Checkbox
+                    id="kennedySolarFan35w"
+                    checked={formData.accessories.solar_attic_fans.kennedy_35w > 0}
+                    onCheckedChange={(checked) => {
+                      if (!checked) {
+                        updateField('accessories', 'solar_attic_fans', { ...formData.accessories.solar_attic_fans, kennedy_35w: 0 });
+                      } else {
+                        updateField('accessories', 'solar_attic_fans', { ...formData.accessories.solar_attic_fans, kennedy_35w: 1 });
+                      }
+                    }}
+                    disabled={readOnly}
+                  />
+                  <Label htmlFor="kennedySolarFan35w" className="flex-1">
+                    Kennedy Roof Mount Solar Attic Fan - 35W {effectiveUserRole !== 'rep' && '($550.00 per unit)'}
+                  </Label>
+                  {formData.accessories.solar_attic_fans.kennedy_35w > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm text-muted-foreground">Quantity:</Label>
+                      <Select
+                        value={formData.accessories.solar_attic_fans.kennedy_35w?.toString() || "1"}
+                        onValueChange={(value) => updateField('accessories', 'solar_attic_fans', { ...formData.accessories.solar_attic_fans, kennedy_35w: parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5, 6].map(num => (
+                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Attic Breeze 45W Solar Fan */}
+                <div className="flex items-center space-x-4 mt-4">
+                  <Checkbox
+                    id="atticBreezeSolarFan45w"
+                    checked={formData.accessories.solar_attic_fans.attic_breeze_45w > 0}
+                    onCheckedChange={(checked) => {
+                      if (!checked) {
+                        updateField('accessories', 'solar_attic_fans', { ...formData.accessories.solar_attic_fans, attic_breeze_45w: 0 });
+                      } else {
+                        updateField('accessories', 'solar_attic_fans', { ...formData.accessories.solar_attic_fans, attic_breeze_45w: 1 });
+                      }
+                    }}
+                    disabled={readOnly}
+                  />
+                  <Label htmlFor="atticBreezeSolarFan45w" className="flex-1">
+                    Attic Breeze Self Flashed Solar Attic Fan - 45W {effectiveUserRole !== 'rep' && '($725.00 per unit)'}
+                  </Label>
+                  {formData.accessories.solar_attic_fans.attic_breeze_45w > 0 && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm text-muted-foreground">Quantity:</Label>
+                      <Select
+                        value={formData.accessories.solar_attic_fans.attic_breeze_45w?.toString() || "1"}
+                        onValueChange={(value) => updateField('accessories', 'solar_attic_fans', { ...formData.accessories.solar_attic_fans, attic_breeze_45w: parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[1, 2, 3, 4, 5, 6].map(num => (
+                            <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -901,6 +948,50 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
                       placeholder="Enter quantity"
                       disabled={readOnly}
                       className="w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Gutter Leaf Guards */}
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <div className="text-sm font-medium">Gutter Leaf Guards</div>
+                    {effectiveUserRole !== 'rep' && <div className="text-sm text-muted-foreground">$7 per linear foot</div>}
+                  </div>
+                  <Switch
+                    id="installLeafGuards"
+                    checked={formData.gutters.leaf_guards.install}
+                    onCheckedChange={(checked) => {
+                      updateField('gutters', 'leaf_guards', { ...formData.gutters.leaf_guards, install: checked });
+                      if (!checked) {
+                        updateField('gutters', 'leaf_guards', { ...formData.gutters.leaf_guards, linear_feet: 0 });
+                      }
+                    }}
+                    disabled={readOnly}
+                  />
+                </div>
+                
+                {formData.gutters.leaf_guards.install && (
+                  <div className="mt-3 flex items-center gap-4">
+                    <Label className="text-sm">Linear Feet:</Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      value={formData.gutters.leaf_guards.linear_feet || ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '');
+                        updateField('gutters', 'leaf_guards', { ...formData.gutters.leaf_guards, linear_feet: parseInt(value) || 0 });
+                      }}
+                      onFocus={(e) => {
+                        // Select all text on focus for easy replacement
+                        e.target.select();
+                      }}
+                      placeholder="Enter linear feet"
+                      disabled={readOnly}
+                      className="w-32 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                   </div>
                 )}

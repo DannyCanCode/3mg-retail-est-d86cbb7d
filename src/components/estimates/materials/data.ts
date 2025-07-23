@@ -232,12 +232,12 @@ export const ROOFING_MATERIALS: Material[] = [
     coverageRule: { description: "4'/Piece", calculation: "Ridges LF / 4 rounded up" }
   },
    {
-    id: "galvanized-steel-off-ridge-vent",
-    name: "Galvanized Steel Off Ridge Vent (4') - w/ Diverter",
+    id: "lomanco-750d-vent",
+    name: "Lomanco 750D Vent (Turtle Vent)",
     category: MaterialCategory.VENTILATION,
-    price: 71.25,
+    price: 45.00,
     unit: "Piece",
-    coverageRule: { description: "4'/Piece", calculation: "Count needed based on ventilation requirements" }
+    coverageRule: { description: "1 per vent needed", calculation: "Count needed based on ventilation requirements" }
   },
   {
     id: "galvanized-gooseneck-4inch",
@@ -504,6 +504,32 @@ export const ROOFING_MATERIALS: Material[] = [
     price: 18.50,
     unit: "Piece",
     coverageRule: { description: "10'/Piece", calculation: "Soffit Length / 10 rounded up" }
+  },
+  // SOLAR ATTIC FANS
+  {
+    id: "kennedy-roof-mount-solar-fan-35w",
+    name: "Kennedy Roof Mount Solar Attic Fan - 35W",
+    category: MaterialCategory.ACCESSORIES,
+    price: 550.00,
+    unit: "Each",
+    coverageRule: { description: "1 per fan installation", calculation: "Count of solar attic fans needed" }
+  },
+  {
+    id: "attic-breeze-solar-fan-45w",
+    name: "Attic Breeze Self Flashed Solar Attic Fan - 45W",
+    category: MaterialCategory.ACCESSORIES,
+    price: 725.00,
+    unit: "Each",
+    coverageRule: { description: "1 per fan installation", calculation: "Count of solar attic fans needed" }
+  },
+  // GUTTER ACCESSORIES
+  {
+    id: "gutter-leaf-guards",
+    name: "Gutter Leaf Guards",
+    category: MaterialCategory.ACCESSORIES,
+    price: 7.00,
+    unit: "Linear Foot",
+    coverageRule: { description: "$7 per linear foot", calculation: "Gutter length in linear feet" }
   }
 ];
 
