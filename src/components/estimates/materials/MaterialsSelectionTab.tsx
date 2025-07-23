@@ -265,30 +265,18 @@ export function MaterialsSelectionTab({
     loadDbWastePercentages();
   }, []);
 
-  // Auto-select materials based on job worksheet data
+  // CRITICAL FIX: Only auto-select warranty from job worksheet, not materials
+  // Materials should only auto-populate when user explicitly selects a package
   useEffect(() => {
     if (jobWorksheet && jobWorksheet.shingle_roof) {
-      const { manufacturer, color, warranty_gaf } = jobWorksheet.shingle_roof;
+      const { warranty_gaf } = jobWorksheet.shingle_roof;
       
-      // If GAF is selected and we have a color, select the GAF Timberline HDZ shingle
-      if (manufacturer === 'GAF' && color && !localSelectedMaterials['gaf-timberline-hdz-sg']) {
-        const gafShingle = ROOFING_MATERIALS.find(m => m.id === 'gaf-timberline-hdz-sg');
-        
-        if (gafShingle) {
-          console.log('Auto-selecting GAF shingle based on job worksheet, color:', color);
-          // Create a copy with color in the name for display purposes
-          const shingleWithColor = {
-            ...gafShingle,
-            name: `${gafShingle.name} - ${color}`,
-            originalName: gafShingle.name,
-            selectedColor: color
-          };
-          addMaterial(shingleWithColor);
-        }
-      }
-
-      // Auto-select warranty based on GAF warranty selection
-      if (warranty_gaf === 'silver' || warranty_gaf === 'gold') {
+      // REMOVED: Auto-selection of GAF Timberline HDZ based on manufacturer
+      // This was causing unwanted material auto-population before package selection
+      // Now materials only populate when user explicitly selects a package
+      
+      // Only auto-select warranty based on GAF warranty selection (if package is selected)
+      if ((warranty_gaf === 'silver' || warranty_gaf === 'gold') && selectedPackage) {
         const warrantyValue = warranty_gaf === 'silver' ? 'silver-pledge' : 'gold-pledge';
         if (selectedWarranty !== warrantyValue) {
           console.log('Auto-selecting warranty based on job worksheet:', warranty_gaf);
@@ -296,7 +284,7 @@ export function MaterialsSelectionTab({
         }
       }
     }
-  }, [jobWorksheet]); // Only run when jobWorksheet changes, not on every render
+  }, [jobWorksheet, selectedPackage]); // Also depend on selectedPackage for warranty logic // Only run when jobWorksheet changes, not on every render
 
   // Auto-populate ventilation materials based on job worksheet ventilation data
   useEffect(() => {
