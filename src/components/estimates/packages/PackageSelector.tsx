@@ -32,9 +32,9 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
   
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-3 py-3">
         <Package className="h-5 w-5 text-green-400" />
-        <Badge variant="outline" className="text-sm font-medium bg-green-100/10 text-green-400 border-green-400/30">Choose One</Badge>
+        <Badge variant="outline" className="text-sm font-medium bg-green-100/10 text-green-400 border-green-400/30 px-3 py-1">Choose One</Badge>
       </div>
       
       {/* GAF Packages Section */}
