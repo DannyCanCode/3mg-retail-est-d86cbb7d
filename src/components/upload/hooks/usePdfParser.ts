@@ -633,7 +633,7 @@ export function usePdfParser() {
         for (const row of sortedRows) {
           const rowText = row.map(item => item.text).join(' ').trim();
           // Only log important rows, not every single row to improve performance
-          if (rowText.includes('Areas per Pitch') || rowText.match(/\d+\/12/) || rowText.includes('Area (sq ft)') || rowText.includes('%')) {
+          if (rowText.includes('Areas per Pitch') || rowText.match(/\d+\/\d+/) || rowText.includes('Area (sq ft)') || rowText.includes('%')) {
             console.log('Processing important row:', rowText);
           }
 
@@ -646,9 +646,9 @@ export function usePdfParser() {
           if (!inPitchSection) continue;
 
           // Look for pitch row (preserve original format)
-          if (!foundPitchRow && (rowText.match(/\d+\/12/) || rowText.match(/\d+:\d+/))) {
-            // Match both x/12 and x:12 formats
-            const pitchMatches = rowText.match(/(\d+\/12|\d+:\d+)/g);
+          if (!foundPitchRow && (rowText.match(/\d+\/\d+/) || rowText.match(/\d+:\d+/))) {
+            // Match both x/12 and x:12 formats, including all pitch variations
+            const pitchMatches = rowText.match(/(\d+\/\d+|\d+:\d+)/g);
             if (pitchMatches) {
               // Store pitches in their original format without adding redundant "/12" or ":12"
               pitches.push(...pitchMatches);
@@ -660,9 +660,11 @@ export function usePdfParser() {
           
           // Look for area row (contains numbers with possible commas and decimals)
           if (foundPitchRow && !foundAreaRow && rowText.includes('Area (sq ft)')) {
-            const areaMatches = rowText.match(/\d+\.?\d*/g);
+            // Match numbers with optional commas and decimals (e.g., 3,180.9 or 207.6)
+            const areaMatches = rowText.match(/[\d,]+\.?\d*/g);
             if (areaMatches) {
-              areas.push(...areaMatches.map(Number));
+              // Remove commas before converting to numbers
+              areas.push(...areaMatches.map(match => Number(match.replace(/,/g, ''))));
               foundAreaRow = true;
               console.log('Found area row:', areas);
             }
