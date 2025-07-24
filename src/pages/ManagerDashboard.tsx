@@ -298,14 +298,15 @@ const ManagerDashboard: React.FC = () => {
 
       // 🏢 Territory-based colors for managers and reps
       switch (territoryName?.toLowerCase()) {
-        case 'tampa':
+        case 'southwest florida':
+        case 'tampa': // Keep for backward compatibility
           return {
             border: 'border-emerald-700/30',
             headerBg: 'bg-gradient-to-r from-emerald-900/20 to-emerald-800/20',
             titleColor: 'text-emerald-300',
             accentColor: 'text-emerald-400',
             badgeColors: 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50',
-            territoryLabel: 'Tampa'
+            territoryLabel: territoryName === 'tampa' ? 'Tampa' : 'Southwest Florida'
           };
         case 'north central florida':
           return {

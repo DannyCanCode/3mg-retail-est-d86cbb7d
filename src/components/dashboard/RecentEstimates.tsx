@@ -533,14 +533,15 @@ export function RecentEstimates() {
 
                   // 🏢 Territory-based colors for managers and reps
                   switch (territoryName?.toLowerCase()) {
-                    case 'tampa':
+                    case 'southwest florida':
+                    case 'tampa': // Keep for backward compatibility
                       return {
                         border: 'border-emerald-200',
                         headerBg: 'bg-gradient-to-r from-emerald-50 to-emerald-100',
                         titleColor: 'text-emerald-900',
                         accentColor: 'text-emerald-600',
                         badgeColors: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-                        territoryLabel: 'Tampa'
+                        territoryLabel: territoryName === 'tampa' ? 'Tampa' : 'Southwest Florida'
                       };
                     case 'north central florida':
                       return {

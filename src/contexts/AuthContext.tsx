@@ -196,7 +196,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           
                       // Known manager emails with their territory assignments
             const managerConfig = {
-              'josh.vanhorn@3mgroofing.com': 'tampa', // Tampa territory - will be resolved dynamically
+              'josh.vanhorn@3mgroofing.com': 'southwest-florida', // Southwest Florida territory - will be resolved dynamically
               'dmpearl@3mgroofing.com': 'south-florida', // South Florida territory - will be resolved dynamically
               'nickolas.nell@3mgroofing.com': 'southeast-florida', // Southeast Florida territory - will be resolved dynamically
               'harrison.cremata@3mgroofing.com': 'northeast-florida', // Northeast Florida territory - will be resolved dynamically
@@ -307,7 +307,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             
             // Known manager emails with their territory assignments
             const managerConfig = {
-              'josh.vanhorn@3mgroofing.com': 'tampa', // Tampa territory - will be resolved dynamically
+              'josh.vanhorn@3mgroofing.com': 'southwest-florida', // Southwest Florida territory - will be resolved dynamically
               'dmpearl@3mgroofing.com': 'south-florida', // South Florida territory - will be resolved dynamically
               'nickolas.nell@3mgroofing.com': 'southeast-florida', // Southeast Florida territory - will be resolved dynamically
               'harrison.cremata@3mgroofing.com': 'northeast-florida', // Northeast Florida territory - will be resolved dynamically
@@ -572,7 +572,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 ];
                 
                 const managerConfig = {
-                  'josh.vanhorn@3mgroofing.com': 'tampa', // Tampa territory - will be resolved dynamically
+                  'josh.vanhorn@3mgroofing.com': 'southwest-florida', // Southwest Florida territory - will be resolved dynamically
                   'dmpearl@3mgroofing.com': 'south-florida', // South Florida territory - will be resolved dynamically
                   'nickolas.nell@3mgroofing.com': 'southeast-florida', // Southeast Florida territory - will be resolved dynamically
                   'harrison.cremata@3mgroofing.com': 'northeast-florida', // Northeast Florida territory - will be resolved dynamically

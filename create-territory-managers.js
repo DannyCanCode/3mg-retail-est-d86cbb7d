@@ -20,8 +20,8 @@ const territoryManagers = [
   {
     email: 'Josh.VanHorn@3MGRoofing.com',
     fullName: 'Josh VanHorn',
-    territory: 'Tampa',
-    password: '3MGTampa2024!'
+    territory: 'Southwest Florida',
+    password: '3MGSouthwestFlorida2024!'
   },
   {
     email: 'Jacob.Kallhoff@3MGRoofing.com',

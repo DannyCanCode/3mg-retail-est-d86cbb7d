@@ -92,7 +92,7 @@ export const AdminEstimateManagement: React.FC = () => {
       const parsedEstimates = (data || []).map(estimate => ({
         ...estimate,
         // 🎨 TEMPORARY: Map creator names to territories for color coding
-        territory_name: estimate.creator_name?.toLowerCase().includes('josh') ? 'Tampa' :
+        territory_name: estimate.creator_name?.toLowerCase().includes('josh') ? 'Southwest Florida' :
                        estimate.creator_name?.toLowerCase().includes('jacob') ? 'North Central Florida' :
                        estimate.creator_name?.toLowerCase().includes('chase') || estimate.creator_name?.toLowerCase().includes('adam') ? 'Central Florida' :
                        estimate.creator_name?.toLowerCase().includes('pearl') ? 'South Florida' :
@@ -352,14 +352,15 @@ export const AdminEstimateManagement: React.FC = () => {
 
     // 🏢 Territory-based colors for managers and reps
     switch (territoryName?.toLowerCase()) {
-      case 'tampa':
+      case 'southwest florida':
+      case 'tampa': // Keep for backward compatibility
         return {
           border: 'border-emerald-200 hover:border-emerald-300',
           headerBg: 'bg-gradient-to-r from-emerald-50 to-emerald-100',
           titleColor: 'text-emerald-800',
           accentColor: 'text-emerald-600',
           badgeColors: 'border-emerald-200 text-emerald-700 bg-emerald-50',
-          territoryLabel: 'Tampa'
+          territoryLabel: territoryName === 'tampa' ? 'Tampa' : 'Southwest Florida'
         };
       case 'north central florida':
         return {
