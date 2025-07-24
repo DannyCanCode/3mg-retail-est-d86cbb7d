@@ -1558,7 +1558,7 @@ export function MaterialsSelectionTab({
         { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
         { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
         { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
-        { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+        { id: "gaf-weatherwatch-ice-water-shield", description: "GAF StormGuard Ice & Water Shield (Valleys)" },
         { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
         { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
@@ -1575,7 +1575,7 @@ export function MaterialsSelectionTab({
         { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
         { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
         { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" },
-        { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+        { id: "gaf-weatherwatch-ice-water-shield", description: "GAF StormGuard Ice & Water Shield (Valleys)" },
         { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
         { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
         { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
@@ -2678,7 +2678,7 @@ export function MaterialsSelectionTab({
               { id: "gaf-timberline-hdz-sg", description: "GAF Timberline HDZ SG (Shingles)" },
               { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
               { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
-              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF StormGuard Ice & Water Shield (Valleys)" },
               { id: "abc-pro-guard-20", description: "ABC Pro Guard 20 (Rhino Underlayment)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
@@ -2695,7 +2695,7 @@ export function MaterialsSelectionTab({
               { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
               { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge (Ridge Cap)" },
               { id: "gaf-feltbuster-synthetic-underlayment", description: "GAF FeltBuster Synthetic Underlayment" },
-              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF WeatherWatch Ice & Water Shield (Valleys)" },
+              { id: "gaf-weatherwatch-ice-water-shield", description: "GAF StormGuard Ice & Water Shield (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
@@ -3114,6 +3114,89 @@ export function MaterialsSelectionTab({
       }, 100);
     }
   }, [selectedPackage, measurements?.totalArea]); // Only trigger when package or measurements change
+
+  // Handle Full Peel and Stick selection
+  useEffect(() => {
+    if (!measurements || !selectedPackage) return;
+    
+    console.log('🔧 [Peel & Stick] Selection changed:', isPeelStickSelected);
+    
+    if (isPeelStickSelected) {
+      // Materials to remove when peel & stick is selected
+      const underlaymentMaterialsToRemove = [
+        'gaf-feltbuster-synthetic-underlayment',
+        'abc-pro-guard-20',
+        'max-usa-feltbuster-1000',
+        'poly-glass-irxe' // Remove valley material too
+      ];
+      
+      // Remove existing underlayments
+      const updatedMaterials = { ...localSelectedMaterials };
+      const updatedQuantities = { ...localQuantities };
+      const updatedDisplayQuantities = { ...displayQuantities };
+      const updatedWasteFactors = { ...materialWasteFactors };
+      const updatedOverrides = { ...userOverriddenWaste };
+      let updatedOrder = [...materialOrder];
+      
+      underlaymentMaterialsToRemove.forEach(materialId => {
+        if (updatedMaterials[materialId]) {
+          console.log(`🔧 [Peel & Stick] Removing ${materialId}`);
+          delete updatedMaterials[materialId];
+          delete updatedQuantities[materialId];
+          delete updatedDisplayQuantities[materialId];
+          delete updatedWasteFactors[materialId];
+          delete updatedOverrides[materialId];
+          updatedOrder = updatedOrder.filter(id => id !== materialId);
+        }
+      });
+      
+      // Add GAF StormGuard for steep slope area
+      const stormGuardMaterial = ROOFING_MATERIALS.find(m => m.id === 'gaf-weatherwatch-ice-water-shield');
+      if (stormGuardMaterial && measurements.areasByPitch) {
+        // Calculate steep slope area (everything above 2/12 pitch)
+        let steepSlopeArea = 0;
+        Object.entries(measurements.areasByPitch).forEach(([pitch, areaData]) => {
+          const pitchValue = parseInt(pitch.split('/')[0]);
+          if (pitchValue > 2) {
+            // areaData is an AreaByPitch object with an 'area' property
+            steepSlopeArea += (typeof areaData === 'number' ? areaData : areaData.area || 0);
+          }
+        });
+        
+        if (steepSlopeArea > 0) {
+          const steepSlopeSquares = steepSlopeArea / 100;
+          // StormGuard covers 1.5 squares per roll
+          const quantity = Math.ceil(steepSlopeSquares / 1.5);
+          
+          console.log(`🔧 [Peel & Stick] Adding GAF StormGuard: ${quantity} rolls for ${steepSlopeArea} sq ft steep slope`);
+          
+          updatedMaterials['gaf-weatherwatch-ice-water-shield'] = stormGuardMaterial;
+          updatedQuantities['gaf-weatherwatch-ice-water-shield'] = quantity;
+          updatedDisplayQuantities['gaf-weatherwatch-ice-water-shield'] = quantity.toString();
+          updatedWasteFactors['gaf-weatherwatch-ice-water-shield'] = 10; // 10% waste
+          updatedOverrides['gaf-weatherwatch-ice-water-shield'] = false;
+          
+          if (!updatedOrder.includes('gaf-weatherwatch-ice-water-shield')) {
+            updatedOrder.push('gaf-weatherwatch-ice-water-shield');
+          }
+        }
+      }
+      
+      // Update all states
+      setLocalSelectedMaterials(updatedMaterials);
+      setLocalQuantities(updatedQuantities);
+      setDisplayQuantities(updatedDisplayQuantities);
+      setMaterialWasteFactors(updatedWasteFactors);
+      setUserOverriddenWaste(updatedOverrides);
+      setMaterialOrder(updatedOrder);
+      
+      toast({
+        title: "Full Peel & Stick System Applied",
+        description: "Replaced underlayments with GAF StormGuard on all steep slope areas",
+        duration: 3000,
+      });
+    }
+  }, [isPeelStickSelected, measurements, selectedPackage]);
 
   // Main return structure
   return (

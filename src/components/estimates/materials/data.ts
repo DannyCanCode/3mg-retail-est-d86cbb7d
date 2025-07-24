@@ -92,7 +92,7 @@ export const ROOFING_MATERIALS: Material[] = [
   },
   {
     id: "gaf-weatherwatch-ice-water-shield",
-    name: "GAF WeatherWatch Ice & Water Shield",
+    name: "GAF StormGuard Ice & Water Shield",
     category: MaterialCategory.UNDERLAYMENTS,
     price: 101.11,
     unit: "Roll",
@@ -142,7 +142,7 @@ export const ROOFING_MATERIALS: Material[] = [
     price: 67.65,
     unit: "Roll",
     approxPerSquare: 33.83,
-    coverageRule: { description: "2 Squares/Roll (200 sq ft)", calculation: "Ceiling(Total Squares / 2)" } 
+    coverageRule: { description: "2 Squares/Roll (200 sq ft)", calculation: "Valley Length / 45 rounded up" } 
   },
   {
     id: "rhino-g-ps",

@@ -1378,7 +1378,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
                       <ol className="space-y-2 text-gray-700 ml-7" start={9}>
                         <li>9. Install GAF Timberline HDZ™ Shingles - America's #1 selling shingle</li>
                         <li>10. Install GAF Pro-Start™ Starter Strip Shingles for enhanced edge protection</li>
-                        <li>11. Install GAF WeatherWatch® Leak Barrier in critical areas</li>
+                        <li>11. Install GAF StormGuard® Leak Barrier in critical areas</li>
                         <li>12. Install GAF Roof Deck Protection underlayment system</li>
                         <li>13. Install GAF Cobra® Ridge Vents for optimal attic ventilation</li>
                         <li>14. Install all new pipe boots, flashings, and accessories to GAF specifications</li>

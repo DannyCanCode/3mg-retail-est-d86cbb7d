@@ -155,7 +155,23 @@ export const calculateMaterialQuantity = (
         const linearFeetPerRoll = 45.5; // As per existing special logic and UI string
         // Apply waste to the length of material needed
         quantity = Math.ceil((valleyLength * (1 + actualWasteFactor)) / linearFeetPerRoll);
-        console.log(`[CalcQuantity] GAF WeatherWatch: ValleyLength=${valleyLength}, Waste=${actualWasteFactor}, LF/Roll=${linearFeetPerRoll}, Qty=${quantity}`);
+        console.log(`[CalcQuantity] GAF StormGuard: ValleyLength=${valleyLength}, Waste=${actualWasteFactor}, LF/Roll=${linearFeetPerRoll}, Qty=${quantity}`);
+      } else {
+        quantity = 0;
+      }
+      // This path calculates quantity directly and should bypass the generic area-based calculation below.
+      console.log(`[CalcQuantity] Underlayment Result for ${material.id}: ${quantity}`);
+      // Return early as quantity is now finalized for this specific material
+      return { quantity: Math.max(0, Math.ceil(quantity)), actualWasteFactor };
+    } else if (material.id === "poly-glass-irxe") {
+      quantitySource = "valley length";
+      console.log(`[CalcQuantity] Underlayment ${material.id}: Calculating based on valley length.`);
+      const valleyLength = measurements.valleyLength || 0;
+      if (valleyLength > 0) {
+        const linearFeetPerRoll = 45; // 45 LF per roll as specified
+        // Apply waste to the length of material needed
+        quantity = Math.ceil((valleyLength * (1 + actualWasteFactor)) / linearFeetPerRoll);
+        console.log(`[CalcQuantity] Polyglass IRXE: ValleyLength=${valleyLength}, Waste=${actualWasteFactor}, LF/Roll=${linearFeetPerRoll}, Qty=${quantity}`);
       } else {
         quantity = 0;
       }
@@ -170,7 +186,7 @@ export const calculateMaterialQuantity = (
     }
 
     // This block is for underlayments calculated by AREA (like Rhino or general underlayments)
-    // It will be skipped if GAF WeatherWatch returned early.
+    // It will be skipped if GAF StormGuard or Polyglass IRXE returned early.
     console.log(`[CalcQuantity] Underlayment (${quantitySource}): Using Area=${calculationArea.toFixed(1)} sq ft`);
     
     if (calculationArea <= 0) {
@@ -178,12 +194,12 @@ export const calculateMaterialQuantity = (
     } else {
       const totalSquares = calculationArea / 100;
       // Default to 4 squares per roll if no specific coverage found, which is 400 sq ft.
-      // For GAF WeatherWatch, its description is "1.5 Squares/Roll (150 sq ft)"
+      // For GAF StormGuard, its description is "1.5 Squares/Roll (150 sq ft)"
       // extractCoverageValue would get 1.5 from description.
       const squaresPerRoll = material.coverageAmount || extractCoverageValue(material.coverageRule.description) || 4;
       console.log(`[CalcQuantity] Underlayment: Squares=${totalSquares.toFixed(2)}, Sq/Roll=${squaresPerRoll}`);
       // For underlayment, only apply waste if it's NOT abc-pro-guard-20 (Rhino) because Rhino already factors its specific area.
-      // GAF WeatherWatch also handles its own waste application in the block above.
+      // GAF StormGuard also handles its own waste application in the block above.
       const wasteToApply = (material.id === "abc-pro-guard-20" || material.id === "gaf-weatherwatch-ice-water-shield") ? 0 : actualWasteFactor;
       const finalSquares = totalSquares * (1 + wasteToApply);
       quantity = Math.ceil(finalSquares / squaresPerRoll);

@@ -91,7 +91,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
               
               {/* Quick preview */}
               <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">
-                HDZ Shingles, ProStart Starter, Seal-A-Ridge, WeatherWatch, Pro Guard 20
+                HDZ Shingles, ProStart Starter, Seal-A-Ridge, StormGuard, Pro Guard 20
               </div>
               
               {/* Warranty note */}
@@ -151,7 +151,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
               
               {/* Quick preview */}
               <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">
-                HDZ Shingles, FeltBuster Synthetic, Full WeatherWatch Protection
+                HDZ Shingles, FeltBuster Synthetic, Full StormGuard Protection
               </div>
               
               {/* Warranty note */}
@@ -429,7 +429,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>GAF ProStart Starter Strip</li>
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>GAF Timberline HDZ Shingles</li>
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>GAF Seal-A-Ridge</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>WeatherWatch (Valleys Only)</li>
+                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>StormGuard (Valleys Only)</li>
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>ABC Pro Guard 20</li>
                 </>
               ) : selectedPackage === 'gaf-2' ? (
@@ -438,7 +438,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>GAF Seal-A-Ridge (25')</li>
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>GAF ProStart Starter Strip</li>
                   <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>FeltBuster Synthetic Underlayment</li>
-                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>WeatherWatch Ice & Water Shield</li>
+                  <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>StormGuard Ice & Water Shield</li>
                 </>
               ) : selectedPackage === '3mg-select' ? (
                 <>
