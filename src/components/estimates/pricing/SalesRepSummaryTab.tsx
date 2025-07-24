@@ -59,6 +59,7 @@ interface SalesRepSummaryTabProps {
     price: number;
     calculation: string;
   } | null;
+  selectedPackage?: string | null; // Add selected package
 }
 
 export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
@@ -73,7 +74,8 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
   isSubmitting = false,
   customerInfo,
   jobWorksheet,
-  warrantyDetails
+  warrantyDetails,
+  selectedPackage
 }) => {
   const [showClientView, setShowClientView] = useState(false);
   const [showInternalView, setShowInternalView] = useState(true);
@@ -257,6 +259,22 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         return category;
     }
   };
+  
+  // Get scope title based on selected package
+  const getScopeTitle = (packageId: string | null | undefined) => {
+    switch(packageId) {
+      case 'gaf-1':
+        return 'Scope of Work - GAF Premium Package';
+      case 'gaf-2':
+        return 'Scope of Work - GAF Premium Package with Enhanced Protection';
+      case '3mg-standard-gaf':
+        return 'Scope of Work - 3MG Standard Package (GAF Materials)';
+      case '3mg-standard-oc':
+        return 'Scope of Work - 3MG Standard Package (Owens Corning Materials)';
+      default:
+        return 'Scope of Work';
+    }
+  };
 
   // Group materials by category
   const groupedMaterials = Object.entries(selectedMaterials).reduce((acc, [id, material]) => {
@@ -422,8 +440,8 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       
       y -= 20;
       
-      // Scope of Work section
-      page.drawText('Scope of Work', {
+      // Scope of Work section - Dynamic title based on package
+      page.drawText(getScopeTitle(selectedPackage), {
         x: 50,
         y: y,
         size: 16,
@@ -433,24 +451,89 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       
       y -= 25;
       
-      // Scope items
-      const scopeItems = [
-        "Set up perimeter protection for landscaping & property.",
-        "Ensure the property is kept as clean and organized as possible during the entirety of the project.",
-        "Ensure landscaping, screen enclosures, pools and exterior keepsakes are protected to the best of our ability.",
-        "Remove all current roofing materials and discard them into the strategically-staged dumpster on site.",
-        "Once all current roofing materials have been removed, we will inspect the entirety of the roof substrate/decking to ensure everything is in a strong structural state and suitable for the project.",
-        "If we encounter rotted / saturated wood areas, we will surgically extract those pieces and replace them with new (Like-kind). We will ensure that decking has been returned to a strong nail-able surface.",
-        "Once any necessary decking has been addressed, we will re-nail the entire surface every 6 inches to abide by and satisfy the strictly enforced new Florida Building Codes.",
-        "Wood decking will be inspected and replaced on a \"as-needed\" basis at the cost of $80.00 per sheet. All framing work (fascia / trim) will be replaced on a \"as-needed\" basis at the cost of $10.00 per linear foot.",
-        "Install 3MG premium roofing materials (color of your choice) to match exact product specifications and requirements for all-inclusive warranties also to abide by and satisfy the strictly enforced new Florida Building Codes.",
-        "Install underlayment system to match exact product specifications and requirements for all-inclusive warranties also to abide by and satisfy the strictly enforced new Florida Building Codes.",
-        "Install all new ventilation, pipes and attachments to match exact and current roof specifications.",
-        "*Maximizing your roof's ventilation is the most beneficial action that can be done to ensure your roof reaches full life expectancy. Please review/discuss with your Account Manager.",
-        "Provide 5 Year Limited Contractor's Warranty",
-        "Provide 25-Year Limited 3MG Warranty",
-        "Main Shingle Structure Only"
-      ];
+      // Get scope items based on selected package
+      const getScopeItemsForPackage = (packageId: string | null | undefined) => {
+        const baseItems = [
+          "Set up perimeter protection for landscaping & property.",
+          "Ensure the property is kept as clean and organized as possible during the entirety of the project.",
+          "Ensure landscaping, screen enclosures, pools and exterior keepsakes are protected to the best of our ability.",
+          "Remove all current roofing materials and discard them into the strategically-staged dumpster on site.",
+          "Once all current roofing materials have been removed, we will inspect the entirety of the roof substrate/decking to ensure everything is in a strong structural state and suitable for the project.",
+          "If we encounter rotted / saturated wood areas, we will surgically extract those pieces and replace them with new (Like-kind). We will ensure that decking has been returned to a strong nail-able surface.",
+          "Once any necessary decking has been addressed, we will re-nail the entire surface every 6 inches to abide by and satisfy the strictly enforced new Florida Building Codes.",
+          "Wood decking will be inspected and replaced on a \"as-needed\" basis at the cost of $80.00 per sheet. All framing work (fascia / trim) will be replaced on a \"as-needed\" basis at the cost of $10.00 per linear foot."
+        ];
+        
+        switch(packageId) {
+          case 'gaf-1':
+            return [
+              ...baseItems,
+              "Complete GAF Roofing System Installation with Premium Materials & Warranty Protection",
+              "Install GAF HDZ Shingles (color of your choice) to match exact product specifications and requirements for all-inclusive warranties.",
+              "Install GAF FeltBuster High-Traction Synthetic Roofing Felt underlayment system.",
+              "Install all new ventilation, pipes and attachments to match exact and current roof specifications.",
+              "*Maximizing your roof's ventilation is the most beneficial action that can be done to ensure your roof reaches full life expectancy. Please review/discuss with your Account Manager.",
+              "Provide 5 Year Limited Contractor's Warranty",
+              "Provide 25-Year Limited GAF System Plus Warranty",
+              "Main Shingle Structure Only"
+            ];
+            
+          case 'gaf-2':
+            return [
+              ...baseItems,
+              "Complete GAF Premium Package Installation with Enhanced Protection",
+              "Install GAF Timberline HDZ Shingles (color of your choice) with StainGuard Plus™ Technology.",
+              "Install GAF Tiger Paw™ Premium Roofing Underlayment for superior protection.",
+              "Install GAF Pro-Start® Starter Strip Shingles and Seal-A-Ridge® Ridge Cap Shingles.",
+              "Install all new ventilation, pipes and attachments to match exact and current roof specifications.",
+              "*Maximizing your roof's ventilation is the most beneficial action that can be done to ensure your roof reaches full life expectancy. Please review/discuss with your Account Manager.",
+              "Provide 5 Year Limited Contractor's Warranty",
+              "Provide 50-Year Limited GAF Silver Pledge™ Warranty",
+              "Main Shingle Structure Only"
+            ];
+            
+          case '3mg-standard-gaf':
+            return [
+              ...baseItems,
+              "Complete 3MG Standard Package Installation with GAF Materials",
+              "Install GAF HDZ Shingles (color of your choice) to match exact product specifications.",
+              "Install GAF FeltBuster High-Traction Synthetic Roofing Felt underlayment system.",
+              "Install all new ventilation, pipes and attachments to match exact and current roof specifications.",
+              "*Maximizing your roof's ventilation is the most beneficial action that can be done to ensure your roof reaches full life expectancy. Please review/discuss with your Account Manager.",
+              "Provide 10 Year 3MG Workmanship Warranty",
+              "Provide 25-Year Limited Material Warranty",
+              "Main Shingle Structure Only"
+            ];
+            
+          case '3mg-standard-oc':
+            return [
+              ...baseItems,
+              "Complete 3MG Standard Package Installation with Owens Corning Materials",
+              "Install Owens Corning Oakridge Shingles (color of your choice) to match exact product specifications.",
+              "Install ProEdge Hip & Ridge system and Polyglass IRXE Valleys for enhanced protection.",
+              "Install all new ventilation, pipes and attachments to match exact and current roof specifications.",
+              "*Maximizing your roof's ventilation is the most beneficial action that can be done to ensure your roof reaches full life expectancy. Please review/discuss with your Account Manager.",
+              "Provide 10 Year 3MG Workmanship Warranty",
+              "Provide 30-Year Limited Material Warranty",
+              "Main Shingle Structure Only"
+            ];
+            
+          default:
+            // Default scope items if no package selected
+            return [
+              ...baseItems,
+              "Install 3MG premium roofing materials (color of your choice) to match exact product specifications and requirements for all-inclusive warranties also to abide by and satisfy the strictly enforced new Florida Building Codes.",
+              "Install underlayment system to match exact product specifications and requirements for all-inclusive warranties also to abide by and satisfy the strictly enforced new Florida Building Codes.",
+              "Install all new ventilation, pipes and attachments to match exact and current roof specifications.",
+              "*Maximizing your roof's ventilation is the most beneficial action that can be done to ensure your roof reaches full life expectancy. Please review/discuss with your Account Manager.",
+              "Provide 5 Year Limited Contractor's Warranty",
+              "Provide 25-Year Limited 3MG Warranty",
+              "Main Shingle Structure Only"
+            ];
+        }
+      };
+      
+      const scopeItems = getScopeItemsForPackage(selectedPackage);
       
       let itemNumber = 1;
       for (const item of scopeItems) {
@@ -1374,10 +1457,23 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
                 <CardHeader className="bg-gradient-to-r from-lime-500 to-green-600 text-white">
                   <CardTitle className="text-2xl flex items-center gap-3">
                     <FileText className="h-6 w-6" />
-                    Scope of Work
+                    {getScopeTitle(selectedPackage)}
                   </CardTitle>
                   <p className="text-lime-50 mt-2">
-                    Complete GAF Roofing System Installation with Premium Materials & Warranty Protection
+                    {(() => {
+                      switch(selectedPackage) {
+                        case 'gaf-1':
+                          return 'Complete GAF Roofing System Installation with Premium Materials & Warranty Protection';
+                        case 'gaf-2':
+                          return 'Complete GAF Premium Package Installation with Enhanced Protection & Extended Warranty';
+                        case '3mg-standard-gaf':
+                          return 'Complete 3MG Standard Package Installation with GAF Materials & 10-Year Workmanship Warranty';
+                        case '3mg-standard-oc':
+                          return 'Complete 3MG Standard Package Installation with Owens Corning Materials & 10-Year Workmanship Warranty';
+                        default:
+                          return 'Complete Roofing System Installation with Premium Materials & Warranty Protection';
+                      }
+                    })()}
                   </p>
                 </CardHeader>
                 <CardContent className="p-6 space-y-4 bg-white">

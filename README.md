@@ -412,31 +412,3 @@ This version is deployed on Netlify from the `release/admin-estimator-v1` branch
 
 This README provides a clear overview of the current release, upcoming sprints, and unfinished functionality that requires future development.
 # Environment variables updated for preview testing
-
-## 🔌 **EagleView Integration Status**
-
-## 🔌 **EagleView Integration Status**
-
-### **Current Situation:**
-- **Client ID (Original)**: `0oa15t1o04aRqUqcT2p8`
-- **Client ID (Production)**: `0oa15t1zeu9YyvBKO2p8`
-- **Integration Type**: Client Credentials flow (machine-to-machine)
-- **API**: Measurement Orders API
-
-### **Blocking Issue:**
-- **Client Secret**: Not available until application is approved/live by EagleView
-- **Status**: New production app shows "Request to go live" - awaiting approval
-- **Impact**: Cannot authenticate with EagleView API until Client Secret is provided
-
-### **Next Steps:**
-1. **Request Go-Live**: Submit application for approval through EagleView developer portal
-2. **Contact EagleView**: Email developer@eagleview.com for expedited approval
-3. **Once Approved**: Client Secret will be available to generate/view in portal
-4. **Update Environment**: Add `VITE_EAGLEVIEW_CLIENT_SECRET` to `.env` files
-
-### **Required for Integration:**
-```env
-VITE_EAGLEVIEW_CLIENT_ID=0oa15t1zeu9YyvBKO2p8
-VITE_EAGLEVIEW_CLIENT_SECRET=[Pending - Awaiting Go-Live Approval]
-VITE_EAGLEVIEW_WEBHOOK_URL=https://xtdyirvhfyxmpexvjjcb.supabase.co/functions/v1/eagleview-webhook
-``` 

@@ -794,6 +794,7 @@ const SalesRepEstimateFlow: React.FC = () => {
                   email: estimateData.customer_email
                 }}
                 warrantyDetails={estimateData.warrantyDetails}
+                selectedPackage={estimateData.selectedPackage}
                 onBack={goBack}
                 onSubmit={handleSummaryComplete}
                 isSubmitting={isProcessing}
