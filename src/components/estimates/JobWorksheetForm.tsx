@@ -395,276 +395,236 @@ export const JobWorksheetForm: React.FC<JobWorksheetFormProps> = ({
             <CardHeader>
               <CardTitle>Ventilation Details</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="goosenecks4">Goosenecks (4")</Label>
-                  <Select
-                    value={formData.ventilation.goosenecks['4_inch']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'goosenecks', { ...formData.ventilation.goosenecks, '4_inch': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="goosenecks4">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="goosenecks6">Goosenecks (6")</Label>
-                  <Select
-                    value={formData.ventilation.goosenecks['6_inch']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'goosenecks', { ...formData.ventilation.goosenecks, '6_inch': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="goosenecks6">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="goosenecks10">Goosenecks (10")</Label>
-                  <Select
-                    value={formData.ventilation.goosenecks['10_inch']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'goosenecks', { ...formData.ventilation.goosenecks, '10_inch': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="goosenecks10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="goosenecks12">Goosenecks (12")</Label>
-                  <Select
-                    value={formData.ventilation.goosenecks['12_inch']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'goosenecks', { ...formData.ventilation.goosenecks, '12_inch': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="goosenecks12">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Boots (1.5")</Label>
-                  <Select
-                    value={formData.ventilation.boots['1_5_inch']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'boots', { ...formData.ventilation.boots, '1_5_inch': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="boots15">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Boots (2")</Label>
-                  <Select
-                    value={formData.ventilation.boots['2_inch']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'boots', { ...formData.ventilation.boots, '2_inch': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="boots2">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Boots (3")</Label>
-                  <Select
-                    value={formData.ventilation.boots['3_inch']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'boots', { ...formData.ventilation.boots, '3_inch': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="boots3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Boots (4")</Label>
-                  <Select
-                    value={formData.ventilation.boots['4_inch']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'boots', { ...formData.ventilation.boots, '4_inch': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="boots4">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Ridge Vent Linear Feet */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="ridgeVentLF">Ridge Vent (Linear Feet)</Label>
-                  <Input
-                    id="ridgeVentLF"
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    value={formData.ventilation.ridge_vents_lf || ''}
-                    onChange={(e) => {
-                      const value = e.target.value.replace(/\D/g, '');
-                      updateField('ventilation', 'ridge_vents_lf', parseInt(value) || 0);
-                    }}
-                    onFocus={(e) => {
-                      e.target.select();
-                    }}
-                    placeholder="Enter linear feet"
-                    disabled={readOnly}
-                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                </div>
-                <div className="flex items-end">
-                  <div className="text-sm text-muted-foreground">
-                    Linear feet of ridge that needs ridge vent coverage
+            <CardContent className="space-y-6">
+              {/* 3-Column Layout for Better Organization */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Column 1: Goosenecks */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-sm text-gray-700 border-b pb-2">Goosenecks</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="goosenecks4">Goosenecks (4")</Label>
+                      <Select
+                        value={formData.ventilation.goosenecks['4_inch']?.toString() || "0"}
+                        onValueChange={(value) => updateField('ventilation', 'goosenecks', { ...formData.ventilation.goosenecks, '4_inch': parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="goosenecks4">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="7">7</SelectItem>
+                          <SelectItem value="8">8</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="goosenecks10">Goosenecks (10")</Label>
+                      <Select
+                        value={formData.ventilation.goosenecks['10_inch']?.toString() || "0"}
+                        onValueChange={(value) => updateField('ventilation', 'goosenecks', { ...formData.ventilation.goosenecks, '10_inch': parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="goosenecks10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="7">7</SelectItem>
+                          <SelectItem value="8">8</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>2ft Off Ridge Vents (Lomanco 750D Vent)</Label>
-                  <Select
-                    value={formData.ventilation.off_ridge_vents['2_ft']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'off_ridge_vents', { ...formData.ventilation.off_ridge_vents, '2_ft': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="offRidgeVents2ft">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
+                {/* Column 2: Boots */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-sm text-gray-700 border-b pb-2">Boots</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <Label>Boots (1.5")</Label>
+                      <Select
+                        value={formData.ventilation.boots['1_5_inch']?.toString() || "0"}
+                        onValueChange={(value) => updateField('ventilation', 'boots', { ...formData.ventilation.boots, '1_5_inch': parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="boots15">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="7">7</SelectItem>
+                          <SelectItem value="8">8</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Boots (2")</Label>
+                      <Select
+                        value={formData.ventilation.boots['2_inch']?.toString() || "0"}
+                        onValueChange={(value) => updateField('ventilation', 'boots', { ...formData.ventilation.boots, '2_inch': parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="boots2">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="7">7</SelectItem>
+                          <SelectItem value="8">8</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Boots (3")</Label>
+                      <Select
+                        value={formData.ventilation.boots['3_inch']?.toString() || "0"}
+                        onValueChange={(value) => updateField('ventilation', 'boots', { ...formData.ventilation.boots, '3_inch': parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="boots3">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="7">7</SelectItem>
+                          <SelectItem value="8">8</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Boots (4")</Label>
+                      <Select
+                        value={formData.ventilation.boots['4_inch']?.toString() || "0"}
+                        onValueChange={(value) => updateField('ventilation', 'boots', { ...formData.ventilation.boots, '4_inch': parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="boots4">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="7">7</SelectItem>
+                          <SelectItem value="8">8</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <Label>Off Ridge Vents (4ft)</Label>
-                  <Select
-                    value={formData.ventilation.off_ridge_vents['4_ft']?.toString() || "0"}
-                    onValueChange={(value) => updateField('ventilation', 'off_ridge_vents', { ...formData.ventilation.off_ridge_vents, '4_ft': parseInt(value) || 0 })}
-                    disabled={readOnly}
-                  >
-                    <SelectTrigger id="offRidgeVents4ft">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">0</SelectItem>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                      <SelectItem value="3">3</SelectItem>
-                      <SelectItem value="4">4</SelectItem>
-                      <SelectItem value="5">5</SelectItem>
-                      <SelectItem value="6">6</SelectItem>
-                      <SelectItem value="7">7</SelectItem>
-                      <SelectItem value="8">8</SelectItem>
-                    </SelectContent>
-                  </Select>
+
+                {/* Column 3: Ridge Vents & Off Ridge Vents */}
+                <div className="space-y-4">
+                  <h4 className="font-semibold text-sm text-gray-700 border-b pb-2">Ridge & Off Ridge Vents</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="ridgeVentLF">Ridge Vent (Linear Feet)</Label>
+                      <Input
+                        id="ridgeVentLF"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        value={formData.ventilation.ridge_vents_lf || ''}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          updateField('ventilation', 'ridge_vents_lf', parseInt(value) || 0);
+                        }}
+                        onFocus={(e) => {
+                          e.target.select();
+                        }}
+                        placeholder="Enter linear feet"
+                        disabled={readOnly}
+                        className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Linear feet of ridge that needs ridge vent coverage
+                      </div>
+                    </div>
+                    <div>
+                      <Label>2ft Off Ridge Vents (Lomanco 750D Vent)</Label>
+                      <Select
+                        value={formData.ventilation.off_ridge_vents['2_ft']?.toString() || "0"}
+                        onValueChange={(value) => updateField('ventilation', 'off_ridge_vents', { ...formData.ventilation.off_ridge_vents, '2_ft': parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="offRidgeVents2ft">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="7">7</SelectItem>
+                          <SelectItem value="8">8</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Off Ridge Vents (4ft)</Label>
+                      <Select
+                        value={formData.ventilation.off_ridge_vents['4_ft']?.toString() || "0"}
+                        onValueChange={(value) => updateField('ventilation', 'off_ridge_vents', { ...formData.ventilation.off_ridge_vents, '4_ft': parseInt(value) || 0 })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger id="offRidgeVents4ft">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0</SelectItem>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                          <SelectItem value="3">3</SelectItem>
+                          <SelectItem value="4">4</SelectItem>
+                          <SelectItem value="5">5</SelectItem>
+                          <SelectItem value="6">6</SelectItem>
+                          <SelectItem value="7">7</SelectItem>
+                          <SelectItem value="8">8</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
