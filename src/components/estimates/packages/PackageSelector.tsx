@@ -10,7 +10,15 @@ interface PackageSelectorProps {
 const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorProps) => {
   const [show3mgStandardOptions, setShow3mgStandardOptions] = useState(false);
   
-  // Handle click - toggle selection on double click
+  // Handle double-click to deselect package
+  const handlePackageDoubleClick = (packageId: string) => {
+    if (selectedPackage === packageId) {
+      // If this package is already selected, deselect it
+      onPackageSelect(null);
+    }
+  };
+  
+  // Handle single click
   const handlePackageClick = (packageId: string) => {
     if (packageId === '3mg-standard') {
       // Toggle 3MG Standard sub-options
@@ -19,8 +27,8 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
     }
     
     if (selectedPackage === packageId) {
-      // If this package is already selected, allow double-click to deselect it
-      onPackageSelect(null);
+      // If already selected, do nothing on single click (wait for double-click)
+      return;
     } else {
       // Otherwise, select this package
       onPackageSelect(packageId);
@@ -55,6 +63,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                 : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-blue-300 hover:shadow-md'
             }`}
             onClick={() => handlePackageClick('gaf-1')}
+            onDoubleClick={() => handlePackageDoubleClick('gaf-1')}
           >
             {/* Selection Indicator */}
             {selectedPackage === 'gaf-1' && (
@@ -104,6 +113,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                 : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-purple-300 hover:shadow-md'
             }`}
             onClick={() => handlePackageClick('gaf-2')}
+            onDoubleClick={() => handlePackageDoubleClick('gaf-2')}
           >
             {/* Selection Indicator */}
             {selectedPackage === 'gaf-2' && (
@@ -171,6 +181,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                 : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-green-300 hover:shadow-md'
             }`}
             onClick={() => handlePackageClick('3mg-standard')}
+            onDoubleClick={() => handlePackageDoubleClick('3mg-standard')}
           >
             {/* Selection Indicator */}
             {is3mgStandardSelected && (
@@ -231,7 +242,8 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                       ? 'bg-orange-50 border-orange-400 shadow-md ring-1 ring-orange-200' 
                       : 'bg-white hover:bg-orange-25 border-gray-200 hover:border-orange-300'
                   }`}
-                  onClick={() => onPackageSelect('3mg-standard-oc')}
+                  onClick={() => selectedPackage !== '3mg-standard-oc' && onPackageSelect('3mg-standard-oc')}
+                  onDoubleClick={() => selectedPackage === '3mg-standard-oc' && onPackageSelect(null)}
                 >
                   {selectedPackage === '3mg-standard-oc' && (
                     <div className="absolute -top-1.5 -right-1.5 bg-orange-500 rounded-full p-1">
@@ -260,7 +272,8 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                       ? 'bg-blue-50 border-blue-400 shadow-md ring-1 ring-blue-200' 
                       : 'bg-white hover:bg-blue-25 border-gray-200 hover:border-blue-300'
                   }`}
-                  onClick={() => onPackageSelect('3mg-standard-gaf')}
+                  onClick={() => selectedPackage !== '3mg-standard-gaf' && onPackageSelect('3mg-standard-gaf')}
+                  onDoubleClick={() => selectedPackage === '3mg-standard-gaf' && onPackageSelect(null)}
                 >
                   {selectedPackage === '3mg-standard-gaf' && (
                     <div className="absolute -top-1.5 -right-1.5 bg-blue-500 rounded-full p-1">
@@ -329,6 +342,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
               : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-emerald-300 hover:shadow-md'
           }`}
           onClick={() => handlePackageClick('3mg-select')}
+          onDoubleClick={() => handlePackageDoubleClick('3mg-select')}
         >
           {/* Selection Indicator */}
           {selectedPackage === '3mg-select' && (
@@ -375,6 +389,13 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
           </div>
         </div>
       </div>
+      
+      {/* Deselect hint */}
+      {selectedPackage && (
+        <div className="text-center text-sm text-gray-500 mt-2">
+          Double-click the selected package to deselect and remove all materials
+        </div>
+      )}
       
       {/* Package Details - Only show for non-3MG Standard packages */}
       {selectedPackage && !is3mgStandardSelected && (
