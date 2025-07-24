@@ -1972,6 +1972,12 @@ export function MaterialsSelectionTab({
     // Project managers (sales reps) can only edit JWS accessories, not package materials
     const isReadOnlyForProjectManager = effectiveUserRole === 'rep' && !isJWSAccessory;
     
+    // Check if this is an underlayment in Florida
+    const isFloridaProperty = jobWorksheet?.basic_info?.address && 
+      (jobWorksheet.basic_info.address.toLowerCase().includes('fl') || 
+       jobWorksheet.basic_info.address.toLowerCase().includes('florida'));
+    const isFloridaDoubledUnderlayment = isFloridaProperty && material.category === MaterialCategory.UNDERLAYMENTS;
+    
     // Ensure waste factor exists, falling back to the default for the material if not in state yet.
     const currentWasteFactorForMaterial = materialWasteFactors[materialId] ?? determineWasteFactor(material, undefined, dbWastePercentages);
 
@@ -2162,15 +2168,20 @@ export function MaterialsSelectionTab({
                   </TooltipProvider>
                 )}
               </div>
-              {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && (
+              {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isFloridaDoubledUnderlayment) && (
                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                   isLowSlope 
                     ? 'bg-green-100 text-green-800 border border-green-200' 
                     : isSkylightMaterial(materialId)
                     ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                    : isFloridaDoubledUnderlayment
+                    ? 'bg-orange-100 text-orange-800 border border-orange-200'
                     : 'bg-blue-100 text-blue-800 border border-blue-200'
                 }`}>
-                  {isLowSlope ? '🌿 Low-Slope Required' : isSkylightMaterial(materialId) ? '☀️ From Job Worksheet' : 'Auto-Selected'}
+                  {isLowSlope ? '🌿 Low-Slope Required' : 
+                   isSkylightMaterial(materialId) ? '☀️ From Job Worksheet' : 
+                   isFloridaDoubledUnderlayment ? '🌴 FL Double Coverage' :
+                   'Auto-Selected'}
                 </span>
               )}
             </div>
@@ -2317,7 +2328,7 @@ export function MaterialsSelectionTab({
           {/* Title and Badge Row */}
           <div className="flex items-start justify-between gap-2">
             <span className="font-semibold text-gray-800 text-sm leading-tight">{baseName}</span>
-            {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && (
+            {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isFloridaDoubledUnderlayment) && (
               <Badge 
                 variant="default" 
                 className={`text-white text-xs px-1.5 py-0.5 whitespace-nowrap ${
@@ -2325,24 +2336,39 @@ export function MaterialsSelectionTab({
                     ? 'bg-green-600' 
                     : isSkylightMaterial(materialId)
                     ? 'bg-yellow-600'
+                    : isFloridaDoubledUnderlayment
+                    ? 'bg-orange-600'
                     : 'bg-blue-600'
                 }`}
               >
-                {isLowSlope ? 'Low-Slope Required' : isSkylightMaterial(materialId) ? 'From Job Worksheet' : 'Auto-Selected'}
+                {isLowSlope ? 'Low-Slope Required' : 
+                 isSkylightMaterial(materialId) ? 'From Job Worksheet' :
+                 isFloridaDoubledUnderlayment ? 'FL Double Coverage' :
+                 'Auto-Selected'}
               </Badge>
             )}
           </div>
           
           {/* Requirement Text */}
-          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && requirementText && (
-            <p className={`text-xs leading-tight font-medium ${isLowSlope ? 'text-green-700' : isSkylightMaterial(materialId) ? 'text-yellow-700' : 'text-blue-700'}`}>
-              {requirementText}
+          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isFloridaDoubledUnderlayment) && (requirementText || isFloridaDoubledUnderlayment) && (
+            <p className={`text-xs leading-tight font-medium ${
+              isLowSlope ? 'text-green-700' : 
+              isSkylightMaterial(materialId) ? 'text-yellow-700' : 
+              isFloridaDoubledUnderlayment ? 'text-orange-700' :
+              'text-blue-700'
+            }`}>
+              {isFloridaDoubledUnderlayment ? 'Quantity doubled per Florida building code requirements' : requirementText}
             </p>
           )}
           
           {/* Quantity Summary */}
-          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && bundleQuantity > 0 && (
-            <div className={`text-xs ${isLowSlope ? 'text-green-700' : isSkylightMaterial(materialId) ? 'text-yellow-700' : 'text-blue-700'}`}>
+          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isFloridaDoubledUnderlayment) && bundleQuantity > 0 && (
+            <div className={`text-xs ${
+              isLowSlope ? 'text-green-700' : 
+              isSkylightMaterial(materialId) ? 'text-yellow-700' : 
+              isFloridaDoubledUnderlayment ? 'text-orange-700' :
+              'text-blue-700'
+            }`}>
               <p className="font-medium">
                 {isGafTimberline 
                     ? `${Math.ceil(bundleQuantity / 3)} squares (${bundleQuantity} bundles)`
@@ -2350,6 +2376,9 @@ export function MaterialsSelectionTab({
                 }
                 {material.coveragePerUnit && (
                   <span className="font-normal"> • Covers approx. {(bundleQuantity * material.coveragePerUnit).toFixed(0)} sq ft</span>
+                )}
+                {isFloridaDoubledUnderlayment && (
+                  <span className="font-normal"> • Base qty: {Math.ceil(bundleQuantity / 2)}</span>
                 )}
               </p>
             </div>
@@ -2711,7 +2740,7 @@ export function MaterialsSelectionTab({
               { id: "oc-oakridge", description: "Owens Corning Oakridge" }, // FIXED: Only OC Oakridge, not Duration
               { id: "oc-hip-ridge", description: "OC Hip & Ridge" }, // FIXED: Use existing material ID
               { id: "oc-starter", description: "OC Starter" }, // FIXED: Use existing material ID
-              { id: "maxfelt-nc", description: "MaxFelt Synthetic Underlayment" },
+              { id: "maxfelt-nc", description: "MaxFelt NC Synthetic Underlayment" },
               { id: "poly-glass-irxe", description: "Poly Glass IRXE (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "master-sealant", description: "Master Builders MasterSeal NP1 Sealant" },
@@ -2740,7 +2769,7 @@ export function MaterialsSelectionTab({
               { id: "gaf-uhdz", description: "GAF Timberline UHDZ Shingles" },
               { id: "gaf-prostart-starter-shingle-strip", description: "GAF ProStart Starter Shingle Strip" },
               { id: "gaf-seal-a-ridge", description: "GAF Seal-A-Ridge" },
-              { id: "maxfelt-nc", description: "MaxFelt Synthetic Underlayment" },
+              { id: "maxfelt-nc", description: "MaxFelt NC Synthetic Underlayment" },
               { id: "poly-glass-irxe", description: "Poly Glass IRXE (Valleys)" },
               { id: "adjustable-lead-pipe-flashing-4inch", description: "Adjustable Lead Pipe Flashing - 4\"" },
               { id: "gaf-cobra-rigid-vent", description: "GAF Cobra Rigid Vent 3 Exhaust Ridge Vent" },
@@ -3127,6 +3156,7 @@ export function MaterialsSelectionTab({
         'gaf-feltbuster-synthetic-underlayment',
         'abc-pro-guard-20',
         'max-usa-feltbuster-1000',
+        'maxfelt-nc',  // ADD MAX FELT to removal list
         'poly-glass-irxe' // Remove valley material too
       ];
       
@@ -3155,13 +3185,15 @@ export function MaterialsSelectionTab({
       if (stormGuardMaterial && measurements.areasByPitch) {
         // Calculate steep slope area (everything above 2/12 pitch)
         let steepSlopeArea = 0;
-        Object.entries(measurements.areasByPitch).forEach(([pitch, areaData]) => {
-          const pitchValue = parseInt(pitch.split('/')[0]);
-          if (pitchValue > 2) {
-            // areaData is an AreaByPitch object with an 'area' property
-            steepSlopeArea += (typeof areaData === 'number' ? areaData : areaData.area || 0);
-          }
-        });
+        if (Array.isArray(measurements.areasByPitch)) {
+          steepSlopeArea = measurements.areasByPitch
+            .filter(area => {
+              const pitchParts = area.pitch.split(/[:\\/]/);
+              const rise = parseInt(pitchParts[0] || '0');
+              return !isNaN(rise) && rise > 2;
+            })
+            .reduce((sum, area) => sum + (area.area || 0), 0);
+        }
         
         if (steepSlopeArea > 0) {
           const steepSlopeSquares = steepSlopeArea / 100;
@@ -3197,6 +3229,72 @@ export function MaterialsSelectionTab({
       });
     }
   }, [isPeelStickSelected, measurements, selectedPackage]);
+
+  // Handle Florida underlayment doubling
+  useEffect(() => {
+    // Check if property is in Florida
+    const isFloridaProperty = jobWorksheet?.basic_info?.address && 
+      (jobWorksheet.basic_info.address.toLowerCase().includes('fl') || 
+       jobWorksheet.basic_info.address.toLowerCase().includes('florida'));
+    
+    if (!isFloridaProperty || !measurements || Object.keys(localSelectedMaterials).length === 0) {
+      return;
+    }
+    
+    console.log('🌴 [Florida] Checking underlayment quantities for Florida property');
+    
+    // List of underlayment materials that should be doubled in Florida
+    const underlaymentMaterialIds = [
+      'maxfelt-nc',
+      'gaf-feltbuster-synthetic-underlayment', 
+      'abc-pro-guard-20',
+      'gaf-weatherwatch-ice-water-shield',
+      'poly-glass-irxe',
+      'rhino-synthetic',
+      'polyglass-ice-water-shield',
+      'rhino-g-ps'
+    ];
+    
+    let needsUpdate = false;
+    const updatedQuantities = { ...localQuantities };
+    const updatedDisplayQuantities = { ...displayQuantities };
+    
+    underlaymentMaterialIds.forEach(materialId => {
+      if (localSelectedMaterials[materialId]) {
+        const material = localSelectedMaterials[materialId];
+        
+        // Calculate the base quantity
+        const { quantity: baseQuantity } = calculateMaterialQuantity(
+          material,
+          measurements,
+          materialWasteFactors[materialId] || wasteFactor / 100,
+          dbWastePercentages
+        );
+        
+        // Double the quantity for Florida
+        const floridaQuantity = baseQuantity * 2;
+        
+        // Only update if the current quantity is not already doubled
+        if (updatedQuantities[materialId] !== floridaQuantity) {
+          console.log(`🌴 [Florida] Doubling ${material.name}: ${baseQuantity} → ${floridaQuantity}`);
+          updatedQuantities[materialId] = floridaQuantity;
+          updatedDisplayQuantities[materialId] = floridaQuantity.toString();
+          needsUpdate = true;
+        }
+      }
+    });
+    
+    if (needsUpdate) {
+      setLocalQuantities(updatedQuantities);
+      setDisplayQuantities(updatedDisplayQuantities);
+      
+      toast({
+        title: "Florida Underlayment Requirements Applied",
+        description: "Underlayment quantities have been doubled per Florida building codes",
+        duration: 4000,
+      });
+    }
+  }, [localSelectedMaterials, measurements, jobWorksheet, materialWasteFactors, wasteFactor, dbWastePercentages]);
 
   // Main return structure
   return (

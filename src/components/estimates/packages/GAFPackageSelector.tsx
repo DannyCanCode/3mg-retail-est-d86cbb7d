@@ -24,9 +24,9 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
       profitMargin: 25,
       features: [
         'GAF Timberline HDZ Shingles',
-        'Standard Underlayment',
-        'Basic Ventilation',
-        'Standard Warranty'
+        'ABC Pro Guard 20 (Rhino) Underlayment',
+        'GAF StormGuard (Valleys)',
+        'Basic Ventilation'
       ],
       badge: 'Standard',
       badgeColor: 'bg-blue-100 text-blue-800'
@@ -38,9 +38,9 @@ export const GAFPackageSelector: React.FC<GAFPackageSelectorProps> = ({
       profitMargin: 30,
       features: [
         'GAF Timberline HDZ Shingles',
-        'Premium Synthetic Underlayment',
-        'Enhanced Ventilation System',
-        'Extended Warranty Coverage'
+        'GAF FeltBuster Synthetic Underlayment',
+        'GAF StormGuard (Valleys)',
+        'Enhanced Ventilation System'
       ],
       badge: 'Premium',
       badgeColor: 'bg-green-100 text-green-800'
