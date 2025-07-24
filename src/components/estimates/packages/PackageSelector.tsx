@@ -71,7 +71,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                     <Package className={`h-5 w-5 ${selectedPackage === 'gaf-1' ? 'text-blue-600' : 'text-gray-600'}`} />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-base text-white">GAF Package 1</h4>
+                                          <h4 className="font-semibold text-base text-red-600">GAF Package 1</h4>
                     <Badge variant="secondary" className="text-xs mt-1">Standard</Badge>
                   </div>
                 </div>
@@ -125,7 +125,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                     <Package className={`h-5 w-5 ${selectedPackage === 'gaf-2' ? 'text-purple-600' : 'text-gray-600'}`} />
                   </div>
                   <div>
-                    <h4 className="font-semibold text-base text-white">GAF Package 2</h4>
+                                          <h4 className="font-semibold text-base text-red-600">GAF Package 2</h4>
                     <Badge variant="secondary" className="text-xs mt-1">Premium</Badge>
                   </div>
                 </div>
@@ -186,7 +186,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                   <Package className={`h-5 w-5 ${is3mgStandardSelected ? 'text-green-600' : 'text-gray-600'}`} />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="font-semibold text-base text-white">3MG Standard</h4>
+                                      <h4 className="font-semibold text-base text-green-600">3MG Standard</h4>
                   <div className="flex items-center gap-3 text-sm text-gray-600">
                     <div className="flex items-center gap-1">
                       <Shield className="h-4 w-4 text-green-500" />
@@ -244,7 +244,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                       <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
                         <span className="text-orange-600 font-bold text-sm">OC</span>
                       </div>
-                      <h5 className="font-semibold text-sm text-white">Owens Corning</h5>
+                                              <h5 className="font-semibold text-sm text-orange-600">Owens Corning</h5>
                     </div>
                     <p className="text-xs text-gray-600 leading-relaxed">
                       Oakridge Shingles + Proedge Hip & Ridge + Polyglass IRXE Valleys
@@ -273,7 +273,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                       <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                         <span className="text-blue-600 font-bold text-sm">GAF</span>
                       </div>
-                      <h5 className="font-semibold text-sm text-white">GAF Materials</h5>
+                                              <h5 className="font-semibold text-sm text-red-600">GAF Materials</h5>
                     </div>
                     <p className="text-xs text-gray-600 leading-relaxed">
                       Timberline HDZ + ProStart Starter + Polyglass IRXE Valleys
@@ -350,7 +350,7 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                   <Award className={`h-5 w-5 ${selectedPackage === '3mg-select' ? 'text-emerald-600' : 'text-gray-600'}`} />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-base text-white">3MG Select</h4>
+                                      <h4 className="font-semibold text-base text-green-600">3MG Select</h4>
                   <Badge variant="secondary" className="text-xs mt-1">Premium</Badge>
                 </div>
               </div>
