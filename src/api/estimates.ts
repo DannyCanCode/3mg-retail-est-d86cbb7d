@@ -37,6 +37,7 @@ export interface Estimate {
   insurance_company?: string | null;
   peel_stick_addon_cost?: number;
   rejection_reason?: string; // Reason for rejection if status is 'rejected'
+  job_worksheet?: any; // Job worksheet data including accessories, gutters, etc.
   // Creator information for dashboard display
   creator_name?: string;
   creator_role?: 'admin' | 'manager' | 'rep' | 'subtrade_manager';
