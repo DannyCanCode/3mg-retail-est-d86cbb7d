@@ -422,6 +422,171 @@ export function MaterialsSelectionTab({
     }
   }, [jobWorksheet?.ventilation, measurements, Object.keys(localSelectedMaterials).length]);
 
+  // Auto-populate accessories from Job Worksheet
+  useEffect(() => {
+    // Check if there are accessories to add
+    if (!jobWorksheet?.accessories || !measurements) {
+      console.log('🔧 [Accessories Auto-Population] Skipping:', {
+        hasAccessories: !!jobWorksheet?.accessories,
+        accessoriesData: jobWorksheet?.accessories,
+        hasMeasurements: !!measurements
+      });
+      return;
+    }
+
+    console.log('🔧 [Accessories Auto-Population] Starting with data:', jobWorksheet.accessories);
+
+    const accessoriesData = jobWorksheet.accessories;
+    const materialsToAdd: { [key: string]: { material: Material, quantity: number } } = {};
+
+    // Skylights
+    if (accessoriesData.skylight) {
+      if (accessoriesData.skylight.count_2x2 > 0) {
+        const material = ROOFING_MATERIALS.find(m => m.id === 'skylight-2x2');
+        if (material) {
+          const count = Number(accessoriesData.skylight.count_2x2) || 0;
+          const currentQuantity = localQuantities['skylight-2x2'] || 0;
+          if (!localSelectedMaterials['skylight-2x2'] || currentQuantity < count) {
+            console.log(`🔧 [Accessories] Adding ${count} x 2x2 Skylights`);
+            materialsToAdd['skylight-2x2'] = { material, quantity: count };
+          }
+        }
+      }
+      
+      if (accessoriesData.skylight.count_2x4 > 0) {
+        const material = ROOFING_MATERIALS.find(m => m.id === 'skylight-2x4');
+        if (material) {
+          const count = Number(accessoriesData.skylight.count_2x4) || 0;
+          const currentQuantity = localQuantities['skylight-2x4'] || 0;
+          if (!localSelectedMaterials['skylight-2x4'] || currentQuantity < count) {
+            console.log(`🔧 [Accessories] Adding ${count} x 2x4 Skylights`);
+            materialsToAdd['skylight-2x4'] = { material, quantity: count };
+          }
+        }
+      }
+    }
+
+    // Solar Attic Fans
+    if (accessoriesData.solar_attic_fans) {
+      if (accessoriesData.solar_attic_fans.kennedy_35w > 0) {
+        const material = ROOFING_MATERIALS.find(m => m.id === 'kennedy-roof-mount-solar-fan-35w');
+        if (material) {
+          const count = Number(accessoriesData.solar_attic_fans.kennedy_35w) || 0;
+                      const currentQuantity = localQuantities['kennedy-roof-mount-solar-fan-35w'] || 0;
+            if (!localSelectedMaterials['kennedy-roof-mount-solar-fan-35w'] || currentQuantity < count) {
+              console.log(`🔧 [Accessories] Adding ${count} x Kennedy 35W Solar Attic Fans`);
+              materialsToAdd['kennedy-roof-mount-solar-fan-35w'] = { material, quantity: count };
+          }
+        }
+      }
+      
+      if (accessoriesData.solar_attic_fans.attic_breeze_45w > 0) {
+        const material = ROOFING_MATERIALS.find(m => m.id === 'attic-breeze-solar-fan-45w');
+        if (material) {
+          const count = Number(accessoriesData.solar_attic_fans.attic_breeze_45w) || 0;
+          const currentQuantity = localQuantities['attic-breeze-solar-fan-45w'] || 0;
+          if (!localSelectedMaterials['attic-breeze-solar-fan-45w'] || currentQuantity < count) {
+            console.log(`🔧 [Accessories] Adding ${count} x Attic Breeze 45W Solar Attic Fans`);
+            materialsToAdd['attic-breeze-solar-fan-45w'] = { material, quantity: count };
+          }
+        }
+      }
+    }
+
+    // Satellite Dish Removal (from ventilation.accessories)
+    if (jobWorksheet.ventilation?.accessories?.satellite_removal) {
+      const material = ROOFING_MATERIALS.find(m => m.id === 'satellite-dish-removal');
+      if (material) {
+        const currentQuantity = localQuantities['satellite-dish-removal'] || 0;
+        if (!localSelectedMaterials['satellite-dish-removal'] || currentQuantity < 1) {
+          console.log(`🔧 [Accessories] Adding Satellite Dish Removal`);
+          materialsToAdd['satellite-dish-removal'] = { material, quantity: 1 };
+        }
+      }
+    }
+
+    // Gutter Leaf Guards
+    if (jobWorksheet.gutters?.leaf_guards?.install && jobWorksheet.gutters.leaf_guards.linear_feet > 0) {
+      const material = ROOFING_MATERIALS.find(m => m.id === 'gutter-leaf-guards');
+      if (material) {
+        const linearFeet = Number(jobWorksheet.gutters.leaf_guards.linear_feet) || 0;
+        const currentQuantity = localQuantities['gutter-leaf-guards'] || 0;
+        if (!localSelectedMaterials['gutter-leaf-guards'] || currentQuantity < linearFeet) {
+          console.log(`🔧 [Accessories] Adding ${linearFeet} LF of Gutter Leaf Guards`);
+          materialsToAdd['gutter-leaf-guards'] = { material, quantity: linearFeet };
+        }
+      }
+    }
+
+    // If there are materials to add, update the state
+    if (Object.keys(materialsToAdd).length > 0) {
+      console.log('🔧 [Accessories] Updating state with materials:', Object.keys(materialsToAdd));
+      isInternalChange.current = true; // Mark as internal change to prevent reset
+      
+      setLocalSelectedMaterials(prev => {
+        const newMaterials = { ...prev };
+        Object.entries(materialsToAdd).forEach(([materialId, { material }]) => {
+          newMaterials[materialId] = material;
+        });
+        return newMaterials;
+      });
+
+      setLocalQuantities(prev => {
+        const newQuantities = { ...prev };
+        Object.entries(materialsToAdd).forEach(([materialId, { quantity }]) => {
+          newQuantities[materialId] = quantity;
+        });
+        return newQuantities;
+      });
+
+      setDisplayQuantities(prev => {
+        const newDisplayQuantities = { ...prev };
+        Object.entries(materialsToAdd).forEach(([materialId, { quantity }]) => {
+          newDisplayQuantities[materialId] = quantity.toString();
+        });
+        return newDisplayQuantities;
+      });
+
+      setMaterialWasteFactors(prev => {
+        const newFactors = { ...prev };
+        Object.keys(materialsToAdd).forEach(materialId => {
+          newFactors[materialId] = 0; // Accessories have 0% waste
+        });
+        return newFactors;
+      });
+
+      setUserOverriddenWaste(prev => {
+        const newOverrides = { ...prev };
+        Object.keys(materialsToAdd).forEach(materialId => {
+          newOverrides[materialId] = false;
+        });
+        return newOverrides;
+      });
+
+      setMaterialOrder(prev => {
+        const newOrder = [...prev];
+        Object.keys(materialsToAdd).forEach(materialId => {
+          if (!newOrder.includes(materialId)) {
+            newOrder.push(materialId);
+          }
+        });
+        return newOrder;
+      });
+
+      // Show toast notification
+      const addedCount = Object.keys(materialsToAdd).length;
+      toast({
+        title: "Accessories Added",
+        description: `Added ${addedCount} accessor${addedCount > 1 ? 'ies' : 'y'} based on Job Worksheet selections.`,
+        duration: 3000,
+      });
+      
+      console.log('🔧 [Accessories] Accessories successfully applied');
+    } else {
+      console.log('🔧 [Accessories] No accessories to add');
+    }
+  }, [jobWorksheet?.accessories, jobWorksheet?.ventilation?.accessories, jobWorksheet?.gutters, measurements, Object.keys(localSelectedMaterials).length]);
+
   // Reset function to completely reset state from props
   const resetStateFromProps = useCallback(() => {
     console.log("Resetting state from props", {
