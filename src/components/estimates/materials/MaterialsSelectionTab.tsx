@@ -2170,7 +2170,7 @@ export function MaterialsSelectionTab({
           
           {/* Requirement Text */}
           {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId)) && requirementText && (
-            <p className={`text-[10px] leading-tight ${isLowSlope ? 'text-green-700' : isSkylightMaterial(materialId) ? 'text-yellow-700' : 'text-blue-700'}`}>
+            <p className={`text-xs leading-tight font-medium ${isLowSlope ? 'text-green-700' : isSkylightMaterial(materialId) ? 'text-yellow-700' : 'text-blue-700'}`}>
               {requirementText}
             </p>
           )}
@@ -2210,8 +2210,8 @@ export function MaterialsSelectionTab({
           
           {/* Calculation Details - Hide for sales reps */}
           {material.coverageRule && effectiveUserRole !== 'rep' && (
-            <div className="text-[10px] text-muted-foreground space-y-1 mt-1">
-              <p className="leading-tight">• Calculation Details: {formatCalculationWithMeasurements(material)}</p>
+            <div className="text-xs text-gray-600 space-y-1 mt-1">
+              <p className="leading-tight font-medium">• Calculation Details: {formatCalculationWithMeasurements(material)}</p>
               
               {/* Waste Factor Controls */}
               {currentWasteFactorForMaterial !== undefined && 
@@ -3344,22 +3344,22 @@ export function MaterialsSelectionTab({
 
       {/* Right Column: Selected Materials */}
       <div className={effectiveUserRole !== 'rep' ? "lg:col-span-2" : "lg:col-span-1"}>
-        <Card className="sticky top-4 bg-white shadow-sm">
-          <CardHeader className="pb-3 border-b">
-            <CardTitle className="text-lg text-gray-900">
+        <Card className="sticky top-4 bg-white shadow-lg border-gray-200">
+          <CardHeader className="pb-3 border-b border-gray-200 bg-gray-50/50">
+            <CardTitle className="text-lg text-gray-900 font-semibold">
               {effectiveUserRole === 'rep' ? 'Auto-Selected Materials' : 'Selected Materials'}
             </CardTitle>
             {effectiveUserRole === 'rep' && (
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-sm text-gray-600 mt-1 font-medium">
                 Materials are automatically selected based on your package choice
               </p>
             )}
           </CardHeader>
           <CardContent className="space-y-2 px-4 py-3">
             {Object.keys(localSelectedMaterials).length === 0 && !warrantyDetails ? (
-              <div className="text-center py-8 text-gray-400">
-                <p className="text-sm">{effectiveUserRole === 'rep' ? 'Materials will be auto-populated' : 'No materials selected yet'}</p>
-                <p className="text-xs mt-1">{effectiveUserRole === 'rep' ? 'Based on package selection' : 'Select packages from the list'}</p>
+              <div className="text-center py-8 text-gray-600">
+                <p className="text-sm font-medium">{effectiveUserRole === 'rep' ? 'Materials will be auto-populated' : 'No materials selected yet'}</p>
+                <p className="text-xs mt-1 text-gray-500">{effectiveUserRole === 'rep' ? 'Based on package selection' : 'Select packages from the list'}</p>
               </div>
             ) : (
               <div className="space-y-2">
