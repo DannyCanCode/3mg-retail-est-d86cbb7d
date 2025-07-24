@@ -6,7 +6,6 @@ CREATE INDEX IF NOT EXISTS idx_estimates_territory_id ON estimates(territory_id)
 CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status);
 CREATE INDEX IF NOT EXISTS idx_estimates_created_at ON estimates(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_estimates_deleted_at ON estimates(deleted_at) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_estimates_owner_id ON estimates(owner_id);
 CREATE INDEX IF NOT EXISTS idx_estimates_is_sold ON estimates(is_sold);
 CREATE INDEX IF NOT EXISTS idx_estimates_submission_status ON estimates(submission_status);
 
@@ -170,7 +169,6 @@ CREATE POLICY "Users can view status history for their estimates" ON estimate_st
 
 -- 8. Add composite indexes for common query patterns
 CREATE INDEX IF NOT EXISTS idx_estimates_territory_status ON estimates(territory_id, status) WHERE deleted_at IS NULL;
-CREATE INDEX IF NOT EXISTS idx_estimates_owner_status ON estimates(owner_id, submission_status) WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_profiles_territory_role ON profiles(territory_id, role);
 
 -- 9. Add check constraints for data integrity

@@ -1804,8 +1804,8 @@ export function MaterialsSelectionTab({
     // Check if this is a JWS accessory (accessories that sales reps can edit)
     const isJWSAccessory = material.category === MaterialCategory.ACCESSORIES;
     
-    // Sales reps can edit all materials - remove the old project manager restriction
-    const isReadOnlyForProjectManager = false;
+    // Project managers (sales reps) can only edit JWS accessories, not package materials
+    const isReadOnlyForProjectManager = effectiveUserRole === 'rep' && !isJWSAccessory;
     
     // Ensure waste factor exists, falling back to the default for the material if not in state yet.
     const currentWasteFactorForMaterial = materialWasteFactors[materialId] ?? determineWasteFactor(material, undefined, dbWastePercentages);
