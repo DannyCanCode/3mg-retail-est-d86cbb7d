@@ -174,20 +174,20 @@ export function LaborProfitTab({
     return false;
   };
 
-  // 🔓 NEW: Only Territory Managers can edit permit count
+  // 🔓 Everyone can edit permit count (but minimum 1 is enforced)
   const canEditPermitCount = () => {
     // Admin override: If in admin edit mode and current user is admin, allow editing
     if (isAdminEditMode && isAdmin) {
       return true; // Admins can edit any estimate when in admin edit mode
     }
     
-    // Normal operation: Only Territory Managers and Admins can edit permit count
-    // Sales Reps CANNOT edit permit count
-    if (!readOnly && (isAdmin || userRole === 'manager')) {
-      return true; // Only Territory Managers and Admins can adjust permit count
+    // Normal operation: Everyone can edit permit count when not in read-only mode
+    // This includes Sales Reps, Territory Managers, and Admins
+    if (!readOnly) {
+      return true; // All users can adjust permit count
     }
     
-    // Sales Reps and other roles cannot edit permit count
+    // Read-only mode: no one can edit
     return false;
   };
 
@@ -848,7 +848,7 @@ export function LaborProfitTab({
                           <Info className="h-4 w-4 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent>
-                          <p>Only Territory Managers can adjust permit count</p>
+                          <p>This field is read-only</p>
                         </TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
