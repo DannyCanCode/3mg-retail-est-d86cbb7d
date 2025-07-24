@@ -23,7 +23,14 @@ export const WarrantySelector: React.FC<WarrantySelectorProps> = ({
   onPeelStickToggle,
 }) => {
   
-  const isGoldPledgeAvailable = selectedPackage === 'gaf-2' || selectedPackage === '3mg-2';
+  // Check if warranties are available (only for GAF packages)
+  const isGAFPackage = selectedPackage === 'gaf-1' || selectedPackage === 'gaf-2';
+  const isGoldPledgeAvailable = selectedPackage === 'gaf-2';
+  
+  // If not a GAF package, don't show warranty options
+  if (!isGAFPackage) {
+    return null;
+  }
   
   // Handle warranty selection
   const handleWarrantyClick = (warrantyId: string) => {

@@ -93,6 +93,12 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
               <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">
                 HDZ Shingles, ProStart Starter, Seal-A-Ridge, WeatherWatch, Pro Guard 20
               </div>
+              
+              {/* Warranty note */}
+              <div className="text-xs text-blue-600 font-medium mt-2 flex items-center gap-1">
+                <Shield className="h-3 w-3" />
+                <span>Warranty options available after selection</span>
+              </div>
             </div>
           </div>
           
@@ -146,6 +152,12 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
               {/* Quick preview */}
               <div className="text-xs text-gray-500 bg-gray-50 rounded p-2">
                 HDZ Shingles, FeltBuster Synthetic, Full WeatherWatch Protection
+              </div>
+              
+              {/* Warranty note */}
+              <div className="text-xs text-purple-600 font-medium mt-2 flex items-center gap-1">
+                <Shield className="h-3 w-3" />
+                <span>Silver & Gold Pledge™ warranties available</span>
               </div>
             </div>
           </div>
@@ -249,7 +261,18 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                     <p className="text-xs text-gray-600 leading-relaxed">
                       Oakridge Shingles + Proedge Hip & Ridge + Polyglass IRXE Valleys
                     </p>
-                    <div className="text-xs text-orange-600 font-medium">Click to Select</div>
+                    <div className="flex flex-col gap-1 mt-2">
+                      <div className="text-xs text-gray-500">Includes:</div>
+                      <div className="flex items-center gap-1">
+                        <Shield className="h-3 w-3 text-green-500" />
+                        <span className="text-xs text-gray-600">10-Year 3MG Workmanship Warranty</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Shield className="h-3 w-3 text-green-500" />
+                        <span className="text-xs text-gray-600">30-Year Material Warranty</span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-orange-600 font-medium mt-2">Click to Select</div>
                   </div>
                 </div>
                 
@@ -278,7 +301,18 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                     <p className="text-xs text-gray-600 leading-relaxed">
                       Timberline HDZ + ProStart Starter + Polyglass IRXE Valleys
                     </p>
-                    <div className="text-xs text-blue-600 font-medium">Click to Select</div>
+                    <div className="flex flex-col gap-1 mt-2">
+                      <div className="text-xs text-gray-500">Includes:</div>
+                      <div className="flex items-center gap-1">
+                        <Shield className="h-3 w-3 text-green-500" />
+                        <span className="text-xs text-gray-600">10-Year 3MG Workmanship Warranty</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Shield className="h-3 w-3 text-green-500" />
+                        <span className="text-xs text-gray-600">25-Year Material Warranty</span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-blue-600 font-medium mt-2">Click to Select</div>
                   </div>
                 </div>
               </div>
