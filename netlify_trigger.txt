@@ -1,3 +1,4 @@
 Territory Update Deployment: Thu Jul 24 01:59:51 EDT 2025
 Territory Assignment Fix: Thu Jul 24 02:06:09 EDT 2025
 Deployment: Material Controls Fix Thu Jul 24 12:08:26 EDT 2025
+Deployment: Double-click package deselect Thu Jul 24 12:15:08 EDT 2025
