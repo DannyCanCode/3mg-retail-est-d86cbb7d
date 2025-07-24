@@ -197,11 +197,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                       // Known manager emails with their territory assignments
             const managerConfig = {
               'josh.vanhorn@3mgroofing.com': 'tampa', // Tampa territory - will be resolved dynamically
-              'dmpearl@3mgroofing.com': 'miami', // Miami territory - will be resolved dynamically
-              'nickolas.nell@3mgroofing.com': '86eeec95-ba2d-4785-abae-520dd07ff5a0', // Stuart territory
-              'harrison.cremata@3mgroofing.com': 'ee7c26dd-f7b1-434e-8cdf-2f857a9cb5b3', // Jacksonville territory
-              'chase.lovejoy@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e', // Winter Park territory
-              'adam@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
+              'dmpearl@3mgroofing.com': 'south-florida', // South Florida territory - will be resolved dynamically
+              'nickolas.nell@3mgroofing.com': 'southeast-florida', // Southeast Florida territory - will be resolved dynamically
+              'harrison.cremata@3mgroofing.com': 'northeast-florida', // Northeast Florida territory - will be resolved dynamically
+              'chase.lovejoy@3mgroofing.com': 'central-florida', // Central Florida territory - will be resolved dynamically
+              'adam@3mgroofing.com': 'central-florida', // Central Florida territory - will be resolved dynamically
+              'jacob.kallhoff@3mgroofing.com': 'north-central-florida' // North Central Florida territory - will be resolved dynamically
             };
           
           let defaultRole = 'rep';
@@ -307,11 +308,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             // Known manager emails with their territory assignments
             const managerConfig = {
               'josh.vanhorn@3mgroofing.com': 'tampa', // Tampa territory - will be resolved dynamically
-              'dmpearl@3mgroofing.com': 'miami', // Miami territory - will be resolved dynamically
-              'nickolas.nell@3mgroofing.com': '86eeec95-ba2d-4785-abae-520dd07ff5a0', // Stuart territory
-              'harrison.cremata@3mgroofing.com': 'ee7c26dd-f7b1-434e-8cdf-2f857a9cb5b3', // Jacksonville territory
-              'chase.lovejoy@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e', // Winter Park territory
-              'adam@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
+              'dmpearl@3mgroofing.com': 'south-florida', // South Florida territory - will be resolved dynamically
+              'nickolas.nell@3mgroofing.com': 'southeast-florida', // Southeast Florida territory - will be resolved dynamically
+              'harrison.cremata@3mgroofing.com': 'northeast-florida', // Northeast Florida territory - will be resolved dynamically
+              'chase.lovejoy@3mgroofing.com': 'central-florida', // Central Florida territory - will be resolved dynamically
+              'adam@3mgroofing.com': 'central-florida', // Central Florida territory - will be resolved dynamically
+              'jacob.kallhoff@3mgroofing.com': 'north-central-florida' // North Central Florida territory - will be resolved dynamically
             };
           
           let defaultRole = 'rep';
@@ -571,11 +573,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 
                 const managerConfig = {
                   'josh.vanhorn@3mgroofing.com': 'tampa', // Tampa territory - will be resolved dynamically
-                  'dmpearl@3mgroofing.com': 'miami', // Miami territory - will be resolved dynamically
-                  'nickolas.nell@3mgroofing.com': '86eeec95-ba2d-4785-abae-520dd07ff5a0', // Stuart territory
-                  'harrison.cremata@3mgroofing.com': 'ee7c26dd-f7b1-434e-8cdf-2f857a9cb5b3', // Jacksonville territory
-                  'chase.lovejoy@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e', // Winter Park territory
-                  'adam@3mgroofing.com': 'a221805b-0b50-493f-97af-3a8d6367bb4e' // Winter Park territory
+                  'dmpearl@3mgroofing.com': 'south-florida', // South Florida territory - will be resolved dynamically
+                  'nickolas.nell@3mgroofing.com': 'southeast-florida', // Southeast Florida territory - will be resolved dynamically
+                  'harrison.cremata@3mgroofing.com': 'northeast-florida', // Northeast Florida territory - will be resolved dynamically
+                  'chase.lovejoy@3mgroofing.com': 'central-florida', // Central Florida territory - will be resolved dynamically
+                  'adam@3mgroofing.com': 'central-florida', // Central Florida territory - will be resolved dynamically
+                  'jacob.kallhoff@3mgroofing.com': 'north-central-florida' // North Central Florida territory - will be resolved dynamically
                 };
               
               let defaultRole = 'rep';

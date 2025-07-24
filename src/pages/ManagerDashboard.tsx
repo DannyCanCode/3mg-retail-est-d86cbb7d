@@ -307,50 +307,68 @@ const ManagerDashboard: React.FC = () => {
             badgeColors: 'bg-emerald-600/20 text-emerald-300 border-emerald-500/50',
             territoryLabel: 'Tampa'
           };
-        case 'ocala':
+        case 'north central florida':
           return {
             border: 'border-cyan-700/30',
             headerBg: 'bg-gradient-to-r from-cyan-900/20 to-cyan-800/20',
             titleColor: 'text-cyan-300',
             accentColor: 'text-cyan-400',
             badgeColors: 'bg-cyan-600/20 text-cyan-300 border-cyan-500/50',
-            territoryLabel: 'Ocala'
+            territoryLabel: 'North Central Florida'
           };
-        case 'winter park':
+        case 'central florida':
           return {
             border: 'border-purple-700/30',
             headerBg: 'bg-gradient-to-r from-purple-900/20 to-purple-800/20',
             titleColor: 'text-purple-300',
             accentColor: 'text-purple-400',
             badgeColors: 'bg-purple-600/20 text-purple-300 border-purple-500/50',
-            territoryLabel: 'Winter Park'
+            territoryLabel: 'Central Florida'
           };
-        case 'miami':
+        case 'south florida':
           return {
             border: 'border-pink-700/30',
             headerBg: 'bg-gradient-to-r from-pink-900/20 to-pink-800/20',
             titleColor: 'text-pink-300',
             accentColor: 'text-pink-400',
             badgeColors: 'bg-pink-600/20 text-pink-300 border-pink-500/50',
-            territoryLabel: 'Miami'
+            territoryLabel: 'South Florida'
           };
-        case 'stuart':
+        case 'southeast florida':
           return {
             border: 'border-amber-700/30',
             headerBg: 'bg-gradient-to-r from-amber-900/20 to-amber-800/20',
             titleColor: 'text-amber-300',
             accentColor: 'text-amber-400',
             badgeColors: 'bg-amber-600/20 text-amber-300 border-amber-500/50',
-            territoryLabel: 'Stuart'
+            territoryLabel: 'Southeast Florida'
           };
-        case 'jacksonville':
+        case 'northeast florida':
           return {
             border: 'border-indigo-700/30',
             headerBg: 'bg-gradient-to-r from-indigo-900/20 to-indigo-800/20',
             titleColor: 'text-indigo-300',
             accentColor: 'text-indigo-400',
             badgeColors: 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50',
-            territoryLabel: 'Jacksonville'
+            territoryLabel: 'Northeast Florida'
+          };
+        case 'east missouri':
+          return {
+            border: 'border-red-700/30',
+            headerBg: 'bg-gradient-to-r from-red-900/20 to-red-800/20',
+            titleColor: 'text-red-300',
+            accentColor: 'text-red-400',
+            badgeColors: 'bg-red-600/20 text-red-300 border-red-500/50',
+            territoryLabel: 'East Missouri'
+          };
+        case 'west missouri':
+          return {
+            border: 'border-blue-700/30',
+            headerBg: 'bg-gradient-to-r from-blue-900/20 to-blue-800/20',
+            titleColor: 'text-blue-300',
+            accentColor: 'text-blue-400',
+            badgeColors: 'bg-blue-600/20 text-blue-300 border-blue-500/50',
+            territoryLabel: 'West Missouri'
           };
         default:
           // Fallback for unknown territories

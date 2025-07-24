@@ -26,26 +26,38 @@ const territoryManagers = [
   {
     email: 'Jacob.Kallhoff@3MGRoofing.com',
     fullName: 'Jacob Kallhoff',
-    territory: 'Ocala',
-    password: '3MGOcala2024!'
+    territory: 'North Central Florida',
+    password: '3MGNorthCentralFlorida2024!'
   },
   {
     email: 'Chase.Lovejoy@3MGRoofing.com',
     fullName: 'Chase Lovejoy',
-    territory: 'Winter Park',
-    password: '3MGWinterPark2024!'
+    territory: 'Central Florida',
+    password: '3MGCentralFlorida2024!'
   },
   {
     email: 'adam@3mgroofing.com',
     fullName: 'Adam',
-    territory: 'Winter Park',
-    password: '3MGWinterPark2024!'
+    territory: 'Central Florida',
+    password: '3MGCentralFlorida2024!'
   },
   {
     email: 'dmpearl@3MGRoofing.com',
     fullName: 'DM Pearl',
-    territory: 'Miami',
-    password: '3MGMiami2024!'
+    territory: 'South Florida',
+    password: '3MGSouthFlorida2024!'
+  },
+  {
+    email: 'nickolas.nell@3mgroofing.com',
+    fullName: 'Nickolas Nell',
+    territory: 'Southeast Florida',
+    password: '3MGSoutheastFlorida2024!'
+  },
+  {
+    email: 'harrison.cremata@3mgroofing.com',
+    fullName: 'Harrison Cremata',
+    territory: 'Northeast Florida',
+    password: '3MGNortheastFlorida2024!'
   }
 ];
 

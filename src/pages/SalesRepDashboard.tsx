@@ -108,11 +108,11 @@ const SalesRepDashboard: React.FC = () => {
     // For now, we'll hardcode territory names based on known assignments
     // TODO: Update Supabase types to include territories table for proper querying
     
-    // Since Taylor is assigned to Winter Park territory, display that
+    // Since Taylor is assigned to Central Florida territory, display that
     // This can be expanded later with proper territory ID mapping
     setTerritory({
       id: profile.territory_id,
-      name: 'Winter Park Territory'
+      name: 'Central Florida Territory'
     });
   };
 

@@ -7,9 +7,13 @@ This guide explains how to create territory managers for the 3MG Roofing Estimat
 
 ### Territories Created:
 - **Tampa** - Central Florida region
-- **Ocala** - North Central Florida region  
-- **Winter Park** - Central Florida region (Greater Orlando area)
-- **Miami** - South Florida region
+- **North Central Florida** - North Central Florida region  
+- **Central Florida** - Central Florida region (Greater Orlando area)
+- **South Florida** - South Florida region
+- **Northeast Florida** - Northeast Florida region
+- **Southeast Florida** - Southeast Florida region
+- **East Missouri** - East Missouri region
+- **West Missouri** - West Missouri region
 
 ## 👥 Territory Managers to Create
 
@@ -19,28 +23,40 @@ This guide explains how to create territory managers for the 3MG Roofing Estimat
 - **Territory**: Tampa
 - **Role**: manager
 
-### 2. Jacob Kallhoff - Ocala Territory Manager
+### 2. Jacob Kallhoff - North Central Florida Territory Manager
 - **Email**: `Jacob.Kallhoff@3MGRoofing.com`
-- **Password**: `3MGOcala2024!`
-- **Territory**: Ocala
+- **Password**: `3MGNorthCentralFlorida2024!`
+- **Territory**: North Central Florida
 - **Role**: manager
 
-### 3. Chase Lovejoy - Winter Park Territory Manager
+### 3. Chase Lovejoy - Central Florida Territory Manager
 - **Email**: `Chase.Lovejoy@3MGRoofing.com`
-- **Password**: `3MGWinterPark2024!`
-- **Territory**: Winter Park
+- **Password**: `3MGCentralFlorida2024!`
+- **Territory**: Central Florida
 - **Role**: manager
 
-### 4. Adam - Winter Park Territory Manager
+### 4. Adam - Central Florida Territory Manager
 - **Email**: `adam@3mgroofing.com`
-- **Password**: `3MGWinterPark2024!`
-- **Territory**: Winter Park
+- **Password**: `3MGCentralFlorida2024!`
+- **Territory**: Central Florida
 - **Role**: manager
 
-### 5. DM Pearl - Miami Territory Manager
+### 5. DM Pearl - South Florida Territory Manager
 - **Email**: `dmpearl@3MGRoofing.com`
-- **Password**: `3MGMiami2024!`
-- **Territory**: Miami
+- **Password**: `3MGSouthFlorida2024!`
+- **Territory**: South Florida
+- **Role**: manager
+
+### 6. Nickolas Nell - Southeast Florida Territory Manager
+- **Email**: `nickolas.nell@3mgroofing.com`
+- **Password**: `3MGSoutheastFlorida2024!`
+- **Territory**: Southeast Florida
+- **Role**: manager
+
+### 7. Harrison Cremata - Northeast Florida Territory Manager
+- **Email**: `harrison.cremata@3mgroofing.com`
+- **Password**: `3MGNortheastFlorida2024!`
+- **Territory**: Northeast Florida
 - **Role**: manager
 
 ## 🚀 Method 1: Using Supabase Admin API (Recommended)
@@ -126,41 +142,59 @@ SET
   completed_onboarding = true
 WHERE email = 'Josh.VanHorn@3MGRoofing.com';
 
--- Jacob Kallhoff (Ocala)
+-- Jacob Kallhoff (North Central Florida)
 UPDATE profiles 
 SET 
   role = 'manager',
-  territory_id = (SELECT id FROM territories WHERE name = 'Ocala'),
-  job_title = 'Ocala Territory Manager',
+  territory_id = (SELECT id FROM territories WHERE name = 'North Central Florida'),
+  job_title = 'North Central Florida Territory Manager',
   completed_onboarding = true
 WHERE email = 'Jacob.Kallhoff@3MGRoofing.com';
 
--- Chase Lovejoy (Winter Park)
+-- Chase Lovejoy (Central Florida)
 UPDATE profiles 
 SET 
   role = 'manager',
-  territory_id = (SELECT id FROM territories WHERE name = 'Winter Park'),
-  job_title = 'Winter Park Territory Manager',
+  territory_id = (SELECT id FROM territories WHERE name = 'Central Florida'),
+  job_title = 'Central Florida Territory Manager',
   completed_onboarding = true
 WHERE email = 'Chase.Lovejoy@3MGRoofing.com';
 
--- Adam (Winter Park)
+-- Adam (Central Florida)
 UPDATE profiles 
 SET 
   role = 'manager',
-  territory_id = (SELECT id FROM territories WHERE name = 'Winter Park'),
-  job_title = 'Winter Park Territory Manager',
+  territory_id = (SELECT id FROM territories WHERE name = 'Central Florida'),
+  job_title = 'Central Florida Territory Manager',
   completed_onboarding = true
 WHERE email = 'adam@3mgroofing.com';
 
--- DM Pearl (Miami)
+-- DM Pearl (South Florida)
 UPDATE profiles 
 SET 
   role = 'manager',
-  territory_id = (SELECT id FROM territories WHERE name = 'Miami'),
-  job_title = 'Miami Territory Manager',
+  territory_id = (SELECT id FROM territories WHERE name = 'South Florida'),
+  job_title = 'South Florida Territory Manager',
   completed_onboarding = true
 WHERE email = 'dmpearl@3MGRoofing.com';
+
+-- Nickolas Nell (Southeast Florida)
+UPDATE profiles 
+SET 
+  role = 'manager',
+  territory_id = (SELECT id FROM territories WHERE name = 'Southeast Florida'),
+  job_title = 'Southeast Florida Territory Manager',
+  completed_onboarding = true
+WHERE email = 'nickolas.nell@3mgroofing.com';
+
+-- Harrison Cremata (Northeast Florida)
+UPDATE profiles 
+SET 
+  role = 'manager',
+  territory_id = (SELECT id FROM territories WHERE name = 'Northeast Florida'),
+  job_title = 'Northeast Florida Territory Manager',
+  completed_onboarding = true
+WHERE email = 'harrison.cremata@3mgroofing.com';
 ```
 
 ## ✅ Verification Steps

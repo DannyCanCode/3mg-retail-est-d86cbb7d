@@ -172,7 +172,7 @@ export function RecentEstimates() {
       currentY -= 15;
       page.drawText('152 N. Hwy 17-92 Ste 100', { x: margin, y: currentY, font: font, size: 9 });
       currentY -= 11;
-      page.drawText('Winter Park, FL 32789', { x: margin, y: currentY, font: font, size: 9 });
+              page.drawText('Central Florida Region', { x: margin, y: currentY, font: font, size: 9 });
       currentY -= 11;
       page.drawText('Phone: 407-xxx-xxxx', { x: margin, y: currentY, font: font, size: 9 }); // TODO: Real phone
 
@@ -542,50 +542,68 @@ export function RecentEstimates() {
                         badgeColors: 'bg-emerald-100 text-emerald-800 border-emerald-300',
                         territoryLabel: 'Tampa'
                       };
-                    case 'ocala':
+                    case 'north central florida':
                       return {
                         border: 'border-cyan-200',
                         headerBg: 'bg-gradient-to-r from-cyan-50 to-cyan-100',
                         titleColor: 'text-cyan-900',
                         accentColor: 'text-cyan-600',
                         badgeColors: 'bg-cyan-100 text-cyan-800 border-cyan-300',
-                        territoryLabel: 'Ocala'
+                        territoryLabel: 'North Central Florida'
                       };
-                    case 'winter park':
+                    case 'central florida':
                       return {
                         border: 'border-purple-200',
                         headerBg: 'bg-gradient-to-r from-purple-50 to-purple-100',
                         titleColor: 'text-purple-900',
                         accentColor: 'text-purple-600',
                         badgeColors: 'bg-purple-100 text-purple-800 border-purple-300',
-                        territoryLabel: 'Winter Park'
+                        territoryLabel: 'Central Florida'
                       };
-                    case 'miami':
+                    case 'south florida':
                       return {
                         border: 'border-pink-200',
                         headerBg: 'bg-gradient-to-r from-pink-50 to-pink-100',
                         titleColor: 'text-pink-900',
                         accentColor: 'text-pink-600',
                         badgeColors: 'bg-pink-100 text-pink-800 border-pink-300',
-                        territoryLabel: 'Miami'
+                        territoryLabel: 'South Florida'
                       };
-                    case 'stuart':
+                    case 'southeast florida':
                       return {
                         border: 'border-amber-200',
                         headerBg: 'bg-gradient-to-r from-amber-50 to-amber-100',
                         titleColor: 'text-amber-900',
                         accentColor: 'text-amber-600',
                         badgeColors: 'bg-amber-100 text-amber-800 border-amber-300',
-                        territoryLabel: 'Stuart'
+                        territoryLabel: 'Southeast Florida'
                       };
-                    case 'jacksonville':
+                    case 'northeast florida':
                       return {
                         border: 'border-indigo-200',
                         headerBg: 'bg-gradient-to-r from-indigo-50 to-indigo-100',
                         titleColor: 'text-indigo-900',
                         accentColor: 'text-indigo-600',
                         badgeColors: 'bg-indigo-100 text-indigo-800 border-indigo-300',
-                        territoryLabel: 'Jacksonville'
+                        territoryLabel: 'Northeast Florida'
+                      };
+                    case 'east missouri':
+                      return {
+                        border: 'border-red-200',
+                        headerBg: 'bg-gradient-to-r from-red-50 to-red-100',
+                        titleColor: 'text-red-900',
+                        accentColor: 'text-red-600',
+                        badgeColors: 'bg-red-100 text-red-800 border-red-300',
+                        territoryLabel: 'East Missouri'
+                      };
+                    case 'west missouri':
+                      return {
+                        border: 'border-blue-200',
+                        headerBg: 'bg-gradient-to-r from-blue-50 to-blue-100',
+                        titleColor: 'text-blue-900',
+                        accentColor: 'text-blue-600',
+                        badgeColors: 'bg-blue-100 text-blue-800 border-blue-300',
+                        territoryLabel: 'West Missouri'
                       };
                     default:
                       // Fallback for unknown territories

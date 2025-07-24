@@ -134,10 +134,14 @@ CREATE TABLE IF NOT EXISTS estimate_items (
 
 -- Insert default territories
 INSERT INTO territories (name, region, is_active) VALUES
-('Tampa', 'Central Florida', true),
-('Ocala', 'North Central Florida', true),
-('Winter Park', 'Central Florida', true),
-('Miami', 'South Florida', true)
+('Tampa', 'Central Florida Region', true),
+('North Central Florida', 'North Central Florida Region', true),
+('Central Florida', 'Central Florida Region', true),
+('South Florida', 'South Florida Region', true),
+('Northeast Florida', 'Northeast Florida Region', true),
+('Southeast Florida', 'Southeast Florida Region', true),
+('East Missouri', 'East Missouri Region', true),
+('West Missouri', 'West Missouri Region', true)
 ON CONFLICT (name) DO NOTHING;
 
 -- Insert default organization

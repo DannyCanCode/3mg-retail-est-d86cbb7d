@@ -93,11 +93,11 @@ export const AdminEstimateManagement: React.FC = () => {
         ...estimate,
         // 🎨 TEMPORARY: Map creator names to territories for color coding
         territory_name: estimate.creator_name?.toLowerCase().includes('josh') ? 'Tampa' :
-                       estimate.creator_name?.toLowerCase().includes('jacob') ? 'Ocala' :
-                       estimate.creator_name?.toLowerCase().includes('chase') || estimate.creator_name?.toLowerCase().includes('adam') ? 'Winter Park' :
-                       estimate.creator_name?.toLowerCase().includes('pearl') ? 'Miami' :
-                       estimate.creator_name?.toLowerCase().includes('nick') && estimate.creator_name?.toLowerCase().includes('nells') ? 'Stuart' :
-                       estimate.creator_name?.toLowerCase().includes('harrison') ? 'Jacksonville' :
+                       estimate.creator_name?.toLowerCase().includes('jacob') ? 'North Central Florida' :
+                       estimate.creator_name?.toLowerCase().includes('chase') || estimate.creator_name?.toLowerCase().includes('adam') ? 'Central Florida' :
+                       estimate.creator_name?.toLowerCase().includes('pearl') ? 'South Florida' :
+                       estimate.creator_name?.toLowerCase().includes('nick') && estimate.creator_name?.toLowerCase().includes('nells') ? 'Southeast Florida' :
+                       estimate.creator_name?.toLowerCase().includes('harrison') ? 'Northeast Florida' :
                        'Unknown Territory'
       }));
       
@@ -361,50 +361,68 @@ export const AdminEstimateManagement: React.FC = () => {
           badgeColors: 'border-emerald-200 text-emerald-700 bg-emerald-50',
           territoryLabel: 'Tampa'
         };
-      case 'ocala':
+      case 'north central florida':
         return {
           border: 'border-cyan-200 hover:border-cyan-300',
           headerBg: 'bg-gradient-to-r from-cyan-50 to-cyan-100',
           titleColor: 'text-cyan-800',
           accentColor: 'text-cyan-600',
           badgeColors: 'border-cyan-200 text-cyan-700 bg-cyan-50',
-          territoryLabel: 'Ocala'
+          territoryLabel: 'North Central Florida'
         };
-      case 'winter park':
+      case 'central florida':
         return {
           border: 'border-purple-200 hover:border-purple-300',
           headerBg: 'bg-gradient-to-r from-purple-50 to-purple-100',
           titleColor: 'text-purple-800',
           accentColor: 'text-purple-600',
           badgeColors: 'border-purple-200 text-purple-700 bg-purple-50',
-          territoryLabel: 'Winter Park'
+          territoryLabel: 'Central Florida'
         };
-      case 'miami':
+      case 'south florida':
         return {
           border: 'border-pink-200 hover:border-pink-300',
           headerBg: 'bg-gradient-to-r from-pink-50 to-pink-100',
           titleColor: 'text-pink-800',
           accentColor: 'text-pink-600',
           badgeColors: 'border-pink-200 text-pink-700 bg-pink-50',
-          territoryLabel: 'Miami'
+          territoryLabel: 'South Florida'
         };
-      case 'stuart':
+      case 'southeast florida':
         return {
           border: 'border-amber-200 hover:border-amber-300',
           headerBg: 'bg-gradient-to-r from-amber-50 to-amber-100',
           titleColor: 'text-amber-800',
           accentColor: 'text-amber-600',
           badgeColors: 'border-amber-200 text-amber-700 bg-amber-50',
-          territoryLabel: 'Stuart'
+          territoryLabel: 'Southeast Florida'
         };
-      case 'jacksonville':
+      case 'northeast florida':
         return {
           border: 'border-indigo-200 hover:border-indigo-300',
           headerBg: 'bg-gradient-to-r from-indigo-50 to-indigo-100',
           titleColor: 'text-indigo-800',
           accentColor: 'text-indigo-600',
           badgeColors: 'border-indigo-200 text-indigo-700 bg-indigo-50',
-          territoryLabel: 'Jacksonville'
+          territoryLabel: 'Northeast Florida'
+        };
+      case 'east missouri':
+        return {
+          border: 'border-red-200 hover:border-red-300',
+          headerBg: 'bg-gradient-to-r from-red-50 to-red-100',
+          titleColor: 'text-red-800',
+          accentColor: 'text-red-600',
+          badgeColors: 'border-red-200 text-red-700 bg-red-50',
+          territoryLabel: 'East Missouri'
+        };
+      case 'west missouri':
+        return {
+          border: 'border-blue-200 hover:border-blue-300',
+          headerBg: 'bg-gradient-to-r from-blue-50 to-blue-100',
+          titleColor: 'text-blue-800',
+          accentColor: 'text-blue-600',
+          badgeColors: 'border-blue-200 text-blue-700 bg-blue-50',
+          territoryLabel: 'West Missouri'
         };
       default:
         // Fallback for unknown territories or reps without territory

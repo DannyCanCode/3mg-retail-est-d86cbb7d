@@ -63,14 +63,14 @@ const Subtrades: React.FC = () => {
         {
           id: '1',
           customer_name: 'John Smith',
-          customer_address: '123 Main St, Winter Park, FL',
+          customer_address: '123 Main St, Central Florida',
           created_at: new Date().toISOString(),
           subtrade_requirements: ['HVAC', 'Electrical'],
           subtrade_status: 'pending',
           subtrade_pricing: {},
           subtrade_notes: '',
           total_price: 15000,
-          territory_name: 'Winter Park',
+          territory_name: 'Central Florida',
           created_by_name: 'Mike Johnson'
         },
         {

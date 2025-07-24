@@ -51,7 +51,7 @@ const DocumentsLibrary: React.FC = () => {
     {
       id: 'who-to-task-1',
       title: 'Territory Contact Matrix',
-      description: 'Winter Park territory connections and specialists directory',
+      description: 'Central Florida territory connections and specialists directory',
       category: 'Who to Task?',
       fileSize: '2.4 MB',
       lastUpdated: '2024-01-15',

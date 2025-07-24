@@ -349,7 +349,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
         color: rgb(1, 1, 1),
       });
       
-      page.drawText('Winter Park, FL 32789', {
+                page.drawText('Central Florida Region', {
         x: width - 150,
         y: height - 48,
         size: 10,
@@ -766,7 +766,7 @@ export const SalesRepSummaryTab: React.FC<SalesRepSummaryTabProps> = ({
       });
       
       // Footer
-      page.drawText('3MG Solutions, LLC | 1127 Solana Ave, Winter Park, FL 32789 | (407) 420-0201', {
+              page.drawText('3MG Solutions, LLC | Central Florida Region | (407) 420-0201', {
         x: width / 2 - 150,
         y: 30,
         size: 9,
