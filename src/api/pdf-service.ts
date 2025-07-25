@@ -20,71 +20,8 @@ export async function uploadPdfToStorage(file: File): Promise<string> {
   return supabase.storage.from(PDF_BUCKET_NAME).getPublicUrl(fileName).data.publicUrl;
 }
 
-// Feature flag – default false. If false we skip the edge-function path.
-const USE_EDGE_PARSER = import.meta.env.VITE_USE_EDGE_PARSER === "true";
-
-/**
- * Uploads a PDF file to Supabase Storage and then invokes the edge function for processing
- */
-export async function processPdfWithSupabase(file: File): Promise<{
-  data: ParsedMeasurements | null;
-  error: Error | null;
-  fileUrl?: string;
-}> {
-  try {
-    // Check if Supabase is configured
-    if (!isSupabaseConfigured()) {
-      throw new Error('Supabase is not configured. Please add your API keys to the .env file.');
-    }
-
-    // First upload the file to Supabase storage
-    const timestamp = new Date().getTime();
-    const fileName = `${timestamp}-${file.name}`;
-    const filePath = `${fileName}`;
-
-    console.log(`Uploading PDF to Supabase Storage bucket '${PDF_BUCKET_NAME}':`, filePath);
-    
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(PDF_BUCKET_NAME)
-      .upload(filePath, file, {
-        contentType: 'application/pdf',
-        cacheControl: '3600',
-      });
-
-    if (uploadError) {
-      console.error('Upload error:', uploadError);
-      throw new Error(`Error uploading file: ${uploadError.message}`);
-    }
-
-    // Get public URL for the uploaded file
-    const { data: { publicUrl } } = supabase.storage
-      .from(PDF_BUCKET_NAME)
-      .getPublicUrl(filePath);
-      
-    console.log('File uploaded successfully. Public URL:', publicUrl);
-
-    // Optionally invoke edge parser
-    if (USE_EDGE_PARSER) {
-    console.log('Invoking Supabase Edge Function for PDF processing...');
-      const { data, error: functionError } = await supabase.functions.invoke('process-pdf', { body: { fileUrl: publicUrl, fileName: file.name } });
-    if (functionError) {
-      console.error('Function error:', functionError);
-      throw new Error(`Error processing PDF: ${functionError.message}`);
-    }
-      console.log('Edge parser success:', data);
-      return { data: data as ParsedMeasurements, error: null, fileUrl: publicUrl };
-    }
-
-    // If not using edge parser, just return with null data
-    return { data: null, error: null, fileUrl: publicUrl };
-  } catch (error) {
-    console.error('PDF processing service error:', error);
-    return { 
-      data: null, 
-      error: error instanceof Error ? error : new Error('Unknown error occurred') 
-    };
-  }
-}
+// Server-side PDF processing removed - using client-side parsing only
+// Keeping uploadPdfToStorage function for file storage after client-side parsing
 
 /**
  * Save measurements to the database

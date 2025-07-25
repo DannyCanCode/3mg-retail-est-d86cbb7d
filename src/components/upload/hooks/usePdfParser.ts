@@ -1,32 +1,50 @@
-import { useState, useRef } from "react";
-import { ParsedMeasurements, PitchArea } from "@/api/measurements";
+import React, { useState, useRef } from "react";
+import { ParsedMeasurements } from "@/api/measurements";
 import { validatePdfFile } from "../pdf-utils";
+import { handleInvalidPdfError, handlePdfSizeError, handleGeneralPdfError } from "./pdf-error-handler";
+import { uploadPdfToStorage } from "@/api/pdf-service";
 import { FileUploadStatus } from "./useFileUpload";
 import { ProcessingMode } from "./pdf-constants";
-import { 
-  handlePdfSizeError, 
-  handleInvalidPdfError, 
-  handleGeneralPdfError
-} from "./pdf-error-handler";
-import { processPdfWithSupabase, uploadPdfToStorage } from "@/api/pdf-service";
-import { isSupabaseConfigured } from "@/integrations/supabase/client";
+import { trackEvent, trackPerformanceMetric } from "@/lib/posthog";
 import { toast } from "@/hooks/use-toast";
-import { trackPerformanceMetric, trackEvent } from "@/lib/posthog";
-// Import PDF.js for client-side parsing
+
+// Remove PDF.js import errors by using the worker
 import * as pdfjs from 'pdfjs-dist';
-import { GlobalWorkerOptions } from 'pdfjs-dist';
-// Add type imports
-import { convertAreasToArrayFormat } from "./debug-utils";
 
-// Set up the PDF.js worker
-const pdfjsVersion = '3.11.174'; // Match this with your installed version
-GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.js`;
+// Import the worker
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
-// Add TextItem interface at the top of the file
+// Add TextItem interface  
 interface TextItem {
   text: string;
   x: number;
   y: number;
+}
+
+// Debug information
+interface ParsedResult {
+  pitch: string;
+  area: number;
+  percentage: number;
+}
+
+interface ComprehensiveMeasurements {
+  totalArea: number;
+  areasByPitch: ParsedResult[];
+  predominantPitch: string;
+  propertyAddress: string;
+  latitude: string;
+  longitude: string;
+  ridgeLength: number;
+  hipLength: number;
+  valleyLength: number;
+  eaveLength: number;
+  rakeLength: number;
+  stepFlashingLength: number;
+  flashingLength: number;
+  penetrationsArea: number;
+  penetrationsPerimeter: number;
+  dripEdgeLength: number;
 }
 
 export function usePdfParser() {
@@ -79,7 +97,8 @@ export function usePdfParser() {
         return null;
       }
       
-      // First, we'll do client-side parsing with PDF.js for better accuracy
+      // 🚀 ALWAYS use client-side parsing with PDF.js for accurate data structure
+      // This ensures areasByPitch is always in the correct array format
       setProcessingMode("client");
       setStatus("parsing");
       setProcessingProgress({
@@ -88,10 +107,10 @@ export function usePdfParser() {
         status: "Processing PDF in browser..."
       });
       
-      console.log(`🚀 Processing PDF file client-side: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
+      console.log(`🚀 Processing PDF file client-side ONLY: ${file.name} (${fileSizeMB.toFixed(2)} MB)`);
       
       try {
-        // Parse the PDF client-side using PDF.js
+        // Parse the PDF client-side using PDF.js - NO server-side fallback
         const { measurements, parsedMeasurements } = await parsePdfClientSide(file, setProcessingProgress);
         
         if (!measurements) {
