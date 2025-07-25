@@ -3158,6 +3158,7 @@ const Estimates = () => {
                         initialLaborRates={laborRates}
                         initialProfitMargin={profitMargin}
                         onLaborProfitContinue={handleLaborProfitContinue}
+                        onLaborRatesChange={setLaborRates}
                         onBack={() => setActiveTab("materials")}
                         readOnly={isViewMode}
                         isAdminEditMode={isAdminEditMode}

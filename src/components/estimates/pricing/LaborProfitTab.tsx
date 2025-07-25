@@ -24,6 +24,7 @@ interface LaborProfitTabProps {
   selectedMaterials: {[key: string]: Material};
   quantities: {[key: string]: number};
   onLaborProfitContinue: (laborRates: LaborRates, profitMargin: number) => void;
+  onLaborRatesChange?: (laborRates: LaborRates) => void; // 🔧 NEW: For immediate parent sync
   readOnly?: boolean;
   laborRates?: LaborRates;
   // Admin edit mode props
@@ -74,6 +75,7 @@ export function LaborProfitTab({
   selectedMaterials,
   quantities,
   onLaborProfitContinue,
+  onLaborRatesChange,
   readOnly,
   laborRates: laborRatesFromProps,
   // Admin edit mode props
@@ -337,12 +339,10 @@ export function LaborProfitTab({
   const commonStateUpdater = (updater: (prev: LaborRates) => LaborRates, shouldSyncImmediately = false) => {
     setLaborRates(prev => {
       const newState = updater(prev);
-      // 🔧 CRITICAL FIX: Only sync critical changes immediately, not every toggle
-      if (shouldSyncImmediately && hasUserInteracted.current && hasComponentStabilized.current && onLaborProfitContinue) {
-        // Use setTimeout to ensure state update completes first
-        setTimeout(() => {
-          onLaborProfitContinue(newState, profitMargin);
-        }, 0);
+      // 🔧 FIX: Use separate callback for immediate parent sync (no navigation)
+      if (shouldSyncImmediately && onLaborRatesChange) {
+        console.log('🔗 [LaborProfitTab] Critical field updated, syncing to parent immediately:', newState);
+        onLaborRatesChange(newState);
       }
       return newState;
     });

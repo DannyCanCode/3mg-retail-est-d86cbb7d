@@ -244,7 +244,15 @@ const SalesRepEstimateFlow: React.FC = () => {
     setCurrentStep(4); // Go to Project Details
   };
 
-  // Handle project details completion
+  // Handle immediate labor rates updates (no navigation)
+  const handleLaborRatesChange = (laborRates: LaborRates) => {
+    setEstimateData(prev => ({ 
+      ...prev, 
+      laborRates: laborRates
+    }));
+  };
+
+  // Handle project details completion (with navigation)
   const handleLaborProfitComplete = (laborRates: LaborRates, profitMargin: number) => {
     // Merge the laborRates with gutters data from job worksheet
     const mergedLaborRates = {
@@ -679,6 +687,7 @@ const SalesRepEstimateFlow: React.FC = () => {
                 selectedMaterials={estimateData.materials || {}}
                 quantities={estimateData.quantities || {}}
                 onLaborProfitContinue={handleLaborProfitComplete}
+                onLaborRatesChange={handleLaborRatesChange}
                 initialLaborRates={estimateData.laborRates || {
                   laborRate: 85,
                   tearOff: 0,
