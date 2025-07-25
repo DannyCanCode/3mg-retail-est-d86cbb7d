@@ -718,9 +718,9 @@ export function usePdfParser() {
             continue;
           }
 
-          // Look for "% of Roof" which often contains both header AND data in the same row
+          // Look for "% of Roof" which might contain both header AND data in the same row
           if (foundAreaRow && !foundPercentageRow && rowText.includes('% of Roof')) {
-            // Extract percentages from the same row as the header (e.g., "% of Roof  6.1%  93.9%")
+            // Try to extract percentages from the same row as the header (e.g., "% of Roof  6.1%  93.9%")
             const percentageMatches = rowText.match(/\d+\.?\d*(?=%)/g);
             if (percentageMatches && percentageMatches.length >= pitches.length) {
               const extractedPercentages = percentageMatches.slice(0, pitches.length).map(Number);
@@ -728,24 +728,37 @@ export function usePdfParser() {
               foundPercentageRow = true;
               foundPercentageHeader = true;
               console.log('📈 Found percentage data in header row:', percentages);
+            } else {
+              // If no percentages found in header row, treat as separate header
+              foundPercentageHeader = true;
+              console.log('📈 Found percentage header (data in next row)');
             }
             continue;
           }
 
-          // Fallback: Look for percentage data in separate row (if not found in header row)
-          if (foundAreaRow && !foundPercentageHeader && rowText.includes('%')) {
-            foundPercentageHeader = true;
-            console.log('📈 Found percentage header (separate row)');
-            continue;
-          }
-
+          // Look for percentage data row (after finding header) - this handles the common case where percentages are on a separate row
           if (foundPercentageHeader && !foundPercentageRow) {
-            const percentageMatches = rowText.match(/\d+\.?\d*/g);
-            if (percentageMatches && percentageMatches.length >= pitches.length && !rowText.includes('%')) {
+            // Look for a row with percentage symbols (e.g., "17.7%  2.7%  79.6%")
+            const percentageMatches = rowText.match(/\d+\.?\d*(?=%)/g);
+            if (percentageMatches && percentageMatches.length >= pitches.length) {
               const extractedPercentages = percentageMatches.slice(0, pitches.length).map(Number);
               percentages.push(...extractedPercentages);
               foundPercentageRow = true;
-              console.log('📈 Found percentage data row (separate):', percentages);
+              console.log('📈 Found percentage data row with % symbols:', percentages);
+              continue;
+            }
+            
+            // Fallback: Look for numbers without % symbols (but only if the row doesn't look like a waste calculation table)
+            const numberMatches = rowText.match(/\d+\.?\d*/g);
+            if (numberMatches && numberMatches.length >= pitches.length && !rowText.includes('Waste') && !rowText.includes('Area')) {
+              // Only accept if numbers are reasonable percentages (0-100)
+              const potentialPercentages = numberMatches.slice(0, pitches.length).map(Number);
+              const allReasonable = potentialPercentages.every(num => num >= 0 && num <= 100);
+              if (allReasonable) {
+                percentages.push(...potentialPercentages);
+                foundPercentageRow = true;
+                console.log('📈 Found percentage data row (no % symbols):', percentages);
+              }
             }
             continue;
           }
