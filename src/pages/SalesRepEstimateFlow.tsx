@@ -400,15 +400,15 @@ const SalesRepEstimateFlow: React.FC = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1200px] h-[1200px] bg-green-600/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '4s' }} />
       </div>
       
-      {[...Array(30)].map((_, i) => (
+      {[...Array(15)].map((_, i) => (
         <div
           key={i}
           className="absolute w-1 h-1 bg-white rounded-full animate-twinkle"
           style={{
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 10}s`,
-            animationDuration: `${3 + Math.random() * 7}s`
+            animationDelay: `${Math.random() * 15}s`,
+            animationDuration: `${8 + Math.random() * 12}s`
           }}
         />
       ))}

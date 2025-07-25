@@ -10,7 +10,7 @@ interface PackageSelectorProps {
 const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorProps) => {
   const [show3mgStandardOptions, setShow3mgStandardOptions] = useState(false);
   
-  // Handle click - toggle selection on double click
+  // Handle click - toggle selection
   const handlePackageClick = (packageId: string) => {
     if (packageId === '3mg-standard') {
       // Toggle 3MG Standard sub-options
@@ -19,10 +19,12 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
     }
     
     if (selectedPackage === packageId) {
-      // If this package is already selected, allow double-click to deselect it
+      // If this package is already selected, click to deselect it
+      console.log('Package deselected:', packageId);
       onPackageSelect(null);
     } else {
       // Otherwise, select this package
+      console.log('Package selected:', packageId);
       onPackageSelect(packageId);
     }
   };
@@ -243,7 +245,10 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                       ? 'bg-orange-50 border-orange-400 shadow-md ring-1 ring-orange-200' 
                       : 'bg-white hover:bg-orange-25 border-gray-200 hover:border-orange-300'
                   }`}
-                  onClick={() => onPackageSelect('3mg-standard-oc')}
+                  onClick={() => {
+                    console.log('3MG Standard OC selected');
+                    onPackageSelect('3mg-standard-oc');
+                  }}
                 >
                   {selectedPackage === '3mg-standard-oc' && (
                     <div className="absolute -top-1.5 -right-1.5 bg-orange-500 rounded-full p-1">
@@ -283,7 +288,10 @@ const PackageSelector = ({ selectedPackage, onPackageSelect }: PackageSelectorPr
                       ? 'bg-blue-50 border-blue-400 shadow-md ring-1 ring-blue-200' 
                       : 'bg-white hover:bg-blue-25 border-gray-200 hover:border-blue-300'
                   }`}
-                  onClick={() => onPackageSelect('3mg-standard-gaf')}
+                  onClick={() => {
+                    console.log('3MG Standard GAF selected');
+                    onPackageSelect('3mg-standard-gaf');
+                  }}
                 >
                   {selectedPackage === '3mg-standard-gaf' && (
                     <div className="absolute -top-1.5 -right-1.5 bg-blue-500 rounded-full p-1">

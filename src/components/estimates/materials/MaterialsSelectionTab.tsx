@@ -3312,7 +3312,10 @@ export function MaterialsSelectionTab({
             <CardContent className="space-y-3 pt-0">
               <PackageSelector 
                 selectedPackage={selectedPackage} 
-                onPackageSelect={setSelectedPackage} 
+                onPackageSelect={(packageId) => {
+                  console.log('MaterialsSelectionTab - Package selection changed to:', packageId);
+                  setSelectedPackage(packageId);
+                }} 
               />
               
               <WarrantySelector 
@@ -3341,7 +3344,10 @@ export function MaterialsSelectionTab({
              <CardContent className="space-y-4">
                <PackageSelector 
                  selectedPackage={selectedPackage} 
-                 onPackageSelect={setSelectedPackage} 
+                 onPackageSelect={(packageId) => {
+                   console.log('MaterialsSelectionTab - Package selection changed to:', packageId);
+                   setSelectedPackage(packageId);
+                 }} 
                />
                <WarrantySelector 
                  selectedPackage={selectedPackage}
