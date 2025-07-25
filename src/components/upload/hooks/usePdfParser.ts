@@ -643,7 +643,9 @@ export function usePdfParser() {
         const percentages: number[] = [];
         let inPitchSection = false;
         let foundPitchRow = false;
+        let foundAreaHeader = false;
         let foundAreaRow = false;
+        let foundPercentageHeader = false;
         let foundPercentageRow = false;
 
         // Group items by Y coordinate (with some tolerance)
@@ -651,14 +653,15 @@ export function usePdfParser() {
 
         for (const row of sortedRows) {
           const rowText = row.map(item => item.text).join(' ').trim();
-          // Only log important rows, not every single row to improve performance
-          if (rowText.includes('Areas per Pitch') || rowText.match(/\d+\/\d+/) || rowText.includes('Area (sq ft)') || rowText.includes('%')) {
-            console.log('Processing important row:', rowText);
+          // Log all potentially relevant rows for debugging
+          if (rowText.includes('Areas per Pitch') || rowText.match(/\d+\/\d+/) || rowText.includes('Area') || rowText.includes('%') || /^\d+\.?\d*\s+\d+\.?\d*/.test(rowText)) {
+            console.log('🔍 Processing pitch table row:', rowText);
           }
 
           // Look for the Areas per Pitch section header
           if (rowText.includes('Areas per Pitch')) {
             inPitchSection = true;
+            console.log('📍 Found Areas per Pitch section');
             continue;
           }
 
@@ -672,42 +675,61 @@ export function usePdfParser() {
               // Store pitches in their original format without adding redundant "/12" or ":12"
               pitches.push(...pitchMatches);
               foundPitchRow = true;
-              console.log('Found pitch row:', pitches);
+              console.log('🎯 Found pitch row:', pitches);
             }
             continue;
           }
           
-          // Look for area row (contains numbers with possible commas and decimals)
-          if (foundPitchRow && !foundAreaRow && rowText.includes('Area (sq ft)')) {
+          // Look for "Area (sq ft)" header
+          if (foundPitchRow && !foundAreaHeader && rowText.includes('Area (sq ft)')) {
+            foundAreaHeader = true;
+            console.log('📊 Found Area header');
+            continue;
+          }
+
+          // Look for area data row (after finding header)
+          if (foundAreaHeader && !foundAreaRow) {
             // Match numbers with optional commas and decimals (e.g., 3,180.9 or 207.6)
+            // This row should contain only numbers (and spaces), not the "Area (sq ft)" text
             const areaMatches = rowText.match(/[\d,]+\.?\d*/g);
-            if (areaMatches) {
+            if (areaMatches && areaMatches.length >= pitches.length && !rowText.includes('Area')) {
               // Remove commas before converting to numbers
-              areas.push(...areaMatches.map(match => Number(match.replace(/,/g, ''))));
+              const extractedAreas = areaMatches.slice(0, pitches.length).map(match => Number(match.replace(/,/g, '')));
+              areas.push(...extractedAreas);
               foundAreaRow = true;
-              console.log('Found area row:', areas);
+              console.log('📊 Found area data row:', areas);
             }
             continue;
           }
 
-          // Look for percentage row (contains % symbol)
-          if (foundAreaRow && !foundPercentageRow && rowText.includes('%')) {
-            const percentageMatches = rowText.match(/\d+\.?\d*(?=%)/g);
-            if (percentageMatches) {
-              percentages.push(...percentageMatches.map(Number));
+          // Look for "% of Roof" or just "%" header
+          if (foundAreaRow && !foundPercentageHeader && (rowText.includes('% of Roof') || rowText.includes('%'))) {
+            foundPercentageHeader = true;
+            console.log('📈 Found percentage header');
+            continue;
+          }
+
+          // Look for percentage data row (after finding header)
+          if (foundPercentageHeader && !foundPercentageRow) {
+            const percentageMatches = rowText.match(/\d+\.?\d*/g);
+            if (percentageMatches && percentageMatches.length >= pitches.length && !rowText.includes('%')) {
+              const extractedPercentages = percentageMatches.slice(0, pitches.length).map(Number);
+              percentages.push(...extractedPercentages);
               foundPercentageRow = true;
-              console.log('Found percentage row:', percentages);
+              console.log('📈 Found percentage data row:', percentages);
             }
-                continue;
-              }
+            continue;
+          }
               
-          // If we've found all rows, break
+          // If we've found all data, break
           if (foundPitchRow && foundAreaRow && foundPercentageRow) {
+            console.log('✅ Successfully extracted all pitch table data');
             break;
           }
         }
 
-          return { pitches, areas, percentages };
+        console.log('🏁 Final extraction results:', { pitches, areas, percentages });
+        return { pitches, areas, percentages };
       }
       
       // Try the coordinate-based table extraction first
