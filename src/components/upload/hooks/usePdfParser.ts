@@ -702,21 +702,34 @@ export function usePdfParser() {
             continue;
           }
 
-          // Look for "% of Roof" or just "%" header
-          if (foundAreaRow && !foundPercentageHeader && (rowText.includes('% of Roof') || rowText.includes('%'))) {
-            foundPercentageHeader = true;
-            console.log('📈 Found percentage header');
+          // Look for "% of Roof" which often contains both header AND data in the same row
+          if (foundAreaRow && !foundPercentageRow && rowText.includes('% of Roof')) {
+            // Extract percentages from the same row as the header (e.g., "% of Roof  6.1%  93.9%")
+            const percentageMatches = rowText.match(/\d+\.?\d*(?=%)/g);
+            if (percentageMatches && percentageMatches.length >= pitches.length) {
+              const extractedPercentages = percentageMatches.slice(0, pitches.length).map(Number);
+              percentages.push(...extractedPercentages);
+              foundPercentageRow = true;
+              foundPercentageHeader = true;
+              console.log('📈 Found percentage data in header row:', percentages);
+            }
             continue;
           }
 
-          // Look for percentage data row (after finding header)
+          // Fallback: Look for percentage data in separate row (if not found in header row)
+          if (foundAreaRow && !foundPercentageHeader && rowText.includes('%')) {
+            foundPercentageHeader = true;
+            console.log('📈 Found percentage header (separate row)');
+            continue;
+          }
+
           if (foundPercentageHeader && !foundPercentageRow) {
             const percentageMatches = rowText.match(/\d+\.?\d*/g);
             if (percentageMatches && percentageMatches.length >= pitches.length && !rowText.includes('%')) {
               const extractedPercentages = percentageMatches.slice(0, pitches.length).map(Number);
               percentages.push(...extractedPercentages);
               foundPercentageRow = true;
-              console.log('📈 Found percentage data row:', percentages);
+              console.log('📈 Found percentage data row (separate):', percentages);
             }
             continue;
           }
