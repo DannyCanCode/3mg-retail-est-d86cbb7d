@@ -752,7 +752,8 @@ const SalesRepEstimateFlow: React.FC = () => {
                 measurements={estimateData.measurements}
                 selectedMaterials={estimateData.materials || {}}
                 quantities={estimateData.quantities || {}}
-                laborRates={estimateData.laborRates || {
+                laborRates={{
+                  // Set defaults first
                   laborRate: 85,
                   tearOff: 0,
                   installation: 0,
@@ -783,7 +784,9 @@ const SalesRepEstimateFlow: React.FC = () => {
                   skylights2x4Count: 0,
                   skylights2x4Rate: 370,
                   includeLowSlopeLabor: true,
-                  includeSteepSlopeLabor: true
+                  includeSteepSlopeLabor: true,
+                  // Then override with actual user values (preserves user's permitCount!)
+                  ...(estimateData.laborRates || {})
                 }}
                 profitMargin={estimateData.profitMargin || 30}
                 jobWorksheet={estimateData.jobWorksheet}
