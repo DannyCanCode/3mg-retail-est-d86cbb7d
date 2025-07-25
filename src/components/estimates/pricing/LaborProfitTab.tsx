@@ -357,7 +357,7 @@ export function LaborProfitTab({
     const locationDefaultDumpsterRate = laborRates.dumpsterLocation === "orlando" ? 400 : 500;
 
     // Determine if this change should sync immediately
-    const criticalFields = ['laborRate', 'wastePercentage'];
+    const criticalFields = ['laborRate', 'wastePercentage', 'permitCount'];
     const shouldSyncImmediately = criticalFields.includes(field);
 
     if (field === "dumpsterCount") {
