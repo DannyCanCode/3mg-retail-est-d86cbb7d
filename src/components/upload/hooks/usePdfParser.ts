@@ -680,24 +680,40 @@ export function usePdfParser() {
             continue;
           }
           
-          // Look for "Area (sq ft)" header
-          if (foundPitchRow && !foundAreaHeader && rowText.includes('Area (sq ft)')) {
-            foundAreaHeader = true;
-            console.log('📊 Found Area header');
+          // Look for "Area (sq ft)" which often contains both header AND data in the same row
+          if (foundPitchRow && !foundAreaRow && rowText.includes('Area (sq ft)')) {
+            // Extract area numbers from the same row as the header (e.g., "Area (sq ft)  820.0  123.9  3689.5")
+            const areaMatches = rowText.match(/[\d,]+\.?\d*/g);
+            if (areaMatches && areaMatches.length >= pitches.length) {
+              // Remove commas before converting to numbers, skip the first match if it's just part of "sq ft"
+              const potentialAreas = areaMatches.map(match => Number(match.replace(/,/g, '')));
+              // Take the last N numbers where N = number of pitches (skip any numbers that might be part of "sq ft")
+              const extractedAreas = potentialAreas.slice(-pitches.length);
+              areas.push(...extractedAreas);
+              foundAreaRow = true;
+              foundAreaHeader = true;
+              console.log('📊 Found area data in header row:', areas);
+            }
             continue;
           }
 
-          // Look for area data row (after finding header)
+          // Fallback: Look for area header and data in separate rows (if not found in header row)
+          if (foundPitchRow && !foundAreaHeader && rowText.includes('Area') && !rowText.includes('Area (sq ft)')) {
+            foundAreaHeader = true;
+            console.log('📊 Found Area header (separate row)');
+            continue;
+          }
+
           if (foundAreaHeader && !foundAreaRow) {
             // Match numbers with optional commas and decimals (e.g., 3,180.9 or 207.6)
-            // This row should contain only numbers (and spaces), not the "Area (sq ft)" text
+            // This row should contain only numbers (and spaces), not the "Area" text
             const areaMatches = rowText.match(/[\d,]+\.?\d*/g);
             if (areaMatches && areaMatches.length >= pitches.length && !rowText.includes('Area')) {
               // Remove commas before converting to numbers
               const extractedAreas = areaMatches.slice(0, pitches.length).map(match => Number(match.replace(/,/g, '')));
               areas.push(...extractedAreas);
               foundAreaRow = true;
-              console.log('📊 Found area data row:', areas);
+              console.log('📊 Found area data row (separate):', areas);
             }
             continue;
           }
