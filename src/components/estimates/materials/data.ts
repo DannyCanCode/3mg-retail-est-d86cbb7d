@@ -83,39 +83,39 @@ export const ROOFING_MATERIALS: Material[] = [
   },
   {
     id: "abc-pro-guard-20",
-    name: "ABC Pro Guard 20 (Rhino)",
+    name: "ABC Pro Guard 20 (Rhino) - Double Layer",
     category: MaterialCategory.UNDERLAYMENTS,
     price: 87.88,
     unit: "Roll",
     approxPerSquare: 17.58,
-    coverageRule: { description: "5 Squares/Roll (500 sq ft)", calculation: "Steep Slope Area / 5 rounded up" } 
+    coverageRule: { description: "5 Squares/Roll (500 sq ft) - DOUBLE LAYER on steep slopes", calculation: "Steep Slope Area / 5 rounded up x 2" } 
   },
   {
     id: "gaf-weatherwatch-ice-water-shield",
-    name: "GAF StormGuard Ice & Water Shield",
+    name: "GAF StormGuard Ice & Water Shield (Valleys Only)",
     category: MaterialCategory.UNDERLAYMENTS,
     price: 101.11,
     unit: "Roll",
     approxPerSquare: 50.56,
-    coverageRule: { description: "1.5 Squares/Roll (150 sq ft)", calculation: "Valley Length / 45.5 rounded up" } 
+    coverageRule: { description: "1.5 Squares/Roll (150 sq ft) - VALLEYS ONLY", calculation: "Valley Length / 45.5 rounded up" } 
   },
   {
     id: "gaf-feltbuster-synthetic-underlayment",
-    name: "GAF FeltBuster Synthetic Underlayment (10 sq)",
+    name: "GAF FeltBuster Synthetic Underlayment - Double Layer",
     category: MaterialCategory.UNDERLAYMENTS,
     price: 108.89, 
     unit: "Roll",
     approxPerSquare: 10.89, 
-    coverageRule: { description: "10 Squares/Roll (1,000 sq ft)", calculation: "Total Area / 10 rounded up" } 
+    coverageRule: { description: "10 Squares/Roll (1,000 sq ft) - DOUBLE LAYER on steep slopes", calculation: "Total Area / 10 rounded up x 2" } 
   },
   {
     id: "maxfelt-nc",
-    name: "MaxFelt NC",
+    name: "MaxFelt NC - Double Layer",
     category: MaterialCategory.UNDERLAYMENTS,
     price: 65.56, 
     unit: "Roll",
     approxPerSquare: 6.56,
-    coverageRule: { description: "10 Squares/Roll (1,000 sq ft)", calculation: "Ceiling(Total Squares / 10)" }
+    coverageRule: { description: "10 Squares/Roll (1,000 sq ft) - DOUBLE LAYER on steep slopes", calculation: "Ceiling(Total Squares / 10) x 2" }
   },
   {
     id: "polyglass-ice-water-shield",
@@ -137,12 +137,12 @@ export const ROOFING_MATERIALS: Material[] = [
   },
   {
     id: "poly-glass-irxe",
-    name: "Poly Glass IRXE",
+    name: "Poly Glass IRXE (Valleys Only)",
     category: MaterialCategory.UNDERLAYMENTS,
     price: 67.65,
     unit: "Roll",
     approxPerSquare: 33.83,
-    coverageRule: { description: "2 Squares/Roll (200 sq ft)", calculation: "Valley Length / 45 rounded up" } 
+    coverageRule: { description: "2 Squares/Roll (200 sq ft) - VALLEYS ONLY", calculation: "Valley Length / 45 rounded up" } 
   },
   {
     id: "rhino-g-ps",

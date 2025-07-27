@@ -203,6 +203,20 @@ export const calculateMaterialQuantity = (
       const wasteToApply = (material.id === "abc-pro-guard-20" || material.id === "gaf-weatherwatch-ice-water-shield") ? 0 : actualWasteFactor;
       const finalSquares = totalSquares * (1 + wasteToApply);
       quantity = Math.ceil(finalSquares / squaresPerRoll);
+      
+      // 🔧 DOUBLE LAYER FIX: Synthetic underlayments should ALWAYS be double layer
+      const syntheticUnderlayments = [
+        'abc-pro-guard-20',
+        'gaf-feltbuster-synthetic-underlayment',
+        'max-usa-feltbuster-1000',
+        'maxfelt-nc',
+        'rhino-synthetic'
+      ];
+      
+      if (syntheticUnderlayments.includes(material.id)) {
+        console.log(`[CalcQuantity] 🔧 DOUBLE LAYER: Doubling synthetic underlayment ${material.id}: ${quantity} → ${quantity * 2}`);
+        quantity = quantity * 2;
+      }
     }
     console.log(`[CalcQuantity] Underlayment Result (Area-based for ${material.id}): ${quantity}`);
   }

@@ -3243,16 +3243,14 @@ export function MaterialsSelectionTab({
     
     console.log('🌴 [Florida] Checking underlayment quantities for Florida property');
     
-    // List of underlayment materials that should be doubled in Florida
+    // List of PEEL & STICK underlayment materials that should be doubled in Florida
+    // (Synthetic underlayments are now always doubled in the calculation logic)
     const underlaymentMaterialIds = [
-      'maxfelt-nc',
-      'gaf-feltbuster-synthetic-underlayment', 
-      'abc-pro-guard-20',
-      'gaf-weatherwatch-ice-water-shield',
-      'poly-glass-irxe',
-      'rhino-synthetic',
-      'polyglass-ice-water-shield',
-      'rhino-g-ps'
+      'gaf-weatherwatch-ice-water-shield',  // Storm Guard - peel & stick
+      'poly-glass-irxe',                    // Poly Glass - peel & stick 
+      'polyglass-ice-water-shield',         // Polyglass Ice & Water - peel & stick
+      'rhino-g-ps'                          // Rhino G PS - peel & stick
+      // REMOVED synthetic underlayments as they're now always doubled
     ];
     
     let needsUpdate = false;
