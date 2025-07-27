@@ -1972,11 +1972,13 @@ export function MaterialsSelectionTab({
     // Project managers (sales reps) can only edit JWS accessories, not package materials
     const isReadOnlyForProjectManager = effectiveUserRole === 'rep' && !isJWSAccessory;
     
-    // Check if this is an underlayment in Florida
-    const isFloridaProperty = jobWorksheet?.basic_info?.address && 
-      (jobWorksheet.basic_info.address.toLowerCase().includes('fl') || 
-       jobWorksheet.basic_info.address.toLowerCase().includes('florida'));
-    const isFloridaDoubledUnderlayment = isFloridaProperty && material.category === MaterialCategory.UNDERLAYMENTS;
+    // Check if this is a synthetic underlayment that should be double layer
+    const syntheticDoubleLayerUnderlayments = [
+      'abc-pro-guard-20',
+      'gaf-feltbuster-synthetic-underlayment',
+      'maxfelt-nc'
+    ];
+    const isSyntheticDoubleLayer = syntheticDoubleLayerUnderlayments.includes(materialId);
     
     // Ensure waste factor exists, falling back to the default for the material if not in state yet.
     const currentWasteFactorForMaterial = materialWasteFactors[materialId] ?? determineWasteFactor(material, undefined, dbWastePercentages);
@@ -2168,19 +2170,19 @@ export function MaterialsSelectionTab({
                   </TooltipProvider>
                 )}
               </div>
-              {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isFloridaDoubledUnderlayment) && (
+              {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isSyntheticDoubleLayer) && (
                 <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
                   isLowSlope 
                     ? 'bg-green-100 text-green-800 border border-green-200' 
                     : isSkylightMaterial(materialId)
                     ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-                    : isFloridaDoubledUnderlayment
-                    ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                    : isSyntheticDoubleLayer
+                    ? 'bg-purple-100 text-purple-800 border border-purple-200'
                     : 'bg-blue-100 text-blue-800 border border-blue-200'
                 }`}>
                   {isLowSlope ? '🌿 Low-Slope Required' : 
                    isSkylightMaterial(materialId) ? '☀️ From Job Worksheet' : 
-                   isFloridaDoubledUnderlayment ? '🌴 FL Double Coverage' :
+                   isSyntheticDoubleLayer ? '⬆️ Double Layer' :
                    'Auto-Selected'}
                 </span>
               )}
@@ -2328,7 +2330,7 @@ export function MaterialsSelectionTab({
           {/* Title and Badge Row */}
           <div className="flex items-start justify-between gap-2">
             <span className="font-semibold text-gray-800 text-sm leading-tight">{baseName}</span>
-            {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isFloridaDoubledUnderlayment) && (
+            {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isSyntheticDoubleLayer) && (
               <Badge 
                 variant="default" 
                 className={`text-white text-xs px-1.5 py-0.5 whitespace-nowrap ${
@@ -2336,37 +2338,37 @@ export function MaterialsSelectionTab({
                     ? 'bg-green-600' 
                     : isSkylightMaterial(materialId)
                     ? 'bg-yellow-600'
-                    : isFloridaDoubledUnderlayment
-                    ? 'bg-orange-600'
+                    : isSyntheticDoubleLayer
+                    ? 'bg-purple-600'
                     : 'bg-blue-600'
                 }`}
               >
                 {isLowSlope ? 'Low-Slope Required' : 
                  isSkylightMaterial(materialId) ? 'From Job Worksheet' :
-                 isFloridaDoubledUnderlayment ? 'FL Double Coverage' :
+                 isSyntheticDoubleLayer ? 'Double Layer' :
                  'Auto-Selected'}
               </Badge>
             )}
           </div>
           
           {/* Requirement Text */}
-          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isFloridaDoubledUnderlayment) && (requirementText || isFloridaDoubledUnderlayment) && (
+          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isSyntheticDoubleLayer) && (requirementText || isSyntheticDoubleLayer) && (
             <p className={`text-xs leading-tight font-medium ${
               isLowSlope ? 'text-green-700' : 
               isSkylightMaterial(materialId) ? 'text-yellow-700' : 
-              isFloridaDoubledUnderlayment ? 'text-orange-700' :
+              isSyntheticDoubleLayer ? 'text-purple-700' :
               'text-blue-700'
             }`}>
-              {isFloridaDoubledUnderlayment ? 'Quantity doubled per Florida building code requirements' : requirementText}
+              {isSyntheticDoubleLayer ? 'Double layer application on steep slope areas' : requirementText}
             </p>
           )}
           
           {/* Quantity Summary */}
-          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isFloridaDoubledUnderlayment) && bundleQuantity > 0 && (
+          {(isAutoSelected || isLowSlope || isSkylightMaterial(materialId) || isSyntheticDoubleLayer) && bundleQuantity > 0 && (
             <div className={`text-xs ${
               isLowSlope ? 'text-green-700' : 
               isSkylightMaterial(materialId) ? 'text-yellow-700' : 
-              isFloridaDoubledUnderlayment ? 'text-orange-700' :
+              isSyntheticDoubleLayer ? 'text-purple-700' :
               'text-blue-700'
             }`}>
               <p className="font-medium">
@@ -2377,7 +2379,7 @@ export function MaterialsSelectionTab({
                 {material.coveragePerUnit && (
                   <span className="font-normal"> • Covers approx. {(bundleQuantity * material.coveragePerUnit).toFixed(0)} sq ft</span>
                 )}
-                {isFloridaDoubledUnderlayment && (
+                {isSyntheticDoubleLayer && (
                   <span className="font-normal"> • Base qty: {Math.ceil(bundleQuantity / 2)}</span>
                 )}
               </p>
@@ -3243,14 +3245,11 @@ export function MaterialsSelectionTab({
     
     console.log('🌴 [Florida] Checking underlayment quantities for Florida property');
     
-    // List of PEEL & STICK underlayment materials that should be doubled in Florida
-    // (Synthetic underlayments are now always doubled in the calculation logic)
-    const underlaymentMaterialIds = [
-      'gaf-weatherwatch-ice-water-shield',  // Storm Guard - peel & stick
-      'poly-glass-irxe',                    // Poly Glass - peel & stick 
-      'polyglass-ice-water-shield',         // Polyglass Ice & Water - peel & stick
-      'rhino-g-ps'                          // Rhino G PS - peel & stick
-      // REMOVED synthetic underlayments as they're now always doubled
+    // NO underlayments should be doubled in Florida anymore
+    // Synthetics are already doubled in calculation logic
+    // Storm Guard and Poly Glass IRXE should NEVER be doubled
+    const underlaymentMaterialIds: string[] = [
+      // EMPTY - No Florida-specific doubling needed
     ];
     
     let needsUpdate = false;
