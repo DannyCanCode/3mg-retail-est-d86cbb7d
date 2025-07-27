@@ -335,6 +335,27 @@ export function MaterialsSelectionTab({
       if (count > 0) {
         const material = ROOFING_MATERIALS.find(m => m.id === materialId);
         if (material) {
+          // 🔧 VENTILATION CONFLICT CHECK
+          const offRidgeVentIds = ['lomanco-750d-vent', 'galvanized-steel-off-ridge-vent'];
+          const cobraVentId = 'gaf-cobra-rigid-vent';
+          
+          // Skip cobra vent if off ridge vents exist
+          if (materialId === cobraVentId) {
+            const hasOffRidgeVents = offRidgeVentIds.some(ventId => localSelectedMaterials[ventId]);
+            if (hasOffRidgeVents) {
+              console.log(`⚠️ [Ventilation] Skipped GAF Cobra Vent from Job Worksheet - Off Ridge Vents already selected`);
+              return;
+            }
+          }
+          
+          // Skip off ridge vents if cobra vent exists
+          if (offRidgeVentIds.includes(materialId)) {
+            if (localSelectedMaterials[cobraVentId]) {
+              console.log(`⚠️ [Ventilation] Skipped Off Ridge Vent from Job Worksheet - GAF Cobra Vent already selected`);
+              return;
+            }
+          }
+          
           // Check if material is already in the selected materials with the correct quantity
           const currentQuantity = localQuantities[materialId] || 0;
           const isAlreadyPresent = localSelectedMaterials[materialId] && currentQuantity >= count;
@@ -1307,6 +1328,37 @@ export function MaterialsSelectionTab({
   
   // Add material to selection
   const addMaterial = (materialToAdd: Material) => {
+    // 🔧 VENTILATION CONFLICT RULE: Check for off ridge vent vs cobra vent conflicts
+    const offRidgeVentIds = ['lomanco-750d-vent', 'galvanized-steel-off-ridge-vent'];
+    const cobraVentId = 'gaf-cobra-rigid-vent';
+    
+    // Check if trying to add cobra vent when off ridge vents exist
+    if (materialToAdd.id === cobraVentId) {
+      const hasOffRidgeVents = offRidgeVentIds.some(ventId => localSelectedMaterials[ventId]);
+      if (hasOffRidgeVents) {
+        toast({
+          title: "Ventilation Conflict",
+          description: "Cannot add GAF Cobra Ridge Vent when Off Ridge Vents are selected. Remove Off Ridge Vents first.",
+          variant: "destructive",
+          duration: 4000
+        });
+        return;
+      }
+    }
+    
+    // Check if trying to add off ridge vent when cobra vent exists
+    if (offRidgeVentIds.includes(materialToAdd.id)) {
+      if (localSelectedMaterials[cobraVentId]) {
+        toast({
+          title: "Ventilation Conflict", 
+          description: "Cannot add Off Ridge Vents when GAF Cobra Ridge Vent is selected. Remove Cobra Vent first.",
+          variant: "destructive",
+          duration: 4000
+        });
+        return;
+      }
+    }
+    
     // Determine the override waste factor
     const overrideWaste = materialToAdd.id === "gaf-timberline-hdz-sg" 
       ? gafTimberlineWasteFactor / 100 
@@ -2887,6 +2939,24 @@ export function MaterialsSelectionTab({
                 if (id === "cdx-plywood" && calculatedQuantity <= 0) {
                   finalQuantity = 1; // Default to 1 board for non-flat roofs
                   console.log(`🔧 CDX Plywood: Auto-populated with default quantity 1 for non-flat roof`);
+                }
+
+                // 🔧 VENTILATION CONFLICT CHECK: Skip cobra vent if off ridge vents are selected
+                const offRidgeVentIds = ['lomanco-750d-vent', 'galvanized-steel-off-ridge-vent'];
+                const cobraVentId = 'gaf-cobra-rigid-vent';
+                
+                if (id === cobraVentId) {
+                  const hasOffRidgeVents = offRidgeVentIds.some(ventId => localSelectedMaterials[ventId]);
+                  if (hasOffRidgeVents) {
+                    console.log(`⚠️ Skipped GAF Cobra Vent - Off Ridge Vents already selected (ventilation conflict)`);
+                    toast({
+                      title: "Ventilation Conflict",
+                      description: "GAF Cobra Ridge Vent not added from package because Off Ridge Vents are already selected.",
+                      variant: "default",
+                      duration: 4000
+                    });
+                    return; // Skip adding cobra vent
+                  }
                 }
 
                 // Only add materials with positive calculated quantities (including CDX plywood override)

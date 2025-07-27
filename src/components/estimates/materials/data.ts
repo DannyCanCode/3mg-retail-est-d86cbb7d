@@ -233,9 +233,17 @@ export const ROOFING_MATERIALS: Material[] = [
   },
    {
     id: "lomanco-750d-vent",
-    name: "Lomanco 750D Vent (Turtle Vent)",
+    name: "Lomanco 750D Off Ridge Vent (2ft)",
     category: MaterialCategory.VENTILATION,
     price: 45.00,
+    unit: "Piece",
+    coverageRule: { description: "1 per vent needed", calculation: "Count needed based on ventilation requirements" }
+  },
+  {
+    id: "galvanized-steel-off-ridge-vent",
+    name: "Galvanized Steel Off Ridge Vent (4ft)",
+    category: MaterialCategory.VENTILATION,
+    price: 55.00,
     unit: "Piece",
     coverageRule: { description: "1 per vent needed", calculation: "Count needed based on ventilation requirements" }
   },
