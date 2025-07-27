@@ -360,13 +360,15 @@ export function MaterialsSelectionTab({
           const currentQuantity = localQuantities[materialId] || 0;
           const isAlreadyPresent = localSelectedMaterials[materialId] && currentQuantity >= count;
           
-          if (!isAlreadyPresent) {
-            console.log(`🔧 [Ventilation] Field ${field}: Adding/Updating ${count} x ${material.name} (${materialId})`);
-            // Use the higher quantity (existing or new)
-            const finalQuantity = Math.max(currentQuantity, count);
-            materialsToAdd[materialId] = { material, quantity: finalQuantity };
+          // Always update if new quantity is higher than current
+          if (count > currentQuantity) {
+            console.log(`🔧 [Ventilation] Field ${field}: Updating ${material.name} quantity from ${currentQuantity} to ${count}`);
+            materialsToAdd[materialId] = { material, quantity: count };
+          } else if (!isAlreadyPresent) {
+            console.log(`🔧 [Ventilation] Field ${field}: Adding ${count} x ${material.name} (${materialId})`);
+            materialsToAdd[materialId] = { material, quantity: count };
           } else {
-            console.log(`🔧 [Ventilation] Field ${field}: Material ${materialId} already present with quantity ${currentQuantity}`);
+            console.log(`🔧 [Ventilation] Field ${field}: Material ${materialId} already present with sufficient quantity ${currentQuantity}`);
           }
         } else {
           console.warn(`🔧 [Ventilation] Material not found: ${materialId}`);
@@ -374,13 +376,50 @@ export function MaterialsSelectionTab({
       }
     });
 
-    // If there are materials to add, update the state
-    if (Object.keys(materialsToAdd).length > 0) {
+    // Check if we need to remove conflicting vents
+    const offRidgeVentIds = ['lomanco-750d-vent', 'galvanized-steel-off-ridge-vent'];
+    const cobraVentId = 'gaf-cobra-rigid-vent';
+    let conflictRemoved = false;
+    
+    // If adding off ridge vents, remove cobra vent
+    const addingOffRidgeVents = Object.keys(materialsToAdd).some(id => offRidgeVentIds.includes(id));
+    if (addingOffRidgeVents && localSelectedMaterials[cobraVentId]) {
+      console.log('🔧 [Ventilation] Removing GAF Cobra Vent due to Off Ridge Vent conflict');
+      conflictRemoved = true;
+    }
+    
+    // If adding cobra vent, remove off ridge vents
+    const addingCobraVent = materialsToAdd[cobraVentId];
+    if (addingCobraVent) {
+      offRidgeVentIds.forEach(ventId => {
+        if (localSelectedMaterials[ventId]) {
+          console.log(`🔧 [Ventilation] Removing ${ventId} due to Cobra Vent conflict`);
+          conflictRemoved = true;
+        }
+      });
+    }
+
+    // If there are materials to add or conflicts to remove, update the state
+    if (Object.keys(materialsToAdd).length > 0 || conflictRemoved) {
       console.log('🔧 [Ventilation] Updating state with materials:', Object.keys(materialsToAdd));
       isInternalChange.current = true; // Mark as internal change to prevent reset
       
       setLocalSelectedMaterials(prev => {
         const newMaterials = { ...prev };
+        
+        // Remove conflicting vents
+        if (addingOffRidgeVents && prev[cobraVentId]) {
+          delete newMaterials[cobraVentId];
+        }
+        if (addingCobraVent) {
+          offRidgeVentIds.forEach(ventId => {
+            if (prev[ventId]) {
+              delete newMaterials[ventId];
+            }
+          });
+        }
+        
+        // Add new materials
         Object.entries(materialsToAdd).forEach(([materialId, { material }]) => {
           newMaterials[materialId] = material;
         });
@@ -389,6 +428,20 @@ export function MaterialsSelectionTab({
 
       setLocalQuantities(prev => {
         const newQuantities = { ...prev };
+        
+        // Remove conflicting vent quantities
+        if (addingOffRidgeVents && prev[cobraVentId]) {
+          delete newQuantities[cobraVentId];
+        }
+        if (addingCobraVent) {
+          offRidgeVentIds.forEach(ventId => {
+            if (prev[ventId]) {
+              delete newQuantities[ventId];
+            }
+          });
+        }
+        
+        // Add new quantities
         Object.entries(materialsToAdd).forEach(([materialId, { quantity }]) => {
           newQuantities[materialId] = quantity;
         });
@@ -397,6 +450,20 @@ export function MaterialsSelectionTab({
 
       setDisplayQuantities(prev => {
         const newDisplayQuantities = { ...prev };
+        
+        // Remove conflicting vent display quantities
+        if (addingOffRidgeVents && prev[cobraVentId]) {
+          delete newDisplayQuantities[cobraVentId];
+        }
+        if (addingCobraVent) {
+          offRidgeVentIds.forEach(ventId => {
+            if (prev[ventId]) {
+              delete newDisplayQuantities[ventId];
+            }
+          });
+        }
+        
+        // Add new display quantities
         Object.entries(materialsToAdd).forEach(([materialId, { quantity }]) => {
           newDisplayQuantities[materialId] = quantity.toString();
         });
@@ -405,6 +472,20 @@ export function MaterialsSelectionTab({
 
       setMaterialWasteFactors(prev => {
         const newFactors = { ...prev };
+        
+        // Remove conflicting vent waste factors
+        if (addingOffRidgeVents && prev[cobraVentId]) {
+          delete newFactors[cobraVentId];
+        }
+        if (addingCobraVent) {
+          offRidgeVentIds.forEach(ventId => {
+            if (prev[ventId]) {
+              delete newFactors[ventId];
+            }
+          });
+        }
+        
+        // Add new waste factors
         Object.keys(materialsToAdd).forEach(materialId => {
           newFactors[materialId] = 0; // Ventilation has 0% waste
         });
@@ -413,6 +494,20 @@ export function MaterialsSelectionTab({
 
       setUserOverriddenWaste(prev => {
         const newOverrides = { ...prev };
+        
+        // Remove conflicting vent overrides
+        if (addingOffRidgeVents && prev[cobraVentId]) {
+          delete newOverrides[cobraVentId];
+        }
+        if (addingCobraVent) {
+          offRidgeVentIds.forEach(ventId => {
+            if (prev[ventId]) {
+              delete newOverrides[ventId];
+            }
+          });
+        }
+        
+        // Add new overrides
         Object.keys(materialsToAdd).forEach(materialId => {
           newOverrides[materialId] = false;
         });
@@ -420,7 +515,17 @@ export function MaterialsSelectionTab({
       });
 
       setMaterialOrder(prev => {
-        const newOrder = [...prev];
+        let newOrder = [...prev];
+        
+        // Remove conflicting vents from order
+        if (addingOffRidgeVents) {
+          newOrder = newOrder.filter(id => id !== cobraVentId);
+        }
+        if (addingCobraVent) {
+          newOrder = newOrder.filter(id => !offRidgeVentIds.includes(id));
+        }
+        
+        // Add new materials to order
         Object.keys(materialsToAdd).forEach(materialId => {
           if (!newOrder.includes(materialId)) {
             newOrder.push(materialId);
@@ -431,17 +536,24 @@ export function MaterialsSelectionTab({
 
       // Show toast notification
       const addedCount = Object.keys(materialsToAdd).length;
+      let toastMessage = `Added ${addedCount} ventilation material${addedCount > 1 ? 's' : ''} based on Job Worksheet selections.`;
+      
+      if (conflictRemoved) {
+        toastMessage += " Conflicting ventilation was automatically removed.";
+      }
+      
       toast({
-        title: "Ventilation Materials Added",
-        description: `Added ${addedCount} ventilation material${addedCount > 1 ? 's' : ''} based on Job Worksheet selections.`,
-        duration: 3000,
+        title: "Ventilation Materials Updated",
+        description: toastMessage,
+        duration: 4000,
+        variant: conflictRemoved ? "default" : undefined
       });
       
       console.log('🔧 [Ventilation] Ventilation materials successfully applied');
     } else {
       console.log('🔧 [Ventilation] No ventilation materials to add');
     }
-  }, [jobWorksheet?.ventilation, measurements, Object.keys(localSelectedMaterials).length]);
+  }, [jobWorksheet?.ventilation, measurements]); // Removed material count dependency to ensure ventilation updates are always processed
 
   // Auto-populate accessories from Job Worksheet
   useEffect(() => {
@@ -1334,7 +1446,13 @@ export function MaterialsSelectionTab({
     
     // Check if trying to add cobra vent when off ridge vents exist
     if (materialToAdd.id === cobraVentId) {
-      const hasOffRidgeVents = offRidgeVentIds.some(ventId => localSelectedMaterials[ventId]);
+      const hasOffRidgeVents = offRidgeVentIds.some(ventId => {
+        const hasVent = localSelectedMaterials[ventId] && localQuantities[ventId] > 0;
+        if (hasVent) {
+          console.log(`🚫 Conflict: Found ${ventId} with quantity ${localQuantities[ventId]}`);
+        }
+        return hasVent;
+      });
       if (hasOffRidgeVents) {
         toast({
           title: "Ventilation Conflict",
@@ -1348,7 +1466,9 @@ export function MaterialsSelectionTab({
     
     // Check if trying to add off ridge vent when cobra vent exists
     if (offRidgeVentIds.includes(materialToAdd.id)) {
-      if (localSelectedMaterials[cobraVentId]) {
+      const hasCobraVent = localSelectedMaterials[cobraVentId] && localQuantities[cobraVentId] > 0;
+      if (hasCobraVent) {
+        console.log(`🚫 Conflict: Found cobra vent with quantity ${localQuantities[cobraVentId]}`);
         toast({
           title: "Ventilation Conflict", 
           description: "Cannot add Off Ridge Vents when GAF Cobra Ridge Vent is selected. Remove Cobra Vent first.",
@@ -2945,8 +3065,15 @@ export function MaterialsSelectionTab({
                 const offRidgeVentIds = ['lomanco-750d-vent', 'galvanized-steel-off-ridge-vent'];
                 const cobraVentId = 'gaf-cobra-rigid-vent';
                 
+                let skipDueToConflict = false;
                 if (id === cobraVentId) {
-                  const hasOffRidgeVents = offRidgeVentIds.some(ventId => localSelectedMaterials[ventId]);
+                  const hasOffRidgeVents = offRidgeVentIds.some(ventId => {
+                    const hasVent = localSelectedMaterials[ventId] && localQuantities[ventId] > 0;
+                    if (hasVent) {
+                      console.log(`⚠️ Found conflicting vent: ${ventId} with quantity ${localQuantities[ventId]}`);
+                    }
+                    return hasVent;
+                  });
                   if (hasOffRidgeVents) {
                     console.log(`⚠️ Skipped GAF Cobra Vent - Off Ridge Vents already selected (ventilation conflict)`);
                     toast({
@@ -2955,12 +3082,12 @@ export function MaterialsSelectionTab({
                       variant: "default",
                       duration: 4000
                     });
-                    return; // Skip adding cobra vent
+                    skipDueToConflict = true;
                   }
                 }
 
-                // Only add materials with positive calculated quantities (including CDX plywood override)
-                if (finalQuantity > 0) {
+                // Only add materials with positive calculated quantities (including CDX plywood override) and no conflicts
+                if (finalQuantity > 0 && !skipDueToConflict) {
                   newMaterials[id] = material;
                   newQuantities[id] = finalQuantity;
                   newWasteFactors[id] = actualWasteFactor;
