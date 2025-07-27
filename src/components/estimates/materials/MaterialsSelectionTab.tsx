@@ -2646,7 +2646,7 @@ export function MaterialsSelectionTab({
         "gaf-weatherwatch-ice-water-shield",
         "abc-pro-guard-20", // GAF 1 only
         "gaf-feltbuster-synthetic-underlayment", // GAF 2 only
-        "gaf-cobra-rigid-vent", // GAF 2 only
+        "gaf-cobra-rigid-vent", // GAF 2 and 3MG Select
         "adjustable-lead-pipe-flashing-4inch",
         "master-sealant",
         "cdx-plywood",
@@ -2660,9 +2660,12 @@ export function MaterialsSelectionTab({
         "oc-oakridge",
         "oc-hip-ridge", 
         "oc-starter",
-        "poly-glass-irxe", // Used in both GAF and OC packages
-        // 3MG Select Materials
-        "gaf-uhdz-shingles"
+        "poly-glass-irxe", // Used in GAF, OC and 3MG packages
+        // 3MG Materials (Standard and Select)
+        "maxfelt-nc", // Used in 3MG Standard - OC and 3MG Select
+        "gaf-uhdz-shingles", // Wrong ID - not used
+        "gaf-uhdz", // Correct ID for 3MG Select
+        "soffit-vents-continuous" // Used in 3MG Select
       ];
       
       // 🔧 PRESERVE ORDER: Remove all package materials when switching, preserve accessories/ventilation
